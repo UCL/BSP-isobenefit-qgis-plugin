@@ -2,6 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
+**/temp/**
+.DS_Store
+.ipynb_checkpoints
+**/.ipynb_checkpoints/*
+.pdm.toml
 
 # C extensions
 *.so

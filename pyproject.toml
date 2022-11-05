@@ -1,0 +1,140 @@
+[project]
+name = "future-urban-growth"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Gareth Simons", email = "garethsimons@me.com"},
+]
+dependencies = [
+    "numpy>=1.23.4",
+    "matplotlib>=3.6.2",
+    "Pillow>=9.3.0",
+    "scipy>=1.9.3",
+    "PyQt5>=5.15.7",
+    "pytest-qgis>=1.3.2",
+    "pb-tool>=3.1.0",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+[project.optional-dependencies]
+
+[build-system]
+requires = ["pdm-pep517>=1.0.0"]
+build-backend = "pdm.pep517.api"
+
+[project.urls]
+homepage = "https://github.com/songololo/isobenefit-cities"
+documentation = "https://github.com/songololo/isobenefit-cities"
+repository = "https://github.com/songololo/isobenefit-cities"
+
+
+[tool]
+[tool.pdm]
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.2.0",
+    "pylint>=2.15.5",
+    "black>=22.10.0",
+    "isort>=5.10.1",
+    "jupyter-black>=0.3.1",
+    "coverage>=6.5.0",
+    "pyright>=1.1.278",
+    "qgis-stubs>=0.2.0.post1",
+    "pyqt5-stubs>=5.15.6.0",
+    "pb-tool>=3.1.0",
+]
+
+
+[tool.pdm.scripts]
+docstyle = "pydocstyle --config=pyproject.toml"
+formatting = { shell = "black --config=pyproject.toml ./ && isort --settings-file=pyproject.toml ./" }
+typechecks = "pyright ."
+linting = "pylint --rcfile=pyproject.toml ./src"
+tests = "pytest ./tests"
+coverage_run = "coverage run pytest"
+coverage_report = { shell = "coverage report --show-missing --skip-empty && coverage lcov" }
+
+[tool.black]
+line-length = 120
+color = true
+
+[tool.pylint.master]
+disable = [
+  "logging-fstring-interpolation",
+]
+jobs = 0
+output-format = "colorized"
+
+[tool.pylint.basic]
+good-names = [
+  "x",
+  "y",
+  "xs",
+  "ys",
+  "wt",
+]
+
+[tool.pylint.design]
+max-args = 10
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.logging]
+
+# https://github.com/microsoft/pyright/blob/main/docs/configuration.md#sample-pyprojecttoml-file
+[tool.pyright]
+pythonVersion = "3.10"
+include = ["src"]
+exclude = [
+  "**/node_modules",
+  "**/__pycache__",
+  "**/__pypackages__",
+  "build",
+  "demos",
+  "docs",
+  "**/temp/",
+  "tests/",
+  "dist",
+  ".venv",
+]
+typeCheckingMode = "strict"
+stubPath = "src/stubs"
+useLibraryCodeForTypes = true
+
+[tool.pydocstyle]
+# http://www.pydocstyle.org/en/stable/error_codes.html
+ignore = [
+  # "D100", # Missing docstring in public module
+]
+match = "(?!test_).*\\.py"
+match_dir = "^(?!(__pypackages__|.venv|build|demos|docs|tests)).*"
+
+[tool.isort]
+profile = "black"
+skip_gitignore = true
+line_length = 120
+atomic = true
+filter_files = true
+src_paths = ["src", "tests"]
+
+[tool.pytest.ini_options]
+console_output_style = "count"
+log_cli = true
+log_cli_level = "INFO"
+testpaths = ["tests"]
+# addopts = "--ignore=tests/test_performance.py"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+  "**/__init__.py",
+]
+
+[tool.coverage.report]
+include = ["src/**"]
+omit = [
+  "**/__init__.py",
+]
