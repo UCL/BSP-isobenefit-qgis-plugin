@@ -17,15 +17,17 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+import os.path
+
+from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
-# Initialize Qt resources from file resources.py
-from .resources import *
 # Import the code for the dialog
 from .futurb_dialog import FuturbDialog
-import os.path
+
+# Initialize Qt resources from file resources.py
+from .resources import *
 
 
 class Futurb:
@@ -44,17 +46,14 @@ class Futurb:
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'Futurb_{}.qm'.format(locale))
+        locale = QSettings().value("locale/userLocale")[0:2]
+        locale_path = os.path.join(self.plugin_dir, "i18n", "Futurb_{}.qm".format(locale))
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
 
-            if qVersion() > '4.3.3':
+            if qVersion() > "4.3.3":
                 QCoreApplication.installTranslator(self.translator)
 
         # Create the dialog (after translation) and keep reference
@@ -62,10 +61,10 @@ class Futurb:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Future Urban Growth test.')
+        self.menu = self.tr("&Future Urban Growth test.")
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar(u'Futurb')
-        self.toolbar.setObjectName(u'Futurb')
+        self.toolbar = self.iface.addToolBar("Futurb")
+        self.toolbar.setObjectName("Futurb")
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -80,8 +79,7 @@ class Futurb:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('Futurb', message)
-
+        return QCoreApplication.translate("Futurb", message)
 
     def add_action(
         self,
@@ -93,7 +91,8 @@ class Futurb:
         add_to_toolbar=True,
         status_tip=None,
         whats_this=None,
-        parent=None):
+        parent=None,
+    ):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -150,9 +149,7 @@ class Futurb:
         if add_to_menu:
             # Customize the iface method if you want to add to a specific
             # menu (for example iface.addToVectorMenu):
-            self.iface.addPluginToMenu(
-                self.menu,
-                action)
+            self.iface.addPluginToMenu(self.menu, action)
 
         self.actions.append(action)
 
@@ -161,24 +158,18 @@ class Futurb:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/futurb/icon.png'
+        icon_path = ":/plugins/futurb/icon.png"
         self.add_action(
-            icon_path,
-            text=self.tr(u'Future Urban Growth test.'),
-            callback=self.run,
-            parent=self.iface.mainWindow())
-
+            icon_path, text=self.tr("Future Urban Growth test."), callback=self.run, parent=self.iface.mainWindow()
+        )
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginMenu(
-                self.tr(u'&Future Urban Growth test.'),
-                action)
+            self.iface.removePluginMenu(self.tr("&Future Urban Growth test."), action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
-
 
     def run(self):
         """Run method that performs all the real work"""

@@ -6,6 +6,11 @@ Future Urban Growth (Isobenefit Cities)
 
 - `brew install qt5 pyqt pdm qgis`
 - `pdm install`
+- add `.env` file with path appendages:
+
+```bash
+PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/plugins:/Applications/Qgis.app/Contents/Resources/python"
+```
 
 ## References
 

@@ -30,4 +30,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     """
     #
     from .futurb import Futurb
+
     return Futurb(iface)
