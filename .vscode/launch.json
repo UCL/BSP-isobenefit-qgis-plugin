@@ -15,7 +15,7 @@
       "pathMappings": [
         {
           "localRoot": "${workspaceFolder}/isobenefit_cities",
-          "remoteRoot": "C:/Users/${env:USERNAME}/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins/isobenefit_cities"
+          "remoteRoot": "/Users/gareth/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/isobenefit_cities"
         }
       ]
     },
