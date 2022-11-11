@@ -1,6 +1,9 @@
 """ """
+from __future__ import annotations
+
 import logging
 
+from qgis.gui import QgsFileWidget
 from qgis.PyQt import QtCore, QtWidgets
 
 logging.basicConfig(level=logging.INFO)
@@ -8,203 +11,107 @@ logger = logging.getLogger(__name__)
 
 
 class FuturbDialog(QtWidgets.QDialog):
-
-    button_box: QtWidgets.QDialogButtonBox
-    n_iterations: QtWidgets.QLineEdit
-    isobenefit: QtWidgets.QPushButton
-    classical: QtWidgets.QPushButton
-    x_size: QtWidgets.QLineEdit
-    y_size: QtWidgets.QLineEdit
-    build_prob: QtWidgets.QSlider
-    build_prob_val: QtWidgets.QLabel
-    new_cent_p1: QtWidgets.QLineEdit
-    new_cent_p2: QtWidgets.QLineEdit
-    t_star: QtWidgets.QLineEdit
-    random_seed: QtWidgets.QLineEdit
-    layers_list: QtWidgets.QListWidget
+    """ """
 
     def __init__(self, parent: QtWidgets.QWidget | None = None):
-        """Constructor."""
+        """ """
         super(FuturbDialog, self).__init__(parent)
         self.setupUi()
-        self.handle_build_prob()
-        self.build_prob.valueChanged.connect(self.handle_build_prob)
 
-    def handle_build_prob(self) -> None:
-        """ """
-        new_val: int = self.build_prob.value()
-        dec_val: float = new_val / 100
-        self.build_prob_val.setText(str(dec_val))
+    def toggle_model_btns(self, mode: str) -> None:
+        """Pressing one button should cancel the other."""
+        if mode == "isobenefit" and self.classical_btn.isChecked():
+            self.isobenefit_btn.setChecked(True)
+            self.classical_btn.setChecked(False)
+        elif mode == "classical" and self.isobenefit_btn.isChecked():
+            self.isobenefit_btn.setChecked(False)
+            self.classical_btn.setChecked(True)
 
     def setupUi(self):
         """ """
         self.setObjectName("FuturbDialog")
-        self.resize(398, 740)
-        self.button_box = QtWidgets.QDialogButtonBox(self)
-        self.button_box.setGeometry(QtCore.QRect(20, 690, 341, 32))
-        self.button_box.setOrientation(QtCore.Qt.Horizontal)
-        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
-        self.button_box.setObjectName("button_box")
-        self.isobenefit = QtWidgets.QPushButton(self)
-        self.isobenefit.setGeometry(QtCore.QRect(80, 50, 100, 50))
-        self.isobenefit.setObjectName("isobenefit")
-        self.classical = QtWidgets.QPushButton(self)
-        self.classical.setEnabled(True)
-        self.classical.setGeometry(QtCore.QRect(220, 50, 100, 50))
-        self.classical.setObjectName("classical")
-        self.x_size = QtWidgets.QLineEdit(self)
-        self.x_size.setGeometry(QtCore.QRect(110, 150, 80, 40))
-        self.x_size.setText("")
-        self.x_size.setObjectName("x_size")
-        self.y_size = QtWidgets.QLineEdit(self)
-        self.y_size.setGeometry(QtCore.QRect(210, 150, 80, 40))
-        self.y_size.setText("")
-        self.y_size.setObjectName("y_size")
-        self.label_model_type = QtWidgets.QLabel(self)
-        self.label_model_type.setGeometry(QtCore.QRect(140, 10, 100, 30))
-        self.label_model_type.setObjectName("label_model_type")
-        self.label_grid_size = QtWidgets.QLabel(self)
-        self.label_grid_size.setGeometry(QtCore.QRect(150, 120, 100, 30))
-        self.label_grid_size.setObjectName("label_grid_size")
-        self.max_population = QtWidgets.QLineEdit(self)
-        self.max_population.setGeometry(QtCore.QRect(210, 270, 121, 30))
-        self.max_population.setObjectName("max_population")
-        self.label_max_pop = QtWidgets.QLabel(self)
-        self.label_max_pop.setGeometry(QtCore.QRect(90, 260, 100, 30))
-        self.label_max_pop.setObjectName("label_max_pop")
-        self.label_max_ab_km2 = QtWidgets.QLabel(self)
-        self.label_max_ab_km2.setGeometry(QtCore.QRect(90, 330, 100, 30))
-        self.label_max_ab_km2.setObjectName("label_max_ab_km2")
-        self.max_ab_km2 = QtWidgets.QLineEdit(self)
-        self.max_ab_km2.setGeometry(QtCore.QRect(210, 330, 121, 30))
-        self.max_ab_km2.setObjectName("max_ab_km2")
-        self.new_cent_p1 = QtWidgets.QLineEdit(self)
-        self.new_cent_p1.setGeometry(QtCore.QRect(210, 450, 121, 30))
-        self.new_cent_p1.setObjectName("new_cent_p1")
-        self.label_new_cent_P1 = QtWidgets.QLabel(self)
-        self.label_new_cent_P1.setGeometry(QtCore.QRect(90, 450, 100, 30))
-        self.label_new_cent_P1.setObjectName("label_new_cent_P1")
-        self.new_cent_p2 = QtWidgets.QLineEdit(self)
-        self.new_cent_p2.setGeometry(QtCore.QRect(210, 510, 121, 30))
-        self.new_cent_p2.setObjectName("new_cent_p2")
-        self.label_new_cent_P2 = QtWidgets.QLabel(self)
-        self.label_new_cent_P2.setGeometry(QtCore.QRect(90, 510, 100, 30))
-        self.label_new_cent_P2.setObjectName("label_new_cent_P2")
-        self.t_star = QtWidgets.QLineEdit(self)
-        self.t_star.setGeometry(QtCore.QRect(210, 570, 121, 30))
-        self.t_star.setObjectName("t_star")
-        self.label_t_star = QtWidgets.QLabel(self)
-        self.label_t_star.setGeometry(QtCore.QRect(90, 570, 100, 30))
-        self.label_t_star.setObjectName("label_t_star")
-        self.random_seed = QtWidgets.QLineEdit(self)
-        self.random_seed.setGeometry(QtCore.QRect(210, 630, 121, 30))
-        self.random_seed.setObjectName("random_seed")
-        self.label_random_seed = QtWidgets.QLabel(self)
-        self.label_random_seed.setGeometry(QtCore.QRect(90, 630, 100, 30))
-        self.label_random_seed.setObjectName("label_random_seed")
-        self.label_iters = QtWidgets.QLabel(self)
-        self.label_iters.setGeometry(QtCore.QRect(60, 100, 56, 249))
-        self.label_iters.setObjectName("label_iters")
-        self.n_iterations = QtWidgets.QLineEdit(self)
-        self.n_iterations.setGeometry(QtCore.QRect(200, 210, 319, 21))
-        self.n_iterations.setObjectName("n_iterations")
-        self.widget = QtWidgets.QWidget(self)
-        self.widget.setGeometry(QtCore.QRect(40, 370, 311, 51))
-        self.widget.setObjectName("widget")
-        self.horizontalLayout = QtWidgets.QHBoxLayout(self.widget)
-        self.horizontalLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
-        self.horizontalLayout.setContentsMargins(5, 5, 5, 5)
-        self.horizontalLayout.setObjectName("horizontalLayout")
-        self.build_prob_label = QtWidgets.QLabel(self.widget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.build_prob_label.sizePolicy().hasHeightForWidth())
-        self.build_prob_label.setSizePolicy(sizePolicy)
-        self.build_prob_label.setObjectName("build_prob_label")
-        self.horizontalLayout.addWidget(self.build_prob_label)
-        self.build_prob = QtWidgets.QSlider(self.widget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.build_prob.sizePolicy().hasHeightForWidth())
-        self.build_prob.setSizePolicy(sizePolicy)
-        self.build_prob.setMinimumSize(QtCore.QSize(84, 0))
-        self.build_prob.setMinimum(5)
-        self.build_prob.setMaximum(95)
-        self.build_prob.setSingleStep(5)
-        self.build_prob.setPageStep(5)
-        self.build_prob.setProperty("value", 30)
-        self.build_prob.setOrientation(QtCore.Qt.Horizontal)
-        self.build_prob.setInvertedControls(False)
-        self.build_prob.setTickPosition(QtWidgets.QSlider.TicksBelow)
-        self.build_prob.setTickInterval(10)
-        self.build_prob.setObjectName("build_prob")
-        self.horizontalLayout.addWidget(self.build_prob)
-        self.build_prob_val = QtWidgets.QLabel(self.widget)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Preferred)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.build_prob_val.sizePolicy().hasHeightForWidth())
-        self.build_prob_val.setSizePolicy(sizePolicy)
-        self.build_prob_val.setObjectName("build_prob_val")
-        self.horizontalLayout.addWidget(self.build_prob_val)
+        self.setWindowTitle("Future Urban Growth simulator")
+        # overall grid layout
+        self.grid = QtWidgets.QGridLayout(self)
+        # model mode buttons
+        self.model_mode_label = QtWidgets.QLabel("Model", self)
+        self.grid.addWidget(self.model_mode_label, 0, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
+        # isobenefit
+        self.isobenefit_btn = QtWidgets.QPushButton("Isobenefit", self)
+        self.isobenefit_btn.setCheckable(True)
+        self.isobenefit_btn.clicked.connect(lambda: self.toggle_model_btns("isobenefit"))
+        self.isobenefit_btn.setFixedWidth(175)
+        self.grid.addWidget(self.isobenefit_btn, 1, 0)
+        # classical button
+        self.classical_btn = QtWidgets.QPushButton("Classical", self)
+        self.classical_btn.setCheckable(True)
+        self.classical_btn.clicked.connect(lambda: self.toggle_model_btns("classical"))
+        self.classical_btn.setFixedWidth(175)
+        self.grid.addWidget(self.classical_btn, 1, 1)
+        # prime to isoboenefit mode
+        self.toggle_model_btns("isobenefit")
+        # grid size
+        self.grid_size_label = QtWidgets.QLabel("Grid Size", self)
+        self.grid.addWidget(self.grid_size_label, 2, 0, alignment=QtCore.Qt.AlignRight)
+        self.grid_size = QtWidgets.QLineEdit("1", self)
+        self.grid.addWidget(self.grid_size, 2, 1)
+        # iterations
+        self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
+        self.grid.addWidget(self.n_iterations_label, 3, 0, alignment=QtCore.Qt.AlignRight)
+        self.n_iterations = QtWidgets.QLineEdit("20", self)
+        self.grid.addWidget(self.n_iterations, 3, 1)
+        # max population
+        self.max_population_label = QtWidgets.QLabel("Max Population", self)
+        self.grid.addWidget(self.max_population_label, 4, 0, alignment=QtCore.Qt.AlignRight)
+        self.max_population = QtWidgets.QLineEdit("100000", self)
+        self.grid.addWidget(self.max_population, 4, 1)
+        # max ab / km2
+        self.max_ab_km2_label = QtWidgets.QLabel("Max ab/km2", self)
+        self.grid.addWidget(self.max_ab_km2_label, 5, 0, alignment=QtCore.Qt.AlignRight)
+        self.max_ab_km2 = QtWidgets.QLineEdit("10000", self)
+        self.grid.addWidget(self.max_ab_km2, 5, 1)
+        # build prob
+        self.build_prob_label = QtWidgets.QLabel("Build probability", self)
+        self.grid.addWidget(self.build_prob_label, 6, 0, alignment=QtCore.Qt.AlignRight)
+        self.build_prob = QtWidgets.QLineEdit("0.3", self)
+        self.grid.addWidget(self.build_prob, 6, 1)
+        # cent P1
+        self.new_cent_p1_label = QtWidgets.QLabel("New cent prob 1", self)
+        self.grid.addWidget(self.new_cent_p1_label, 7, 0, alignment=QtCore.Qt.AlignRight)
+        self.new_cent_p1 = QtWidgets.QLineEdit("0.1", self)
+        self.grid.addWidget(self.new_cent_p1, 7, 1)
+        # cent P2
+        self.new_cent_p2_label = QtWidgets.QLabel("New cent prob 2", self)
+        self.grid.addWidget(self.new_cent_p2_label, 8, 0, alignment=QtCore.Qt.AlignRight)
+        self.new_cent_p2 = QtWidgets.QLineEdit("0.0", self)
+        self.grid.addWidget(self.new_cent_p2, 8, 1)
+        # T star
+        self.t_star_label = QtWidgets.QLabel("T*", self)
+        self.grid.addWidget(self.t_star_label, 9, 0, alignment=QtCore.Qt.AlignRight)
+        self.t_star = QtWidgets.QLineEdit("5", self)
+        self.grid.addWidget(self.t_star, 9, 1)
+        # random seed
+        self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
+        self.grid.addWidget(self.random_seed_label, 10, 0, alignment=QtCore.Qt.AlignRight)
+        self.random_seed = QtWidgets.QLineEdit("42", self)
+        self.grid.addWidget(self.random_seed, 10, 1)
+        # layers list
+        self.layers_list_label = QtWidgets.QLabel("Input layer", self)
+        self.grid.addWidget(self.layers_list_label, 11, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
         self.layers_list = QtWidgets.QListWidget()
-        self.layers_list.setGeometry(QtCore.QRect(10, 460, 141, 192))
-        self.layers_list.setObjectName("layers_list")
-
-        self.retranslateUi()
-        self.button_box.accepted.connect(self.accept)  # type: ignore
-        self.button_box.rejected.connect(self.reject)  # type: ignore
-        # QtCore.QMetaObject.connectSlotsByName()
-
-    def retranslateUi(self):
-        """ """
-        _translate = QtCore.QCoreApplication.translate
-        self.setWindowTitle(_translate("", "Future Urban Growth test."))
-        self.isobenefit.setText(_translate("", "IsoBenefit"))
-        self.classical.setText(_translate("", "Classical"))
-        self.x_size.setPlaceholderText(_translate("", "x"))
-        self.y_size.setPlaceholderText(_translate("", "y"))
-        self.label_model_type.setText(
-            _translate("", '<html><head/><body><p align="center">Model Type</p></body></html>')
-        )
-        self.label_grid_size.setText(_translate("", '<html><head/><body><p align="center">Grid Size</p></body></html>'))
-        self.max_population.setText(_translate("", "100000"))
-        self.max_population.setPlaceholderText(_translate("", "max population"))
-        self.label_max_pop.setText(
-            _translate("", '<html><head/><body><p align="right">Max Population</p></body></html>')
-        )
-        self.label_max_ab_km2.setText(
-            _translate("", '<html><head/><body><p align="right">Max ab/km2</p></body></html>')
-        )
-        self.max_ab_km2.setText(_translate("", "10000"))
-        self.max_ab_km2.setPlaceholderText(_translate("", "max ab/km2"))
-        self.new_cent_p1.setText(_translate("", "0.1"))
-        self.new_cent_p1.setPlaceholderText(_translate("", "new centrality P2"))
-        self.label_new_cent_P1.setText(
-            _translate("", '<html><head/><body><p align="right">New Centrality P1</p></body></html>')
-        )
-        self.new_cent_p2.setText(_translate("", "0"))
-        self.new_cent_p2.setPlaceholderText(_translate("", "new centrality P2"))
-        self.label_new_cent_P2.setText(
-            _translate("", '<html><head/><body><p align="right">New Centrality P2</p></body></html>')
-        )
-        self.t_star.setText(_translate("", "5"))
-        self.t_star.setPlaceholderText(_translate("", "T star"))
-        self.label_t_star.setText(_translate("", '<html><head/><body><p align="right">T star</p></body></html>'))
-        self.random_seed.setText(_translate("", "42"))
-        self.random_seed.setPlaceholderText(_translate("", "random seed"))
-        self.label_random_seed.setText(
-            _translate("", '<html><head/><body><p align="right">Random Seed</p></body></html>')
-        )
-        self.label_iters.setText(_translate("", '<html><head/><body><p align="right">Iterations</p></body></html>'))
-        self.n_iterations.setText(_translate("", "20"))
-        self.n_iterations.setPlaceholderText(_translate("", "iterations"))
-        self.build_prob_label.setText(
-            _translate("", '<html><head/><body><p align="right">Build Probability</p></body></html>')
-        )
-        self.build_prob_val.setText(_translate("", '<html><head/><body><p align="center">0.0</p></body></html>'))
+        self.grid.addWidget(self.layers_list, 12, 0, 2, 2)
+        # file output
+        self.file_output_label = QtWidgets.QLabel("File output path", self)
+        self.grid.addWidget(self.file_output_label, 14, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
+        self.file_output = QgsFileWidget(self)
+        self.file_output.setStorageMode(QgsFileWidget.SaveFile)
+        self.grid.addWidget(self.file_output, 15, 0, 1, 2)
+        # Cancel / OK buttons
+        self.button_box = QtWidgets.QDialogButtonBox(self)
+        self.grid.addWidget(self.button_box, 16, 0, 1, 2)
+        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
 
 
 if __name__ == "__main__":
