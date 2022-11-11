@@ -1,22 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-/***************************************************************************
- Futurb
-                                 A QGIS plugin
-                              -------------------
-        copyright            : (C) 2022 by Gareth Simons
-        email                : garethsimons@me.com
- ***************************************************************************/
-
-/***************************************************************************
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- ***************************************************************************/
-"""
+""" """
 from __future__ import annotations
 
 import os.path
@@ -31,13 +13,11 @@ from qgis.core import (
     QgsProject,
     QgsRasterBlock,
     QgsRasterLayer,
-    QgsVectorLayer,
-    QgsWkbTypes,
 )
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QListWidgetItem, QToolBar, QWidget
+from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 from shapely import geometry, wkt
 from shapely.geometry.polygon import orient
 
@@ -190,89 +170,30 @@ class Futurb:
         # remove the toolbar
         del self.toolbar
 
-    def extract_input_feature(self, selected_layer: QgsVectorLayer) -> QgsFeature | None:
-        """ """
-        # unpack the layer's features
-        layer_features: list[QgsFeature] = [sl for sl in selected_layer.getFeatures()]
-        # bail if no features
-        if not layer_features:
-            self.iface.messageBar().pushMessage(
-                "Error", "No features available on the provided layer.", level=Qgis.Critical
-            )
-            return None
-        # check for selected features
-        selected_feature: QgsFeature | None = None
-        selected_features: list[QgsFeature] = selected_layer.selectedFeatures()
-        if selected_features:
-            # bail if more than one selected
-            if len(selected_features) > 1:
-                self.iface.messageBar().pushMessage(
-                    "Error", "Please select only a single feature from the provided layer.", level=Qgis.Critical
-                )
-                return None
-            # otherwise selecte the single feature
-            selected_feature = selected_features[0]
-        # otherwise, if nothing has been selected, take a look at the layers features
-        else:
-            # bail if more than one feature
-            if len(layer_features) > 1:
-                self.iface.messageBar().pushMessage(
-                    "Error",
-                    "Multiple features on the provided layer. Please select a single feature.",
-                    level=Qgis.Critical,
-                )
-                return None
-            # otherwise, select the single feature
-            selected_feature = layer_features[0]
-        return selected_feature
-
     def run(self):
         """Run method that performs all the real work"""
-        layer_map: dict[str, dict[str, QgsVectorLayer]] = {}
-        loaded_layers = QgsProject.instance().mapLayers()
-        # clear layers from list
-        self.dlg.layers_list.clear()
-        # look through open layers and add
-        layer_key: str
-        qgis_layer: QgsVectorLayer
-        for layer_key, qgis_layer in loaded_layers.items():
-            # filter out vector layers of Polygon types
-            if isinstance(qgis_layer, QgsVectorLayer) and qgis_layer.geometryType() == QgsWkbTypes.PolygonGeometry:
-                layer_name = qgis_layer.name()
-                layer_map[layer_name] = {"layer_key": layer_key, "qgis_layer": qgis_layer}
-                QListWidgetItem(layer_name, parent=self.dlg.layers_list)
         # show the dialog
         self.dlg.show()
         result: int = self.dlg.exec_()  # returns 1 if pressed
         if result:
-            # expects a single selected item from the list of layers
-            selected: list[QListWidgetItem] = self.dlg.layers_list.selectedItems()
-            # bail if nothing selected
-            if not selected:
+            if self.dlg.selected_layer is None:
                 self.iface.messageBar().pushMessage(
-                    "Error", "Please select a layer from which to fetch the extents.", level=Qgis.Critical
+                    "Error",
+                    "No layer selected.",
+                    level=Qgis.Critical,
                 )
                 return
-            # bail if more than one selected
-            if len(selected) > 1:
-                self.iface.messageBar().pushMessage(
-                    "Error", "Please select a single layer from which to fetch the extents.", level=Qgis.Critical
-                )
-                return
-            # get the selected layer
-            layer_name = selected[0].text()
             canvas_crs: QgsCoordinateReferenceSystem = self.iface.mapCanvas().mapSettings().destinationCrs()
             if canvas_crs.isGeographic():
                 self.iface.messageBar().pushMessage(
                     "Error",
-                    "Please use a projected Coordinate Reference System, e.g. EPSG 27700 for BNG.",
+                    "Please use a projected Coordinate Reference System, e.g. EPSG 27700 for Britain.",
                     level=Qgis.Critical,
                 )
                 return
-            selected_layer = layer_map[layer_name]["qgis_layer"]
-            selected_layer.setCrs(canvas_crs)
-            # get the feature
-            selected_feature: QgsFeature = self.extract_input_feature(selected_layer)
+            # logic is already handled in the GUI set_layer method
+            self.dlg.selected_layer.setCrs(canvas_crs)
+            selected_feature: QgsFeature = self.dlg.selected_layer.selectedFeatures()[0]
             feature_geom: QgsGeometry = selected_feature.geometry()
             geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
             geom = orient(geom, -1)  # orient per QGS

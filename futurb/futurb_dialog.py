@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
+from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsProject, QgsVectorLayer, QgsWkbTypes
 from qgis.gui import QgsFileWidget
 from qgis.PyQt import QtCore, QtWidgets
 
@@ -10,13 +12,39 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class LayerSpec:
+
+    layer_key: str
+    qgis_layer: QgsVectorLayer
+
+    def __init__(self, layer_key: str, qgis_layer: QgsVectorLayer) -> None:
+        """ """
+        self.layer_key = layer_key
+        self.qgis_layer = qgis_layer
+
+
 class FuturbDialog(QtWidgets.QDialog):
     """ """
 
-    def __init__(self, parent: QtWidgets.QWidget | None = None):
+    raster_dir: Path | None
+    raster_file_name: str | None
+    output_path_ok: bool
+    layer_map: dict[str, LayerSpec]
+    selected_layer: QgsVectorLayer | None
+    selected_feature_ok: bool
+
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """ """
         super(FuturbDialog, self).__init__(parent)
         self.setupUi()
+        # raster paths state
+        self.raster_dir = None
+        self.raster_file_name = None
+        self.output_path_ok = False
+        # layer selection
+        self.layer_map = {}
+        self.selected_layer = None
+        self.selected_feature_ok = False
 
     def toggle_model_btns(self, mode: str) -> None:
         """Pressing one button should cancel the other."""
@@ -26,6 +54,78 @@ class FuturbDialog(QtWidgets.QDialog):
         elif mode == "classical" and self.isobenefit_btn.isChecked():
             self.isobenefit_btn.setChecked(False)
             self.classical_btn.setChecked(True)
+
+    def set_layer(self) -> None:
+        """ """
+        self.selected_layer = None
+        # expects a single selected item from the list of layers
+        selected: list[QtWidgets.QListWidgetItem] = self.layers_list.selectedItems()
+        # bail if nothing selected
+        if not selected:
+            self.layers_feedback.setText("Please select a layer from which to fetch the extents.")
+            return None
+        # bail if more than one selected
+        if len(selected) > 1:
+            self.layers_feedback.setText("Please select a single layer from which to fetch the extents.")
+            return None
+        # get the selected layer
+        layer_name = selected[0].text()
+        selected_layer = self.layer_map[layer_name].qgis_layer
+        # unpack the layer's features
+        layer_features: list[QgsFeature] = [sl for sl in selected_layer.getFeatures()]
+        # bail if no features
+        if not layer_features:
+            self.layers_feedback.setText("No features available on the provided layer.")
+            return None
+        # check for selected features
+        selected_features: list[QgsFeature] = selected_layer.selectedFeatures()
+        if selected_features:
+            # bail if more than one selected
+            if len(selected_features) > 1:
+                self.layers_feedback.setText("Please select only a single feature from the provided layer.")
+                return None
+        # otherwise, if nothing has been selected, take a look at the layers features
+        else:
+            # bail if more than one feature
+            if len(layer_features) > 1:
+                self.layers_feedback.setText("Multiple features on the provided layer. Please select a single feature.")
+                return None
+        # otherwise selecte the single feature
+        self.layers_feedback.setText("")
+        self.selected_layer = selected_layer
+
+    def reset_paths(self) -> None:
+        """ """
+        self.raster_dir = None
+        self.raster_file_name = None
+        self.output_path_ok = False
+
+    def set_output_path(self) -> None:
+        """ """
+        self.output_path_ok = False
+        out_path_str: str = self.file_output.filePath().strip()
+        # bail if no path provided
+        if out_path_str == "":
+            self.file_path_feedback.setText("Requires an output file path.")
+            return self.reset_paths()
+        out_path: Path = Path(out_path_str)
+        # bail if parent is not valid
+        if not out_path.parent.exists():
+            self.file_path_feedback.setText("File path's parent directory does not exist.")
+            return self.reset_paths()
+        # bail if a directory
+        if out_path.is_dir():
+            self.file_path_feedback.setText("Requires an output file name.")
+            return self.reset_paths()
+        # don't save in root
+        if out_path.parent.absolute() == Path("/"):
+            self.file_path_feedback.setText("Select an output directory other than root.")
+            return self.reset_paths()
+        # otherwise go ahead
+        self.output_path_ok = True
+        self.file_path_feedback.setText("")
+        self.raster_dir = out_path.parent.absolute()
+        self.raster_file_name = out_path.name
 
     def setupUi(self):
         """ """
@@ -95,26 +195,79 @@ class FuturbDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.random_seed_label, 10, 0, alignment=QtCore.Qt.AlignRight)
         self.random_seed = QtWidgets.QLineEdit("42", self)
         self.grid.addWidget(self.random_seed, 10, 1)
+        # spacer
+        self.grid.addItem(
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            11,
+            0,
+            1,
+            2,
+        )
         # layers list
         self.layers_list_label = QtWidgets.QLabel("Input layer", self)
-        self.grid.addWidget(self.layers_list_label, 11, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
+        self.grid.addWidget(self.layers_list_label, 12, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
         self.layers_list = QtWidgets.QListWidget()
-        self.grid.addWidget(self.layers_list, 12, 0, 2, 2)
+        self.layers_list.itemSelectionChanged.connect(self.set_layer)
+        self.grid.addWidget(self.layers_list, 13, 0, 2, 2)
+        # feedback for layers selection
+        self.layers_feedback = QtWidgets.QLabel("Select an input layer", self)
+        self.grid.addWidget(self.layers_feedback, 15, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
+        # spacer
+        self.grid.addItem(
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            16,
+            0,
+            1,
+            2,
+        )
         # file output
         self.file_output_label = QtWidgets.QLabel("File output path", self)
-        self.grid.addWidget(self.file_output_label, 14, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
+        self.grid.addWidget(self.file_output_label, 17, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
         self.file_output = QgsFileWidget(self)
         self.file_output.setStorageMode(QgsFileWidget.SaveFile)
-        self.grid.addWidget(self.file_output, 15, 0, 1, 2)
+        self.file_output.fileChanged.connect(self.set_output_path)  # works
+        self.grid.addWidget(self.file_output, 18, 0, 1, 2)
+        # feedback for file path
+        self.file_path_feedback = QtWidgets.QLabel("Select an output file path", self)
+        self.file_path_feedback.setWordWrap(True)
+        self.grid.addWidget(self.file_path_feedback, 19, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
+        # spacer
+        self.grid.addItem(
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            20,
+            0,
+            1,
+            2,
+        )
         # Cancel / OK buttons
         self.button_box = QtWidgets.QDialogButtonBox(self)
-        self.grid.addWidget(self.button_box, 16, 0, 1, 2)
+        self.grid.addWidget(self.button_box, 21, 0, 1, 2)
         self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(True)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
+    def show(self) -> None:
+        """Primes layers list when opening dialog."""
+        # reset
+        self.layers_list.clear()
+        self.layer_map = {}
+        # keep track of available layers
+        loaded_layers = QgsProject.instance().mapLayers()
+        # clear layers from list
+        # look through open layers and add
+        layer_key: str
+        qgis_layer: QgsVectorLayer
+        for layer_key, qgis_layer in loaded_layers.items():
+            # filter out vector layers of Polygon types
+            if isinstance(qgis_layer, QgsVectorLayer) and qgis_layer.geometryType() == QgsWkbTypes.PolygonGeometry:
+                layer_name = qgis_layer.name()
+                self.layer_map[layer_name] = LayerSpec(layer_key=layer_key, qgis_layer=qgis_layer)
+                self.layers_list.addItem(QtWidgets.QListWidgetItem(layer_name))
+        if self.layers_list.count() == 0:
+            self.layers_feedback.setText("No Polygon layers available for selection. Please add one to the project.")
+        return super().show()
 
-if __name__ == "__main__":
-    """ """
-    Test = FuturbDialog()
-    print(Test)
+    def exec(self) -> int:
+        """ """
+        return super().exec()
