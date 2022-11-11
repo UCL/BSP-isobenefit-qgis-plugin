@@ -27,7 +27,6 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsFeature,
     QgsGeometry,
-    QgsLayerTreeGroup,
     QgsMessageLog,
     QgsProject,
     QgsRasterBlock,
@@ -35,10 +34,10 @@ from qgis.core import (
     QgsVectorLayer,
     QgsWkbTypes,
 )
-from qgis.gui import QgisInterface, QgsFileWidget
+from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QDialog, QListWidgetItem, QToolBar, QWidget
+from qgis.PyQt.QtWidgets import QAction, QListWidgetItem, QToolBar, QWidget
 from shapely import geometry, wkt
 from shapely.geometry.polygon import orient
 
@@ -246,15 +245,6 @@ class Futurb:
         self.dlg.show()
         result: int = self.dlg.exec_()  # returns 1 if pressed
         if result:
-            print(self.baa)
-            file_path_dlg = QDialog()
-            file_path_dlg.resize(300, 50)
-            file_path_widget = QgsFileWidget(file_path_dlg)
-            file_path_widget.setStorageMode(QgsFileWidget.SaveFile)
-            file_path_dlg.show()
-            fp_result: int = file_path_dlg.exec_()
-            print(fp_result)
-
             # expects a single selected item from the list of layers
             selected: list[QListWidgetItem] = self.dlg.layers_list.selectedItems()
             # bail if nothing selected
