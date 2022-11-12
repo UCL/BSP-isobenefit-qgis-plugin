@@ -29,6 +29,7 @@ class FuturbDialog(QtWidgets.QDialog):
     raster_dir: Path | None
     raster_file_name: str | None
     selected_layer: QgsVectorLayer | None
+    selected_feature: QgsFeature | None
     selected_crs: QgsCoordinateReferenceSystem | None
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
@@ -39,6 +40,7 @@ class FuturbDialog(QtWidgets.QDialog):
         self.raster_file_name = None
         # layer selection
         self.selected_layer = None
+        self.selected_feature = None
         # CRS selection
         self.selected_crs = None
         # prepare UI
@@ -273,6 +275,7 @@ class FuturbDialog(QtWidgets.QDialog):
                     "Layer contains multiple selected features: try again with a single selected feature."
                 )
                 return None
+            selected_feature: QgsFeature = selected_features[0]
         # otherwise, if nothing has been selected, take a look at the layers features
         else:
             # bail if more than one feature
@@ -281,9 +284,11 @@ class FuturbDialog(QtWidgets.QDialog):
                     "Layer contains multiple features but none have been selected: try again with a single selected feature."
                 )
                 return None
+            selected_feature: QgsFeature = layer_features[0]
         # success
         self.layers_feedback.setText("")
         self.selected_layer = selected_layer
+        self.selected_feature = selected_feature
         self.crs_selection.setLayerCrs(self.selected_layer.crs())
         self.refresh_state()
 

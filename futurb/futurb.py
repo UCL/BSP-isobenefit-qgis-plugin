@@ -2,17 +2,20 @@
 from __future__ import annotations
 
 import os.path
+from pathlib import Path
 from typing import Any, Callable
 
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
     QgsFeature,
     QgsGeometry,
     QgsMessageLog,
     QgsProject,
     QgsRasterBlock,
     QgsRasterLayer,
+    QgsVectorLayer,
 )
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
@@ -176,26 +179,20 @@ class Futurb:
         self.dlg.show()
         result: int = self.dlg.exec_()  # returns 1 if pressed
         if result:
-            if self.dlg.selected_layer is None:
-                self.iface.messageBar().pushMessage(
-                    "Error",
-                    "No layer selected.",
-                    level=Qgis.Critical,
-                )
-                return
-            canvas_crs: QgsCoordinateReferenceSystem = self.iface.mapCanvas().mapSettings().destinationCrs()
-            if canvas_crs.isGeographic():
-                self.iface.messageBar().pushMessage(
-                    "Error",
-                    "Please use a projected Coordinate Reference System, e.g. EPSG 27700 for Britain.",
-                    level=Qgis.Critical,
-                )
-                return
-            # logic is already handled in the GUI set_layer method
-            self.dlg.selected_layer.setCrs(canvas_crs)
-            print(self.dlg.selected_layer.getFeatures())
-            selected_feature: QgsFeature = [f for f in self.dlg.selected_layer.getFeatures()][0]
-            feature_geom: QgsGeometry = selected_feature.geometry()
+            print(self.dlg.selected_layer.crs(), self.dlg.selected_crs)
+            crs_transform = QgsCoordinateTransform(
+                self.dlg.selected_layer.crs(), self.dlg.selected_crs, QgsProject.instance()
+            )
+            out_dir: Path = self.dlg.raster_dir  # None checking is done in GUI
+            layer_reproj = QgsVectorLayer(str(out_dir / "source_reproj"), "source", "memory")
+            # GUI already filters out to single feature
+            extents_feature = self.dlg.selected_feature
+            extents_geom = extents_feature.geometry()
+            extents_geom.transform(crs_transform)
+            extents_feature.setGeometry(extents_geom)
+            layer_reproj.dataProvider().addFeature(extents_feature)
+            print(layer_reproj.extent())
+
             geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
             geom = orient(geom, -1)  # orient per QGS
             bounds: tuple[float, float, float, float] = geom.bounds
