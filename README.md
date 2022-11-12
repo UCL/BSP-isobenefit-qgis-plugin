@@ -18,6 +18,7 @@ PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/p
 - [https://qgis.org/pyqgis/3.28/](PyQgis)
 - [https://gis-ops.com/qgis-3-plugin-tutorial-plugin-development-reference-guide/](Plugin Guide)
 - [https://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/index.html](Cookbook)
+- [https://webgeodatavore.github.io/pyqgis-samples/index.html](Samples)
 
 ## Dev
 

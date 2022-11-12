@@ -193,7 +193,8 @@ class Futurb:
                 return
             # logic is already handled in the GUI set_layer method
             self.dlg.selected_layer.setCrs(canvas_crs)
-            selected_feature: QgsFeature = self.dlg.selected_layer.selectedFeatures()[0]
+            print(self.dlg.selected_layer.getFeatures())
+            selected_feature: QgsFeature = self.dlg.selected_layer.getFeatures()[0]
             feature_geom: QgsGeometry = selected_feature.geometry()
             geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
             geom = orient(geom, -1)  # orient per QGS
