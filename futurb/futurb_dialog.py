@@ -4,8 +4,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from qgis.core import QgsFeature, QgsMapLayerProxyModel, QgsVectorLayer
-from qgis.gui import QgsFileWidget, QgsMapLayerComboBox
+from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsMapLayerProxyModel, QgsVectorLayer
+from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
 
 logging.basicConfig(level=logging.INFO)
@@ -29,16 +29,20 @@ class FuturbDialog(QtWidgets.QDialog):
     raster_dir: Path | None
     raster_file_name: str | None
     selected_layer: QgsVectorLayer | None
+    selected_crs: QgsCoordinateReferenceSystem | None
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """ """
         super(FuturbDialog, self).__init__(parent)
-        self.setupUi()
         # raster paths state
         self.raster_dir = None
         self.raster_file_name = None
         # layer selection
         self.selected_layer = None
+        # CRS selection
+        self.selected_crs = None
+        # prepare UI
+        self.setupUi()
 
     def toggle_model_btns(self, mode: str) -> None:
         """Pressing one button should cancel the other."""
@@ -127,15 +131,15 @@ class FuturbDialog(QtWidgets.QDialog):
         )
         # file output
         self.file_output_label = QtWidgets.QLabel("File output path", self)
-        self.grid.addWidget(self.file_output_label, 12, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
+        self.grid.addWidget(self.file_output_label, 12, 0, 1, 2)
         self.file_output = QgsFileWidget(self)
         self.file_output.setStorageMode(QgsFileWidget.SaveFile)
-        self.file_output.fileChanged.connect(self.set_output_path)  # type: ignore (connect works)
+        self.file_output.fileChanged.connect(self.handle_output_path)  # type: ignore (connect works)
         self.grid.addWidget(self.file_output, 13, 0, 1, 2)
         # feedback for file path
         self.file_path_feedback = QtWidgets.QLabel("Select an output file path", self)
         self.file_path_feedback.setWordWrap(True)
-        self.grid.addWidget(self.file_path_feedback, 14, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
+        self.grid.addWidget(self.file_path_feedback, 14, 0, 1, 2)
         # spacer
         self.grid.addItem(
             QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
@@ -146,27 +150,51 @@ class FuturbDialog(QtWidgets.QDialog):
         )
         # layers list
         self.layers_list_label = QtWidgets.QLabel("Input layer indicating extents for simulation", self)
-        self.grid.addWidget(self.layers_list_label, 16, 0, 1, 2, alignment=QtCore.Qt.AlignLeft)
+        self.grid.addWidget(self.layers_list_label, 16, 0, 1, 2)
         self.layer_box = QgsMapLayerComboBox(self)
         self.layer_box.setFilters(QgsMapLayerProxyModel.VectorLayer)
         self.layer_box.setShowCrs(True)
-        self.layer_box.layerChanged.connect(self.set_layer)  # type: ignore (connect works)
+        self.layer_box.layerChanged.connect(self.handle_layer)  # type: ignore (connect works)
         self.grid.addWidget(self.layer_box, 17, 0, 1, 2)
         # feedback for layers selection
-        self.layers_feedback = QtWidgets.QLabel("Select an input layer.", self)
+        self.layers_feedback = QtWidgets.QLabel("Select an input layer", self)
         self.layers_feedback.setWordWrap(True)
-        self.grid.addWidget(self.layers_feedback, 18, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
+        self.grid.addWidget(self.layers_feedback, 18, 0, 1, 2)
         # spacer
         self.grid.addItem(
-            QtWidgets.QSpacerItem(1, 30, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
             19,
+            0,
+            1,
+            2,
+        )
+        # projection
+        self.crs_label = QtWidgets.QLabel("Coordinate reference system for simulation", self)
+        self.grid.addWidget(self.crs_label, 21, 0, 1, 2)
+        self.crs_selection = QgsProjectionSelectionWidget(self)
+        # feedback for layers selection
+        # crsChanged event fires immediately, so self.crs_feedback has to exist beforehand
+        self.crs_feedback = QtWidgets.QLabel("Select a CRS", self)
+        self.crs_feedback.setWordWrap(True)
+        self.grid.addWidget(self.crs_feedback, 23, 0, 1, 2)
+        self.crs_selection.crsChanged.connect(self.handle_crs)  # type: ignore (connect works)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, False)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.DefaultCrs, False)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.RecentCrs, False)
+        self.grid.addWidget(self.crs_selection, 22, 0, 1, 2)
+        # spacer
+        self.grid.addItem(
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            24,
             0,
             1,
             2,
         )
         # Cancel / OK buttons
         self.button_box = QtWidgets.QDialogButtonBox(self)
-        self.grid.addWidget(self.button_box, 20, 0, 1, 2)
+        self.grid.addWidget(self.button_box, 25, 0, 1, 2)
         self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
@@ -174,13 +202,60 @@ class FuturbDialog(QtWidgets.QDialog):
     def show(self) -> None:
         """Primes layers logic when opening dialog."""
         # reset
-        self.set_layer()
+        self.handle_layer()
+        self.handle_output_path()
         return super().show()
 
-    def set_layer(self) -> None:
+    def reset_state(self) -> None:
+        """ """
+        self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(True)
+
+    def refresh_state(self) -> None:
+        """ """
+        if self.selected_layer is None:
+            return
+        if self.raster_dir is None:
+            return
+        if self.raster_file_name is None:
+            return
+        if self.selected_crs is None:
+            return
+        self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(False)
+
+    def handle_output_path(self) -> None:
         """ """
         # reset
-        self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(True)
+        self.reset_state()
+        self.raster_dir = None
+        self.raster_file_name = None
+        # bail if no path provided
+        out_path_str: str = self.file_output.filePath().strip()
+        if out_path_str == "":
+            self.file_path_feedback.setText("Simulation requires an output file-path.")
+            return None
+        out_path: Path = Path(out_path_str)
+        # bail if parent is not valid
+        if not out_path.parent.exists():
+            self.file_path_feedback.setText("File-path's parent directory does not exist.")
+            return None
+        # bail if a directory
+        if out_path.is_dir():
+            self.file_path_feedback.setText("Requires an output file name.")
+            return None
+        # don't save in root
+        if out_path.parent.absolute() == Path("/"):
+            self.file_path_feedback.setText("Select an output directory other than root.")
+            return None
+        # success
+        self.file_path_feedback.setText("")
+        self.raster_dir = out_path.parent.absolute()
+        self.raster_file_name = out_path.name
+        self.refresh_state()
+
+    def handle_layer(self) -> None:
+        """ """
+        # reset
+        self.reset_state()
         self.selected_layer = None
         selected_layer: QgsVectorLayer = self.layer_box.currentLayer()
         # unpack the layer's features
@@ -195,7 +270,7 @@ class FuturbDialog(QtWidgets.QDialog):
             # bail if more than one selected
             if len(selected_features) > 1:
                 self.layers_feedback.setText(
-                    "Layer contains multiple selected features, please select only one feature."
+                    "Layer contains multiple selected features: try again with a single selected feature."
                 )
                 return None
         # otherwise, if nothing has been selected, take a look at the layers features
@@ -203,42 +278,22 @@ class FuturbDialog(QtWidgets.QDialog):
             # bail if more than one feature
             if len(layer_features) > 1:
                 self.layers_feedback.setText(
-                    "Layer contains multiple features but none have been selected: select a single feature."
+                    "Layer contains multiple features but none have been selected: try again with a single selected feature."
                 )
                 return None
         # success
         self.layers_feedback.setText("")
         self.selected_layer = selected_layer
-        if self.raster_dir is not None and self.raster_file_name is not None:
-            self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(False)
+        self.crs_selection.setLayerCrs(self.selected_layer.crs())
+        self.refresh_state()
 
-    def set_output_path(self) -> None:
+    def handle_crs(self) -> None:
         """ """
-        # reset
-        self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(True)
-        self.raster_dir = None
-        self.raster_file_name = None
-        # bail if no path provided
-        out_path_str: str = self.file_output.filePath().strip()
-        if out_path_str == "":
-            self.file_path_feedback.setText("Requires an output file path.")
-            return None
-        out_path: Path = Path(out_path_str)
-        # bail if parent is not valid
-        if not out_path.parent.exists():
-            self.file_path_feedback.setText("File path's parent directory does not exist.")
-            return None
-        # bail if a directory
-        if out_path.is_dir():
-            self.file_path_feedback.setText("Requires an output file name.")
-            return None
-        # don't save in root
-        if out_path.parent.absolute() == Path("/"):
-            self.file_path_feedback.setText("Select an output directory other than root.")
-            return None
-        # success
-        self.file_path_feedback.setText("")
-        self.raster_dir = out_path.parent.absolute()
-        self.raster_file_name = out_path.name
-        if self.selected_layer is not None:
-            self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(False)
+        # set project CRS as an option if projected
+        if self.crs_selection.crs().isGeographic():
+            self.crs_feedback.setText("Please select a projected CRS")
+            self.selected_crs = None
+        else:
+            self.crs_feedback.setText("")
+            self.selected_crs = self.crs_selection.crs()
+        self.refresh_state()
