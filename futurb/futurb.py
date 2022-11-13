@@ -5,18 +5,7 @@ import os.path
 from pathlib import Path
 from typing import Any, Callable
 
-from qgis.core import (
-    Qgis,
-    QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform,
-    QgsFeature,
-    QgsGeometry,
-    QgsMessageLog,
-    QgsProject,
-    QgsRasterBlock,
-    QgsRasterLayer,
-    QgsVectorLayer,
-)
+from qgis.core import QgsCoordinateTransform, QgsFeature, QgsMessageLog, QgsProject, QgsVectorLayer
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
@@ -179,31 +168,37 @@ class Futurb:
         self.dlg.show()
         result: int = self.dlg.exec_()  # returns 1 if pressed
         if result:
-            print(self.dlg.selected_layer.crs(), self.dlg.selected_crs)
+            # prepare extents layer
+            extents_layer = QgsVectorLayer(
+                f"Polygon?crs={self.dlg.selected_crs.authid()}&field=id:integer&index=yes",
+                "sim_input_extents",
+                "memory",
+            )
+            #
+            src_feature = self.dlg.selected_feature
+            src_geom = src_feature.geometry()
+            target_feature = QgsFeature(id=1)
             crs_transform = QgsCoordinateTransform(
                 self.dlg.selected_layer.crs(), self.dlg.selected_crs, QgsProject.instance()
             )
+            src_geom.transform(crs_transform)
+            target_feature.setGeometry(src_geom)
+            extents_layer.dataProvider().addFeature(target_feature)
+            extents_layer.dataProvider().updateExtents()
+            QgsProject.instance().addMapLayer(extents_layer)
+            print(extents_layer.extent())
             out_dir: Path = self.dlg.raster_dir  # None checking is done in GUI
-            layer_reproj = QgsVectorLayer(str(out_dir / "source_reproj"), "source", "memory")
-            # GUI already filters out to single feature
-            extents_feature = self.dlg.selected_feature
-            extents_geom = extents_feature.geometry()
-            extents_geom.transform(crs_transform)
-            extents_feature.setGeometry(extents_geom)
-            layer_reproj.dataProvider().addFeature(extents_feature)
-            print(layer_reproj.extent())
-
-            geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
-            geom = orient(geom, -1)  # orient per QGS
-            bounds: tuple[float, float, float, float] = geom.bounds
-            width: float = int(abs(bounds[3] - bounds[1]))
-            height: float = int(abs(bounds[2] - bounds[0]))
-            base_raster: QgsRasterLayer = QgsRasterBlock(Qgis.Byte, width, height)
-            print(base_raster)
-            base_layer = QgsProject.instance().addMapLayer(base_raster, addToLegend=False)
-            # add raster layer group
-            layer_root = QgsProject.instance().layerTreeRoot()
-            layer_group = layer_root.addGroup("Simulation Outputs")
-            layer_group.addLayer(base_layer)
+            # geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
+            # geom = orient(geom, -1)  # orient per QGS
+            # bounds: tuple[float, float, float, float] = geom.bounds
+            # width: float = int(abs(bounds[3] - bounds[1]))
+            # height: float = int(abs(bounds[2] - bounds[0]))
+            # base_raster: QgsRasterLayer = QgsRasterBlock(Qgis.Byte, width, height)
+            # print(base_raster)
+            # base_layer = QgsProject.instance().addMapLayer(base_raster, addToLegend=False)
+            # # add raster layer group
+            # layer_root = QgsProject.instance().layerTreeRoot()
+            # layer_group = layer_root.addGroup("Simulation Outputs")
+            # layer_group.addLayer(base_layer)
         else:
             QgsMessageLog.logMessage("no result")

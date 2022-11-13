@@ -19,6 +19,8 @@ PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/p
 - [https://gis-ops.com/qgis-3-plugin-tutorial-plugin-development-reference-guide/](Plugin Guide)
 - [https://docs.qgis.org/testing/en/docs/pyqgis_developer_cookbook/index.html](Cookbook)
 - [https://webgeodatavore.github.io/pyqgis-samples/index.html](Samples)
+- [https://www.geodose.com/2021/03/netcdf-temporal-visualization-qgis.html](temporal range raster)
+- [https://anitagraser.com](open source GIS ramblings)
 
 ## Dev
 
