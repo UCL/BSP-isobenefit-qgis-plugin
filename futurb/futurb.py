@@ -188,6 +188,14 @@ class Futurb:
             QgsProject.instance().addMapLayer(extents_layer)
             print(extents_layer.extent())
             out_dir: Path = self.dlg.raster_dir  # None checking is done in GUI
+            """
+            # TODO:
+            - explore temporal layers to understand outputs
+            - create temporal layer
+            - adapt simulation to work with raster / temporal format logic
+            - run simulation against crude (rectangular) extents
+            - save to temporal layer
+            """
             # geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
             # geom = orient(geom, -1)  # orient per QGS
             # bounds: tuple[float, float, float, float] = geom.bounds
