@@ -21,6 +21,7 @@ PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/p
 - [https://webgeodatavore.github.io/pyqgis-samples/index.html](Samples)
 - [https://www.geodose.com/2021/03/netcdf-temporal-visualization-qgis.html](temporal range raster)
 - [https://anitagraser.com](open source GIS ramblings)
+- [https://docs.qgis.org/3.4/en/docs/user_manual/working_with_mesh/mesh_properties.html#what-s-a-mesh](mesh layers)
 
 ## Dev
 
