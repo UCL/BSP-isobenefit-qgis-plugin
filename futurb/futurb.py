@@ -5,7 +5,7 @@ import os.path
 from pathlib import Path
 from typing import Any, Callable
 
-from qgis.core import QgsCoordinateTransform, QgsFeature, QgsMessageLog, QgsProject, QgsVectorLayer
+from qgis.core import Qgis, QgsCoordinateTransform, QgsFeature, QgsMessageLog, QgsProject, QgsVectorLayer
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
@@ -13,11 +13,9 @@ from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 from shapely import geometry, wkt
 from shapely.geometry.polygon import orient
 
-# Import the code for the dialog
-from .futurb_dialog import FuturbDialog
-
-# Initialize Qt resources from file resources.py
-from .resources import *
+from .futurb_dialog import FuturbDialog  # Import the code for the dialog
+from .mesh import create_mesh_layer
+from .resources import *  # Initialize Qt resources from file resources.py
 
 
 class Futurb:
@@ -177,6 +175,7 @@ class Futurb:
             #
             src_feature = self.dlg.selected_feature
             src_geom = src_feature.geometry()
+            print(src_geom)
             target_feature = QgsFeature(id=1)
             crs_transform = QgsCoordinateTransform(
                 self.dlg.selected_layer.crs(), self.dlg.selected_crs, QgsProject.instance()
@@ -187,15 +186,22 @@ class Futurb:
             extents_layer.dataProvider().updateExtents()
             QgsProject.instance().addMapLayer(extents_layer)
             print(extents_layer.extent())
-            out_dir: Path = self.dlg.raster_dir  # None checking is done in GUI
+            extents_layer.extent().xMinimum
             """
             # TODO:
             - explore temporal layers to understand outputs
             - create temporal layer
-            - adapt simulation to work with raster / temporal format logic
+            - adapt simulation to work with mesh / temporal format logic
             - run simulation against crude (rectangular) extents
             - save to temporal layer
             """
+            # None checking is handled by dialogue
+            granularity_m = int(self.dlg.grid_size_m.text())  # type: ignore
+            mesh_layer = create_mesh_layer(self.dlg.mesh_dir, extents_layer, self.dlg.selected_crs, granularity_m)
+            QgsProject.instance().addMapLayer(mesh_layer)
+            # iterate and update
+            # editor.changeZValues()
+
             # geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
             # geom = orient(geom, -1)  # orient per QGS
             # bounds: tuple[float, float, float, float] = geom.bounds
@@ -209,4 +215,5 @@ class Futurb:
             # layer_group = layer_root.addGroup("Simulation Outputs")
             # layer_group.addLayer(base_layer)
         else:
-            QgsMessageLog.logMessage("no result")
+            print("no result")
+            QgsMessageLog.logMessage("no result", level=Qgis.Warning, notifyUser=True)

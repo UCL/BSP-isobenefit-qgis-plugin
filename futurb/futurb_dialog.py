@@ -26,8 +26,8 @@ class LayerSpec:
 class FuturbDialog(QtWidgets.QDialog):
     """ """
 
-    raster_dir: Path | None
-    raster_file_name: str | None
+    mesh_dir: Path | None
+    mesh_file_name: str | None
     selected_layer: QgsVectorLayer | None
     selected_feature: QgsFeature | None
     selected_crs: QgsCoordinateReferenceSystem | None
@@ -35,9 +35,9 @@ class FuturbDialog(QtWidgets.QDialog):
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """ """
         super(FuturbDialog, self).__init__(parent)
-        # raster paths state
-        self.raster_dir = None
-        self.raster_file_name = None
+        # mesh layer paths state
+        self.mesh_dir = None
+        self.mesh_file_name = None
         # layer selection
         self.selected_layer = None
         self.selected_feature = None
@@ -79,10 +79,10 @@ class FuturbDialog(QtWidgets.QDialog):
         # prime to isoboenefit mode
         self.toggle_model_btns("isobenefit")
         # grid size
-        self.grid_size_label = QtWidgets.QLabel("Grid Size", self)
-        self.grid.addWidget(self.grid_size_label, 2, 0, alignment=QtCore.Qt.AlignRight)
-        self.grid_size = QtWidgets.QLineEdit("1", self)
-        self.grid.addWidget(self.grid_size, 2, 1)
+        self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
+        self.grid.addWidget(self.grid_size_m_label, 2, 0, alignment=QtCore.Qt.AlignRight)
+        self.grid_size_m = QtWidgets.QLineEdit("100", self)
+        self.grid.addWidget(self.grid_size_m, 2, 1)
         # iterations
         self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
         self.grid.addWidget(self.n_iterations_label, 3, 0, alignment=QtCore.Qt.AlignRight)
@@ -216,9 +216,9 @@ class FuturbDialog(QtWidgets.QDialog):
         """ """
         if self.selected_layer is None:
             return
-        if self.raster_dir is None:
+        if self.mesh_dir is None:
             return
-        if self.raster_file_name is None:
+        if self.mesh_file_name is None:
             return
         if self.selected_crs is None:
             return
@@ -228,8 +228,8 @@ class FuturbDialog(QtWidgets.QDialog):
         """ """
         # reset
         self.reset_state()
-        self.raster_dir = None
-        self.raster_file_name = None
+        self.mesh_dir = None
+        self.mesh_file_name = None
         # bail if no path provided
         out_path_str: str = self.file_output.filePath().strip()
         if out_path_str == "":
@@ -250,8 +250,8 @@ class FuturbDialog(QtWidgets.QDialog):
             return None
         # success
         self.file_path_feedback.setText("")
-        self.raster_dir = out_path.parent.absolute()
-        self.raster_file_name = out_path.name
+        self.mesh_dir = out_path.parent.absolute()
+        self.mesh_file_name = out_path.name
         self.refresh_state()
 
     def handle_layer(self) -> None:
