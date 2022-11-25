@@ -203,9 +203,13 @@ class Futurb:
             output_path: Path = self.dlg.mesh_dir / file_name  # type: ignore
             mesh_layer = create_mesh_layer(output_path, extents_layer, self.dlg.selected_crs, granularity_m)
             QgsProject.instance().addMapLayer(mesh_layer)
+            # temporal
+            # tc_start = datetime.now()
+            # tc_end = tc_start + timedelta(minutes=55)
+            # temporal_controller = self.iface.mapCanvas().temporalController()
+            # temporal_controller.updateTemporalRange(QgsDateTimeRange(tc_start, tc_end))
             # iterate and update
             # editor.changeZValues()
-
             # geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
             # geom = orient(geom, -1)  # orient per QGS
             # bounds: tuple[float, float, float, float] = geom.bounds

@@ -12,6 +12,16 @@ Future Urban Growth (Isobenefit Cities)
 PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/plugins:/Applications/Qgis.app/Contents/Resources/python"
 ```
 
+## Plugin setup
+
+Plugin requires additional pip packages:
+
+> See: [https://enmap-box.readthedocs.io/en/latest/usr_section/usr_installation.html#package-installer]()
+
+```bash
+/Applications/QGIS.app/Contents/MacOS/bin/pip install meshio
+```
+
 ## References
 
 - [http://g-sherman.github.io/plugin_build_tool/](PB Tool)

@@ -19,7 +19,6 @@ def create_mesh_layer(
 ) -> QgsMeshLayer:
     """ """
     print(output_path, qgs_input_extents, granularity_m)
-    mesh_layer_path: str = str(output_path.absolute())
     # ref: https://gis.stackexchange.com/questions/427211/why-does-adding-a-face-to-qgsmeshlayer-produce-uniquesharedvertex-error
     # prepare extents
     x_min = qgs_input_extents.extent().xMinimum()
@@ -47,6 +46,7 @@ def create_mesh_layer(
     # Create mesh
     provider_meta = QgsProviderRegistry.instance().providerMetadata("mdal")
     mesh = QgsMesh()
+    mesh_layer_path: str = str(output_path.absolute())
     provider_meta.createMeshData(mesh, mesh_layer_path, "Ugrid", crs)
     layer_name = output_path.name.split(".")[0] + " urban growth sim"
     mesh_layer = QgsMeshLayer(mesh_layer_path, layer_name, "mdal")
@@ -63,6 +63,21 @@ def create_mesh_layer(
             print(error.errorType)
             print(error.elementIndex)
     mesh_layer.commitFrameEditing(crs_transform, continueEditing=False)
+    # data provider
+    data_provider = mesh_layer.dataProvider()
+    print("baa")
+    print(data_provider.datasetGroupCount())
+    print(data_provider.datasetCount(0))
+    print(data_provider.subLayerCount())
+    data_provider.reloadData()
+    # rendering settings
+    mesh_renderer = mesh_layer.rendererSettings()
+    mesh_renderer.setActiveScalarDatasetGroup(0)
+    scalar_settings = mesh_renderer.scalarSettings(0)
+    scalar_settings.setClassificationMinimumMaximum(0, 42)
+    mesh_renderer.setScalarSettings(0, scalar_settings)
+    mesh_layer.setRendererSettings(mesh_renderer)
+    # todo: how to classify?
     # https://qgis.org/pyqgis/master/core/QgsMeshDatasetGroup.html#module-QgsMeshDatasetGroup
     dsg = editor.createZValueDatasetGroup()
     print(dsg)
