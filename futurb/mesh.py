@@ -5,8 +5,6 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsMesh,
-    QgsMeshDatasetGroup,
-    QgsMeshDatasetGroupMetadata,
     QgsMeshLayer,
     QgsPoint,
     QgsProject,
@@ -20,7 +18,7 @@ def create_mesh_layer(
 ) -> QgsMeshLayer:
     """ """
     print(output_path, qgs_input_extents, granularity_m)
-    mesh_layer_path: str = str(Path(output_path / "sim_mesh.nc").absolute())
+    mesh_layer_path: str = str(output_path.absolute())
     # ref: https://gis.stackexchange.com/questions/427211/why-does-adding-a-face-to-qgsmeshlayer-produce-uniquesharedvertex-error
     # prepare extents
     x_min = qgs_input_extents.extent().xMinimum()
@@ -49,7 +47,8 @@ def create_mesh_layer(
     provider_meta = QgsProviderRegistry.instance().providerMetadata("mdal")
     mesh = QgsMesh()
     provider_meta.createMeshData(mesh, mesh_layer_path, "Ugrid", crs)
-    mesh_layer = QgsMeshLayer(mesh_layer_path, "sim_mesh", "mdal")
+    layer_name = output_path.name.split(".")[0]
+    mesh_layer = QgsMeshLayer(mesh_layer_path, layer_name, "mdal")
     mesh_layer.setCrs(crs)
     # add points to mesh
     crs_transform = QgsCoordinateTransform(crs, crs, QgsProject.instance())
