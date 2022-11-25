@@ -1,6 +1,7 @@
 """ """
 from pathlib import Path
 
+import meshio
 from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
@@ -47,7 +48,7 @@ def create_mesh_layer(
     provider_meta = QgsProviderRegistry.instance().providerMetadata("mdal")
     mesh = QgsMesh()
     provider_meta.createMeshData(mesh, mesh_layer_path, "Ugrid", crs)
-    layer_name = output_path.name.split(".")[0]
+    layer_name = output_path.name.split(".")[0] + " urban growth sim"
     mesh_layer = QgsMeshLayer(mesh_layer_path, layer_name, "mdal")
     mesh_layer.setCrs(crs)
     # add points to mesh

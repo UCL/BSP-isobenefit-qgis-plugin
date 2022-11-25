@@ -14,8 +14,9 @@ dependencies = [
     "pb-tool>=3.1.0",
     "shapely>=1.8.5.post1",
     "PyQt5>=5.15.7",
+    "meshio>=5.3.4",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.8,<=3.10"
 readme = "README.md"
 license = {text = "MIT"}
 [project.optional-dependencies]
