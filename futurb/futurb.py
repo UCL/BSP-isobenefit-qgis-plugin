@@ -198,8 +198,9 @@ class Futurb:
             # None checking is handled by dialogue
             granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
             file_name = str(self.dlg.mesh_file_name)
+            # QGIS doesn't seem to work with ugrid extension, so using .nc
             if not "." in file_name:
-                file_name += ".ugrid"
+                file_name += ".nc"
             output_path: Path = self.dlg.mesh_dir / file_name  # type: ignore
             mesh_layer = create_mesh_layer(output_path, extents_layer, self.dlg.selected_crs, granularity_m)
             QgsProject.instance().addMapLayer(mesh_layer)

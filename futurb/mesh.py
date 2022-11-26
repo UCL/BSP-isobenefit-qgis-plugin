@@ -6,6 +6,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsMesh,
+    QgsMeshDatasetIndex,
     QgsMeshLayer,
     QgsPoint,
     QgsProject,
@@ -44,32 +45,42 @@ def create_mesh_layer(
                 faces[face_idx] = (prev_row_col_idx - 1, prev_row_col_idx, this_row_col_idx, this_row_col_idx - 1)
                 face_idx += 1
     # Create mesh
-    provider_meta = QgsProviderRegistry.instance().providerMetadata("mdal")
     mesh = QgsMesh()
+    print(mesh)  # QgsMesh
+    # uses MDAL for QgsProviderMetadata
+    provider_meta = QgsProviderRegistry.instance().providerMetadata("mdal")
+    print(provider_meta)  # QgsProviderMetadata
     mesh_layer_path: str = str(output_path.absolute())
+    # see C++ documentation for createMeshData - not in pyqgis
     provider_meta.createMeshData(mesh, mesh_layer_path, "Ugrid", crs)
-    layer_name = output_path.name.split(".")[0] + " urban growth sim"
+    print(provider_meta.meshDriversMetadata())  # list of QgsMeshDriverMetadata
+    for driver_meta in provider_meta.meshDriversMetadata():
+        # e.g.
+        print(driver_meta.name())  # Ugrid
+        print(driver_meta.description())  # UGRID
+    # above takes care of creating the layer
+    # below takes care of handling the layer
+    layer_name = output_path.name.split(".")[0] + " a layer name"
     mesh_layer = QgsMeshLayer(mesh_layer_path, layer_name, "mdal")
+    print(mesh_layer)  # QgsMeshLayer: "name" (mdal)
     mesh_layer.setCrs(crs)
+    mesh_layer.addDatasets()
     # add points to mesh
     crs_transform = QgsCoordinateTransform(crs, crs, QgsProject.instance())
     mesh_layer.startFrameEditing(crs_transform)
     # https://qgis.org/pyqgis/master/core/QgsMeshEditor.html#qgis.core.QgsMeshEditor
-    editor = mesh_layer.meshEditor()
-    editor.addPointsAsVertices(points, 1)
+    mesh_editor = mesh_layer.meshEditor()
+    print(mesh_editor)  # QgsMeshEditor
+    mesh_editor.addPointsAsVertices(points, 1)
     for vertex_indices in faces.values():
-        error = editor.addFace(vertex_indices)
+        error = mesh_editor.addFace(vertex_indices)
         if error.errorType != 0:
             print(error.errorType)
             print(error.elementIndex)
+    # Z values can be manipulated - but not sure how this relates to datasets and dataset groups
+    mesh_editor.changeZValues(list(range(100)), [20] * 100)
     mesh_layer.commitFrameEditing(crs_transform, continueEditing=False)
-    # data provider
-    data_provider = mesh_layer.dataProvider()
-    print("baa")
-    print(data_provider.datasetGroupCount())
-    print(data_provider.datasetCount(0))
-    print(data_provider.subLayerCount())
-    data_provider.reloadData()
+    mesh_layer.reload()
     # rendering settings
     mesh_renderer = mesh_layer.rendererSettings()
     mesh_renderer.setActiveScalarDatasetGroup(0)
@@ -77,16 +88,50 @@ def create_mesh_layer(
     scalar_settings.setClassificationMinimumMaximum(0, 42)
     mesh_renderer.setScalarSettings(0, scalar_settings)
     mesh_layer.setRendererSettings(mesh_renderer)
+    # data provider
+    data_provider = mesh_layer.dataProvider()
+    data_provider.addDataset()
+    print(data_provider)  # QgsMeshDataProvider
+    print(data_provider.name())  # mdal
+    print(data_provider.datasetGroupCount())  # 1
+    print(data_provider.datasetCount(0))  # 1
+    print(data_provider.subLayerCount())  # 0
     # todo: how to classify?
-    # https://qgis.org/pyqgis/master/core/QgsMeshDatasetGroup.html#module-QgsMeshDatasetGroup
-    dsg = editor.createZValueDatasetGroup()
-    print(dsg)
-    print(dsg.datasetCount())
-    print(dsg.maximum())
+    # this does nothing:
+    mesh_layer.datasetValues(QgsMeshDatasetIndex(0, 0), 0, 100).setValues([20] * 100)
+    mesh_layer.reload()
+    # retrieving and editing via createZValueDatasetGroup doesn't change the mesh in place, how to write back?
+    dsg = mesh_editor.createZValueDatasetGroup()
+    print(dsg)  # QgsMeshDatasetGroup
+    print(dsg.datasetCount())  # 1
+    print(dsg.maximum())  # 42
+    print(dsg.name())  # "vertices Z value"
+    dsg.setName("a name")
+    print(dsg.name())  # "a name"
     dg = dsg.dataset(0)
-    print(dg)
+    print(dg)  # QgsMeshDataset
+    print(dg.datasetValue(0))  # QgsMeshDatasetValue
+    print(dg.datasetValue(0).scalar())  # 0
+    print(dg.datasetValue(100).scalar())  # 2
+    print(dg.datasetValue(1000).scalar())  # 21
+    print(dg.datasetValues(True, 0, 2000))  # QgsMeshDataBlock
+    print(dg.datasetValues(True, 0, 2000).isValid())  # True
+    print(dg.datasetValues(True, 0, 2000).count())  # 2000
+    print(dg.datasetValues(True, 0, 100).values())  # first 100 values
+    print(dg.datasetValues(True, 0, 2000).value(0))  # QgsMeshDatasetValue
+    print(dg.datasetValues(True, 0, 2000).value(0).scalar())  # 0
+    print(dg.datasetValues(True, 0, 2000).value(100).scalar())  # 2
+    # dg.datasetValues(True, 0, 2000).setValues([20] * 2000) # does nothing to QgsMeshLayer
+
+    # not sure
+    print(dg.datasetValues(True, 2000, 1).value(0).scalar())  # 0
+    print(dg.datasetValues(True, 2000, 100).value(99).scalar())  # miniscule number?
     print(dg.valuesCount())
-    # QgsMeshDatasetSourceInterface() ?
+    # trying to edit values
+    mesh_layer.startFrameEditing(crs_transform)
+    # editor.changeZValues([1, 2, 3], [42, 42, 42]) # crashes
+    mesh_layer.commitFrameEditing(crs_transform, continueEditing=False)
+    # mesh_layer.saveDataset()
     # see: https://docs.qgis.org/3.22/en/docs/user_manual/working_with_mesh/mesh_properties.html#datasets
     # TODO: understand datasets and datasetgroups and how to edit
     # mesh_layer.dataset...

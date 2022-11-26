@@ -19,7 +19,7 @@ Plugin requires additional pip packages:
 > See: [https://enmap-box.readthedocs.io/en/latest/usr_section/usr_installation.html#package-installer]()
 
 ```bash
-/Applications/QGIS.app/Contents/MacOS/bin/pip install meshio
+/Applications/QGIS.app/Contents/MacOS/bin/pip install 'meshio[all]'
 ```
 
 ## References
