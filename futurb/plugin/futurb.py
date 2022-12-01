@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os.path
-from pathlib import Path
 from typing import Any, Callable
 
 from qgis.core import Qgis, QgsCoordinateTransform, QgsFeature, QgsMessageLog, QgsProject, QgsVectorLayer
@@ -10,11 +9,9 @@ from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
-from shapely import geometry, wkt
-from shapely.geometry.polygon import orient
 
+from ..isobenefit.simulation import run_isobenefit_simulation
 from .futurb_dialog import FuturbDialog  # Import the code for the dialog
-from .mesh import create_mesh_layer
 from .resources import *  # Initialize Qt resources from file resources.py
 
 
@@ -175,7 +172,6 @@ class Futurb:
             #
             src_feature = self.dlg.selected_feature
             src_geom = src_feature.geometry()
-            print(src_geom)
             target_feature = QgsFeature(id=1)
             crs_transform = QgsCoordinateTransform(
                 self.dlg.selected_layer.crs(), self.dlg.selected_crs, QgsProject.instance()
@@ -184,8 +180,7 @@ class Futurb:
             target_feature.setGeometry(src_geom)
             extents_layer.dataProvider().addFeature(target_feature)
             extents_layer.dataProvider().updateExtents()
-            QgsProject.instance().addMapLayer(extents_layer)
-            print(extents_layer.extent())
+            QgsProject.instance().addMapLayer(extents_layer, addToLegend=True)
             extents_layer.extent().xMinimum
             """
             # TODO:
@@ -197,32 +192,31 @@ class Futurb:
             """
             # None checking is handled by dialogue
             granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
-            file_name = str(self.dlg.mesh_file_name)
-            # QGIS doesn't seem to work with ugrid extension, so using .nc
-            if not "." in file_name:
-                file_name += ".nc"
-            output_path: Path = self.dlg.mesh_dir / file_name  # type: ignore
-            mesh_layer = create_mesh_layer(output_path, extents_layer, self.dlg.selected_crs, granularity_m)
-            QgsProject.instance().addMapLayer(mesh_layer)
+            # run
+            run_isobenefit_simulation(
+                extents_layer=extents_layer,
+                granularity_m=granularity_m,
+                target_crs=self.dlg.selected_crs,
+                n_steps=int(self.dlg.n_iterations.text()),
+                out_dir_path=self.dlg.out_dir_path,  # type: ignore
+                out_file_name=self.dlg.out_file_name,  # type: ignore
+                build_probability=float(self.dlg.build_prob.text()),
+                neighboring_centrality_probability=float(self.dlg.nb_cent.text()),
+                isolated_centrality_probability=float(self.dlg.isolated_cent.text()),
+                T_star=int(self.dlg.t_star.text()),
+                random_seed=int(self.dlg.random_seed.text()),
+                initialization_mode="list",
+                max_population=int(self.dlg.max_population.text()),
+                max_ab_km2=int(self.dlg.max_ab_km2.text()),
+                urbanism_model="isobenefit",
+                prob_distribution=(0.7, 0.3, 0),
+                density_factors=(1, 0.1, 0.01),
+            )
             # temporal
             # tc_start = datetime.now()
             # tc_end = tc_start + timedelta(minutes=55)
             # temporal_controller = self.iface.mapCanvas().temporalController()
             # temporal_controller.updateTemporalRange(QgsDateTimeRange(tc_start, tc_end))
-            # iterate and update
-            # editor.changeZValues()
-            # geom: geometry.Polygon = wkt.loads(feature_geom.asWkt())
-            # geom = orient(geom, -1)  # orient per QGS
-            # bounds: tuple[float, float, float, float] = geom.bounds
-            # width: float = int(abs(bounds[3] - bounds[1]))
-            # height: float = int(abs(bounds[2] - bounds[0]))
-            # base_raster: QgsRasterLayer = QgsRasterBlock(Qgis.Byte, width, height)
-            # print(base_raster)
-            # base_layer = QgsProject.instance().addMapLayer(base_raster, addToLegend=False)
-            # # add raster layer group
-            # layer_root = QgsProject.instance().layerTreeRoot()
-            # layer_group = layer_root.addGroup("Simulation Outputs")
-            # layer_group.addLayer(base_layer)
         else:
             print("no result")
             QgsMessageLog.logMessage("no result", level=Qgis.Warning, notifyUser=True)

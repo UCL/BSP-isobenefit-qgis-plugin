@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 import time
@@ -5,9 +7,18 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
+import rasterio as rio
+from qgis.core import (
+    QgsContrastEnhancement,
+    QgsCoordinateReferenceSystem,
+    QgsLayerTreeGroup,
+    QgsMultiBandColorRenderer,
+    QgsProject,
+    QgsRasterLayer,
+    QgsVectorLayer,
+)
+from rasterio import transform
 
-from .image_io import save_image_from_2Darray
 from .initialization_utils import get_central_coord
 from .land_map import ClassicalScenario, IsobenefitScenario, Land, MapBlock
 from .logger import configure_logging, get_logger
@@ -16,16 +27,17 @@ N_AMENITIES = 1
 
 
 def run_isobenefit_simulation(
-    size_x: int,
-    size_y: int,
+    extents_layer: QgsVectorLayer,
+    target_crs: QgsCoordinateReferenceSystem,
+    granularity_m: int,
     n_steps: int,
-    output_path_prefix: str,
+    out_dir_path: Path,
+    out_file_name: str,
     build_probability: float,
     neighboring_centrality_probability: float,
     isolated_centrality_probability: float,
     T_star: int,
     random_seed: int,
-    input_filepath: Path,
     initialization_mode: str,
     max_population: int,
     max_ab_km2: int,
@@ -37,19 +49,28 @@ def run_isobenefit_simulation(
     configure_logging()
     LOGGER = get_logger()
     np.random.seed(random_seed)
-
-    output_path = make_output_path(output_path_prefix)
+    # prepare extents
+    x_min = extents_layer.extent().xMinimum()
+    x_max = extents_layer.extent().xMaximum()
+    y_min = extents_layer.extent().yMinimum()
+    y_max = extents_layer.extent().yMaximum()
+    x_min = int(x_min - x_min % granularity_m)
+    x_max = int(x_max - x_max % granularity_m) + granularity_m
+    y_min = int(y_min - y_min % granularity_m)
+    y_max = int(y_max - y_max % granularity_m) + granularity_m
+    size_x = int((x_max - x_min) / granularity_m)
+    size_y = int((y_max - y_min) / granularity_m)
+    # write metadata
     metadata = {
         "size_x": size_x,
         "size_y": size_y,
         "n_steps": n_steps,
-        "output_path": str(output_path),
+        "output_path": str(out_dir_path / out_file_name),
         "build_probability": build_probability,
         "neighboring_centrality_probability": neighboring_centrality_probability,
         "isolated_centrality_probability": isolated_centrality_probability,
         "T_star": T_star,
         "random_seed": random_seed,
-        "input_filepath": str(input_filepath),
         "initialization_mode": initialization_mode,
         "max_population": max_population,
         "max_ab_km2": max_ab_km2,
@@ -57,10 +78,7 @@ def run_isobenefit_simulation(
         "prob_distribution": prob_distribution,
         "density_factors": density_factors,
     }
-
-    output_path.mkdir(parents=True, exist_ok=True)
-    save_metadata(metadata, output_path)
-
+    save_metadata(metadata, out_dir_path)
     t_zero = time.time()
     land: IsobenefitScenario | ClassicalScenario = initialize_land(
         size_x,
@@ -71,36 +89,49 @@ def run_isobenefit_simulation(
         build_probability=build_probability,
         T=T_star,
         mode=initialization_mode,
-        filepath=input_filepath,
         max_population=max_population,
         max_ab_km2=max_ab_km2,
         urbanism_model=urbanism_model,
         prob_distribution=prob_distribution,
         density_factors=density_factors,
     )
-
-    canvas: npt.NDArray[np.float_] = np.full((size_x, size_y, 4), 1.0, dtype=np.float_)
+    canvas = np.full((size_x, size_y, 3), 1.0, dtype=np.float_)
+    # prepare QGIS menu
+    layer_root = QgsProject.instance().layerTreeRoot()
+    layer_group = layer_root.insertGroup(0, f"{out_file_name} outputs")
     update_map_snapshot(land, canvas)
-    save_snapshot(canvas, output_path=output_path, step=0)
-    land.set_record_counts_header(output_path=output_path, urbanism_model=urbanism_model)
+    save_snapshot(
+        canvas,
+        0,
+        out_dir_path,
+        out_file_name,
+        x_min,
+        x_max,
+        y_min,
+        y_max,
+        size_x,
+        size_y,
+        target_crs,
+        layer_group,
+    )
+    land.set_record_counts_header(output_path=out_dir_path, urbanism_model=urbanism_model)
     land.set_current_counts(urbanism_model)
     i = 0
     added_blocks, added_centralities = (0, 0)
     land.record_current_counts(
-        output_path=output_path,
+        output_path=out_dir_path,
         iteration=i,
         added_blocks=added_blocks,
         added_centralities=added_centralities,
         urbanism_model=urbanism_model,
     )
-
     while i <= n_steps and land.current_population <= land.max_population:
         start = time.time()
         added_blocks, added_centralities = land.update_map()
         land.set_current_counts(urbanism_model)
         i += 1
         land.record_current_counts(
-            output_path=output_path,
+            output_path=out_dir_path,
             iteration=i,
             added_blocks=added_blocks,
             added_centralities=added_centralities,
@@ -109,22 +140,22 @@ def run_isobenefit_simulation(
         LOGGER.info(f"step: {i}, duration: {time.time() - start} seconds")
         LOGGER.info(f"step: {i}, current population: {land.current_population} inhabitants")
         update_map_snapshot(land, canvas)
-        save_snapshot(canvas, output_path=output_path, step=i)
-
-    save_min_distances(land, output_path)
-
+        save_snapshot(
+            canvas,
+            i,
+            out_dir_path,
+            out_file_name,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+            size_x,
+            size_y,
+            target_crs,
+            layer_group,
+        )
+    # save_min_distances(land, out_dir_path)
     LOGGER.info(f"Simulation ended. Total duration: {time.time() - t_zero} seconds")
-
-
-def make_output_path(output_path_prefix: str) -> Path:
-    """ """
-    if output_path_prefix is None:
-        timestamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-        output_path = Path(f"simulations/{timestamp}")
-    else:
-        output_path = Path(f"simulations/{output_path_prefix}")
-
-    return output_path
 
 
 def save_metadata(metadata: dict[str, Any], output_path: Path) -> None:
@@ -144,7 +175,6 @@ def initialize_land(
     max_population: int,
     max_ab_km2: int,
     mode: str,
-    filepath: Path,
     amenities_list: list[tuple[int, int]],
     urbanism_model: str,
     prob_distribution: tuple[float, float, float],
@@ -189,10 +219,7 @@ def initialize_land(
         )
     else:
         raise ValueError("Invalid urbanism model. Choose one of 'isobenefit' and 'classical'")
-
-    if mode == "image" and filepath is not None:
-        land.set_configuration_from_image(filepath)
-    elif mode == "list":
+    if mode == "list":
         amenities: list[MapBlock] = [MapBlock(x, y, inhabitants=0) for (x, y) in amenities_list]
         for amenity in amenities:
             amenity.is_centrality = True
@@ -202,7 +229,7 @@ def initialize_land(
     return land
 
 
-def update_map_snapshot(land: Land, canvas: npt.NDArray[np.float_]) -> None:
+def update_map_snapshot(land: Land, canvas) -> None:
     """ """
     for row in land.map:
         for block in row:
@@ -217,15 +244,47 @@ def update_map_snapshot(land: Land, canvas: npt.NDArray[np.float_]) -> None:
                     color = np.ones(3) / 3
                 if block.is_built and block.density_level == "low":
                     color = np.ones(3) * 2 / 3
+            canvas[block.y, block.x] = color
 
-            canvas[block.y, block.x] = np.array([color[0], color[1], color[2], 1])
 
-
-def save_snapshot(canvas: npt.NDArray[np.float_], output_path: Path, step: int, format: str = "png") -> Path:
+def save_snapshot(
+    rast_arr,
+    step: int,
+    out_dir_path: Path,
+    out_file_name: str,
+    x_min: int,
+    x_max: int,
+    y_min: int,
+    y_max: int,
+    size_x: int,
+    size_y: int,
+    target_crs: QgsCoordinateReferenceSystem,
+    layer_group: QgsLayerTreeGroup,
+) -> None:
     """ """
-    final_path: Path = output_path / f"{step:05d}.png"
-    save_image_from_2Darray(canvas, filepath=final_path, format=format)
-    return final_path
+    out_name = f"{out_file_name}_{step:05d}"
+    out_path: str = str(out_dir_path / f"{out_name}.tif")
+    crs_wkt: str = target_crs.toWkt()
+    trf = transform.from_bounds(x_min, y_min, x_max, y_max, size_x, size_y)
+    with rio.open(
+        out_path,
+        "w",
+        driver="GTiff",
+        height=size_y,
+        width=size_x,
+        count=3,
+        dtype=rast_arr.dtype,
+        crs=crs_wkt,
+        transform=trf,
+        nodata=np.nan,
+    ) as out_rast:
+        # expects bands, rows, columns order
+        out_rast.write(rast_arr.transpose(2, 0, 1))
+        # add to QGIS
+        rast_layer = QgsRasterLayer(out_path, out_name, providerType="gdal")
+        QgsProject.instance().addMapLayer(rast_layer, addToLegend=False)
+        layer_group.addLayer(rast_layer)
+        rast_layer.setCrs(target_crs)
 
 
 def save_min_distances(land: Land, output_path: Path) -> None:

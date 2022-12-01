@@ -26,8 +26,8 @@ class LayerSpec:
 class FuturbDialog(QtWidgets.QDialog):
     """ """
 
-    mesh_dir: Path | None
-    mesh_file_name: str | None
+    out_dir_path: Path | None
+    out_file_name: str | None
     selected_layer: QgsVectorLayer | None
     selected_feature: QgsFeature | None
     selected_crs: QgsCoordinateReferenceSystem | None
@@ -35,9 +35,9 @@ class FuturbDialog(QtWidgets.QDialog):
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """ """
         super(FuturbDialog, self).__init__(parent)
-        # mesh layer paths state
-        self.mesh_dir = None
-        self.mesh_file_name = None
+        # paths state
+        self.out_dir_path = None
+        self.out_file_name = None
         # layer selection
         self.selected_layer = None
         self.selected_feature = None
@@ -86,12 +86,12 @@ class FuturbDialog(QtWidgets.QDialog):
         # iterations
         self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
         self.grid.addWidget(self.n_iterations_label, 3, 0, alignment=QtCore.Qt.AlignRight)
-        self.n_iterations = QtWidgets.QLineEdit("20", self)
+        self.n_iterations = QtWidgets.QLineEdit("5", self)
         self.grid.addWidget(self.n_iterations, 3, 1)
         # max population
         self.max_population_label = QtWidgets.QLabel("Max Population", self)
         self.grid.addWidget(self.max_population_label, 4, 0, alignment=QtCore.Qt.AlignRight)
-        self.max_population = QtWidgets.QLineEdit("100000", self)
+        self.max_population = QtWidgets.QLineEdit("500000", self)
         self.grid.addWidget(self.max_population, 4, 1)
         # max ab / km2
         self.max_ab_km2_label = QtWidgets.QLabel("Max ab/km2", self)
@@ -101,22 +101,22 @@ class FuturbDialog(QtWidgets.QDialog):
         # build prob
         self.build_prob_label = QtWidgets.QLabel("Build probability", self)
         self.grid.addWidget(self.build_prob_label, 6, 0, alignment=QtCore.Qt.AlignRight)
-        self.build_prob = QtWidgets.QLineEdit("0.3", self)
+        self.build_prob = QtWidgets.QLineEdit("0.5", self)
         self.grid.addWidget(self.build_prob, 6, 1)
-        # cent P1
-        self.new_cent_p1_label = QtWidgets.QLabel("New cent prob 1", self)
-        self.grid.addWidget(self.new_cent_p1_label, 7, 0, alignment=QtCore.Qt.AlignRight)
-        self.new_cent_p1 = QtWidgets.QLineEdit("0.1", self)
-        self.grid.addWidget(self.new_cent_p1, 7, 1)
-        # cent P2
-        self.new_cent_p2_label = QtWidgets.QLabel("New cent prob 2", self)
-        self.grid.addWidget(self.new_cent_p2_label, 8, 0, alignment=QtCore.Qt.AlignRight)
-        self.new_cent_p2 = QtWidgets.QLineEdit("0.0", self)
-        self.grid.addWidget(self.new_cent_p2, 8, 1)
+        # nb centrality prob
+        self.nb_cent_label = QtWidgets.QLabel("Neighbouring prob.", self)
+        self.grid.addWidget(self.nb_cent_label, 7, 0, alignment=QtCore.Qt.AlignRight)
+        self.nb_cent = QtWidgets.QLineEdit("0.005", self)
+        self.grid.addWidget(self.nb_cent, 7, 1)
+        # isolated centrality prob
+        self.isolated_cent_label = QtWidgets.QLabel("Isolated centrality prob.", self)
+        self.grid.addWidget(self.isolated_cent_label, 8, 0, alignment=QtCore.Qt.AlignRight)
+        self.isolated_cent = QtWidgets.QLineEdit("0.1", self)
+        self.grid.addWidget(self.isolated_cent, 8, 1)
         # T star
         self.t_star_label = QtWidgets.QLabel("T*", self)
         self.grid.addWidget(self.t_star_label, 9, 0, alignment=QtCore.Qt.AlignRight)
-        self.t_star = QtWidgets.QLineEdit("5", self)
+        self.t_star = QtWidgets.QLineEdit("10", self)
         self.grid.addWidget(self.t_star, 9, 1)
         # random seed
         self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
@@ -216,9 +216,9 @@ class FuturbDialog(QtWidgets.QDialog):
         """ """
         if self.selected_layer is None:
             return
-        if self.mesh_dir is None:
+        if self.out_file_name is None:
             return
-        if self.mesh_file_name is None:
+        if self.out_file_name is None:
             return
         if self.selected_crs is None:
             return
@@ -228,17 +228,17 @@ class FuturbDialog(QtWidgets.QDialog):
         """ """
         # reset
         self.reset_state()
-        self.mesh_dir = None
-        self.mesh_file_name = None
+        self.out_dir_path = None
+        self.out_file_name = None
         # bail if no path provided
         out_path_str: str = self.file_output.filePath().strip()
         if out_path_str == "":
-            self.file_path_feedback.setText("Simulation requires an output file-path.")
+            self.file_path_feedback.setText("Simulation requires an output filepath.")
             return None
         out_path: Path = Path(out_path_str)
         # bail if parent is not valid
         if not out_path.parent.exists():
-            self.file_path_feedback.setText("File-path's parent directory does not exist.")
+            self.file_path_feedback.setText("Filepath's parent directory does not exist.")
             return None
         # bail if a directory
         if out_path.is_dir():
@@ -248,10 +248,14 @@ class FuturbDialog(QtWidgets.QDialog):
         if out_path.parent.absolute() == Path("/"):
             self.file_path_feedback.setText("Select an output directory other than root.")
             return None
+        # check that file path ends with .tif
+        if not out_path.name.endswith(".tif") and "." in out_path.name:
+            self.file_path_feedback.setText("Output extension must be .tif")
+            return None
         # success
         self.file_path_feedback.setText("")
-        self.mesh_dir = out_path.parent.absolute()
-        self.mesh_file_name = out_path.name
+        self.out_dir_path = out_path.parent.absolute()
+        self.out_file_name = out_path.name.replace(".tif", "")
         self.refresh_state()
 
     def handle_layer(self) -> None:

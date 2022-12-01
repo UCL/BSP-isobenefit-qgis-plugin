@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import logging
 import os
@@ -5,10 +7,8 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
-import numpy.typing as npt
 from scipy.ndimage import measurements as measure
 
-from .image_io import import_2Darray_from_image
 from .logger import get_logger
 
 LOGGER: logging.Logger = get_logger()
@@ -175,10 +175,10 @@ class Land:
             "empty": 0,
         }
 
-    def get_map_as_array(self) -> tuple[npt.NDArray[np.int_], npt.NDArray[np.float_]]:
+    def get_map_as_array(self):
         """ """
-        map_array: npt.NDArray[np.int_] = np.full((self.size_x, self.size_y), 0)
-        population_array: npt.NDArray[np.float_] = np.full((self.size_x, self.size_y), 0.0, dtype=np.float_)
+        map_array = np.full((self.size_x, self.size_y), 0)
+        population_array = np.full((self.size_x, self.size_y), 0.0, dtype=np.float_)
         for x in range(self.size_x):
             for y in range(self.size_y):
                 if self.map[x][y].is_built:
@@ -358,7 +358,7 @@ def d(x1: int, y1: int, x2: int, y2: int) -> float:
 
 
 # TODO: check array_1d type
-def is_nature_wide_along_axis(array_1d: npt.NDArray[np.float_], T_star: int) -> bool:
+def is_nature_wide_along_axis(array_1d, T_star: int) -> bool:
     """ """
     features, _labels = measure.label(array_1d)
     _unique, counts = np.unique(features, return_counts=True)
