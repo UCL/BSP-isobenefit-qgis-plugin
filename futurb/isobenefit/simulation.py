@@ -3,27 +3,34 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import rasterio as rio
 from qgis.core import (
     QgsContrastEnhancement,
     QgsCoordinateReferenceSystem,
+    QgsDateTimeRange,
     QgsLayerTreeGroup,
     QgsMultiBandColorRenderer,
     QgsProject,
     QgsRasterLayer,
+    QgsRasterLayerTemporalProperties,
     QgsVectorLayer,
 )
 from rasterio import transform
 
-from .initialization_utils import get_central_coord
 from .land_map import ClassicalScenario, IsobenefitScenario, Land, MapBlock
 from .logger import configure_logging, get_logger
 
 N_AMENITIES = 1
+
+
+def get_central_coord(size_x: int, size_y: int) -> list[tuple[int, int]]:
+    """Returns centre coordinates given the x, y size."""
+    return [(int(size_x / 2), int(size_y / 2))]
 
 
 def run_isobenefit_simulation(
@@ -116,33 +123,34 @@ def run_isobenefit_simulation(
     )
     land.set_record_counts_header(output_path=out_dir_path, urbanism_model=urbanism_model)
     land.set_current_counts(urbanism_model)
-    i = 0
+    # first step is already written, so use 1
+    idx = 1
     added_blocks, added_centralities = (0, 0)
     land.record_current_counts(
         output_path=out_dir_path,
-        iteration=i,
+        iteration=idx,
         added_blocks=added_blocks,
         added_centralities=added_centralities,
         urbanism_model=urbanism_model,
     )
-    while i <= n_steps and land.current_population <= land.max_population:
+    while idx <= n_steps and land.current_population <= land.max_population:
+        print(idx, n_steps)
         start = time.time()
         added_blocks, added_centralities = land.update_map()
         land.set_current_counts(urbanism_model)
-        i += 1
         land.record_current_counts(
             output_path=out_dir_path,
-            iteration=i,
+            iteration=idx,
             added_blocks=added_blocks,
             added_centralities=added_centralities,
             urbanism_model=urbanism_model,
         )
-        LOGGER.info(f"step: {i}, duration: {time.time() - start} seconds")
-        LOGGER.info(f"step: {i}, current population: {land.current_population} inhabitants")
+        LOGGER.info(f"step: {idx}, duration: {time.time() - start} seconds")
+        LOGGER.info(f"step: {idx}, current population: {land.current_population} inhabitants")
         update_map_snapshot(land, canvas)
         save_snapshot(
             canvas,
-            i,
+            idx,
             out_dir_path,
             out_file_name,
             x_min,
@@ -154,6 +162,7 @@ def run_isobenefit_simulation(
             target_crs,
             layer_group,
         )
+        idx += 1
     # save_min_distances(land, out_dir_path)
     LOGGER.info(f"Simulation ended. Total duration: {time.time() - t_zero} seconds")
 
@@ -248,7 +257,7 @@ def update_map_snapshot(land: Land, canvas) -> None:
 
 
 def save_snapshot(
-    rast_arr,
+    rast_arr,  # type: ignore
     step: int,
     out_dir_path: Path,
     out_file_name: str,
@@ -265,51 +274,55 @@ def save_snapshot(
     out_name = f"{out_file_name}_{step:05d}"
     out_path: str = str(out_dir_path / f"{out_name}.tif")
     crs_wkt: str = target_crs.toWkt()
-    trf = transform.from_bounds(x_min, y_min, x_max, y_max, size_x, size_y)
-    with rio.open(
+    trf = transform.from_bounds(x_min, y_min, x_max, y_max, size_x, size_y)  # type: ignore
+    with rio.open(  # type: ignore
         out_path,
         "w",
         driver="GTiff",
         height=size_y,
         width=size_x,
         count=3,
-        dtype=rast_arr.dtype,
+        dtype=rast_arr.dtype,  # type: ignore
         crs=crs_wkt,
         transform=trf,
         nodata=np.nan,
-    ) as out_rast:
+    ) as out_rast:  # type: ignore
         # expects bands, rows, columns order
-        out_rast.write(rast_arr.transpose(2, 0, 1))
-        # add to QGIS
-        rast_layer = QgsRasterLayer(out_path, out_name, providerType="gdal")
-        QgsProject.instance().addMapLayer(rast_layer, addToLegend=False)
-        layer_group.addLayer(rast_layer)
+        out_rast.write(rast_arr.transpose(2, 0, 1))  # type: ignore
+        # create QGIS layer and renderer
+        rast_layer = QgsRasterLayer(out_path, f"step {step}", providerType="gdal")
         rast_layer.setCrs(target_crs)
-
-
-def save_min_distances(land: Land, output_path: Path) -> None:
-    """ """
-    land_array, _population_array = land.get_map_as_array()
-    x_centr, y_centr = np.where(land_array == 2)
-    x_built, y_built = np.where(land_array == 1)
-    x_nature, y_nature = np.where(land_array == 0)
-    distances_from_nature = np.sqrt((x_built[:, None] - x_nature) ** 2 + (y_built[:, None] - y_nature) ** 2).min(axis=1)
-    distances_from_centr = np.sqrt((x_built[:, None] - x_centr) ** 2 + (y_built[:, None] - y_centr) ** 2).min(axis=1)
-    distances_mapping_filepath = os.path.join(output_path, "minimal_distances_map.csv")
-    array_of_data = np.concatenate(
-        [
-            x_built.reshape(-1, 1),
-            y_built.reshape(-1, 1),
-            distances_from_nature.reshape(-1, 1),
-            distances_from_centr.reshape(-1, 1),
-        ],
-        axis=1,
-    )
-    header = "X,Y,min_nature_dist, min_centr_dist"
-    np.savetxt(
-        fname=distances_mapping_filepath,
-        X=array_of_data,
-        delimiter=",",
-        newline="\n",
-        header=header,
-    )
+        # help out type hinting via cast as IDE doesn't know ahead of time re: multiband renderer
+        rast_renderer: QgsMultiBandColorRenderer = cast(QgsMultiBandColorRenderer, rast_layer.renderer())
+        # setup renderer
+        rast_renderer.setRedBand(1)
+        rast_renderer.setGreenBand(2)
+        rast_renderer.setBlueBand(3)
+        red_ce = rast_renderer.redContrastEnhancement()
+        red_ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchAndClipToMinimumMaximum)
+        red_ce.setMinimumValue(0)
+        red_ce.setMaximumValue(1)
+        green_ce = rast_renderer.greenContrastEnhancement()
+        green_ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchAndClipToMinimumMaximum)
+        green_ce.setMinimumValue(0)
+        green_ce.setMaximumValue(1)
+        blue_ce = rast_renderer.blueContrastEnhancement()
+        blue_ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchAndClipToMinimumMaximum)
+        blue_ce.setMinimumValue(0)
+        blue_ce.setMaximumValue(1)
+        # setup temporal
+        temp_props: QgsRasterLayerTemporalProperties = cast(
+            QgsRasterLayerTemporalProperties, rast_layer.temporalProperties()
+        )
+        temp_props.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)  # type: ignore
+        start_date = datetime.now()
+        this_date = start_date.replace(year=start_date.year + step)
+        next_date = start_date.replace(year=start_date.year + step + 1)
+        time_range = QgsDateTimeRange(begin=this_date, end=next_date)
+        temp_props.setFixedTemporalRange(time_range)
+        temp_props.isVisibleInTemporalRange(time_range)
+        temp_props.setIsActive(True)
+        # add to QGIS
+        QgsProject.instance().addMapLayer(rast_layer, addToLegend=False)
+        lt_layer = layer_group.addLayer(rast_layer)
+        lt_layer.setExpanded(False)

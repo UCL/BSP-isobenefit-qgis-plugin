@@ -2,9 +2,20 @@
 from __future__ import annotations
 
 import os.path
-from typing import Any, Callable
+from datetime import datetime
+from typing import Any, Callable, cast
 
-from qgis.core import Qgis, QgsCoordinateTransform, QgsFeature, QgsMessageLog, QgsProject, QgsVectorLayer
+from qgis.core import (
+    Qgis,
+    QgsCoordinateTransform,
+    QgsDateTimeRange,
+    QgsFeature,
+    QgsInterval,
+    QgsMessageLog,
+    QgsProject,
+    QgsTemporalNavigationObject,
+    QgsVectorLayer,
+)
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
@@ -182,22 +193,15 @@ class Futurb:
             extents_layer.dataProvider().updateExtents()
             QgsProject.instance().addMapLayer(extents_layer, addToLegend=True)
             extents_layer.extent().xMinimum
-            """
-            # TODO:
-            - explore temporal layers to understand outputs
-            - create temporal layer
-            - adapt simulation to work with mesh / temporal format logic
-            - run simulation against crude (rectangular) extents
-            - save to temporal layer
-            """
             # None checking is handled by dialogue
             granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
+            n_steps = int(self.dlg.n_iterations.text())
             # run
             run_isobenefit_simulation(
                 extents_layer=extents_layer,
                 granularity_m=granularity_m,
                 target_crs=self.dlg.selected_crs,
-                n_steps=int(self.dlg.n_iterations.text()),
+                n_steps=n_steps,
                 out_dir_path=self.dlg.out_dir_path,  # type: ignore
                 out_file_name=self.dlg.out_file_name,  # type: ignore
                 build_probability=float(self.dlg.build_prob.text()),
@@ -212,11 +216,18 @@ class Futurb:
                 prob_distribution=(0.7, 0.3, 0),
                 density_factors=(1, 0.1, 0.01),
             )
-            # temporal
-            # tc_start = datetime.now()
-            # tc_end = tc_start + timedelta(minutes=55)
-            # temporal_controller = self.iface.mapCanvas().temporalController()
-            # temporal_controller.updateTemporalRange(QgsDateTimeRange(tc_start, tc_end))
+            # setup temporal controller
+            start_date = datetime.now()
+            end_date = start_date.replace(year=start_date.year + n_steps)
+            temporal: QgsTemporalNavigationObject = cast(
+                QgsTemporalNavigationObject, self.iface.mapCanvas().temporalController()
+            )
+            temporal.setTemporalExtents(QgsDateTimeRange(begin=start_date, end=end_date))
+            temporal.rewindToStart()
+            temporal.setLooping(True)
+            temporal.setFrameDuration(QgsInterval(1, 0, 0, 0, 0, 0, 0))  # one year
+            temporal.setFramesPerSecond(2)
+            temporal.setAnimationState(QgsTemporalNavigationObject.Forward)
         else:
             print("no result")
             QgsMessageLog.logMessage("no result", level=Qgis.Warning, notifyUser=True)
