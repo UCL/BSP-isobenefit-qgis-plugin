@@ -200,6 +200,7 @@ class Futurb:
             run_isobenefit_simulation(
                 extents_layer=extents_layer,
                 granularity_m=granularity_m,
+                walk_dist_m=int(self.dlg.walk_dist.text()),
                 target_crs=self.dlg.selected_crs,
                 n_steps=n_steps,
                 out_dir_path=self.dlg.out_dir_path,  # type: ignore
@@ -207,11 +208,10 @@ class Futurb:
                 build_probability=float(self.dlg.build_prob.text()),
                 neighboring_centrality_probability=float(self.dlg.nb_cent.text()),
                 isolated_centrality_probability=float(self.dlg.isolated_cent.text()),
-                T_star=int(self.dlg.t_star.text()),
                 random_seed=int(self.dlg.random_seed.text()),
                 initialization_mode="list",
                 max_population=int(self.dlg.max_population.text()),
-                max_ab_km2=int(self.dlg.max_ab_km2.text()),
+                max_pop_walk_dist=int(self.dlg.max_pop_walk_dist.text()),
                 urbanism_model="isobenefit",
                 prob_distribution=(0.7, 0.3, 0),
                 density_factors=(1, 0.1, 0.01),

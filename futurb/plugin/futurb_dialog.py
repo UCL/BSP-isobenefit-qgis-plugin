@@ -93,11 +93,11 @@ class FuturbDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.max_population_label, 4, 0, alignment=QtCore.Qt.AlignRight)
         self.max_population = QtWidgets.QLineEdit("500000", self)
         self.grid.addWidget(self.max_population, 4, 1)
-        # max ab / km2
-        self.max_ab_km2_label = QtWidgets.QLabel("Max ab/km2", self)
-        self.grid.addWidget(self.max_ab_km2_label, 5, 0, alignment=QtCore.Qt.AlignRight)
-        self.max_ab_km2 = QtWidgets.QLineEdit("10000", self)
-        self.grid.addWidget(self.max_ab_km2, 5, 1)
+        # max population in walking distance
+        self.max_pop_walk_dist_label = QtWidgets.QLabel("Max population in walking distance", self)
+        self.grid.addWidget(self.max_pop_walk_dist_label, 5, 0, alignment=QtCore.Qt.AlignRight)
+        self.max_pop_walk_dist = QtWidgets.QLineEdit("10000", self)
+        self.grid.addWidget(self.max_pop_walk_dist, 5, 1)
         # build prob
         self.build_prob_label = QtWidgets.QLabel("Build probability", self)
         self.grid.addWidget(self.build_prob_label, 6, 0, alignment=QtCore.Qt.AlignRight)
@@ -113,11 +113,11 @@ class FuturbDialog(QtWidgets.QDialog):
         self.grid.addWidget(self.isolated_cent_label, 8, 0, alignment=QtCore.Qt.AlignRight)
         self.isolated_cent = QtWidgets.QLineEdit("0.1", self)
         self.grid.addWidget(self.isolated_cent, 8, 1)
-        # T star
-        self.t_star_label = QtWidgets.QLabel("T*", self)
-        self.grid.addWidget(self.t_star_label, 9, 0, alignment=QtCore.Qt.AlignRight)
-        self.t_star = QtWidgets.QLineEdit("10", self)
-        self.grid.addWidget(self.t_star, 9, 1)
+        # walking distance
+        self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
+        self.grid.addWidget(self.walk_dist_label, 9, 0, alignment=QtCore.Qt.AlignRight)
+        self.walk_dist = QtWidgets.QLineEdit("1000", self)
+        self.grid.addWidget(self.walk_dist, 9, 1)
         # random seed
         self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
         self.grid.addWidget(self.random_seed_label, 10, 0, alignment=QtCore.Qt.AlignRight)
