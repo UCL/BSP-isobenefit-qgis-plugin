@@ -211,7 +211,7 @@ class Futurb:
                 random_seed=int(self.dlg.random_seed.text()),
                 initialization_mode="list",
                 max_population=int(self.dlg.max_population.text()),
-                max_pop_walk_dist=int(self.dlg.max_pop_walk_dist.text()),
+                max_local_pop=int(self.dlg.max_local_pop.text()),
                 urbanism_model="isobenefit",
                 prob_distribution=(0.7, 0.3, 0),
                 density_factors=(1, 0.1, 0.01),

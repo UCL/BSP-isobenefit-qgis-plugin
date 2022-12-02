@@ -94,10 +94,10 @@ class FuturbDialog(QtWidgets.QDialog):
         self.max_population = QtWidgets.QLineEdit("500000", self)
         self.grid.addWidget(self.max_population, 4, 1)
         # max population in walking distance
-        self.max_pop_walk_dist_label = QtWidgets.QLabel("Max population in walking distance", self)
-        self.grid.addWidget(self.max_pop_walk_dist_label, 5, 0, alignment=QtCore.Qt.AlignRight)
-        self.max_pop_walk_dist = QtWidgets.QLineEdit("10000", self)
-        self.grid.addWidget(self.max_pop_walk_dist, 5, 1)
+        self.max_local_pop_label = QtWidgets.QLabel("Max population in walking distance", self)
+        self.grid.addWidget(self.max_local_pop_label, 5, 0, alignment=QtCore.Qt.AlignRight)
+        self.max_local_pop = QtWidgets.QLineEdit("10000", self)
+        self.grid.addWidget(self.max_local_pop, 5, 1)
         # build prob
         self.build_prob_label = QtWidgets.QLabel("Build probability", self)
         self.grid.addWidget(self.build_prob_label, 6, 0, alignment=QtCore.Qt.AlignRight)

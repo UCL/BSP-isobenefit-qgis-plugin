@@ -46,6 +46,7 @@ dev = [
     "qgis-stubs>=0.2.0.post1",
     "pb-tool>=3.1.0",
     "pyqt5-stubs>=5.15.6.0",
+    "matplotlib>=3.6.2",
 ]
 
 
