@@ -27,7 +27,8 @@ from typing import Any
 
 import numpy as np
 from numba import njit
-from rasterio import features
+from rasterio import features, transform
+from shapely.geometry import shape
 
 from .logger import get_logger
 
@@ -66,7 +67,7 @@ def _agg_access(x_idx: int, y_idx: int, arr: Any, granularity_m: int, walk_dist_
 @njit
 def _compute_centres_access(state_arr: Any, granularity_m: int, walk_dist_m: int) -> Any:
     """Computes accessibility surface to centres"""
-    cent_acc_arr = np.full(state_arr.shape, 0, dtype=np.float_)
+    cent_acc_arr = np.full(state_arr.shape, 0, dtype=np.float32)
     for sx_idx, sy_idx in np.ndindex(state_arr.shape):
         # bail if not a centre
         if state_arr[sx_idx, sy_idx] != 2:
@@ -103,8 +104,8 @@ def _green_state(
 @njit
 def _compute_green_itx(state_arr: Any, granularity_m: int, walk_dist_m: int) -> Any:
     """Finds cells on the periphery of green areas and adjacent to built areas"""
-    green_itx_arr = np.full(state_arr.shape, 0, np.int_)
-    green_acc_arr = np.full(state_arr.shape, 0, np.float_)
+    green_itx_arr = np.full(state_arr.shape, 0, np.int16)
+    green_acc_arr = np.full(state_arr.shape, 0, np.float32)
     for x_idx, y_idx in np.ndindex(state_arr.shape):
         # bail if not built space
         if state_arr[x_idx, y_idx] < 1:
@@ -128,6 +129,7 @@ class Land:
     # substrate
     granularity_m: int
     walk_dist_m: int
+    trf: transform.Affine
     # parameters
     build_prob: float
     cent_prob_nb: float  # TODO: pending
@@ -141,25 +143,30 @@ class Land:
     density_arr: Any
     cent_acc_arr: Any
     green_acc_arr: Any
+    min_green_km2: int
 
     def __init__(
         self,
         granularity_m: int,
         walk_dist_m: int,
-        bounds: tuple[int, int, int, int],
+        extents_transform: transform.Affine,
         extents_arr: Any,
         centre_seeds: list[tuple[int, int]] = [],
         build_prob: float = 0.1,
         cent_prob_nb: float = 0.05,
-        cent_prob_isol: float = 0.001,
+        cent_prob_isol: float = 0,
         max_local_pop: int = 10000,
         prob_distribution: tuple[float, float, float] = (0.7, 0.3, 0),
         density_factors: tuple[float, float, float] = (1, 0.1, 0.01),
+        min_green_km2: int = 5,
+        random_seed: int = 0,
     ):
         """ """
+        np.random.seed(random_seed)
         # prepare extents
         self.granularity_m = granularity_m
         self.walk_dist_m = walk_dist_m
+        self.trf = extents_transform
         # params
         self.build_prob = build_prob
         self.cent_prob_nb = cent_prob_nb
@@ -169,50 +176,124 @@ class Land:
         self.max_local_pop = max_local_pop
         self.prob_distribution = prob_distribution
         self.density_factors = density_factors
-        # state
-        self.state_arr = np.copy(extents_arr)
+        # state - cast type to int16
+        self.state_arr = np.full(extents_arr.shape, 0, dtype=np.int16)
+        self.state_arr[:, :] = extents_arr
         # seed centres
-        s, w, _n, _e = bounds
         for east, north in centre_seeds:
-            x = int((east - w) / granularity_m)
-            y = int((north - s) / granularity_m)
+            x, y = transform.rowcol(self.trf, east, north)  # type: ignore
             self.state_arr[x, y] = 2
         # find boundary of built land
         self.green_itx_arr, self.green_acc_arr = _compute_green_itx(
             state_arr=self.state_arr, granularity_m=granularity_m, walk_dist_m=walk_dist_m
         )
         # density
-        self.density_arr = np.full(extents_arr.shape, 0, dtype=np.float_)
+        self.density_arr = np.full(extents_arr.shape, 0, dtype=np.float32)
         # access to centres
         self.cent_acc_arr = _compute_centres_access(
             state_arr=self.state_arr,
             granularity_m=granularity_m,
             walk_dist_m=walk_dist_m,
         )
+        self.min_green_km2 = min_green_km2
 
     def iter_land_isobenefit(self):
         """ """
-        (
-            self.state_arr,
-            self.green_itx_arr,
-            self.cent_acc_arr,
-            self.green_acc_arr,
-            added_blocks,
-            added_centrality,
-        ) = _iter_land_isobenefit(
-            self.state_arr,
-            self.green_itx_arr,
-            self.cent_acc_arr,
-            self.green_acc_arr,
-            self.density_arr,
-            self.walk_dist_m,
-            self.granularity_m,
-            self.build_prob,
-            self.cent_prob_isol,
-            self.cent_prob_nb,
-            self.prob_distribution,
-            self.density_factors,
+        feats: list[tuple[dict, float]] = features.shapes(  # type: ignore
+            self.state_arr, mask=self.state_arr == 0, connectivity=4, transform=self.trf
         )
+        out_feats: list[tuple[dict, int]] = []  # type: ignore
+        for feat, _val in feats:  # type: ignore
+            # convert to square km
+            area = int(shape(feat).area / (1000 * 1000))  # type: ignore
+            out_feats.append((feat, area))  # type: ignore
+        # use int32 for large enough area integers
+        areas_arr = features.rasterize(  # type: ignore
+            shapes=out_feats,
+            out_shape=self.state_arr.shape,
+            fill=-1,
+            transform=self.trf,
+            all_touched=True,
+            dtype=np.int32,
+        )
+        cell_area = int((self.granularity_m / 1000) ** 2)
+        added_blocks = 0
+        added_centrality = 0
+        for x_idx, y_idx in np.ndindex(self.state_arr.shape):
+            # bail if build
+            if self.state_arr[x_idx, y_idx] != 0:
+                continue
+            # bail if the green area is less than the threshold
+            area: int = areas_arr[x_idx, y_idx]
+            if area > cell_area and area < self.min_green_km2:
+                continue
+            # if a cell is on the green periphery adjacent to built areas
+            if self.green_itx_arr[x_idx, y_idx] == 1:
+                # if centrality is accessible
+                if self.cent_acc_arr[x_idx, y_idx] > 0:
+                    # if self.nature_stays_extended(x, y):
+                    # if self.nature_stays_reachable(x, y):
+                    if np.random.rand() < self.build_prob:
+                        # claim as built
+                        self.state_arr[x_idx, y_idx] = 1
+                        added_blocks += 1
+                        # set random density
+                        self.density_arr[x_idx, y_idx] = _random_density(self.prob_distribution, self.density_factors)
+                        # update green state
+                        self.green_itx_arr, self.green_acc_arr = _green_state(
+                            x_idx,
+                            y_idx,
+                            self.state_arr,
+                            self.green_itx_arr,
+                            self.green_acc_arr,
+                            self.granularity_m,
+                            self.walk_dist_m,
+                        )
+                # otherwise, consider adding a new centrality
+                else:
+                    if np.random.rand() < self.cent_prob_nb:
+                        # if self.nature_stays_extended(x, y):
+                        # if self.nature_stays_reachable(x, y):
+                        # claim as built
+                        self.state_arr[x_idx, y_idx] = 2
+                        self.cent_acc_arr = _inc_access(
+                            x_idx, y_idx, self.cent_acc_arr, self.granularity_m, self.walk_dist_m
+                        )
+                        added_centrality += 1
+                        # set random density
+                        self.density_arr[x_idx, y_idx] = _random_density(self.prob_distribution, self.density_factors)
+                        # update green state
+                        self.green_itx_arr, self.green_acc_arr = _green_state(
+                            x_idx,
+                            y_idx,
+                            self.state_arr,
+                            self.green_itx_arr,
+                            self.green_acc_arr,
+                            self.granularity_m,
+                            self.walk_dist_m,
+                        )
+            # handle random conversion of green space to centralities
+            elif self.state_arr[x_idx, y_idx] == 0:
+                if np.random.rand() < self.cent_prob_isol:
+                    # if self.nature_stays_extended(x, y):
+                    # if self.nature_stays_reachable(x, y):
+                    self.state_arr[x_idx, y_idx] = 2
+                    # set random density
+                    self.density_arr[x_idx, y_idx] = _random_density(self.prob_distribution, self.density_factors)
+                    self.cent_acc_arr = _inc_access(
+                        x_idx, y_idx, self.cent_acc_arr, self.granularity_m, self.walk_dist_m
+                    )
+                    added_centrality += 1
+                    # update green state
+                    self.green_itx_arr, self.green_acc_arr = _green_state(
+                        x_idx,
+                        y_idx,
+                        self.state_arr,
+                        self.green_itx_arr,
+                        self.green_acc_arr,
+                        self.granularity_m,
+                        self.walk_dist_m,
+                    )
         LOGGER.info(f"added blocks: {added_blocks}")
         LOGGER.info(f"added centralities: {added_centrality}")
 
@@ -239,73 +320,6 @@ def _random_density(
         return density_factors[1]
     else:
         return density_factors[2]
-
-
-# @njit
-def _iter_land_isobenefit(
-    state_arr: Any,
-    green_itx_arr: Any,
-    cent_acc_arr: Any,
-    green_acc_arr: Any,
-    density_arr: Any,
-    walk_dist_m: int,
-    granularity_m: int,
-    build_prob: float,
-    cent_prob_isol: float,
-    cent_prob_nb: float,
-    prob_distribution: tuple[float, float, float],
-    density_factors: tuple[float, float, float],
-) -> tuple[Any, Any, Any, Any, int, int]:
-    """ """
-    added_blocks = 0
-    added_centrality = 0
-    for x_idx, y_idx in np.ndindex(state_arr.shape):
-        # if a cell is on the green periphery adjacent to built areas
-        if green_itx_arr[x_idx, y_idx] == 1:
-            # if centrality is accessible
-            if cent_acc_arr[x_idx, y_idx] > 0:
-                # if self.nature_stays_extended(x, y):
-                # if self.nature_stays_reachable(x, y):
-                if np.random.rand() < build_prob:
-                    # claim as built
-                    state_arr[x_idx, y_idx] = 1
-                    added_blocks += 1
-                    # set random density
-                    density_arr[x_idx, y_idx] = _random_density(prob_distribution, density_factors)
-                    # update green state
-                    green_itx_arr, green_acc_arr = _green_state(
-                        x_idx, y_idx, state_arr, green_itx_arr, green_acc_arr, granularity_m, walk_dist_m
-                    )
-            # otherwise, consider adding a new centrality
-            else:
-                if np.random.rand() < cent_prob_nb:
-                    # if self.nature_stays_extended(x, y):
-                    # if self.nature_stays_reachable(x, y):
-                    # claim as built
-                    state_arr[x_idx, y_idx] = 2
-                    cent_acc_arr = _inc_access(x_idx, y_idx, cent_acc_arr, granularity_m, walk_dist_m)
-                    added_centrality += 1
-                    # set random density
-                    density_arr[x_idx, y_idx] = _random_density(prob_distribution, density_factors)
-                    # update green state
-                    green_itx_arr, green_acc_arr = _green_state(
-                        x_idx, y_idx, state_arr, green_itx_arr, green_acc_arr, granularity_m, walk_dist_m
-                    )
-        # handle random conversion of green space to centralities
-        elif state_arr[x_idx, y_idx] == 0:
-            if np.random.rand() < cent_prob_isol:
-                # if self.nature_stays_extended(x, y):
-                # if self.nature_stays_reachable(x, y):
-                state_arr[x_idx, y_idx] = 2
-                # set random density
-                density_arr[x_idx, y_idx] = _random_density(prob_distribution, density_factors)
-                cent_acc_arr = _inc_access(x_idx, y_idx, cent_acc_arr, granularity_m, walk_dist_m)
-                added_centrality += 1
-                # update green state
-                green_itx_arr, green_acc_arr = _green_state(
-                    x_idx, y_idx, state_arr, green_itx_arr, green_acc_arr, granularity_m, walk_dist_m
-                )
-    return state_arr, green_itx_arr, cent_acc_arr, green_acc_arr, added_blocks, added_centrality
 
 
 def update_map_classical() -> tuple[int, int]:

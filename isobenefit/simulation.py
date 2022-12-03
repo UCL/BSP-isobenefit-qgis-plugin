@@ -134,8 +134,8 @@ def run_isobenefit_simulation(
         x_max,
         y_min,
         y_max,
-        size_x_m,
-        size_y_m,
+        cells_x,
+        cells_y,
         target_crs,
         layer_group,
     )
@@ -182,8 +182,8 @@ def run_isobenefit_simulation(
             x_max,
             y_min,
             y_max,
-            size_x_m,
-            size_y_m,
+            cells_x,
+            cells_y,
             target_crs,
             layer_group,
         )
@@ -225,8 +225,8 @@ def save_snapshot(
     x_max: int,
     y_min: int,
     y_max: int,
-    size_x_m: int,
-    size_y_m: int,
+    cells_x: int,
+    cells_y: int,
     target_crs: QgsCoordinateReferenceSystem,
     layer_group: QgsLayerTreeGroup,
 ) -> None:
@@ -234,13 +234,11 @@ def save_snapshot(
     out_name = f"{out_file_name}_{step:05d}"
     out_path: str = str(out_dir_path / f"{out_name}.tif")
     crs_wkt: str = target_crs.toWkt()
-    trf = transform.from_bounds(x_min, y_min, x_max, y_max, size_x_m, size_y_m)  # type: ignore
+    trf = transform.from_bounds(x_min, y_min, x_max, y_max, cells_x, cells_y)  # type: ignore
     with rio.open(  # type: ignore
         out_path,
         "w",
         driver="GTiff",
-        height=size_y_m,
-        width=size_x_m,
         count=3,
         dtype=land.substrate.dtype,  # type: ignore
         crs=crs_wkt,
