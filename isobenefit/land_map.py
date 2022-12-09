@@ -51,16 +51,16 @@ def _agg_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, walk_dist_
 
 
 @njit
-def _compute_centres_access(state_arr: Any, granularity_m: int, walk_dist_m: int) -> Any:
+def _compute_arr_access(state_arr: Any, target_state: int, granularity_m: int, walk_dist_m: int) -> Any:
     """Computes accessibility surface to centres"""
-    cent_acc_arr = np.full(state_arr.shape, 0, dtype=np.float32)
-    for sy_idx, sx_idx in np.ndindex(state_arr.shape):
+    arr = np.full(state_arr.shape, 0, dtype=np.float32)
+    for y_idx, x_idx in np.ndindex(state_arr.shape):
         # bail if not a centre
-        if state_arr[sy_idx, sx_idx] != 2:
+        if state_arr[y_idx, x_idx] != target_state:
             continue
         # otherwise, agg access to surrounding extents
-        cent_acc_arr = _inc_access(sy_idx, sx_idx, cent_acc_arr, granularity_m, walk_dist_m)
-    return cent_acc_arr
+        arr = _inc_access(y_idx, x_idx, arr, granularity_m, walk_dist_m)
+    return arr
 
 
 @njit
@@ -107,15 +107,10 @@ def _green_state(
         if state_arr[x_nb_idx, y_nb_idx] == 0 and green_itx_arr[x_nb_idx, y_nb_idx] == 0:
             green_itx_arr[x_nb_idx, y_nb_idx] = 1
             new_green_acc_arr = _inc_access(x_nb_idx, y_nb_idx, new_green_acc_arr, granularity_m, walk_dist_m)
-    # determine if new state throws any existing cells into non-green-accessibility
+    # bail if the new built cell breaks green access
     # do this after full decrement / increment cycles above
-    zero_y_idx, zero_x_idxs = np.where(old_green_acc_arr - new_green_acc_arr > 0)
-    for zero_y_idx, zero_x_idx in zip(zero_y_idx, zero_x_idxs):
-        if new_green_acc_arr[zero_y_idx, zero_x_idx] == 0 and old_green_acc_arr[zero_y_idx, zero_x_idx] > 0:
-            # deactivate
-            green_itx_arr[y_idx, x_idx] = 2
-            # return the old green access array unchanged
-            return False, green_itx_arr, old_green_acc_arr
+    if np.any(new_green_acc_arr == 0):
+        return False, green_itx_arr, old_green_acc_arr
     # return accordingly
     return True, green_itx_arr, new_green_acc_arr
 
@@ -152,10 +147,10 @@ def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[in
 
 
 @njit
-def _compute_green_itx(state_arr: Any, granularity_m: int, walk_dist_m: int) -> Any:
+def _compute_green_itx(state_arr: Any, granularity_m: int, walk_dist_m: int) -> tuple[Any, Any]:
     """Finds cells on the periphery of green areas and adjacent to built areas"""
     green_itx_arr = np.full(state_arr.shape, 0, np.int16)
-    green_acc_arr = np.full(state_arr.shape, 0, np.float32)
+    green_acc_arr = _compute_arr_access(state_arr, target_state=0, granularity_m=granularity_m, walk_dist_m=walk_dist_m)
     for y_idx, x_idx in np.ndindex(state_arr.shape):
         # bail if not built space
         if state_arr[y_idx, x_idx] < 1:
@@ -223,6 +218,85 @@ def green_rays(
     return True
 
 
+@njit
+def recurse_gobble(
+    arr: Any,
+    y_idx: int,
+    x_idx: int,
+    target_state: int,
+    cell_counter: int,
+    target_cell_count: int,
+    max_recurse_depth: int,
+    last_recurse_depth: int,
+    visited_arr: Any,
+) -> tuple[int, Any]:
+    """
+    0 - not visited
+    1 - visited and claimed
+    """
+    # explore neighbours
+    for nb_y_idx, nb_x_idx in _iter_nbs(arr, y_idx, x_idx, rook=False):
+        # ignore if already visited
+        if visited_arr[nb_y_idx, nb_x_idx] != target_state:
+            continue
+        # ignore if not target value
+        if arr[nb_y_idx, nb_x_idx] != target_state:
+            break
+        # otherwise claim
+        visited_arr[nb_y_idx, nb_x_idx] = 1
+        cell_counter += 1
+        # break if target cells reached
+        if cell_counter >= target_cell_count:
+            break
+        # halt recursion if max recursion depth reached
+        this_recurse_depth = last_recurse_depth + 1
+        if this_recurse_depth == max_recurse_depth:
+            break
+        # otherwise recurse
+        cell_counter, visited_arr = recurse_gobble(
+            arr,
+            nb_y_idx,
+            nb_x_idx,
+            target_state,
+            cell_counter,
+            target_cell_count,
+            max_recurse_depth,
+            this_recurse_depth,
+            visited_arr,
+        )
+    return cell_counter, visited_arr
+
+
+@njit
+def continuous_state_extents(
+    arr: Any,
+    y_idx: int,
+    x_idx: int,
+    target_state: int,
+    target_area_m: int,
+    max_dist_m: int,
+    granularity_m: int,
+) -> bool:
+    """ """
+    cell_counter = 0
+    target_cell_count = int(np.ceil(target_area_m / granularity_m**2))
+    max_recurse_depth = int(np.floor(max_dist_m / granularity_m))
+    visited_arr = np.full(arr.shape, 0, dtype=np.uint)
+    visited_arr[y_idx, x_idx] = 1
+    cell_counter, visited_arr = recurse_gobble(
+        arr,
+        y_idx,
+        x_idx,
+        target_state,
+        cell_counter,
+        target_cell_count,
+        max_recurse_depth,
+        last_recurse_depth=0,
+        visited_arr=visited_arr,
+    )
+    return cell_counter >= target_cell_count
+
+
 class Land:
     """
     state_arr - is this necessary?
@@ -247,9 +321,9 @@ class Land:
     # state - QGIS / gdal numpy veresion doesn't yet support numpy typing for NDArray
     state_arr: Any
     green_itx_arr: Any
+    green_acc_arr: Any
     density_arr: Any
     cent_acc_arr: Any
-    green_acc_arr: Any
     areas_arr: Any | None
     min_green_km2: int
     min_long_green_span_m: int
@@ -309,8 +383,9 @@ class Land:
         # areas array is set by iter
         self.areas_arr = None
         # access to centres
-        self.cent_acc_arr = _compute_centres_access(
+        self.cent_acc_arr = _compute_arr_access(
             state_arr=self.state_arr,
+            target_state=2,
             granularity_m=granularity_m,
             walk_dist_m=walk_dist_m,
         )
@@ -352,13 +427,16 @@ class Land:
                 if area > cell_area and area < self.min_green_km2:
                     continue
                 # bail if green expanse is too small
-                if not green_rays(
+                max_dist_m = 400
+                target_area_m = 600 * 400 - self.granularity_m**2
+                if not continuous_state_extents(
                     self.state_arr,
                     y_idx,
                     x_idx,
+                    0,
+                    target_area_m,
+                    max_dist_m,
                     self.granularity_m,
-                    self.min_long_green_span_m,
-                    self.min_short_green_span_m,
                 ):
                     continue
                 # only develop a cell if it has at least two urban neighbours - i.e. not diagonally

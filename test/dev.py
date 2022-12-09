@@ -61,15 +61,30 @@ def test_land_map():
         min_short_green_span_m=min_short_green_span_m,
         random_seed=0,
     )
-    iters = 1000
+    iters = 50
     for _ in range(iters):
         land.iter_land_isobenefit()
         print(land.iters)
-        if land.iters % 50 == 0:
+        if land.iters < 10 or land.iters % 10 == 0:
             test_plot(land)
     test_plot(land)
     print("here")
 
 
+def test_recurse_gobble():
+    """ """
+    test_arr = np.full((100, 100), 0, dtype=np.int_)
+    # start in middle
+    enough_extents = land_map.continuous_state_extents(test_arr, 50, 50, 0, 200 * 200, 250, 50)
+    assert enough_extents
+    # start in corner
+    enough_extents = land_map.continuous_state_extents(test_arr, 0, 0, 0, 200 * 200, 250, 50)
+    assert enough_extents
+    # reduce distance - should return False since start node is not included
+    enough_extents = land_map.continuous_state_extents(test_arr, 0, 0, 0, 200 * 200, 200, 50)
+    assert enough_extents is False
+
+
 if __name__ == "__main__":
     test_land_map()
+    # test_recurse_gobble()
