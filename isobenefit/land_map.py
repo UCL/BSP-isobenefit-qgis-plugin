@@ -22,6 +22,20 @@ LOGGER: logging.Logger = get_logger()
 
 
 @njit
+def _random_density(
+    prob_distribution: tuple[float, float, float], density_factors: tuple[float, float, float]
+) -> float:
+    """Numba compatible method for determining a land use density"""
+    p = np.random.rand()
+    if p >= 0 and p < prob_distribution[0]:
+        return density_factors[0]
+    elif p >= prob_distribution[1] and p < prob_distribution[2]:
+        return density_factors[1]
+    else:
+        return density_factors[2]
+
+
+@njit
 def _inc_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, walk_dist_m: int) -> Any:
     """increment access"""
     return _agg_access(y_idx, x_idx, arr, granularity_m, walk_dist_m, positive=True)
@@ -42,7 +56,7 @@ def _agg_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, walk_dist_
         dist = np.hypot(x_dist, y_dist)
         if dist > walk_dist_m:
             continue
-        val = 1 - dist / walk_dist_m
+        val = 1  #  - dist / walk_dist_m
         if positive:
             arr[cy_idx, cx_idx] += val
         else:
@@ -85,37 +99,6 @@ def _iter_nbs(arr: Any, y_idx: int, x_idx: int, rook: bool) -> list[tuple[int, i
 
 
 @njit
-def _green_state(
-    y_idx: int,
-    x_idx: int,
-    state_arr: Any,
-    green_itx_arr: Any,
-    old_green_acc_arr: Any,
-    granularity_m: int,
-    walk_dist_m: int,
-) -> tuple[bool, Any, Any]:
-    """Check a built cell's neighbours - set to itx if green space - update green access"""
-    # check if cell is currently green_itx
-    # if so, set to itx to off and decrement green access accordingly
-    new_green_acc_arr = np.copy(old_green_acc_arr)
-    if green_itx_arr[y_idx, x_idx] == 1:
-        green_itx_arr[y_idx, x_idx] = 0
-        new_green_acc_arr = _decr_access(y_idx, x_idx, new_green_acc_arr, granularity_m, walk_dist_m)
-    # scan through neighbours
-    for x_nb_idx, y_nb_idx in _iter_nbs(green_itx_arr, y_idx, x_idx, rook=True):
-        # if neighbour is currently green space and not already itx, set as new itx
-        if state_arr[x_nb_idx, y_nb_idx] == 0 and green_itx_arr[x_nb_idx, y_nb_idx] == 0:
-            green_itx_arr[x_nb_idx, y_nb_idx] = 1
-            new_green_acc_arr = _inc_access(x_nb_idx, y_nb_idx, new_green_acc_arr, granularity_m, walk_dist_m)
-    # bail if the new built cell breaks green access
-    # do this after full decrement / increment cycles above
-    if np.any(new_green_acc_arr == 0):
-        return False, green_itx_arr, old_green_acc_arr
-    # return accordingly
-    return True, green_itx_arr, new_green_acc_arr
-
-
-@njit
 def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[int]) -> tuple[int, int]:
     """Counts continuous green space neighbours"""
     circle: list[int] = []
@@ -146,9 +129,56 @@ def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[in
     return max(adds), len(adds)
 
 
-@njit
-def _compute_green_itx(state_arr: Any, granularity_m: int, walk_dist_m: int) -> tuple[Any, Any]:
-    """Finds cells on the periphery of green areas and adjacent to built areas"""
+# @njit
+def _green_to_built(
+    y_idx: int,
+    x_idx: int,
+    state_arr: Any,
+    old_green_itx_arr: Any,
+    old_green_acc_arr: Any,
+    granularity_m: int,
+    walk_dist_m: int,
+    min_green_access: int = 50,
+    min_green_contig: int = 100,
+) -> tuple[bool, Any, Any]:
+    """Check a built cell's neighbours - set to itx if green space - update green access"""
+    # check if cell is currently green_itx
+    # if so, set to itx to off and decrement green access accordingly
+    new_green_itx_arr = np.copy(old_green_itx_arr)
+    new_green_acc_arr = np.copy(old_green_acc_arr)
+    if new_green_itx_arr[y_idx, x_idx] == 1:
+        new_green_itx_arr[y_idx, x_idx] = 0
+        new_green_acc_arr = _decr_access(y_idx, x_idx, new_green_acc_arr, granularity_m, walk_dist_m)
+    # bail if the new built cell breaks green access for built areas
+    min_green_idxs = np.where(new_green_acc_arr < min_green_access)
+    if np.any(old_green_acc_arr[min_green_idxs] > new_green_acc_arr[min_green_idxs]):
+        return False, old_green_itx_arr, old_green_acc_arr
+    # check green space contiguity
+    if min_green_contig is not None:
+        new_clip_idxs = np.where(new_green_acc_arr < min_green_contig)
+        if np.any(
+            np.logical_and(
+                # vs > min_green_contig[new_clip_idxs]
+                old_green_acc_arr[new_clip_idxs] > new_green_acc_arr[new_clip_idxs],
+                state_arr[new_clip_idxs] == 0,
+            )
+        ):
+            return False, old_green_itx_arr, old_green_acc_arr
+    # scan through neighbours
+    for x_nb_idx, y_nb_idx in _iter_nbs(new_green_itx_arr, y_idx, x_idx, rook=True):
+        # if neighbour is currently green space and not already itx, set as new itx
+        if state_arr[x_nb_idx, y_nb_idx] == 0 and new_green_itx_arr[x_nb_idx, y_nb_idx] == 0:
+            new_green_itx_arr[x_nb_idx, y_nb_idx] = 1
+    # return accordingly
+    return True, new_green_itx_arr, new_green_acc_arr
+
+
+# @njit
+def _prepare_green_arrs(state_arr: Any, granularity_m: int, walk_dist_m: int) -> tuple[Any, Any]:
+    """
+    Initialises green itx and green acc arrays.
+    Finds cells on the periphery of green areas and adjacent to built areas.
+    """
     green_itx_arr = np.full(state_arr.shape, 0, np.int16)
     green_acc_arr = _compute_arr_access(state_arr, target_state=0, granularity_m=granularity_m, walk_dist_m=walk_dist_m)
     for y_idx, x_idx in np.ndindex(state_arr.shape):
@@ -156,7 +186,7 @@ def _compute_green_itx(state_arr: Any, granularity_m: int, walk_dist_m: int) -> 
         if state_arr[y_idx, x_idx] < 1:
             continue
         # otherwise, look to see if the cell borders green space
-        _success, green_itx_arr, green_acc_arr = _green_state(
+        _success, green_itx_arr, green_acc_arr = _green_to_built(
             y_idx, x_idx, state_arr, green_itx_arr, green_acc_arr, granularity_m, walk_dist_m
         )
     return green_itx_arr, green_acc_arr
@@ -213,8 +243,8 @@ def green_rays(
     if xy_max[-1] < min_long_green_span_m / granularity_m:
         return False
     # the secondary max must be larger than min short
-    if xy_max[0] < min_short_green_span_m / granularity_m:
-        return False
+    # if xy_max[0] < min_short_green_span_m / granularity_m:
+    #     return False
     return True
 
 
@@ -375,7 +405,7 @@ class Land:
             x, y = transform.rowcol(self.trf, east, north)  # type: ignore
             self.state_arr[x, y] = 2
         # find boundary of built land
-        self.green_itx_arr, self.green_acc_arr = _compute_green_itx(
+        self.green_itx_arr, self.green_acc_arr = _prepare_green_arrs(
             state_arr=self.state_arr, granularity_m=granularity_m, walk_dist_m=walk_dist_m
         )
         # density
@@ -416,46 +446,28 @@ class Land:
             all_touched=True,
             dtype=np.int32,
         )
-        cell_area = int((self.granularity_m / 1000) ** 2)
         added_blocks = 0
         added_centrality = 0
         for y_idx, x_idx in np.ndindex(self.state_arr.shape):
             # if a cell is on the green periphery adjacent to built areas
             if self.green_itx_arr[y_idx, x_idx] == 1:
-                # bail if the green area is less than the threshold
-                area: int = self.areas_arr[y_idx, x_idx]
-                if area > cell_area and area < self.min_green_km2:
-                    continue
-                # bail if green expanse is too small
-                max_dist_m = 400
-                target_area_m = 600 * 400 - self.granularity_m**2
-                if not continuous_state_extents(
-                    self.state_arr,
-                    y_idx,
-                    x_idx,
-                    0,
-                    target_area_m,
-                    max_dist_m,
-                    self.granularity_m,
-                ):
-                    continue
+                # TODO: set minimum contiguous green access, e.g. 16?
                 # only develop a cell if it has at least two urban neighbours - i.e. not diagonally
                 urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
                 green_nbs, green_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [0])
                 # if urban_regions > 1:
                 #     continue
+                if not continuous_state_extents(self.state_arr, y_idx, x_idx, 0, 4000, 100, 50):
+                    continue
+                if not green_rays(self.state_arr, y_idx, x_idx, self.granularity_m, 200, 200):
+                    continue
                 # if centrality is accessible
                 if self.cent_acc_arr[y_idx, x_idx] > 0:
                     # if self.nature_stays_extended(y_idx, x_idx):
                     # if self.nature_stays_reachable(x, y):
                     if np.random.rand() < self.build_prob:
-                        if self.iters == 14:
-                            print(y_idx, x_idx)
-                        # print("add", self.iters, y_idx, x_idx, urban_nbs)
-                        # print(urban_nbs, urban_regions)
-                        # print(green_nbs, green_regions)
                         # update green state
-                        success, self.green_itx_arr, self.green_acc_arr = _green_state(
+                        success, self.green_itx_arr, self.green_acc_arr = _green_to_built(
                             y_idx,
                             x_idx,
                             self.state_arr,
@@ -465,7 +477,7 @@ class Land:
                             self.walk_dist_m,
                         )
                         # claim as built
-                        if success:
+                        if success is True:
                             # state
                             self.state_arr[y_idx, x_idx] = 1
                             added_blocks += 1
@@ -479,7 +491,7 @@ class Land:
                         # if self.nature_stays_extended(x, y):
                         # if self.nature_stays_reachable(x, y):
                         # update green state
-                        success, self.green_itx_arr, self.green_acc_arr = _green_state(
+                        success, self.green_itx_arr, self.green_acc_arr = _green_to_built(
                             y_idx,
                             x_idx,
                             self.state_arr,
@@ -488,7 +500,7 @@ class Land:
                             self.granularity_m,
                             self.walk_dist_m,
                         )
-                        if success:
+                        if success is True:
                             # claim as built
                             self.state_arr[y_idx, x_idx] = 2
                             self.cent_acc_arr = _inc_access(
@@ -501,11 +513,11 @@ class Land:
                             )
             # handle random conversion of green space to centralities
             elif self.state_arr[y_idx, x_idx] == 0:
-                if np.random.rand() < self.cent_prob_isol:
+                if np.random.rand() < 0:  # self.cent_prob_isol:
                     # if self.nature_stays_extended(x, y):
                     # if self.nature_stays_reachable(x, y):
                     # update green state
-                    success, self.green_itx_arr, self.green_acc_arr = _green_state(
+                    success, self.green_itx_arr, self.green_acc_arr = _green_to_built(
                         y_idx,
                         x_idx,
                         self.state_arr,
@@ -514,7 +526,7 @@ class Land:
                         self.granularity_m,
                         self.walk_dist_m,
                     )
-                    if success:
+                    if success is True:
                         # claim as built
                         self.state_arr[y_idx, x_idx] = 2
                         self.cent_acc_arr = _inc_access(
@@ -535,73 +547,3 @@ class Land:
             "low": self.density_factors[2],
             "empty": 0,
         }
-
-
-@njit
-def _random_density(
-    prob_distribution: tuple[float, float, float], density_factors: tuple[float, float, float]
-) -> float:
-    """Numba compatible method for determining a land use density"""
-    p = np.random.rand()
-    if p >= 0 and p < prob_distribution[0]:
-        return density_factors[0]
-    elif p >= prob_distribution[1] and p < prob_distribution[2]:
-        return density_factors[1]
-    else:
-        return density_factors[2]
-
-
-def update_map_classical() -> tuple[int, int]:
-    """ """
-    added_blocks = 0
-    added_centrality = 0
-    copy_land = copy.deepcopy(self)
-    for x in range(self.T_star, self.cells_x - self.T_star):
-        for y in range(self.T_star, self.cells_y - self.T_star):
-            block = self.map[x][y]
-            assert (block.is_nature and not block.is_built) or (
-                block.is_built and not block.is_nature
-            ), f"({x},{y}) block has ambiguous coordinates"
-            if block.is_nature:
-                if copy_land.is_any_neighbor_built(x, y):
-                    if np.random.rand() < self.build_prob:
-                        density_level = np.random.choice(DENSITY_LEVELS, p=self.prob_distribution)
-                        block.is_nature = False
-                        block.is_built = True
-                        block.set_block_population(self.block_pop, density_level, self.population_density)
-                        added_blocks += 1
-
-                else:
-                    if (
-                        np.random.rand() < self.cent_prob_isol / np.sqrt(self.cells_x * self.cells_y)
-                        and (self.current_built_blocks / self.current_centralities) > 100
-                    ):
-                        block.is_centrality = True
-                        block.set_block_population(self.block_pop, "empty", self.population_density)
-                        added_centrality += 1
-            else:
-                if not block.is_centrality:
-                    if block.density_level == "low":
-                        if np.random.rand() < 0.1:
-                            block.set_block_population(self.block_pop, "medium", self.population_density)
-                    elif block.density_level == "medium":
-                        if np.random.rand() < 0.01:
-                            block.set_block_population(self.block_pop, "high", self.population_density)
-                    elif (
-                        block.density_level == "high" and (self.current_built_blocks / self.current_centralities) > 100
-                    ):
-                        if self.is_any_neighbor_centrality(x, y):
-                            if np.random.rand() < self.cent_prob_nb:
-                                block.is_centrality = True
-                                block.set_block_population(self.block_pop, "empty", self.population_density)
-                                added_centrality += 1
-                        else:
-                            if np.random.rand() < self.cent_prob_isol:  # /np.sqrt(self.current_built_blocks):
-                                block.is_centrality = True
-                                block.set_block_population(self.block_pop, "empty", self.population_density)
-                                added_centrality += 1
-
-    LOGGER.info(f"added blocks: {added_blocks}")
-    LOGGER.info(f"added centralities: {added_centrality}")
-    return added_blocks, added_centrality
-    return added_blocks, added_centrality

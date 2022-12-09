@@ -59,13 +59,13 @@ def test_land_map():
         min_green_km2=1,
         min_long_green_span_m=min_long_green_span_m,
         min_short_green_span_m=min_short_green_span_m,
-        random_seed=0,
+        random_seed=20,
     )
-    iters = 50
+    iters = 500
     for _ in range(iters):
         land.iter_land_isobenefit()
         print(land.iters)
-        if land.iters < 10 or land.iters % 10 == 0:
+        if land.iters < 1 or land.iters % 50 == 0:
             test_plot(land)
     test_plot(land)
     print("here")
