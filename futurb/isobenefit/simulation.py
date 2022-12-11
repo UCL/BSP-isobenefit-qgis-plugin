@@ -103,6 +103,18 @@ def run_isobenefit_simulation(
         density_factors=density_factors,
     )
     canvas = np.full((size_x, size_y, 3), 1.0, dtype=np.float_)
+    trf = transform.from_bounds(x_min, y_min, x_max, y_max, size_x, size_y)  # type: ignore
+    print(x_min, y_min, x_max, y_max, size_x, size_y)
+    # TODO: temporarily setting centralities
+    for easting, northing in [(546257, 257395), (547539, 260666), (545244, 258461)]:
+        y_cell, x_cell = transform.rowcol(trf, easting, northing)
+        block = land.map[y_cell][x_cell]
+        block.is_centrality = True
+        block.set_block_population(
+            land.block_pop,
+            "high",
+            land.population_density,
+        )
     # prepare QGIS menu
     layer_root = QgsProject.instance().layerTreeRoot()
     layer_group = layer_root.insertGroup(0, f"{out_file_name} outputs")
@@ -122,7 +134,7 @@ def run_isobenefit_simulation(
         layer_group,
     )
     land.set_record_counts_header(output_path=out_dir_path, urbanism_model=urbanism_model)
-    land.set_current_counts(urbanism_model)
+    # land.set_current_counts(urbanism_model)
     # first step is already written, so use 1
     idx = 1
     added_blocks, added_centralities = (0, 0)
@@ -137,7 +149,7 @@ def run_isobenefit_simulation(
         print(idx, n_steps)
         start = time.time()
         added_blocks, added_centralities = land.update_map()
-        land.set_current_counts(urbanism_model)
+        # land.set_current_counts(urbanism_model)
         land.record_current_counts(
             output_path=out_dir_path,
             iteration=idx,
