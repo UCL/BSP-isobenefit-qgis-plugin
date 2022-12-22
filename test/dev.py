@@ -55,7 +55,7 @@ def test_land_map():
     test_plot(land)
     iters = 500
     for _ in range(iters):
-        land.iter_land_isobenefit()
+        land.iterate()
         print(land.iters)
         if land.iters < 10 or land.iters % 50 == 0:
             test_plot(land)

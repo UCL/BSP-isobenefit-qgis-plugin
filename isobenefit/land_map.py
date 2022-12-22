@@ -11,12 +11,11 @@ from functools import partial
 from typing import Any
 
 import numpy as np
+from isobenefit.logger import get_logger
 from numba import njit
 from rasterio import features, transform
 from scipy.ndimage import measurements as measure
 from shapely.geometry import shape
-
-from .logger import get_logger
 
 LOGGER: logging.Logger = get_logger()
 
@@ -236,8 +235,8 @@ def green_spans(
         return True
     if sum(xy_mins) == 0 and xy_maxs[0] == 0:
         return True
-    if sum(xy_mins) == 0:
-        return True
+    # if sum(xy_mins) == 0:
+    #     return True
     # otherwise, gaps greater than zero must meet the span
     for span in [*xy_mins, *xy_maxs]:
         if span > 0 and span < min_green_span_m / granularity_m:
@@ -261,51 +260,72 @@ def _green_to_built(
     new_green_itx_arr = np.copy(old_green_itx_arr)
     new_green_acc_arr = np.copy(old_green_acc_arr)
     # check that cell is spatially sensible
-    if not green_spans(state_arr, y_idx, x_idx, granularity_m, min_green_span):
-        return False, old_green_itx_arr, old_green_acc_arr
+    # if not green_spans(state_arr, y_idx, x_idx, granularity_m, min_green_span):
+    #     return False, old_green_itx_arr, old_green_acc_arr
     # check if cell is currently green_itx
     # if so, set itx to off and decrement green access accordingly
     if new_green_itx_arr[y_idx, x_idx] == 2:
         new_green_itx_arr[y_idx, x_idx] = 1
-        # decrement green access to existing built cells
-        new_green_acc_arr -= _agg_dijkstra_cont(state_arr, y_idx, x_idx, [1, 2], [1, 2], max_distance_m, granularity_m)
-        # calculate green access for new (current) cell
-        new_cell_green_acc = _agg_dijkstra_cont(
-            new_green_itx_arr, y_idx, x_idx, [1], [2], max_distance_m, granularity_m
+        # decrement green access as consequence of converting cell from itx to built
+        new_green_acc_arr -= _agg_dijkstra_cont(
+            new_green_itx_arr, y_idx, x_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
         )
-        new_green_acc_arr[y_idx, x_idx] = np.sum(new_cell_green_acc)
-    # scan through neighbours - check green contiguity and set new green itx
+    # scan through neighbours - set new green itx - use rook for checking contiguity
+    for y_nb_idx, x_nb_idx in _iter_nbs(new_green_itx_arr, y_idx, x_idx, rook=True):
+        # convert green space to itx
+        if new_green_itx_arr[y_nb_idx, x_nb_idx] == 0:
+            new_green_itx_arr[y_nb_idx, x_nb_idx] = 2
+            # increment green access to existing built cells
+            new_green_acc_arr += _agg_dijkstra_cont(
+                new_green_itx_arr, y_nb_idx, x_nb_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
+            )
+    # check that green access has not been cut off for built areas
+    ny_idxs, nx_idxs = np.nonzero(new_green_acc_arr <= 0)
+    for ny_idx, nx_idx in zip(ny_idxs, nx_idxs):
+        # bail if built and below zero
+        if state_arr[ny_idx, nx_idx] > 0 and old_green_acc_arr[ny_idx, nx_idx] > new_green_acc_arr[ny_idx, nx_idx]:
+            return False, old_green_itx_arr, old_green_acc_arr
+    # can't track state directly... because local actions have non-local impact
+    # could potentially note locations that are not developable to avoid repeat calcs...
+    # find all locations within distance
+    # then iter each of these and check green contiguity
     target_cell_count = int(np.ceil((min_green_cont_km2 * 1000**2) / granularity_m**2))
     max_search_dist = np.sqrt(min_green_cont_km2) * 1.25 * 1000
-    # use rook for checking contiguity
-    for y_nb_idx, x_nb_idx in _iter_nbs(new_green_itx_arr, y_idx, x_idx, rook=False):
-        # check that if cell is built, the neighbours have sufficient contiguous access to green space
-        if new_green_itx_arr[y_nb_idx, x_nb_idx] in [0, 2]:
-            claimed_arr = _agg_dijkstra_cont(
-                new_green_itx_arr,
-                y_nb_idx,
-                x_nb_idx,
+    reach_arr = _agg_dijkstra_cont(
+        new_green_itx_arr,
+        y_idx,
+        x_idx,
+        [0, 1, 2],
+        [0, 1, 2],
+        max_distance_m=max_distance_m,
+        granularity_m=granularity_m,
+    )
+    gy_idxs, gx_idxs = np.nonzero(reach_arr)
+    for gy_idx, gx_idx in zip(gy_idxs, gx_idxs):
+        # during early stages it is necessary to check contiguity manually
+        new_green_cont_arr = _agg_dijkstra_cont(
+            new_green_itx_arr,
+            gy_idx,
+            gx_idx,
+            [0, 2],
+            [0, 2],
+            max_distance_m=max_search_dist,
+            granularity_m=granularity_m,
+            break_count=target_cell_count,
+        )
+        if np.sum(new_green_cont_arr) < target_cell_count:
+            old_green_cont_arr = _agg_dijkstra_cont(
+                old_green_itx_arr,
+                gy_idx,
+                gx_idx,
                 [0, 2],
                 [0, 2],
-                max_search_dist,
-                granularity_m,
+                max_distance_m=max_search_dist,
+                granularity_m=granularity_m,
                 break_count=target_cell_count,
             )
-            # bail if not enough
-            if np.sum(claimed_arr) < target_cell_count:
+            if np.sum(old_green_cont_arr) >= target_cell_count:
                 return False, old_green_itx_arr, old_green_acc_arr
-            # if neighbour is currently green space, on the same axis, and not already itx, then set as new itx
-            if y_nb_idx == y_idx or x_nb_idx == x_idx:
-                new_green_itx_arr[y_nb_idx, x_nb_idx] = 2
-                # increment green access to existing built cells
-                new_green_acc_arr += _agg_dijkstra_cont(
-                    state_arr, y_nb_idx, x_nb_idx, [1, 2], [1, 2], max_distance_m, granularity_m
-                )
-    # check that green access has not been cut off
-    # mg_y_idxs, mg_x_idxs = np.nonzero(new_green_acc_arr <= 0)
-    # for mg_y_idx, mg_x_idx in zip(mg_y_idxs, mg_x_idxs):
-    #     if old_green_acc_arr[mg_y_idx, mg_x_idx] > new_green_acc_arr[mg_y_idx, mg_x_idx]:
-    #         return False, old_green_itx_arr, old_green_acc_arr
     # return accordingly
     return True, new_green_itx_arr, new_green_acc_arr
 
@@ -331,14 +351,14 @@ def _prepare_green_arrs(state_arr: Any, max_distance_m: int, granularity_m: int)
     # prepare green access arr
     green_acc_arr = np.full(state_arr.shape, 0)
     for y_idx, x_idx in np.ndindex(state_arr.shape):
-        # agg green itx cells to built space
+        # agg green itx cells to surrounding space
         if green_itx_arr[y_idx, x_idx] == 2:
             green_acc_arr += _agg_dijkstra_cont(
                 green_itx_arr,
                 y_idx,
                 x_idx,
-                path_state=[1],
-                target_state=[1],
+                path_state=[0, 1, 2],
+                target_state=[0, 1, 2],
                 max_distance_m=max_distance_m,
                 granularity_m=granularity_m,
             )
@@ -407,7 +427,7 @@ class Land:
         self.max_local_pop = max_local_pop
         self.prob_distribution = prob_distribution
         self.density_factors = density_factors
-        # state
+        # 0 = green, 1 = built, 2 = centrality
         self.state_arr = np.full(extents_arr.shape, 0)
         self.state_arr[:, :] = extents_arr
         # seed centres
@@ -421,12 +441,13 @@ class Land:
         if area / 1000**2 < 2 * min_green_km2:
             raise ValueError("Please decrease min_green_km2 in relation to extents.")
         # find boundary of built land
+        # 0 = green, 1 = built, 2 = itx bounds
         self.green_itx_arr, self.green_acc_arr = _prepare_green_arrs(self.state_arr, max_distance_m, granularity_m)
         # density
         self.density_arr = np.full(extents_arr.shape, 0, dtype=np.float32)
         self.min_green_km2 = min_green_km2
 
-    def iter_land_isobenefit(self):
+    def iterate(self):
         """ """
         self.iters += 1
         # shuffle indices
