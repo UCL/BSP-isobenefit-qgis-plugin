@@ -519,9 +519,24 @@ class Land:
             # if a cell is on the green periphery adjacent to built areas
             if self.green_itx_arr[y_idx, x_idx] == 2:
                 # bail if not buildable
-                tot_urban_nbs, cont_urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
-                if self.areas_arr[y_idx, x_idx] == 0 and cont_urban_nbs < 5:
-                    continue
+                if self.areas_arr[y_idx, x_idx] == 0:
+                    tot_urban_nbs, cont_urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
+                    if cont_urban_nbs < 5:
+                        continue
+                    else:
+                        target_count = (0.5 * 1000) ** 2 / self.granularity_m**2
+                        new_green_acc_arr = _agg_dijkstra_cont(
+                            self.state_arr,
+                            y_idx,
+                            x_idx,
+                            [0],
+                            [0],
+                            max_distance_m=1000,
+                            granularity_m=self.granularity_m,
+                            break_count=target_count,
+                        )
+                        if new_green_acc_arr.sum() < target_count:
+                            continue
                 # elif urban_regions > 1:
                 #     continue
                 # green_nbs, green_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [0])
