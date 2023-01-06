@@ -479,6 +479,21 @@ class Land:
                 back_buf = back_buf.intersection(poly)
                 if back_buf.area >= self.min_green_km2 * 1000**2:
                     buildable_geom = buildable_geom.union(back_buf)
+            # generate a negative of green extents vs. deemed buildable extents
+            # review chunks and buffer smallest of these to prevent crowding
+            neg_extents: geometry.Polygon | geometry.MultiPolygon = poly.difference(buildable_geom)
+            neg_geoms: list[geometry.Polygon] = []
+            # if an area is split, a MultiPolygon is returned
+            if isinstance(neg_extents, geometry.Polygon) and not neg_extents.is_empty:
+                neg_geoms.append(neg_extents)
+            elif isinstance(neg_extents, geometry.MultiPolygon) and not neg_extents.is_empty:
+                neg_geoms += neg_extents.geoms
+            for neg_geom in neg_geoms:
+                # look for smaller chunks
+                if neg_geom.area < 5**2 * self.granularity_m**2:
+                    # buffer these and remove from buildable extents
+                    buildable_geom = buildable_geom.difference(neg_geom.buffer(self.granularity_m))
+            # burn raster
             if not buildable_geom.is_empty:
                 self.areas_arr += features.rasterize(  # type: ignore
                     shapes=[(geometry.mapping(buildable_geom))],  # convert back to geo interface
@@ -507,8 +522,8 @@ class Land:
                 tot_urban_nbs, cont_urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
                 if self.areas_arr[y_idx, x_idx] == 0 and cont_urban_nbs < 5:
                     continue
-                elif urban_regions > 1:
-                    continue
+                # elif urban_regions > 1:
+                #     continue
                 # green_nbs, green_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [0])
                 # if urban_regions > 1:
                 #     continue
