@@ -20,8 +20,8 @@ def test_plot(land: land_map.Land):
     axes[0][1].set_title("green periphery")
     axes[1][0].imshow(land.green_acc_arr, origin="lower")
     axes[1][0].set_title("green access")
-    axes[1][1].imshow(land.density_arr, origin="lower")
-    axes[1][1].set_title("density")
+    axes[1][1].imshow(land.areas_arr, origin="lower")
+    axes[1][1].set_title("green buffers")
     plt.tight_layout()
     plt.savefig(TEMP_DIR / f"{land.iters}.png", dpi=200)
 
@@ -57,7 +57,7 @@ def test_land_map():
     for _ in range(iters):
         land.iterate()
         print(land.iters)
-        if land.iters < 10 or land.iters % 50 == 0:
+        if land.iters < 30 or land.iters % 50 == 0:
             test_plot(land)
     test_plot(land)
     print("here")

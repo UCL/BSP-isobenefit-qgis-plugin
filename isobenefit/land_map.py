@@ -10,12 +10,13 @@ import logging
 from functools import partial
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 from isobenefit.logger import get_logger
 from numba import njit
 from rasterio import features, transform
 from scipy.ndimage import measurements as measure
-from shapely.geometry import shape
+from shapely import geometry
 
 LOGGER: logging.Logger = get_logger()
 
@@ -289,43 +290,43 @@ def _green_to_built(
     # could potentially note locations that are not developable to avoid repeat calcs...
     # find all locations within distance
     # then iter each of these and check green contiguity
-    target_cell_count = int(np.ceil((min_green_cont_km2 * 1000**2) / granularity_m**2))
-    max_search_dist = np.sqrt(min_green_cont_km2) * 1.25 * 1000
-    reach_arr = _agg_dijkstra_cont(
-        new_green_itx_arr,
-        y_idx,
-        x_idx,
-        [0, 1, 2],
-        [0, 1, 2],
-        max_distance_m=max_distance_m,
-        granularity_m=granularity_m,
-    )
-    gy_idxs, gx_idxs = np.nonzero(reach_arr)
-    for gy_idx, gx_idx in zip(gy_idxs, gx_idxs):
-        # during early stages it is necessary to check contiguity manually
-        new_green_cont_arr = _agg_dijkstra_cont(
-            new_green_itx_arr,
-            gy_idx,
-            gx_idx,
-            [0, 2],
-            [0, 2],
-            max_distance_m=max_search_dist,
-            granularity_m=granularity_m,
-            break_count=target_cell_count,
-        )
-        if np.sum(new_green_cont_arr) < target_cell_count:
-            old_green_cont_arr = _agg_dijkstra_cont(
-                old_green_itx_arr,
-                gy_idx,
-                gx_idx,
-                [0, 2],
-                [0, 2],
-                max_distance_m=max_search_dist,
-                granularity_m=granularity_m,
-                break_count=target_cell_count,
-            )
-            if np.sum(old_green_cont_arr) >= target_cell_count:
-                return False, old_green_itx_arr, old_green_acc_arr
+    # target_cell_count = int(np.ceil((min_green_cont_km2 * 1000**2) / granularity_m**2))
+    # max_search_dist = np.sqrt(min_green_cont_km2) * 1.25 * 1000
+    # reach_arr = _agg_dijkstra_cont(
+    #     new_green_itx_arr,
+    #     y_idx,
+    #     x_idx,
+    #     [0, 1, 2],
+    #     [0, 1, 2],
+    #     max_distance_m=max_distance_m,
+    #     granularity_m=granularity_m,
+    # )
+    # gy_idxs, gx_idxs = np.nonzero(reach_arr)
+    # for gy_idx, gx_idx in zip(gy_idxs, gx_idxs):
+    #     # during early stages it is necessary to check contiguity manually
+    #     new_green_cont_arr = _agg_dijkstra_cont(
+    #         new_green_itx_arr,
+    #         gy_idx,
+    #         gx_idx,
+    #         [0, 2],
+    #         [0, 2],
+    #         max_distance_m=max_search_dist,
+    #         granularity_m=granularity_m,
+    #         break_count=target_cell_count,
+    #     )
+    #     if np.sum(new_green_cont_arr) < target_cell_count:
+    #         old_green_cont_arr = _agg_dijkstra_cont(
+    #             old_green_itx_arr,
+    #             gy_idx,
+    #             gx_idx,
+    #             [0, 2],
+    #             [0, 2],
+    #             max_distance_m=max_search_dist,
+    #             granularity_m=granularity_m,
+    #             break_count=target_cell_count,
+    #         )
+    #         if np.sum(old_green_cont_arr) >= target_cell_count:
+    #             return False, old_green_itx_arr, old_green_acc_arr
     # return accordingly
     return True, new_green_itx_arr, new_green_acc_arr
 
@@ -428,7 +429,7 @@ class Land:
         self.prob_distribution = prob_distribution
         self.density_factors = density_factors
         # 0 = green, 1 = built, 2 = centrality
-        self.state_arr = np.full(extents_arr.shape, 0)
+        self.state_arr = np.full(extents_arr.shape, 0, dtype=np.int16)
         self.state_arr[:, :] = extents_arr
         # seed centres
         y_trf: int
@@ -446,18 +447,89 @@ class Land:
         # density
         self.density_arr = np.full(extents_arr.shape, 0, dtype=np.float32)
         self.min_green_km2 = min_green_km2
+        # areas_arr is set by iter - use int32 for large enough area integers
+        self.areas_arr = np.full(extents_arr.shape, 0, dtype=np.int16)
 
     def iterate(self):
         """ """
         self.iters += 1
+        # extract green space features
+        feats: list[tuple[dict, float]] = features.shapes(  # type: ignore
+            self.state_arr, mask=self.state_arr == 0, connectivity=4, transform=self.trf
+        )
+        # prime areas_arr
+        self.areas_arr.fill(0)
+        for feat, _val in feats:  # type: ignore
+            poly = geometry.shape(feat)  # convert from geo interface to shapely geom
+            # convert to square km
+            if poly.area < self.min_green_km2 * 1000**2:
+                continue
+            # reverse buffer step 1
+            rev_buf = poly.buffer(-100, cap_style="square", join_style="mitre")
+            geoms: list[geometry.Polygon] = []
+            # if an area is split, a MultiPolygon is returned
+            if isinstance(rev_buf, geometry.Polygon):
+                geoms.append(rev_buf)
+            elif isinstance(rev_buf, geometry.MultiPolygon):
+                geoms += rev_buf.geoms
+            else:
+                raise ValueError("Unexpected geometry")
+            pos_poly = geometry.Polygon(poly)
+            for geom in geoms:
+                back_buf = geom.buffer(100, cap_style="square", join_style="mitre")
+                # clip for situations where approaching borders
+                back_buf = back_buf.intersection(poly)
+                if back_buf.area < self.min_green_km2 * 1000**2:
+                    continue
+                # difference from originally extracted poly
+                neg_poly = poly.difference(back_buf)
+                if neg_poly.is_empty:
+                    continue
+                neg_polys: list[geometry.Polygon] = []
+                if isinstance(neg_poly, geometry.Polygon):
+                    neg_polys.append(neg_poly)
+                elif isinstance(neg_poly, geometry.MultiPolygon):
+                    neg_polys += neg_poly.geoms
+                else:
+                    raise ValueError("Unexpected geometry")
+                for neg_p in neg_polys:
+                    # neg_poly_buf = neg_p.buffer(self.granularity_m, cap_style="square", join_style="mitre")
+                    # if not neg_poly_buf.is_empty:
+                    #   neg_poly_buf = neg_poly_buf.intersection(poly)
+                    pos_poly = pos_poly.difference(neg_p)
+            if not pos_poly.is_empty:
+                self.areas_arr += features.rasterize(  # type: ignore
+                    shapes=[(geometry.mapping(pos_poly), 1)],  # convert back to geo interface
+                    out_shape=self.areas_arr.shape,
+                    fill=0,
+                    transform=self.trf,
+                    all_touched=False,
+                    dtype=self.areas_arr.dtype,
+                )
+            else:
+                plt.plot(poly.exterior.xy[0], poly.exterior.xy[1])
+                plt.plot(pos_poly.exterior.xy[0], pos_poly.exterior.xy[1])
+                plt.show()
+            if False:
+                scale_factor = 1 / self.granularity_m
+                plt.plot(poly.exterior.xy[0], poly.exterior.xy[1])
+                plt.plot(pos_poly.exterior.xy[0], pos_poly.exterior.xy[1])
+                plt.show()
         # shuffle indices
         arr_idxs = list(np.ndindex(self.state_arr.shape))
         np.random.shuffle(arr_idxs)
         for y_idx, x_idx in arr_idxs:
+            # bail if already built
+            if self.state_arr[y_idx, x_idx] > 0:
+                continue
             # if a cell is on the green periphery adjacent to built areas
             if self.green_itx_arr[y_idx, x_idx] == 2:
+                # bail if not buildable
+                if self.areas_arr[y_idx, x_idx] == 0:
+                    urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
+                    if urban_nbs < 3:
+                        continue
                 # green_nbs, green_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [0])
-                # urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
                 # if urban_regions > 1:
                 #     continue
                 # if centrality is accessible
