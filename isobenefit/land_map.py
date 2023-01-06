@@ -66,7 +66,7 @@ def _agg_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distan
 
 @njit
 def _iter_nbs(arr: Any, y_idx: int, x_idx: int, rook: bool) -> Any:
-    """Returns rook or queen neighbours"""
+    """Returns rook or queen neighbours - return in order - no shuffling?"""
     idxs: list[list[int]] = []
     if rook:
         y_offsets = [1, 0, -1, 0]
@@ -83,10 +83,8 @@ def _iter_nbs(arr: Any, y_idx: int, x_idx: int, rook: bool) -> Any:
         if x_nb_idx < 0 or x_nb_idx >= arr.shape[1]:
             continue
         idxs.append([y_nb_idx, x_nb_idx])
-    # change to numpy array for shuffling
-    rand_idxs = np.array(idxs)
-    np.random.shuffle(rand_idxs)
-    return rand_idxs
+
+    return idxs
 
 
 @njit
@@ -161,8 +159,8 @@ def _agg_dijkstra_cont(
     return targets_arr
 
 
-@njit
-def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[int]) -> tuple[int, int]:
+# @njit
+def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[int]) -> tuple[int, int, int]:
     """Counts continuous green space neighbours"""
     circle: list[int] = []
     for y_nb_idx, x_nb_idx in _iter_nbs(state_arr, y_idx, x_idx, rook=False):
@@ -188,8 +186,8 @@ def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[in
         # remove last
         adds = adds[:-1]
     if not adds:
-        return 0, 0
-    return max(adds), len(adds)
+        return 0, 0, 0
+    return sum(adds), max(adds), len(adds)
 
 
 @njit
@@ -474,42 +472,23 @@ class Land:
                 geoms += rev_buf.geoms
             else:
                 raise ValueError("Unexpected geometry")
-            pos_poly = geometry.Polygon(poly)
+            buildable_geom: geometry.MultiPolygon | None = geometry.MultiPolygon(polygons=None)
             for geom in geoms:
                 back_buf = geom.buffer(100, cap_style="square", join_style="mitre")
                 # clip for situations where approaching borders
                 back_buf = back_buf.intersection(poly)
-                if back_buf.area < self.min_green_km2 * 1000**2:
-                    continue
-                # difference from originally extracted poly
-                neg_poly = poly.difference(back_buf)
-                if neg_poly.is_empty:
-                    continue
-                neg_polys: list[geometry.Polygon] = []
-                if isinstance(neg_poly, geometry.Polygon):
-                    neg_polys.append(neg_poly)
-                elif isinstance(neg_poly, geometry.MultiPolygon):
-                    neg_polys += neg_poly.geoms
-                else:
-                    raise ValueError("Unexpected geometry")
-                for neg_p in neg_polys:
-                    # neg_poly_buf = neg_p.buffer(self.granularity_m, cap_style="square", join_style="mitre")
-                    # if not neg_poly_buf.is_empty:
-                    #   neg_poly_buf = neg_poly_buf.intersection(poly)
-                    pos_poly = pos_poly.difference(neg_p)
-            if not pos_poly.is_empty:
+                if back_buf.area >= self.min_green_km2 * 1000**2:
+                    buildable_geom = buildable_geom.union(back_buf)
+            if not buildable_geom.is_empty:
                 self.areas_arr += features.rasterize(  # type: ignore
-                    shapes=[(geometry.mapping(pos_poly), 1)],  # convert back to geo interface
-                    out_shape=self.areas_arr.shape,
-                    fill=0,
+                    shapes=[(geometry.mapping(buildable_geom))],  # convert back to geo interface
+                    out=self.areas_arr,
                     transform=self.trf,
                     all_touched=False,
-                    dtype=self.areas_arr.dtype,
                 )
-            else:
-                plt.plot(poly.exterior.xy[0], poly.exterior.xy[1])
-                plt.plot(pos_poly.exterior.xy[0], pos_poly.exterior.xy[1])
-                plt.show()
+            # plt.plot(poly.exterior.xy[0], poly.exterior.xy[1])
+            # plt.plot(pos_poly.exterior.xy[0], pos_poly.exterior.xy[1])
+            # plt.show()
             if False:
                 scale_factor = 1 / self.granularity_m
                 plt.plot(poly.exterior.xy[0], poly.exterior.xy[1])
@@ -525,10 +504,11 @@ class Land:
             # if a cell is on the green periphery adjacent to built areas
             if self.green_itx_arr[y_idx, x_idx] == 2:
                 # bail if not buildable
-                if self.areas_arr[y_idx, x_idx] == 0:
-                    urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
-                    if urban_nbs < 3:
-                        continue
+                tot_urban_nbs, cont_urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
+                if self.areas_arr[y_idx, x_idx] == 0 and cont_urban_nbs < 5:
+                    continue
+                elif urban_regions > 1:
+                    continue
                 # green_nbs, green_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [0])
                 # if urban_regions > 1:
                 #     continue

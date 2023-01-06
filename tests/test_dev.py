@@ -57,7 +57,7 @@ def test_land_map():
     for _ in range(iters):
         land.iterate()
         print(land.iters)
-        if land.iters < 30 or land.iters % 50 == 0:
+        if land.iters < 100 or land.iters % 50 == 0:
             test_plot(land)
     test_plot(land)
     print("here")
