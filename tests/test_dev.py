@@ -11,9 +11,17 @@ TEMP_DIR.mkdir(parents=False, exist_ok=True)
 
 """
 # TODO:
-- two speed - explore and encircle large park areas then fill-in more slowly via neighbours?
+FIX
 - why the degeneration once borders breached?
+ENHANCE
 - recalculate the centrality access on each run using contiguity?
+- add a fillable geom colour vs. buildable geom
+- how to handle ratio of exploration vs. size of green space?
+DO
+- two speed - explore and encircle large park areas then fill-in more slowly via neighbours?
+OR
+- aggressive exploration - only infill neighbours 6 or more? 
+- then when a concavity is greater than min - instead of switching straight to buildable - start reverse buffering to allow infill around edges - like deflating a balloon - to preserve shape?
 """
 
 
