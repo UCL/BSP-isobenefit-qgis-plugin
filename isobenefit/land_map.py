@@ -98,14 +98,15 @@ def _agg_dijkstra_cont(
     granularity_m: int,
     break_first: bool = False,
     break_count: int | None = None,
+    rook: bool = False,
 ) -> Any:
     """ """
     if break_first is True and break_count is not None:
         raise ValueError("Only one of break_first and break_count can be specified at once.")
     # targets
-    targets_arr = np.full(state_arr.shape, False)
+    targets_arr = np.full(state_arr.shape, 0, np.int_)
     if state_arr[y_idx, x_idx] in target_state:
-        targets_arr[y_idx, x_idx] = True
+        targets_arr[y_idx, x_idx] = 1
     # distances
     distances_arr = np.full(state_arr.shape, np.inf)
     distances_arr[y_idx, x_idx] = 0
@@ -126,20 +127,24 @@ def _agg_dijkstra_cont(
             if distances_arr[pending_y, pending_x] < min_dist:
                 next_y = pending_y
                 next_x = pending_x
+                min_dist = distances_arr[pending_y, pending_x]
         # reset pending
         pending_arr[next_y, next_x] = False
         # retrieve the current distance
         next_dist = distances_arr[next_y, next_x]
-        # compound distance to neighbour
-        nb_dist = next_dist + granularity_m
-        # check for max distance
-        if nb_dist > max_distance_m:
-            continue
         # explore neighbours
-        for nb_y, nb_x in _iter_nbs(distances_arr, next_y, next_x, rook=True):
+        for nb_y, nb_x in _iter_nbs(distances_arr, next_y, next_x, rook=rook):
+            y_step = abs(nb_y - next_y)
+            x_step = abs(nb_x - next_x)
+            d_step = np.hypot(y_step, x_step) * granularity_m
+            # compound distance to neighbour
+            nb_dist = next_dist + d_step
+            # check for max distance
+            if nb_dist > max_distance_m:
+                continue
             # aggregate targets
             if state_arr[nb_y, nb_x] in target_state:
-                targets_arr[nb_y, nb_x] = True
+                targets_arr[nb_y, nb_x] = 1
             # don't follow this neighbour if the wrong path state
             if not state_arr[nb_y, nb_x] in path_state:
                 continue
@@ -159,7 +164,7 @@ def _agg_dijkstra_cont(
     return targets_arr
 
 
-# @njit
+@njit
 def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[int]) -> tuple[int, int, int]:
     """Counts continuous green space neighbours"""
     circle: list[int] = []
@@ -227,40 +232,66 @@ def green_spans(
     # mins and maxes
     xy_mins = sorted([x_spans[0], y_spans[0]])
     xy_maxs = sorted([x_spans[-1], y_spans[-1]])
-    # encourage filling in from the side, i.e.
-    # allow slotting into cells with four, three, or two built neighbours
-    # this helps keep growth compact rather than stringy around narrow park corridors
-    if sum(xy_mins) == 0 and sum(xy_maxs) == 0:
+    # gaps greater than zero must meet the span
+    span_blocks = min_green_span_m / granularity_m
+    if xy_mins[0] == 0 and xy_maxs[1] > span_blocks:
         return True
-    if sum(xy_mins) == 0 and xy_maxs[0] == 0:
-        return True
-    # if sum(xy_mins) == 0:
-    #     return True
-    # otherwise, gaps greater than zero must meet the span
-    for span in [*xy_mins, *xy_maxs]:
-        if span > 0 and span < min_green_span_m / granularity_m:
-            return False
-    return True
+    return False
 
 
-@njit
+# @njit
 def _green_to_built(
     y_idx: int,
     x_idx: int,
     state_arr: Any,
     old_green_itx_arr: Any,
     old_green_acc_arr: Any,
+    buildable_arr: Any,
     granularity_m: int,
     max_distance_m: int,
     min_green_cont_km2: int = 1,
-    min_green_span: int = 100,
 ) -> tuple[bool, Any, Any]:
-    """Check a built cell's neighbours - set to itx if green space - update green access"""
+    """
+    can't track state directly... because local actions have non-local impact
+    avoids checking each reachable cell's green access causes exponential complexity
+    """
     new_green_itx_arr = np.copy(old_green_itx_arr)
     new_green_acc_arr = np.copy(old_green_acc_arr)
-    # check that cell is spatially sensible
-    # if not green_spans(state_arr, y_idx, x_idx, granularity_m, min_green_span):
-    #     return False, old_green_itx_arr, old_green_acc_arr
+    # check neighbours situation
+    _tot_urban_nbs, cont_urban_nbs, urban_regions = _count_cont_nbs(state_arr, y_idx, x_idx, [1, 2])
+    # if buildable_arr indicates that a green area should not be developed, then special conditions apply
+    if buildable_arr[y_idx, x_idx] < 1:
+        # allow filling in crimped areas
+        if cont_urban_nbs < 5:
+            return False, old_green_itx_arr, old_green_acc_arr
+    # enforce green spans
+    ## if not green_spans(state_arr, y_idx, x_idx, granularity_m, min_green_span_m=200):
+    ##     return False, old_green_itx_arr, old_green_acc_arr
+    # if splitting green into two regions
+    ## if urban_regions > 1:
+    ##     # required number of contiguous green cells
+    ##     target_count = int((min_green_cont_km2 * 1000**2) / granularity_m**2)
+    ##     # use a mock state - otherwise dijkstra doesn't know that current y, x is tentatively built
+    ##     mock_state_arr = np.copy(state_arr)
+    ##     # mock built state
+    ##     mock_state_arr[y_idx, x_idx] = 1
+    ##     # review neighbours in turn to check that each has access to continuous green space
+    ##     for y_nb_idx, x_nb_idx in _iter_nbs(new_green_itx_arr, y_idx, x_idx, rook=False):
+    ##         if not state_arr[y_nb_idx, x_nb_idx] == 0:
+    ##             continue
+    ##         nb_green_acc_arr = _agg_dijkstra_cont(
+    ##             mock_state_arr,
+    ##             y_nb_idx,
+    ##             x_nb_idx,
+    ##             [0],
+    ##             [0],
+    ##             max_distance_m=max_distance_m * 2,
+    ##             granularity_m=granularity_m,
+    ##             break_count=target_count,
+    ##             rook=True,  # rook has to be true otherwise diagonal steps are allowed
+    ##         )
+    ##         if nb_green_acc_arr.sum() < target_count:
+    ##             return False, old_green_itx_arr, old_green_acc_arr
     # check if cell is currently green_itx
     # if so, set itx to off and decrement green access accordingly
     if new_green_itx_arr[y_idx, x_idx] == 2:
@@ -279,53 +310,12 @@ def _green_to_built(
                 new_green_itx_arr, y_nb_idx, x_nb_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
             )
     # check that green access has not been cut off for built areas
-    ny_idxs, nx_idxs = np.nonzero(new_green_acc_arr <= 0)
+    # green_acc_diff = new_green_acc_arr - old_green_acc_arr
+    ny_idxs, nx_idxs = np.nonzero(np.logical_and(state_arr > 0, new_green_acc_arr <= 0))
     for ny_idx, nx_idx in zip(ny_idxs, nx_idxs):
         # bail if built and below zero
-        if state_arr[ny_idx, nx_idx] > 0 and old_green_acc_arr[ny_idx, nx_idx] > new_green_acc_arr[ny_idx, nx_idx]:
+        if old_green_acc_arr[ny_idx, nx_idx] > new_green_acc_arr[ny_idx, nx_idx]:
             return False, old_green_itx_arr, old_green_acc_arr
-    # can't track state directly... because local actions have non-local impact
-    # could potentially note locations that are not developable to avoid repeat calcs...
-    # find all locations within distance
-    # then iter each of these and check green contiguity
-    # target_cell_count = int(np.ceil((min_green_cont_km2 * 1000**2) / granularity_m**2))
-    # max_search_dist = np.sqrt(min_green_cont_km2) * 1.25 * 1000
-    # reach_arr = _agg_dijkstra_cont(
-    #     new_green_itx_arr,
-    #     y_idx,
-    #     x_idx,
-    #     [0, 1, 2],
-    #     [0, 1, 2],
-    #     max_distance_m=max_distance_m,
-    #     granularity_m=granularity_m,
-    # )
-    # gy_idxs, gx_idxs = np.nonzero(reach_arr)
-    # for gy_idx, gx_idx in zip(gy_idxs, gx_idxs):
-    #     # during early stages it is necessary to check contiguity manually
-    #     new_green_cont_arr = _agg_dijkstra_cont(
-    #         new_green_itx_arr,
-    #         gy_idx,
-    #         gx_idx,
-    #         [0, 2],
-    #         [0, 2],
-    #         max_distance_m=max_search_dist,
-    #         granularity_m=granularity_m,
-    #         break_count=target_cell_count,
-    #     )
-    #     if np.sum(new_green_cont_arr) < target_cell_count:
-    #         old_green_cont_arr = _agg_dijkstra_cont(
-    #             old_green_itx_arr,
-    #             gy_idx,
-    #             gx_idx,
-    #             [0, 2],
-    #             [0, 2],
-    #             max_distance_m=max_search_dist,
-    #             granularity_m=granularity_m,
-    #             break_count=target_cell_count,
-    #         )
-    #         if np.sum(old_green_cont_arr) >= target_cell_count:
-    #             return False, old_green_itx_arr, old_green_acc_arr
-    # return accordingly
     return True, new_green_itx_arr, new_green_acc_arr
 
 
@@ -348,7 +338,7 @@ def _prepare_green_arrs(state_arr: Any, max_distance_m: int, granularity_m: int)
                 if state_arr[y_nb_idx, x_nb_idx] == 0:
                     green_itx_arr[y_nb_idx, x_nb_idx] = 2
     # prepare green access arr
-    green_acc_arr = np.full(state_arr.shape, 0)
+    green_acc_arr = np.full(state_arr.shape, 0, dtype=np.int_)
     for y_idx, x_idx in np.ndindex(state_arr.shape):
         # agg green itx cells to surrounding space
         if green_itx_arr[y_idx, x_idx] == 2:
@@ -389,8 +379,9 @@ class Land:
     state_arr: Any
     green_itx_arr: Any
     green_acc_arr: Any
+    cent_acc_arr: Any
     density_arr: Any
-    min_green_km2: int
+    min_green_km2: int | float
 
     def __init__(
         self,
@@ -405,7 +396,7 @@ class Land:
         max_local_pop: int = 10000,
         prob_distribution: tuple[float, float, float] = (0.7, 0.3, 0),
         density_factors: tuple[float, float, float] = (1, 0.1, 0.01),
-        min_green_km2: int = 5,
+        min_green_km2: int | float = 1,
         random_seed: int = 0,
     ):
         """ """
@@ -430,23 +421,34 @@ class Land:
         self.state_arr = np.full(extents_arr.shape, 0, dtype=np.int16)
         self.state_arr[:, :] = extents_arr
         # seed centres
+        self.cent_acc_arr = np.full(extents_arr.shape, 0, dtype=np.int16)
         y_trf: int
         x_trf: int
         for east, north in centre_seeds:
             x_trf, y_trf = transform.rowcol(self.trf, east, north)  # type: ignore
             self.state_arr[y_trf, x_trf] = 2
+            # agg centrality to surroundings
+            self.cent_acc_arr += _agg_dijkstra_cont(
+                self.state_arr,
+                y_trf,
+                x_trf,
+                path_state=[0, 1, 2],
+                target_state=[0, 1, 2],
+                max_distance_m=max_distance_m,
+                granularity_m=granularity_m,
+            )
         # check size vs. min green
         area = self.state_arr.shape[0] * granularity_m * self.state_arr.shape[1] * granularity_m
         if area / 1000**2 < 2 * min_green_km2:
-            raise ValueError("Please decrease min_green_km2 in relation to extents.")
+            raise ValueError("Please decrease min_green_km2 in relation to provided extents.")
         # find boundary of built land
         # 0 = green, 1 = built, 2 = itx bounds
         self.green_itx_arr, self.green_acc_arr = _prepare_green_arrs(self.state_arr, max_distance_m, granularity_m)
         # density
         self.density_arr = np.full(extents_arr.shape, 0, dtype=np.float32)
         self.min_green_km2 = min_green_km2
-        # areas_arr is set by iter - use int32 for large enough area integers
-        self.areas_arr = np.full(extents_arr.shape, 0, dtype=np.int16)
+        # buildable_arr is set by iter
+        self.buildable_arr = np.full(extents_arr.shape, 0, dtype=np.int16)
 
     def iterate(self):
         """ """
@@ -455,15 +457,18 @@ class Land:
         feats: list[tuple[dict, float]] = features.shapes(  # type: ignore
             self.state_arr, mask=self.state_arr == 0, connectivity=4, transform=self.trf
         )
-        # prime areas_arr
-        self.areas_arr.fill(0)
+        # prime buildable_arr
+        self.buildable_arr.fill(0)
         for feat, _val in feats:  # type: ignore
             poly = geometry.shape(feat)  # convert from geo interface to shapely geom
-            # convert to square km
+            # convert to square km - continue if below min threshold
             if poly.area < self.min_green_km2 * 1000**2:
                 continue
             # reverse buffer step 1
-            rev_buf = poly.buffer(-100, cap_style="square", join_style="mitre")
+            buffer_dist = 100
+            rev_buf: geometry.Polygon | geometry.MultiPolygon = poly.buffer(
+                -buffer_dist, cap_style="square", join_style="mitre"
+            )
             geoms: list[geometry.Polygon] = []
             # if an area is split, a MultiPolygon is returned
             if isinstance(rev_buf, geometry.Polygon):
@@ -472,32 +477,51 @@ class Land:
                 geoms += rev_buf.geoms
             else:
                 raise ValueError("Unexpected geometry")
-            buildable_geom: geometry.MultiPolygon | None = geometry.MultiPolygon(polygons=None)
+            buildable_geom: geometry.MultiPolygon = geometry.MultiPolygon(polygons=None)
             for geom in geoms:
-                back_buf = geom.buffer(100, cap_style="square", join_style="mitre")
+                back_buf = geom.buffer(buffer_dist, cap_style="square", join_style="mitre")
                 # clip for situations where approaching borders
                 back_buf = back_buf.intersection(poly)
+                # add to buildable if larger than min threshold
                 if back_buf.area >= self.min_green_km2 * 1000**2:
                     buildable_geom = buildable_geom.union(back_buf)
             # generate a negative of green extents vs. deemed buildable extents
-            # review chunks and buffer smallest of these to prevent crowding
+            unbuildable_geom: geometry.MultiPolygon = geometry.MultiPolygon(polygons=None)
             neg_extents: geometry.Polygon | geometry.MultiPolygon = poly.difference(buildable_geom)
-            neg_geoms: list[geometry.Polygon] = []
-            # if an area is split, a MultiPolygon is returned
-            if isinstance(neg_extents, geometry.Polygon) and not neg_extents.is_empty:
-                neg_geoms.append(neg_extents)
-            elif isinstance(neg_extents, geometry.MultiPolygon) and not neg_extents.is_empty:
-                neg_geoms += neg_extents.geoms
-            for neg_geom in neg_geoms:
-                # look for smaller chunks
-                if neg_geom.area < 5**2 * self.granularity_m**2:
-                    # buffer these and remove from buildable extents
-                    buildable_geom = buildable_geom.difference(neg_geom.buffer(self.granularity_m))
+            if not neg_extents.is_empty:
+                # cycle buffer to cleanly separate
+                neg_geoms: list[geometry.Polygon] = []
+                # if an area is split, a MultiPolygon is returned
+                if isinstance(neg_extents, geometry.Polygon) and not neg_extents.is_empty:
+                    neg_geoms.append(neg_extents)
+                elif isinstance(neg_extents, geometry.MultiPolygon) and not neg_extents.is_empty:
+                    neg_geoms += neg_extents.geoms
+                # sort through neg geoms and assign to buildable or non buildable based on sizes
+                for neg_geom in neg_geoms:
+                    # look for smaller chunks
+                    neg_buf: geometry.Polygon | geometry.MultiPolygon = neg_geom.buffer(
+                        self.granularity_m, cap_style="square", join_style="mitre"
+                    )
+                    # if smaller than min - then discard
+                    if neg_buf.area < self.min_green_km2 * 1000**2:
+                        unbuildable_geom = unbuildable_geom.union(neg_buf)  # type: ignore
+                        # difference padded from buildable to shelter new parks from rapid infill
+                        buildable_geom = buildable_geom.difference(neg_buf)
+                    # otherwise salvage as buildable
+                    else:
+                        buildable_geom = buildable_geom.union(neg_buf)
             # burn raster
             if not buildable_geom.is_empty:
-                self.areas_arr += features.rasterize(  # type: ignore
-                    shapes=[(geometry.mapping(buildable_geom))],  # convert back to geo interface
-                    out=self.areas_arr,
+                features.rasterize(  # type: ignore
+                    shapes=[(geometry.mapping(buildable_geom), 1)],  # convert back to geo interface
+                    out=self.buildable_arr,
+                    transform=self.trf,
+                    all_touched=False,
+                )
+            if not unbuildable_geom.is_empty:
+                features.rasterize(  # type: ignore
+                    shapes=[(geometry.mapping(unbuildable_geom), -1)],  # convert back to geo interface
+                    out=self.buildable_arr,
                     transform=self.trf,
                     all_touched=False,
                 )
@@ -512,38 +536,19 @@ class Land:
         # shuffle indices
         arr_idxs = list(np.ndindex(self.state_arr.shape))
         np.random.shuffle(arr_idxs)
+        old_state_arr = np.copy(self.state_arr)
         for y_idx, x_idx in arr_idxs:
             # bail if already built
             if self.state_arr[y_idx, x_idx] > 0:
                 continue
-            # if a cell is on the green periphery adjacent to built areas
+            # a cell can be developed if it is on the green periphery adjacent to built areas
             if self.green_itx_arr[y_idx, x_idx] == 2:
-                # bail if not buildable
-                if self.areas_arr[y_idx, x_idx] == 0:
-                    tot_urban_nbs, cont_urban_nbs, urban_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [1, 2])
-                    if cont_urban_nbs < 5:
-                        continue
-                    else:
-                        target_count = (0.5 * 1000) ** 2 / self.granularity_m**2
-                        new_green_acc_arr = _agg_dijkstra_cont(
-                            self.state_arr,
-                            y_idx,
-                            x_idx,
-                            [0],
-                            [0],
-                            max_distance_m=1000,
-                            granularity_m=self.granularity_m,
-                            break_count=target_count,
-                        )
-                        if new_green_acc_arr.sum() < target_count:
-                            continue
-                # elif urban_regions > 1:
-                #     continue
-                # green_nbs, green_regions = _count_cont_nbs(self.state_arr, y_idx, x_idx, [0])
-                # if urban_regions > 1:
-                #     continue
+                # don't allow double steps, i.e. a new built cell has to have at least one built neighbour in
+                tot_urban_nbs, _cont_urban_nbs, _urban_regions = _count_cont_nbs(old_state_arr, y_idx, x_idx, [1, 2])
+                if tot_urban_nbs == 0:
+                    continue
                 # if centrality is accessible
-                if True:  # TODO: self.cent_acc_arr[y_idx, x_idx] > 0:
+                if self.cent_acc_arr[y_idx, x_idx] > 0:
                     if np.random.rand() < self.build_prob:
                         # update green state
                         success, self.green_itx_arr, self.green_acc_arr = _green_to_built(
@@ -552,6 +557,7 @@ class Land:
                             self.state_arr,
                             self.green_itx_arr,
                             self.green_acc_arr,
+                            self.buildable_arr,
                             self.granularity_m,
                             self.max_distance_m,
                         )
@@ -564,30 +570,33 @@ class Land:
                                 self.prob_distribution, self.density_factors
                             )
                 # otherwise, consider adding a new centrality
-                else:
-                    if np.random.rand() < self.cent_prob_nb:
-                        # if self.nature_stays_extended(x, y):
-                        # if self.nature_stays_reachable(x, y):
-                        # update green state
-                        success, self.green_itx_arr, self.green_acc_arr = _green_to_built(
+                elif np.random.rand() < self.cent_prob_nb:
+                    # update green state
+                    success, self.green_itx_arr, self.green_acc_arr = _green_to_built(
+                        y_idx,
+                        x_idx,
+                        self.state_arr,
+                        self.green_itx_arr,
+                        self.green_acc_arr,
+                        self.buildable_arr,
+                        self.granularity_m,
+                        self.max_distance_m,
+                    )
+                    if success is True:
+                        # state
+                        self.state_arr[y_idx, x_idx] = 2
+                        # increment centrality access
+                        self.cent_acc_arr += _agg_dijkstra_cont(
+                            self.state_arr,
                             y_idx,
                             x_idx,
-                            self.state_arr,
-                            self.green_itx_arr,
-                            self.green_acc_arr,
-                            self.granularity_m,
-                            self.max_distance_m,
+                            path_state=[0, 1, 2],
+                            target_state=[0, 1, 2],
+                            max_distance_m=self.max_distance_m,
+                            granularity_m=self.granularity_m,
                         )
-                        if success is True:
-                            # claim as built
-                            self.state_arr[y_idx, x_idx] = 2
-                            self.cent_acc_arr = _inc_access(
-                                y_idx, x_idx, self.cent_acc_arr, self.granularity_m, self.max_distance_m
-                            )
-                            # set random density
-                            self.density_arr[y_idx, x_idx] = _random_density(
-                                self.prob_distribution, self.density_factors
-                            )
+                        # set random density
+                        self.density_arr[y_idx, x_idx] = _random_density(self.prob_distribution, self.density_factors)
             # handle random conversion of green space to centralities
             elif self.state_arr[y_idx, x_idx] == 0:
                 if np.random.rand() < 0:  # self.cent_prob_isol:
@@ -600,6 +609,7 @@ class Land:
                         self.state_arr,
                         self.green_itx_arr,
                         self.green_acc_arr,
+                        self.buildable_arr,
                         self.granularity_m,
                         self.max_distance_m,
                     )
