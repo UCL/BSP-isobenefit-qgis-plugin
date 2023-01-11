@@ -10,10 +10,11 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from futurb.isobenefit.logger import get_logger
 from numba import njit
 from rasterio import features, transform
 from shapely import geometry
+
+from .logger import get_logger
 
 LOGGER: logging.Logger = get_logger()
 
@@ -84,7 +85,7 @@ def _iter_nbs(arr: Any, y_idx: int, x_idx: int, rook: bool) -> Any:
     return idxs
 
 
-@njit
+# @njit
 def _agg_dijkstra_cont(
     state_arr: Any,
     y_idx: int,
@@ -161,7 +162,7 @@ def _agg_dijkstra_cont(
     return targets_arr
 
 
-@njit
+# @njit
 def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[int]) -> tuple[int, int, int]:
     """Counts continuous green space neighbours"""
     circle: list[int] = []
@@ -192,7 +193,7 @@ def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[in
     return sum(adds), max(adds), len(adds)
 
 
-@njit
+# @njit
 def green_span(arr_1d: Any, start_idx: int, positive: bool) -> int:
     """ """
     if positive:
@@ -209,7 +210,7 @@ def green_span(arr_1d: Any, start_idx: int, positive: bool) -> int:
     return span
 
 
-@njit
+# @njit
 def green_spans(
     arr: Any,
     y_idx: int,
@@ -316,7 +317,7 @@ def _green_to_built(
     return True, new_green_itx_arr, new_green_acc_arr
 
 
-@njit
+# @njit
 def _prepare_green_arrs(state_arr: Any, max_distance_m: int, granularity_m: int) -> Any:
     """
     Initialises green itx and green acc arrays.
@@ -463,9 +464,7 @@ class Land:
                 continue
             # reverse buffer step 1
             buffer_dist = 100
-            rev_buf: geometry.Polygon | geometry.MultiPolygon = poly.buffer(
-                -buffer_dist, cap_style="square", join_style="mitre"
-            )
+            rev_buf: geometry.Polygon | geometry.MultiPolygon = poly.buffer(-buffer_dist, cap_style=3, join_style=2)
             geoms: list[geometry.Polygon] = []
             # if an area is split, a MultiPolygon is returned
             if isinstance(rev_buf, geometry.Polygon):
@@ -476,7 +475,7 @@ class Land:
                 raise ValueError("Unexpected geometry")
             buildable_geom: geometry.MultiPolygon = geometry.MultiPolygon(polygons=None)
             for geom in geoms:
-                back_buf = geom.buffer(buffer_dist, cap_style="square", join_style="mitre")
+                back_buf = geom.buffer(buffer_dist, cap_style=3, join_style=2)
                 # clip for situations where approaching borders
                 back_buf = back_buf.intersection(poly)
                 # add to buildable if larger than min threshold
@@ -497,7 +496,7 @@ class Land:
                 for neg_geom in neg_geoms:
                     # look for smaller chunks
                     neg_buf: geometry.Polygon | geometry.MultiPolygon = neg_geom.buffer(
-                        self.granularity_m, cap_style="square", join_style="mitre"
+                        self.granularity_m, cap_style=3, join_style=2
                     )
                     # if smaller than min - then discard
                     if neg_buf.area < self.min_green_km2 * 1000**2:

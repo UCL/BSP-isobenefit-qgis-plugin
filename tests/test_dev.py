@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from isobenefit import land_map
+from futurb.isobenefit import land_map
 from rasterio import transform
 
 TEMP_DIR = Path("temp/")

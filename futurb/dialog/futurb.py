@@ -10,9 +10,11 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsDateTimeRange,
     QgsFeature,
+    QgsGeometry,
     QgsInterval,
     QgsMessageLog,
     QgsProject,
+    QgsRectangle,
     QgsTemporalNavigationObject,
     QgsVectorLayer,
 )
@@ -174,49 +176,54 @@ class Futurb:
         self.dlg.show()
         result: int = self.dlg.exec_()  # returns 1 if pressed
         if result:
+            # None checking is handled by dialogue
+            granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
+            n_steps = int(self.dlg.n_iterations.text())
+            # extents
+            input_extents: QgsRectangle = self.dlg.extents_layer.extent()
+            x_min = input_extents.xMinimum()
+            x_max = input_extents.xMaximum()
+            y_min = input_extents.yMinimum()
+            y_max = input_extents.yMaximum()
+            x_pad_min = int(x_min - x_min % granularity_m)
+            x_pad_max = int(x_max - x_max % granularity_m) + granularity_m
+            y_pad_min = int(y_min - y_min % granularity_m)
+            y_pad_max = int(y_max - y_max % granularity_m) + granularity_m
+            # create padded extents
+            padded_extents_geom: QgsGeometry = QgsGeometry.fromRect(
+                QgsRectangle(x_pad_min, y_pad_min, x_pad_max, y_pad_max)
+            )
+            # transform CRS if necessary
+            crs_transform = QgsCoordinateTransform(self.dlg.selected_crs, self.dlg.selected_crs, QgsProject.instance())
+            padded_extents_geom.transform(crs_transform)  # type: ignore
             # prepare extents layer
             extents_layer = QgsVectorLayer(
                 f"Polygon?crs={self.dlg.selected_crs.authid()}&field=id:integer&index=yes",
                 "sim_input_extents",
                 "memory",
             )
-            #
-            src_feature = self.dlg.selected_feature
-            src_geom = src_feature.geometry()
             target_feature = QgsFeature(id=1)
-            crs_transform = QgsCoordinateTransform(
-                self.dlg.selected_layer.crs(), self.dlg.selected_crs, QgsProject.instance()
-            )
-            src_geom.transform(crs_transform)
-            target_feature.setGeometry(src_geom)
+            target_feature.setGeometry(padded_extents_geom)
             extents_layer.dataProvider().addFeature(target_feature)
             extents_layer.dataProvider().updateExtents()
             QgsProject.instance().addMapLayer(extents_layer, addToLegend=True)
-            extents_layer.extent().xMinimum
-            # None checking is handled by dialogue
-            granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
-            n_steps = int(self.dlg.n_iterations.text())
             # run
-            # Land()
-            # run_isobenefit_simulation(
-            #     extents_layer=extents_layer,
-            #     granularity_m=granularity_m,
-            #     walk_dist_m=int(self.dlg.walk_dist.text()),
-            #     target_crs=self.dlg.selected_crs,
-            #     n_steps=n_steps,
-            #     out_dir_path=self.dlg.out_dir_path,  # type: ignore
-            #     out_file_name=self.dlg.out_file_name,  # type: ignore
-            #     build_probability=float(self.dlg.build_prob.text()),
-            #     neighboring_centrality_probability=float(self.dlg.nb_cent.text()),
-            #     isolated_centrality_probability=float(self.dlg.isolated_cent.text()),
-            #     random_seed=int(self.dlg.random_seed.text()),
-            #     initialization_mode="list",
-            #     max_population=int(self.dlg.max_population.text()),
-            #     max_local_pop=int(self.dlg.max_local_pop.text()),
-            #     urbanism_model="isobenefit",
-            #     prob_distribution=(0.7, 0.3, 0),
-            #     density_factors=(1, 0.1, 0.01),
-            # )
+            simulation.simulate(
+                extents_layer=extents_layer,
+                target_crs=self.dlg.selected_crs,
+                granularity_m=granularity_m,
+                walk_dist_m=int(self.dlg.walk_dist.text()),
+                n_steps=n_steps,
+                out_dir_path=self.dlg.out_dir_path,  # type: ignore
+                out_file_name=self.dlg.out_file_name,  # type: ignore
+                build_prob=float(self.dlg.build_prob.text()),
+                cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
+                cent_prob_isol=float(self.dlg.cent_prob_isol.text()),
+                max_local_pop=int(self.dlg.max_local_pop.text()),
+                prob_distribution=(0.7, 0.3, 0),
+                density_factors=(1, 0.1, 0.01),
+                random_seed=int(self.dlg.random_seed.text()),
+            )
             # setup temporal controller
             start_date = datetime.now()
             end_date = start_date.replace(year=start_date.year + n_steps)
