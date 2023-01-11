@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -20,9 +19,8 @@ from qgis.core import (
     QgsRasterLayerTemporalProperties,
     QgsVectorLayer,
 )
-from rasterio import transform
 
-from .land_map import ClassicalScenario, IsobenefitScenario, Land, MapBlock
+from .land_map import Land
 from .logger import configure_logging, get_logger
 
 N_AMENITIES = 1
@@ -156,12 +154,6 @@ def run_isobenefit_simulation(
         print(idx, n_steps)
         start = time.time()
         added_blocks, added_centralities = land.update_map()
-        if urbanism_model == "isobenefit":
-            
-        elif urbanism_model == "classical":
-
-        else:
-            raise ValueError("Invalid urbanism model. Choose one of 'isobenefit' or 'classical'")
         land.set_current_counts(urbanism_model)
         land.record_current_counts(
             output_path=out_dir_path,
@@ -234,7 +226,7 @@ def save_snapshot(
     out_name = f"{out_file_name}_{step:05d}"
     out_path: str = str(out_dir_path / f"{out_name}.tif")
     crs_wkt: str = target_crs.toWkt()
-    trf = transform.from_bounds(x_min, y_min, x_max, y_max, cells_x, cells_y)  # type: ignore
+    trf = rio.transform.from_bounds(x_min, y_min, x_max, y_max, cells_x, cells_y)  # type: ignore
     with rio.open(  # type: ignore
         out_path,
         "w",

@@ -21,7 +21,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 
-from ..isobenefit.simulation import run_isobenefit_simulation
+from ..isobenefit import simulation
 from .futurb_dialog import FuturbDialog  # Import the code for the dialog
 from .resources import *  # Initialize Qt resources from file resources.py
 
@@ -197,25 +197,26 @@ class Futurb:
             granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
             n_steps = int(self.dlg.n_iterations.text())
             # run
-            run_isobenefit_simulation(
-                extents_layer=extents_layer,
-                granularity_m=granularity_m,
-                walk_dist_m=int(self.dlg.walk_dist.text()),
-                target_crs=self.dlg.selected_crs,
-                n_steps=n_steps,
-                out_dir_path=self.dlg.out_dir_path,  # type: ignore
-                out_file_name=self.dlg.out_file_name,  # type: ignore
-                build_probability=float(self.dlg.build_prob.text()),
-                neighboring_centrality_probability=float(self.dlg.nb_cent.text()),
-                isolated_centrality_probability=float(self.dlg.isolated_cent.text()),
-                random_seed=int(self.dlg.random_seed.text()),
-                initialization_mode="list",
-                max_population=int(self.dlg.max_population.text()),
-                max_local_pop=int(self.dlg.max_local_pop.text()),
-                urbanism_model="isobenefit",
-                prob_distribution=(0.7, 0.3, 0),
-                density_factors=(1, 0.1, 0.01),
-            )
+            # Land()
+            # run_isobenefit_simulation(
+            #     extents_layer=extents_layer,
+            #     granularity_m=granularity_m,
+            #     walk_dist_m=int(self.dlg.walk_dist.text()),
+            #     target_crs=self.dlg.selected_crs,
+            #     n_steps=n_steps,
+            #     out_dir_path=self.dlg.out_dir_path,  # type: ignore
+            #     out_file_name=self.dlg.out_file_name,  # type: ignore
+            #     build_probability=float(self.dlg.build_prob.text()),
+            #     neighboring_centrality_probability=float(self.dlg.nb_cent.text()),
+            #     isolated_centrality_probability=float(self.dlg.isolated_cent.text()),
+            #     random_seed=int(self.dlg.random_seed.text()),
+            #     initialization_mode="list",
+            #     max_population=int(self.dlg.max_population.text()),
+            #     max_local_pop=int(self.dlg.max_local_pop.text()),
+            #     urbanism_model="isobenefit",
+            #     prob_distribution=(0.7, 0.3, 0),
+            #     density_factors=(1, 0.1, 0.01),
+            # )
             # setup temporal controller
             start_date = datetime.now()
             end_date = start_date.replace(year=start_date.year + n_steps)

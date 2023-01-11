@@ -5,17 +5,14 @@ Don't use anything from QGIS so that it is easier to test this module.
 """
 from __future__ import annotations
 
-import copy
 import logging
-from functools import partial
 from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-from isobenefit.logger import get_logger
+from futurb.isobenefit.logger import get_logger
 from numba import njit
 from rasterio import features, transform
-from scipy.ndimage import measurements as measure
 from shapely import geometry
 
 LOGGER: logging.Logger = get_logger()

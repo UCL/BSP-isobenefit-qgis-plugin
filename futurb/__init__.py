@@ -3,7 +3,7 @@
 """
 from qgis.gui import QgisInterface
 
-from .futurb import Futurb
+from .dialog.futurb import Futurb
 
 
 def classFactory(iface: QgisInterface):  # pylint: disable=invalid-name

@@ -17,6 +17,8 @@ ENHANCE
 - recalculate the centrality access on each run using contiguity?
 - add a fillable geom colour vs. buildable geom
 - how to handle ratio of exploration vs. size of green space?
+- how to jump roads
+- new centralities only along roads?
 DO
 - two speed - explore and encircle large park areas then fill-in more slowly via neighbours?
 OR

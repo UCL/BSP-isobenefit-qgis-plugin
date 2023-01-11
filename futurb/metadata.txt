@@ -1,33 +1,35 @@
 # This file contains metadata for your plugin.
 
-# This file should be included when you package your plugin.# Mandatory items:
+# This file should be included when you package your plugin.
+
+# Mandatory items:
 
 [general]
 name=futurb
-qgisMinimumVersion=2.99
+qgisMinimumVersion=3.0
 qgisMaximumVersion=3.99
 
 # Provide a brief description of the plugin
-description=Dialog plugin template
+description=Future Urban Growth (Isobenefit Cities)
 version=0.1
 author=Gareth Simons
-#email=garethsimons@me.com
+email=gareth.simons@ucl.ac.uk
 
 about=Enter more info about your plugin here
 
-tracker=Provide link to your bug tracker
-repository=Provide link to the code repository
+tracker=https://github.com/UCL/BSP-future-urban-growth/issues
+repository=https://github.com/UCL/BSP-future-urban-growth
 # End of mandatory metadata
 
 # Recommended items:
 
 # Uncomment the following line and add your changelog:
-# changelog=
+changelog=https://github.com/UCL/BSP-future-urban-growth/releases
 
 # Tags are comma separated with spaces allowed
-# tags=pyqgis
+tags=pyqgis simulation planning
 
-homepage=Provide the home page for the plugin
+homepage=https://github.com/UCL/BSP-future-urban-growth
 icon=icon.png
 # experimental flag
 experimental=False

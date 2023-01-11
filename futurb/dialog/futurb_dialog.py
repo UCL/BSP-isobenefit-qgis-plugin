@@ -4,7 +4,14 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsFeature, QgsMapLayerProxyModel, QgsVectorLayer
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsFeature,
+    QgsMapLayerProxyModel,
+    QgsMultiPolygon,
+    QgsPolygon,
+    QgsVectorLayer,
+)
 from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
 
@@ -28,8 +35,10 @@ class FuturbDialog(QtWidgets.QDialog):
 
     out_dir_path: Path | None
     out_file_name: str | None
-    selected_layer: QgsVectorLayer | None
+    selected_layer: QgsMultiPolygon | QgsPolygon | None
     selected_feature: QgsFeature | None
+    exist_built_areas: QgsMultiPolygon | QgsPolygon | None
+    exist_green_areas: QgsMultiPolygon | QgsPolygon | None
     selected_crs: QgsCoordinateReferenceSystem | None
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
@@ -41,19 +50,14 @@ class FuturbDialog(QtWidgets.QDialog):
         # layer selection
         self.selected_layer = None
         self.selected_feature = None
+        # existing build areas
+        self.exist_built_areas = None
+        # existing green areas
+        self.exist_green_areas = None
         # CRS selection
         self.selected_crs = None
         # prepare UI
         self.setupUi()
-
-    def toggle_model_btns(self, mode: str) -> None:
-        """Pressing one button should cancel the other."""
-        if mode == "isobenefit" and self.classical_btn.isChecked():
-            self.isobenefit_btn.setChecked(True)
-            self.classical_btn.setChecked(False)
-        elif mode == "classical" and self.isobenefit_btn.isChecked():
-            self.isobenefit_btn.setChecked(False)
-            self.classical_btn.setChecked(True)
 
     def setupUi(self):
         """ """
@@ -64,35 +68,21 @@ class FuturbDialog(QtWidgets.QDialog):
         # model mode buttons
         self.model_mode_label = QtWidgets.QLabel("Model", self)
         self.grid.addWidget(self.model_mode_label, 0, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
-        # isobenefit
-        self.isobenefit_btn = QtWidgets.QPushButton("Isobenefit", self)
-        self.isobenefit_btn.setCheckable(True)
-        self.isobenefit_btn.clicked.connect(lambda: self.toggle_model_btns("isobenefit"))
-        self.isobenefit_btn.setFixedWidth(175)
-        self.grid.addWidget(self.isobenefit_btn, 1, 0)
-        # classical button
-        self.classical_btn = QtWidgets.QPushButton("Classical", self)
-        self.classical_btn.setCheckable(True)
-        self.classical_btn.clicked.connect(lambda: self.toggle_model_btns("classical"))
-        self.classical_btn.setFixedWidth(175)
-        self.grid.addWidget(self.classical_btn, 1, 1)
-        # prime to isoboenefit mode
-        self.toggle_model_btns("isobenefit")
         # grid size
         self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
         self.grid.addWidget(self.grid_size_m_label, 2, 0, alignment=QtCore.Qt.AlignRight)
-        self.grid_size_m = QtWidgets.QLineEdit("100", self)
+        self.grid_size_m = QtWidgets.QLineEdit("50", self)
         self.grid.addWidget(self.grid_size_m, 2, 1)
         # iterations
         self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
         self.grid.addWidget(self.n_iterations_label, 3, 0, alignment=QtCore.Qt.AlignRight)
-        self.n_iterations = QtWidgets.QLineEdit("5", self)
+        self.n_iterations = QtWidgets.QLineEdit("20", self)
         self.grid.addWidget(self.n_iterations, 3, 1)
-        # max population
-        self.max_population_label = QtWidgets.QLabel("Max Population", self)
-        self.grid.addWidget(self.max_population_label, 4, 0, alignment=QtCore.Qt.AlignRight)
-        self.max_population = QtWidgets.QLineEdit("500000", self)
-        self.grid.addWidget(self.max_population, 4, 1)
+        # walking distance
+        self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
+        self.grid.addWidget(self.walk_dist_label, 9, 0, alignment=QtCore.Qt.AlignRight)
+        self.walk_dist = QtWidgets.QLineEdit("1000", self)
+        self.grid.addWidget(self.walk_dist, 9, 1)
         # max population in walking distance
         self.max_local_pop_label = QtWidgets.QLabel("Max population in walking distance", self)
         self.grid.addWidget(self.max_local_pop_label, 5, 0, alignment=QtCore.Qt.AlignRight)
@@ -101,23 +91,18 @@ class FuturbDialog(QtWidgets.QDialog):
         # build prob
         self.build_prob_label = QtWidgets.QLabel("Build probability", self)
         self.grid.addWidget(self.build_prob_label, 6, 0, alignment=QtCore.Qt.AlignRight)
-        self.build_prob = QtWidgets.QLineEdit("0.5", self)
+        self.build_prob = QtWidgets.QLineEdit("0.1", self)
         self.grid.addWidget(self.build_prob, 6, 1)
         # nb centrality prob
         self.nb_cent_label = QtWidgets.QLabel("Neighbouring prob.", self)
         self.grid.addWidget(self.nb_cent_label, 7, 0, alignment=QtCore.Qt.AlignRight)
-        self.nb_cent = QtWidgets.QLineEdit("0.005", self)
+        self.nb_cent = QtWidgets.QLineEdit("0.01", self)
         self.grid.addWidget(self.nb_cent, 7, 1)
         # isolated centrality prob
         self.isolated_cent_label = QtWidgets.QLabel("Isolated centrality prob.", self)
         self.grid.addWidget(self.isolated_cent_label, 8, 0, alignment=QtCore.Qt.AlignRight)
-        self.isolated_cent = QtWidgets.QLineEdit("0.1", self)
+        self.isolated_cent = QtWidgets.QLineEdit("0", self)
         self.grid.addWidget(self.isolated_cent, 8, 1)
-        # walking distance
-        self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
-        self.grid.addWidget(self.walk_dist_label, 9, 0, alignment=QtCore.Qt.AlignRight)
-        self.walk_dist = QtWidgets.QLineEdit("1000", self)
-        self.grid.addWidget(self.walk_dist, 9, 1)
         # random seed
         self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
         self.grid.addWidget(self.random_seed_label, 10, 0, alignment=QtCore.Qt.AlignRight)
