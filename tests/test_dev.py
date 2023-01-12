@@ -21,7 +21,7 @@ ENHANCE
 - how to jump roads
 - new centralities only along roads?
 - add progress bar
-- offload from main thread
+- offload from main thread - https://gis.stackexchange.com/a/259707/25383
 - whether to try removing initialisation? Doesn't seem feasible - could move to vector as well
 - what about moving all state to vector and simply writing to raster?
 DO
