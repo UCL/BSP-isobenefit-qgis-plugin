@@ -67,7 +67,7 @@ class FuturbDialog(QtWidgets.QDialog):
         # iterations
         self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
         self.grid.addWidget(self.n_iterations_label, 2, 0, alignment=QtCore.Qt.AlignRight)
-        self.n_iterations = QtWidgets.QLineEdit("20", self)
+        self.n_iterations = QtWidgets.QLineEdit("10", self)
         self.grid.addWidget(self.n_iterations, 2, 1)
         # walking distance
         self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
