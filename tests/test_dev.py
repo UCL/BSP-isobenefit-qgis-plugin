@@ -3,8 +3,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
-from futurb.isobenefit import land_map
 from rasterio import transform
+
+from tests.staging import land_map
 
 TEMP_DIR = Path("temp/")
 TEMP_DIR.mkdir(parents=False, exist_ok=True)

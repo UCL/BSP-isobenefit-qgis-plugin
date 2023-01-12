@@ -13,7 +13,7 @@ import numpy as np
 
 # from numba import njit
 from rasterio import features, transform
-from shapely import BufferCapStyle, BufferJoinStyle, geometry
+from shapely import geometry
 
 from .logger import get_logger
 
@@ -465,9 +465,7 @@ class Land:
                 continue
             # reverse buffer step 1
             buffer_dist = 100
-            rev_buf: geometry.Polygon | geometry.MultiPolygon = poly.buffer(
-                -buffer_dist, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre
-            )
+            rev_buf: geometry.Polygon | geometry.MultiPolygon = poly.buffer(-buffer_dist)
             geoms: list[geometry.Polygon] = []
             # if an area is split, a MultiPolygon is returned
             if isinstance(rev_buf, geometry.Polygon):
@@ -478,7 +476,7 @@ class Land:
                 raise ValueError("Unexpected geometry")
             buildable_geom: geometry.MultiPolygon = geometry.MultiPolygon(polygons=None)
             for geom in geoms:
-                back_buf = geom.buffer(buffer_dist, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
+                back_buf = geom.buffer(buffer_dist)
                 # clip for situations where approaching borders
                 back_buf = back_buf.intersection(poly)
                 # add to buildable if larger than min threshold
@@ -498,9 +496,7 @@ class Land:
                 # sort through neg geoms and assign to buildable or non buildable based on sizes
                 for neg_geom in neg_geoms:
                     # look for smaller chunks
-                    neg_buf: geometry.Polygon | geometry.MultiPolygon = neg_geom.buffer(
-                        self.granularity_m, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre
-                    )
+                    neg_buf: geometry.Polygon | geometry.MultiPolygon = neg_geom.buffer(self.granularity_m)
                     # if smaller than min - then discard
                     if neg_buf.area < self.min_green_km2 * 1000**2:
                         unbuildable_geom = unbuildable_geom.union(neg_buf)  # type: ignore

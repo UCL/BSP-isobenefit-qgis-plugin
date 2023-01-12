@@ -157,8 +157,8 @@ def save_snapshot(
         # # help out type hinting via cast as IDE doesn't know ahead of time re: multiband renderer
         print(rast_layer)
         print(rast_layer.renderer())
-        # rast_renderer: QgsMultiBandColorRenderer = cast(QgsMultiBandColorRenderer, rast_layer.renderer())
-        # print(rast_renderer)
+        rast_renderer: QgsMultiBandColorRenderer = cast(QgsMultiBandColorRenderer, rast_layer.renderer())
+        print(rast_renderer)
         # # setup renderer
         # rast_renderer.setRedBand(1)
         # rast_renderer.setGreenBand(2)
