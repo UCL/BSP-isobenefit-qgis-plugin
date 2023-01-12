@@ -62,7 +62,7 @@ class FuturbDialog(QtWidgets.QDialog):
         # grid size
         self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
         self.grid.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignRight)
-        self.grid_size_m = QtWidgets.QLineEdit("50", self)
+        self.grid_size_m = QtWidgets.QLineEdit("100", self)
         self.grid.addWidget(self.grid_size_m, 1, 1)
         # iterations
         self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
@@ -72,7 +72,7 @@ class FuturbDialog(QtWidgets.QDialog):
         # walking distance
         self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
         self.grid.addWidget(self.walk_dist_label, 3, 0, alignment=QtCore.Qt.AlignRight)
-        self.walk_dist = QtWidgets.QLineEdit("1000", self)
+        self.walk_dist = QtWidgets.QLineEdit("500", self)
         self.grid.addWidget(self.walk_dist, 3, 1)
         # max population in walking distance
         self.max_local_pop_label = QtWidgets.QLabel("Max population in walking distance", self)
@@ -147,7 +147,7 @@ class FuturbDialog(QtWidgets.QDialog):
             2,
         )
         # existing built areas
-        self.built_layer_label = QtWidgets.QLabel("Optional layer indicating extents for existing urban areas", self)
+        self.built_layer_label = QtWidgets.QLabel("Extents for existing urban areas [optional]", self)
         self.grid.addWidget(self.built_layer_label, 18, 0, 1, 2)
         self.built_layer_box = QgsMapLayerComboBox(self)
         self.built_layer_box.setAllowEmptyLayer(True)
@@ -155,47 +155,33 @@ class FuturbDialog(QtWidgets.QDialog):
         self.built_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
         self.built_layer_box.setShowCrs(True)
         self.grid.addWidget(self.built_layer_box, 19, 0, 1, 2)
-        # spacer
-        self.grid.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
-            20,
-            0,
-            1,
-            2,
-        )
+        # green areas
+        self.green_layer_label = QtWidgets.QLabel("Extents for existing green areas [optional]", self)
+        self.grid.addWidget(self.green_layer_label, 20, 0, 1, 2)
+        self.green_layer_box = QgsMapLayerComboBox(self)
+        self.green_layer_box.setAllowEmptyLayer(True)
+        self.green_layer_box.setCurrentIndex(0)  # type: ignore
+        self.green_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        self.green_layer_box.setShowCrs(True)
+        self.grid.addWidget(self.green_layer_box, 21, 0, 1, 2)
         # unbuildable areas
-        self.unbuildable_layer_label = QtWidgets.QLabel("Optional layer indicating extents for unbuildable areas", self)
-        self.grid.addWidget(self.unbuildable_layer_label, 20, 0, 1, 2)
+        self.unbuildable_layer_label = QtWidgets.QLabel("Extents for unbuildable areas [optional]", self)
+        self.grid.addWidget(self.unbuildable_layer_label, 22, 0, 1, 2)
         self.unbuildable_layer_box = QgsMapLayerComboBox(self)
         self.unbuildable_layer_box.setAllowEmptyLayer(True)
         self.unbuildable_layer_box.setCurrentIndex(0)  # type: ignore
         self.unbuildable_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
         self.unbuildable_layer_box.setShowCrs(True)
-        self.grid.addWidget(self.unbuildable_layer_box, 21, 0, 1, 2)
-        # spacer
-        self.grid.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
-            22,
-            0,
-            1,
-            2,
-        )
-        # projection
-        self.crs_label = QtWidgets.QLabel("Coordinate reference system for simulation", self)
-        self.grid.addWidget(self.crs_label, 23, 0, 1, 2)
-        self.crs_selection = QgsProjectionSelectionWidget(self)
-        # feedback for layers selection
-        # crsChanged event fires immediately, so self.crs_feedback has to exist beforehand
-        self.crs_feedback = QtWidgets.QLabel("Select a CRS", self)
-        self.crs_feedback.setWordWrap(True)
-        self.grid.addWidget(self.crs_feedback, 24, 0, 1, 2)
-        self.crs_selection.crsChanged.connect(self.handle_crs)  # type: ignore (connect works)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, False)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.DefaultCrs, False)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.RecentCrs, False)
-        self.grid.addWidget(self.crs_selection, 25, 0, 1, 2)
+        self.grid.addWidget(self.unbuildable_layer_box, 23, 0, 1, 2)
+        # centre seeds
+        self.centre_seeds_layer_label = QtWidgets.QLabel("Seeds for urban centres [optional]", self)
+        self.grid.addWidget(self.centre_seeds_layer_label, 24, 0, 1, 2)
+        self.centre_seeds_layer_box = QgsMapLayerComboBox(self)
+        self.centre_seeds_layer_box.setAllowEmptyLayer(True)
+        self.centre_seeds_layer_box.setCurrentIndex(0)  # type: ignore
+        self.centre_seeds_layer_box.setFilters(QgsMapLayerProxyModel.PointLayer)
+        self.centre_seeds_layer_box.setShowCrs(True)
+        self.grid.addWidget(self.centre_seeds_layer_box, 25, 0, 1, 2)
         # spacer
         self.grid.addItem(
             QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
@@ -204,9 +190,33 @@ class FuturbDialog(QtWidgets.QDialog):
             1,
             2,
         )
+        # projection
+        self.crs_label = QtWidgets.QLabel("Coordinate reference system for simulation", self)
+        self.grid.addWidget(self.crs_label, 27, 0, 1, 2)
+        self.crs_selection = QgsProjectionSelectionWidget(self)
+        # feedback for layers selection
+        # crsChanged event fires immediately, so self.crs_feedback has to exist beforehand
+        self.crs_feedback = QtWidgets.QLabel("Select a CRS", self)
+        self.crs_feedback.setWordWrap(True)
+        self.grid.addWidget(self.crs_feedback, 28, 0, 1, 2)
+        self.crs_selection.crsChanged.connect(self.handle_crs)  # type: ignore (connect works)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, False)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.DefaultCrs, False)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.RecentCrs, False)
+        self.grid.addWidget(self.crs_selection, 29, 0, 1, 2)
+        # spacer
+        self.grid.addItem(
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            30,
+            0,
+            1,
+            2,
+        )
         # Cancel / OK buttons
         self.button_box = QtWidgets.QDialogButtonBox(self)
-        self.grid.addWidget(self.button_box, 27, 0, 1, 2)
+        self.grid.addWidget(self.button_box, 31, 0, 1, 2)
         self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
@@ -284,7 +294,7 @@ class FuturbDialog(QtWidgets.QDialog):
             return
         # success
         self.extents_layer_feedback.setText("")
-        self.extents_layer = self.extents_layer_box.currentLayer()
+        self.extents_layer = candidate_layer
         self.crs_selection.setLayerCrs(self.extents_layer.crs())
         self.refresh_state()
 

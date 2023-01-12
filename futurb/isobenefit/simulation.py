@@ -19,7 +19,8 @@ from qgis.core import (
     QgsRasterLayerTemporalProperties,
     QgsVectorLayer,
 )
-from rasterio import transform
+from rasterio import features, transform
+from shapely import geometry, wkt
 
 from .land_map import Land
 from .logger import configure_logging, get_logger
@@ -39,7 +40,12 @@ def prepare_filepath(step: int, out_dir_path: Path, out_file_name: str) -> str:
 
 
 def simulate(
+    bounds_layer: QgsVectorLayer,
     extents_layer: QgsVectorLayer,
+    built_areas_layer: QgsVectorLayer | None,
+    green_areas_layer: QgsVectorLayer | None,
+    unbuildable_areas_layer: QgsVectorLayer | None,
+    centre_seeds_layer: QgsVectorLayer | None,
     target_crs: QgsCoordinateReferenceSystem,
     granularity_m: int,
     walk_dist_m: int,
@@ -58,11 +64,11 @@ def simulate(
     configure_logging()
     LOGGER = get_logger()
     np.random.seed(random_seed)
-    # prepare extents
-    x_min = extents_layer.extent().xMinimum()
-    x_max = extents_layer.extent().xMaximum()
-    y_min = extents_layer.extent().yMinimum()
-    y_max = extents_layer.extent().yMaximum()
+    # prepare bounds
+    x_min = bounds_layer.extent().xMinimum()
+    x_max = bounds_layer.extent().xMaximum()
+    y_min = bounds_layer.extent().yMinimum()
+    y_max = bounds_layer.extent().yMaximum()
     size_x_m = int(x_max - x_min)
     size_y_m = int(y_max - y_min)
     cells_x = int(size_x_m / granularity_m)
@@ -76,17 +82,63 @@ def simulate(
     if not density_factors[0] >= density_factors[1] >= density_factors[2]:
         raise ValueError(f"The density factors are not decreasing in value: {density_factors}.")
     # extents
-    extents_arr = np.full((cells_y, cells_x), 0, dtype=np.int_)
+    extents_arr = np.full((cells_y, cells_x), -1, dtype=np.int_)
     # transform
     extents_trf: transform.Affine = transform.from_bounds(x_min, y_min, x_max, y_max, cells_x, cells_y)
-    # start simulation
+    # review input layers and configure accordingly
+    for feature in extents_layer.getFeatures():
+        geom_wkt = feature.geometry().asWkt()
+        shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
+        features.rasterize(  # type: ignore
+            shapes=[(geometry.mapping(shapely_geom), 0)],  # convert back to geo interface
+            out=extents_arr,
+            transform=extents_trf,
+            all_touched=False,
+        )
+    if built_areas_layer is not None:
+        for feature in built_areas_layer.getFeatures():
+            geom_wkt = feature.geometry().asWkt()
+            shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
+            features.rasterize(  # type: ignore
+                shapes=[(geometry.mapping(shapely_geom), 1)],  # convert back to geo interface
+                out=extents_arr,
+                transform=extents_trf,
+                all_touched=False,
+            )
+    if green_areas_layer is not None:
+        for feature in green_areas_layer.getFeatures():
+            geom_wkt = feature.geometry().asWkt()
+            shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
+            features.rasterize(  # type: ignore
+                shapes=[(geometry.mapping(shapely_geom), 0)],  # convert back to geo interface
+                out=extents_arr,
+                transform=extents_trf,
+                all_touched=False,
+            )
+    if unbuildable_areas_layer is not None:
+        for feature in unbuildable_areas_layer.getFeatures():
+            geom_wkt = feature.geometry().asWkt()
+            shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
+            features.rasterize(  # type: ignore
+                shapes=[(geometry.mapping(shapely_geom), -1)],  # convert back to geo interface
+                out=extents_arr,
+                transform=extents_trf,
+                all_touched=False,
+            )
+    centre_seeds: list[tuple[int, int]] = []
+    if centre_seeds_layer is not None:
+        for feature in centre_seeds_layer.getFeatures():
+            point = feature.geometry().asPoint()
+            centre_seeds.append((int(point.x()), int(point.y())))
     t_zero = time.time()
+    print("instancing land")
+    # start simulation
     land = Land(
         granularity_m,
         walk_dist_m,
         extents_trf,
         extents_arr,
-        centre_seeds=[],
+        centre_seeds=centre_seeds,
         build_prob=build_prob,
         cent_prob_nb=cent_prob_nb,
         cent_prob_isol=cent_prob_isol,
@@ -95,6 +147,7 @@ def simulate(
         density_factors=density_factors,
         random_seed=random_seed,
     )
+    print("done instancing land", time.time() - t_zero)
     # prepare QGIS menu
     layer_root = QgsProject.instance().layerTreeRoot()
     layer_group = layer_root.insertGroup(0, f"{out_file_name} outputs")
@@ -107,10 +160,8 @@ def simulate(
         target_crs,
     )
     for idx in range(1, n_steps + 1):
-        print(idx, n_steps)
-        land.iterate()
         start = time.time()
-        LOGGER.info(f"step: {idx}, duration: {time.time() - start} seconds")
+        land.iterate()
         out_path = prepare_filepath(idx, out_dir_path, out_file_name)
         save_snapshot(
             land,
@@ -118,6 +169,7 @@ def simulate(
             extents_trf,
             target_crs,
         )
+        LOGGER.info(f"step: {idx}, duration: {time.time() - start} seconds")
     # load snapshots to menu
     for idx in range(1, n_steps + 1):
         in_path = prepare_filepath(idx, out_dir_path, out_file_name)
@@ -136,7 +188,7 @@ def save_snapshot(
         out_path,
         mode="w",
         driver="GTiff",
-        count=3,
+        count=4,
         width=land.state_arr.shape[1],
         height=land.state_arr.shape[0],
         crs=target_crs.authid(),
@@ -144,21 +196,21 @@ def save_snapshot(
         dtype=np.byte,  # type: ignore
         nodata=-1,
     ) as out_rast:  # type: ignore
-        rgb = np.full((land.state_arr.shape[0], land.state_arr.shape[1], 3), 0, dtype=np.byte)
+        rgb = np.full((land.state_arr.shape[0], land.state_arr.shape[1], 4), 0, dtype=np.byte)
         # green areas
         green_idx = np.nonzero(land.state_arr == 0)
-        rgb[green_idx] = [70, 183, 42]
+        rgb[green_idx] = [84, 171, 67, 255]
         # built areas
         built_idx = np.nonzero(land.state_arr == 1)
-        rgb[built_idx] = [150, 150, 150]
+        rgb[built_idx] = [179, 124, 105, 255]
         # centres
         centre_idx = np.nonzero(land.state_arr == 2)
-        rgb[centre_idx] = [252, 197, 15]
+        rgb[centre_idx] = [194, 50, 50, 255]
         # expects bands, rows, columns order
         out_rast.write(rgb.transpose(2, 0, 1))
 
 
-def load_snapshot(in_path: str, step: int, target_crs: QgsCoordinateReferenceSystem, layer_group):
+def load_snapshot(in_path: str, step: int, target_crs: QgsCoordinateReferenceSystem, layer_group: QgsLayerTreeGroup):
     """ """
     # create QGIS layer and renderer
     rast_layer = QgsRasterLayer(
@@ -175,18 +227,6 @@ def load_snapshot(in_path: str, step: int, target_crs: QgsCoordinateReferenceSys
     rast_renderer.setRedBand(1)
     rast_renderer.setGreenBand(2)
     rast_renderer.setBlueBand(3)
-    red_ce = rast_renderer.redContrastEnhancement()
-    red_ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchAndClipToMinimumMaximum)
-    red_ce.setMinimumValue(0)
-    red_ce.setMaximumValue(1)
-    green_ce = rast_renderer.greenContrastEnhancement()
-    green_ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchAndClipToMinimumMaximum)
-    green_ce.setMinimumValue(0)
-    green_ce.setMaximumValue(1)
-    blue_ce = rast_renderer.blueContrastEnhancement()
-    blue_ce.setContrastEnhancementAlgorithm(QgsContrastEnhancement.StretchAndClipToMinimumMaximum)
-    blue_ce.setMinimumValue(0)
-    blue_ce.setMaximumValue(1)
     # setup temporal
     temp_props: QgsRasterLayerTemporalProperties = cast(
         QgsRasterLayerTemporalProperties, rast_layer.temporalProperties()
@@ -201,5 +241,5 @@ def load_snapshot(in_path: str, step: int, target_crs: QgsCoordinateReferenceSys
     temp_props.setIsActive(True)
     # add to QGIS
     QgsProject.instance().addMapLayer(rast_layer, addToLegend=False)
-    lt_layer = layer_group.addLayer(rast_layer)
-    lt_layer.setExpanded(False)
+    rast_layer = layer_group.addLayer(rast_layer)
+    rast_layer.setExpanded(False)

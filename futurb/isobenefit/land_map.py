@@ -10,8 +10,7 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
-
-# from numba import njit
+from numba import njit
 from rasterio import features, transform
 from shapely import BufferCapStyle, BufferJoinStyle, geometry
 
@@ -63,7 +62,7 @@ def _agg_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distan
     return arr
 
 
-# @njit
+@njit
 def _iter_nbs(arr: Any, y_idx: int, x_idx: int, rook: bool) -> Any:
     """Returns rook or queen neighbours - return in order - no shuffling?"""
     idxs: list[list[int]] = []
@@ -86,7 +85,7 @@ def _iter_nbs(arr: Any, y_idx: int, x_idx: int, rook: bool) -> Any:
     return idxs
 
 
-# @njit
+@njit
 def _agg_dijkstra_cont(
     state_arr: Any,
     y_idx: int,
@@ -163,7 +162,7 @@ def _agg_dijkstra_cont(
     return targets_arr
 
 
-# @njit
+@njit
 def _count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[int]) -> tuple[int, int, int]:
     """Counts continuous green space neighbours"""
     circle: list[int] = []
@@ -238,7 +237,7 @@ def green_spans(
     return False
 
 
-# @njit
+@njit
 def _green_to_built(
     y_idx: int,
     x_idx: int,
@@ -318,7 +317,7 @@ def _green_to_built(
     return True, new_green_itx_arr, new_green_acc_arr
 
 
-# @njit
+@njit
 def _prepare_green_arrs(state_arr: Any, max_distance_m: int, granularity_m: int) -> Any:
     """
     Initialises green itx and green acc arrays.
@@ -424,7 +423,7 @@ class Land:
         y_trf: int
         x_trf: int
         for east, north in centre_seeds:
-            x_trf, y_trf = transform.rowcol(self.trf, east, north)  # type: ignore
+            y_trf, x_trf = transform.rowcol(self.trf, east, north)  # type: ignore
             self.state_arr[y_trf, x_trf] = 2
             # agg centrality to surroundings
             self.cent_acc_arr += _agg_dijkstra_cont(

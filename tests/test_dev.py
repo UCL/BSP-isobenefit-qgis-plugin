@@ -20,11 +20,23 @@ ENHANCE
 - how to handle ratio of exploration vs. size of green space?
 - how to jump roads
 - new centralities only along roads?
+- add progress bar
+- offload from main thread
+- whether to try removing initialisation? Doesn't seem feasible - could move to vector as well
+- what about moving all state to vector and simply writing to raster?
 DO
 - two speed - explore and encircle large park areas then fill-in more slowly via neighbours?
 OR
 - aggressive exploration - only infill neighbours 6 or more? 
 - then when a concavity is greater than min - instead of switching straight to buildable - start reverse buffering to allow infill around edges - like deflating a balloon - to preserve shape?
+NOTEs
+- intentionally tackles a large area to pre-emptively find bottlenecks
+- performance remains a significant requirement - using Numba - prototype works (i.e. Numba seems to work from QGIS)
+- need to find a way to speed up initialisation - a lot of green access and centrality access to compute
+- fairly performant once iterations start
+BUGs
+- shapely crash for buffer params (resolved by using built-in global vars for buffer params)
+- writing vs loading bug (write hadn't completed in time for load... resolved by doing all writes first)
 """
 
 

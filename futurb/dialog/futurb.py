@@ -10,6 +10,7 @@ from qgis.core import (
     QgsCoordinateTransform,
     QgsDateTimeRange,
     QgsFeature,
+    QgsFillSymbol,
     QgsGeometry,
     QgsInterval,
     QgsMessageLog,
@@ -194,22 +195,39 @@ class Futurb:
                 QgsRectangle(x_pad_min, y_pad_min, x_pad_max, y_pad_max)
             )
             # transform CRS if necessary
-            crs_transform = QgsCoordinateTransform(self.dlg.selected_crs, self.dlg.selected_crs, QgsProject.instance())
+            crs_transform = QgsCoordinateTransform(
+                self.dlg.extents_layer.crs(), self.dlg.selected_crs, QgsProject.instance()
+            )
             padded_extents_geom.transform(crs_transform)  # type: ignore
             # prepare extents layer
-            extents_layer = QgsVectorLayer(
+            bounds_layer = QgsVectorLayer(
                 f"Polygon?crs={self.dlg.selected_crs.authid()}&field=id:integer&index=yes",
                 "sim_input_extents",
                 "memory",
             )
             target_feature = QgsFeature(id=1)
             target_feature.setGeometry(padded_extents_geom)
-            extents_layer.dataProvider().addFeature(target_feature)
-            extents_layer.dataProvider().updateExtents()
-            QgsProject.instance().addMapLayer(extents_layer, addToLegend=True)
+            bounds_layer.dataProvider().addFeature(target_feature)
+            bounds_layer.dataProvider().updateExtents()
+            bounds_layer.renderer().setSymbol(
+                QgsFillSymbol.createSimple(
+                    {"color": "0, 0, 0, 0", "outline_color": "black", "outline_width": "0.5", "outline_style": "dash"}
+                )
+            )
+            QgsProject.instance().addMapLayer(bounds_layer, addToLegend=True)
+            # layers
+            built_areas_layer: QgsVectorLayer | None = self.dlg.built_layer_box.currentLayer()
+            green_areas_layer: QgsVectorLayer | None = self.dlg.green_layer_box.currentLayer()
+            unbuildable_areas_layer: QgsVectorLayer | None = self.dlg.unbuildable_layer_box.currentLayer()
+            centre_seeds_layer: QgsVectorLayer | None = self.dlg.centre_seeds_layer_box.currentLayer()
             # run
             simulation.simulate(
-                extents_layer=extents_layer,
+                bounds_layer=bounds_layer,
+                extents_layer=self.dlg.extents_layer,
+                built_areas_layer=built_areas_layer,
+                green_areas_layer=green_areas_layer,
+                unbuildable_areas_layer=unbuildable_areas_layer,
+                centre_seeds_layer=centre_seeds_layer,
                 target_crs=self.dlg.selected_crs,
                 granularity_m=granularity_m,
                 walk_dist_m=int(self.dlg.walk_dist.text()),
