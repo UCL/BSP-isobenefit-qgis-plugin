@@ -7,6 +7,7 @@ from typing import Any, Callable, cast
 
 from qgis.core import (
     Qgis,
+    QgsApplication,
     QgsCoordinateTransform,
     QgsDateTimeRange,
     QgsFeature,
@@ -24,7 +25,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 
-from ..isobenefit import simulation
+from ..isobenefit import land_map
 from .futurb_dialog import FuturbDialog  # Import the code for the dialog
 from .resources import *  # Initialize Qt resources from file resources.py
 
@@ -179,7 +180,6 @@ class Futurb:
         if result:
             # None checking is handled by dialogue
             granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
-            n_steps = int(self.dlg.n_iterations.text())
             # extents
             input_extents: QgsRectangle = self.dlg.extents_layer.extent()
             x_min = input_extents.xMinimum()
@@ -220,40 +220,31 @@ class Futurb:
             green_areas_layer: QgsVectorLayer | None = self.dlg.green_layer_box.currentLayer()
             unbuildable_areas_layer: QgsVectorLayer | None = self.dlg.unbuildable_layer_box.currentLayer()
             centre_seeds_layer: QgsVectorLayer | None = self.dlg.centre_seeds_layer_box.currentLayer()
-            # run
-            simulation.simulate(
+            # prepare and run
+            land = land_map.Land(
+                iface_ref=self.iface,
+                out_dir_path=self.dlg.out_dir_path,  # type: ignore
+                out_file_name=self.dlg.out_file_name,  # type: ignore
+                target_crs=self.dlg.selected_crs,
                 bounds_layer=bounds_layer,
                 extents_layer=self.dlg.extents_layer,
                 built_areas_layer=built_areas_layer,
                 green_areas_layer=green_areas_layer,
                 unbuildable_areas_layer=unbuildable_areas_layer,
                 centre_seeds_layer=centre_seeds_layer,
-                target_crs=self.dlg.selected_crs,
+                total_iters=int(self.dlg.n_iterations.text()),
                 granularity_m=granularity_m,
-                walk_dist_m=int(self.dlg.walk_dist.text()),
-                n_steps=n_steps,
-                out_dir_path=self.dlg.out_dir_path,  # type: ignore
-                out_file_name=self.dlg.out_file_name,  # type: ignore
+                max_distance_m=int(self.dlg.walk_dist.text()),
+                max_populat=int(self.dlg.max_populat.text()),
+                min_green_km2=float(self.dlg.min_green_km2.text()),
                 build_prob=float(self.dlg.build_prob.text()),
                 cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
                 cent_prob_isol=float(self.dlg.cent_prob_isol.text()),
-                max_local_pop=int(self.dlg.max_local_pop.text()),
                 prob_distribution=(0.7, 0.3, 0),
                 density_factors=(1, 0.1, 0.01),
                 random_seed=int(self.dlg.random_seed.text()),
             )
-            # setup temporal controller
-            start_date = datetime.now()
-            end_date = start_date.replace(year=start_date.year + n_steps)
-            temporal: QgsTemporalNavigationObject = cast(
-                QgsTemporalNavigationObject, self.iface.mapCanvas().temporalController()
-            )
-            temporal.setTemporalExtents(QgsDateTimeRange(begin=start_date, end=end_date))
-            temporal.rewindToStart()
-            temporal.setLooping(True)
-            temporal.setFrameDuration(QgsInterval(1, 0, 0, 0, 0, 0, 0))  # one year
-            temporal.setFramesPerSecond(2)
-            temporal.setAnimationState(QgsTemporalNavigationObject.Forward)
+            QgsApplication.taskManager().addTask(land)
         else:
             print("no result")
             QgsMessageLog.logMessage("no result", level=Qgis.Warning, notifyUser=True)
