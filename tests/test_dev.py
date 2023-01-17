@@ -20,8 +20,6 @@ ENHANCE
 - how to handle ratio of exploration vs. size of green space?
 - how to jump roads
 - new centralities only along roads?
-- add progress bar
-- offload from main thread - https://gis.stackexchange.com/a/259707/25383
 - whether to try removing initialisation? Doesn't seem feasible - could move to vector as well
 - what about moving all state to vector and simply writing to raster?
 DO
@@ -50,8 +48,6 @@ def test_plot(land: land_map.Land):
     axes[0][1].set_title("green periphery")
     axes[1][0].imshow(land.green_acc_arr, origin="lower")
     axes[1][0].set_title("green access")
-    axes[1][1].imshow(land.buildable_arr, origin="lower")
-    axes[1][1].set_title("buildable")
     axes[2][0].imshow(land.cent_acc_arr, origin="lower")
     axes[2][0].set_title("cent access")
     axes[2][1].imshow(land.density_arr, origin="lower")
