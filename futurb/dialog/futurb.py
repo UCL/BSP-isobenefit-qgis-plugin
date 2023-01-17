@@ -240,6 +240,10 @@ class Futurb:
                 density_factors=(1, 0.1, 0.01),
                 random_seed=int(self.dlg.random_seed.text()),
             )
+            # task doesn't seem to register if only addTask?
+            # padding with logs to prompt task run...
+            QgsMessageLog.logMessage("Starting simulation.", level=Qgis.Info, notifyUser=True)
             QgsApplication.taskManager().addTask(land)
+            QgsMessageLog.logMessage("Simulation completed.", level=Qgis.Info, notifyUser=True)
         else:
             QgsMessageLog.logMessage("No input for Futurb dialogue to process.", level=Qgis.Warning, notifyUser=True)
