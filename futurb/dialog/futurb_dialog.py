@@ -1,15 +1,11 @@
 """ """
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from qgis.core import QgsCoordinateReferenceSystem, QgsMapLayerProxyModel, QgsVectorLayer, QgsWkbTypes
 from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 class LayerSpec:

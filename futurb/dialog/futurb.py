@@ -2,22 +2,18 @@
 from __future__ import annotations
 
 import os.path
-from datetime import datetime
-from typing import Any, Callable, cast
+from typing import Any, Callable
 
 from qgis.core import (
     Qgis,
     QgsApplication,
     QgsCoordinateTransform,
-    QgsDateTimeRange,
     QgsFeature,
     QgsFillSymbol,
     QgsGeometry,
-    QgsInterval,
     QgsMessageLog,
     QgsProject,
     QgsRectangle,
-    QgsTemporalNavigationObject,
     QgsVectorLayer,
 )
 from qgis.gui import QgisInterface
@@ -246,5 +242,4 @@ class Futurb:
             )
             QgsApplication.taskManager().addTask(land)
         else:
-            print("no result")
-            QgsMessageLog.logMessage("no result", level=Qgis.Warning, notifyUser=True)
+            QgsMessageLog.logMessage("No input for Futurb dialogue to process.", level=Qgis.Warning, notifyUser=True)

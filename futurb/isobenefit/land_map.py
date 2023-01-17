@@ -5,7 +5,6 @@ Don't use anything from QGIS so that it is easier to test this module.
 """
 from __future__ import annotations
 
-import logging
 import time
 from datetime import datetime
 from pathlib import Path
@@ -15,10 +14,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rasterio as rio
 from qgis.core import (
+    Qgis,
     QgsCoordinateReferenceSystem,
     QgsDateTimeRange,
     QgsInterval,
     QgsLayerTreeGroup,
+    QgsMessageLog,
     QgsMultiBandColorRenderer,
     QgsProject,
     QgsRasterLayer,
@@ -32,9 +33,6 @@ from rasterio import features, transform
 from shapely import BufferCapStyle, BufferJoinStyle, geometry, wkt
 
 from . import algos
-from .logger import get_logger
-
-LOGGER: logging.Logger = get_logger()
 
 
 class Land(QgsTask):
@@ -100,7 +98,7 @@ class Land(QgsTask):
         random_seed: int = 0,
     ):
         """ """
-        print("instancing land")
+        QgsMessageLog.logMessage("Instancing Futurb simulation.", level=Qgis.Info)
         QgsTask.__init__(self, "Future Urban Growth")
         # set reference to interface
         self.iface_ref = iface_ref
@@ -146,7 +144,7 @@ class Land(QgsTask):
             centre_seeds_layer,
         )
         self.save_snapshot()
-        print("done instancing land")
+        QgsMessageLog.logMessage("Futurb instance ready.", level=Qgis.Info)
 
     def prepare_state(
         self,
@@ -297,7 +295,7 @@ class Land(QgsTask):
                     providerType="gdal",
                 )
                 if not rast_layer.isValid():
-                    LOGGER.error(f"Invalid layer: {load_path}")
+                    QgsMessageLog.logMessage("Raster layer is  not valid.", level=Qgis.Critical, notifyUser=True)
                 rast_layer.setCrs(self.target_crs)
                 # # help out type hinting via cast as IDE doesn't know ahead of time re: multiband renderer
                 rast_renderer: QgsMultiBandColorRenderer = cast(QgsMultiBandColorRenderer, rast_layer.renderer())
@@ -327,15 +325,16 @@ class Land(QgsTask):
         QgsTask uses 'run' as entry point for managing task.
         https://qgis.org/pyqgis/master/core/QgsTask.html
         """
+        QgsMessageLog.logMessage("Starting Futurb simulation.", level=Qgis.Info)
         t_zero = time.time()
         for this_iter in range(self.total_iters + 1):
             if self.isCanceled():
                 return False
             start = time.time()
             self.iterate()
-            self.setProgress(self.current_iter / self.total_iters)
-            LOGGER.info(f"iter: {this_iter}, duration: {time.time() - start} seconds")
-        LOGGER.info(f"Simulation ended. Total duration: {time.time() - t_zero} seconds")
+            self.setProgress(self.current_iter / self.total_iters * 100)
+            QgsMessageLog.logMessage(f"iter: {this_iter}, duration: {time.time() - start} seconds", level=Qgis.Info)
+        QgsMessageLog.logMessage(f"Simulation ended. Total duration: {time.time() - t_zero} seconds", level=Qgis.Info)
         self.load_snapshots()
         # setup temporal controller
         start_date = datetime.now()

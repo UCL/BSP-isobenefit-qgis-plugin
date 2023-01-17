@@ -3,15 +3,10 @@ Algos for Numba
 """
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import numpy as np
 from numba import njit
-
-from .logger import get_logger
-
-LOGGER: logging.Logger = get_logger()
 
 
 @njit
