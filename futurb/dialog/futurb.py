@@ -21,7 +21,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 
-from ..isobenefit import land_map
+from ..isobenefit import land_map_local
 from .futurb_dialog import FuturbDialog  # Import the code for the dialog
 from .resources import *  # Initialize Qt resources from file resources.py
 
@@ -217,7 +217,7 @@ class Futurb:
             unbuildable_areas_layer: QgsVectorLayer | None = self.dlg.unbuildable_layer_box.currentLayer()
             centre_seeds_layer: QgsVectorLayer | None = self.dlg.centre_seeds_layer_box.currentLayer()
             # prepare and run
-            land = land_map.Land(
+            land = land_map_local.Land(
                 iface_ref=self.iface,
                 out_dir_path=self.dlg.out_dir_path,  # type: ignore
                 out_file_name=self.dlg.out_file_name,  # type: ignore
@@ -236,6 +236,7 @@ class Futurb:
                 build_prob=float(self.dlg.build_prob.text()),
                 cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
                 cent_prob_isol=float(self.dlg.cent_prob_isol.text()),
+                pop_target_cent_threshold=float(self.dlg.pop_target_cent_threshold.text()),
                 prob_distribution=(0.7, 0.3, 0),
                 density_factors=(1, 0.1, 0.01),
                 random_seed=int(self.dlg.random_seed.text()),

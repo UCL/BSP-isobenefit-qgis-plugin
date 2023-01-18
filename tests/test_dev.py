@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from rasterio import transform
 
-from tests.staging import land_map
+from tests.staging import land_map_local
 
 TEMP_DIR = Path("temp/")
 TEMP_DIR.mkdir(parents=False, exist_ok=True)
@@ -38,7 +38,7 @@ BUGs
 """
 
 
-def test_plot(land: land_map.Land):
+def test_plot(land: land_map_local.Land):
     """ """
     fig, axes = plt.subplots(3, 2, figsize=(12, 12), squeeze=True, sharex=True, sharey=True)
     fig.suptitle(f"Iteration {land.iters}")
@@ -72,7 +72,7 @@ def test_land_map():
     # snips
     extents_arr[:, 0] = -1
     extents_arr[1, :] = -1
-    land = land_map.Land(
+    land = land_map_local.Land(
         granularity_m=granularity_m,
         max_distance_m=max_distance_m,
         # prepare transform - expects w, s, e, n, cell width, cell height
@@ -91,20 +91,6 @@ def test_land_map():
             test_plot(land)
     test_plot(land)
     print("here")
-
-
-def test_recurse_gobble():
-    """ """
-    test_arr = np.full((100, 100), 0, dtype=np.int_)
-    # start in middle
-    enough_extents = land_map.continuous_state_extents(test_arr, 50, 50, 0, 200 * 200, 250, 50)
-    assert enough_extents
-    # start in corner
-    enough_extents = land_map.continuous_state_extents(test_arr, 0, 0, 0, 200 * 200, 250, 50)
-    assert enough_extents
-    # reduce distance - should return False since start node is not included
-    enough_extents = land_map.continuous_state_extents(test_arr, 0, 0, 0, 200 * 200, 200, 50)
-    assert enough_extents is False
 
 
 if __name__ == "__main__":

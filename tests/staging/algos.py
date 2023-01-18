@@ -10,37 +10,31 @@ from numba import njit
 
 
 @njit
-def random_density(
-    prob_distribution: tuple[float, float, float],
-    density_factors: tuple[float, float, float],
-    granularity_m: int,
-) -> float:
-    """ """
+def random_density(prob_distribution: tuple[float, float, float], density_factors: tuple[float, float, float]) -> float:
+    """Numba compatible method for determining a land use density"""
     p = np.random.rand()
-    factor = density_factors[2]
     if p >= 0 and p < prob_distribution[0]:
-        factor = density_factors[0]
+        return density_factors[0]
     elif p >= prob_distribution[1] and p < prob_distribution[2]:
-        factor = density_factors[1]
-    # return factor divided by granularity
-    blocks_per_km2 = int(np.ceil(1000**2 / granularity_m**2))
-    return int(np.ceil(factor / blocks_per_km2))
+        return density_factors[1]
+    else:
+        return density_factors[2]
 
 
-@njit
-def inc_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int) -> Any:
+# @njit
+def _inc_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int) -> Any:
     """increment access"""
-    return agg_access(y_idx, x_idx, arr, granularity_m, max_distance_m, positive=True)
+    return _agg_access(y_idx, x_idx, arr, granularity_m, max_distance_m, positive=True)
 
 
-@njit
-def decr_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int) -> Any:
+# @njit
+def _decr_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int) -> Any:
     """increment access"""
-    return agg_access(y_idx, x_idx, arr, granularity_m, max_distance_m, positive=False)
+    return _agg_access(y_idx, x_idx, arr, granularity_m, max_distance_m, positive=False)
 
 
-@njit
-def agg_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int, positive: bool) -> Any:
+# @njit
+def _agg_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int, positive: bool) -> Any:
     """Aggregates access - from an x, y to provided array, either positive or negative"""
     for cy_idx, cx_idx in np.ndindex(arr.shape):
         y_dist = int(abs(y_idx - cy_idx) * granularity_m)
@@ -187,7 +181,7 @@ def count_cont_nbs(state_arr: Any, y_idx: int, x_idx: int, target_vals: list[int
     return sum(adds), max(adds), len(adds)
 
 
-@njit
+# @njit
 def green_span(arr_1d: Any, start_idx: int, positive: bool) -> int:
     """ """
     if positive:
@@ -198,13 +192,13 @@ def green_span(arr_1d: Any, start_idx: int, positive: bool) -> int:
     for span_idx in idxs:
         if span_idx == len(arr_1d):
             break
-        if arr_1d[span_idx] > 0:
+        if arr_1d[span_idx] != 0:
             break
         span += 1
     return span
 
 
-@njit
+# @njit
 def green_spans(
     arr: Any,
     y_idx: int,
@@ -224,22 +218,11 @@ def green_spans(
     # mins and maxes
     xy_mins = sorted([x_spans[0], y_spans[0]])
     xy_maxs = sorted([x_spans[-1], y_spans[-1]])
-    # calculate blocks
+    # gaps greater than zero must meet the span
     span_blocks = min_green_span_m / granularity_m
-    # allow piercing green space if clear in either direction
-    for a_set, b_set in [(x_spans, y_spans), (y_spans, x_spans)]:
-        if a_set[0] >= span_blocks and a_set[1] >= span_blocks:
-            if b_set[0] == 0 and b_set[1] >= span_blocks:
-                return True
-    # allow corner in fill if opposite is clear in both directions
-    if x_spans[0] == 0 and y_spans[0] == 0:
-        if x_spans[1] >= span_blocks and y_spans[1] >= span_blocks:
-            return True
-    # otherwise gaps greater than zero must meet the span
-    for span in [*xy_mins, *xy_maxs]:
-        if span > 0 and span < span_blocks:
-            return False
-    return True
+    if xy_mins[0] == 0 and xy_maxs[1] > span_blocks:
+        return True
+    return False
 
 
 @njit

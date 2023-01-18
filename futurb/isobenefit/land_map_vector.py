@@ -13,6 +13,7 @@ from typing import Any, cast
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio as rio
+from numba import njit
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
@@ -33,6 +34,57 @@ from rasterio import features, transform
 from shapely import BufferCapStyle, BufferJoinStyle, geometry, wkt
 
 from . import algos
+
+
+@njit
+def green_to_built(
+    y_idx: int,
+    x_idx: int,
+    state_arr: Any,
+    old_green_itx_arr: Any,
+    old_green_acc_arr: Any,
+    buildable_arr: Any,
+    granularity_m: int,
+    max_distance_m: int,
+) -> tuple[bool, Any, Any]:
+    """
+    can't track state directly... because local actions have non-local impact
+    avoids checking each reachable cell's green access causes exponential complexity
+    """
+    new_green_itx_arr = np.copy(old_green_itx_arr)
+    new_green_acc_arr = np.copy(old_green_acc_arr)
+    # check neighbours situation
+    _tot_urban_nbs, cont_urban_nbs, _urban_regions = algos.count_cont_nbs(state_arr, y_idx, x_idx, [1, 2])
+    # if buildable_arr indicates that a green area should not be developed, then special conditions apply
+    if buildable_arr[y_idx, x_idx] < 1:
+        # allow filling in crimped areas
+        if cont_urban_nbs < 5:
+            return False, old_green_itx_arr, old_green_acc_arr
+    # check if cell is currently green_itx
+    # if so, set itx to off and decrement green access accordingly
+    if new_green_itx_arr[y_idx, x_idx] == 2:
+        new_green_itx_arr[y_idx, x_idx] = 1
+        # decrement green access as consequence of converting cell from itx to built
+        new_green_acc_arr -= algos.agg_dijkstra_cont(
+            new_green_itx_arr, y_idx, x_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
+        )
+    # scan through neighbours - set new green itx - use rook for checking contiguity
+    for y_nb_idx, x_nb_idx in algos.iter_nbs(new_green_itx_arr, y_idx, x_idx, rook=True):
+        # convert green space to itx
+        if new_green_itx_arr[y_nb_idx, x_nb_idx] == 0:
+            new_green_itx_arr[y_nb_idx, x_nb_idx] = 2
+            # increment green access to existing built cells
+            new_green_acc_arr += algos.agg_dijkstra_cont(
+                new_green_itx_arr, y_nb_idx, x_nb_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
+            )
+    # check that green access has not been cut off for built areas
+    # green_acc_diff = new_green_acc_arr - old_green_acc_arr
+    ny_idxs, nx_idxs = np.nonzero(np.logical_and(state_arr > 0, new_green_acc_arr <= 0))
+    for ny_idx, nx_idx in zip(ny_idxs, nx_idxs):
+        # bail if built and below zero
+        if old_green_acc_arr[ny_idx, nx_idx] > new_green_acc_arr[ny_idx, nx_idx]:
+            return False, old_green_itx_arr, old_green_acc_arr
+    return True, new_green_itx_arr, new_green_acc_arr
 
 
 class Land(QgsTask):
@@ -452,7 +504,7 @@ class Land(QgsTask):
                 if self.cent_acc_arr[y_idx, x_idx] > 0:
                     if np.random.rand() < self.build_prob:
                         # update green state
-                        success, self.green_itx_arr, self.green_acc_arr = algos.green_to_built(
+                        success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                             y_idx,
                             x_idx,
                             self.state_arr,
@@ -473,7 +525,7 @@ class Land(QgsTask):
                 # otherwise, consider adding a new centrality
                 elif np.random.rand() < self.cent_prob_nb:
                     # update green state
-                    success, self.green_itx_arr, self.green_acc_arr = algos.green_to_built(
+                    success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                         y_idx,
                         x_idx,
                         self.state_arr,
@@ -506,7 +558,7 @@ class Land(QgsTask):
                     # if self.nature_stays_extended(x, y):
                     # if self.nature_stays_reachable(x, y):
                     # update green state
-                    success, self.green_itx_arr, self.green_acc_arr = algos.green_to_built(
+                    success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                         y_idx,
                         x_idx,
                         self.state_arr,
@@ -538,108 +590,3 @@ class Land(QgsTask):
             "low": self.density_factors[2],
             "empty": 0,
         }
-
-
-'''
-# @njit
-def _compute_arr_cont_access(
-    state_arr: Any, seed_state: int, path_state: list[int], max_distance_m: int, granularity_m: int
-) -> Any:
-    """Computes accessibility surface to centres"""
-    agg_arr = np.full(state_arr.shape, 0, dtype=np.float32)
-    for y_idx, x_idx in np.ndindex(state_arr.shape):
-        if state_arr[y_idx, x_idx] != seed_state:
-            continue
-        claimed_arr = agg_dijkstra_cont(state_arr, y_idx, x_idx, path_state, max_distance_m, granularity_m)
-        agg_arr += claimed_arr
-    return agg_arr
-
-# @njit
-def _compute_arr_access(state_arr: Any, target_state: int, granularity_m: int, max_distance_m: int) -> Any:
-    """Computes accessibility surface to centres"""
-    arr = np.full(state_arr.shape, 0, dtype=np.float32)
-    for y_idx, x_idx in np.ndindex(state_arr.shape):
-        # bail if not a centre
-        if state_arr[y_idx, x_idx] != target_state:
-            continue
-        # otherwise, agg access to surrounding extents
-        arr = _inc_access(y_idx, x_idx, arr, granularity_m, max_distance_m)
-    return arr
-
-# @njit
-def recurse_gobble(
-    arr: Any,
-    y_idx: int,
-    x_idx: int,
-    target_state: int,
-    cell_counter: int,
-    target_cell_count: int,
-    max_recurse_depth: int,
-    last_recurse_depth: int,
-    visited_arr: Any,
-) -> tuple[int, Any]:
-    """
-    0 - not visited
-    1 - visited and claimed
-    """
-    # explore neighbours
-    for nb_y_idx, nb_x_idx in iter_nbs(arr, y_idx, x_idx, rook=False):
-        # ignore if already visited
-        if visited_arr[nb_y_idx, nb_x_idx] != 1:
-            continue
-        # ignore if not target value
-        if arr[nb_y_idx, nb_x_idx] != target_state:
-            continue
-        # otherwise claim
-        visited_arr[nb_y_idx, nb_x_idx] = 1
-        cell_counter += 1
-        # break if target cells reached
-        if cell_counter >= target_cell_count:
-            break
-        # halt recursion if max recursion depth reached
-        this_recurse_depth = last_recurse_depth + 1
-        if this_recurse_depth == max_recurse_depth:
-            continue
-        # otherwise recurse
-        cell_counter, visited_arr = recurse_gobble(
-            arr,
-            nb_y_idx,
-            nb_x_idx,
-            target_state,
-            cell_counter,
-            target_cell_count,
-            max_recurse_depth,
-            this_recurse_depth,
-            visited_arr,
-        )
-    return cell_counter, visited_arr
-
-# @njit
-def continuous_state_extents(
-    arr: Any,
-    y_idx: int,
-    x_idx: int,
-    target_state: int,
-    target_area_m: int,
-    max_dist_m: int,
-    granularity_m: int,
-) -> bool:
-    """ """
-    cell_counter = 0
-    target_cell_count = int(np.ceil(target_area_m / granularity_m**2))
-    max_recurse_depth = int(np.floor(max_dist_m / granularity_m))
-    visited_arr = np.full(arr.shape, 0)
-    visited_arr[y_idx, x_idx] = 1
-    cell_counter, visited_arr = recurse_gobble(
-        arr,
-        y_idx,
-        x_idx,
-        target_state,
-        cell_counter,
-        target_cell_count,
-        max_recurse_depth,
-        last_recurse_depth=0,
-        visited_arr=visited_arr,
-    )
-    return cell_counter >= target_cell_count
-'''

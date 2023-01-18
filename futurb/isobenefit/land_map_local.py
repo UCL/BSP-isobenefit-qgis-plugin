@@ -13,6 +13,7 @@ from typing import Any, cast
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio as rio
+from numba import njit
 from qgis.core import (
     Qgis,
     QgsCoordinateReferenceSystem,
@@ -30,9 +31,84 @@ from qgis.core import (
 )
 from qgis.gui import QgisInterface
 from rasterio import features, transform
-from shapely import BufferCapStyle, BufferJoinStyle, geometry, wkt
+from shapely import geometry, wkt
 
 from . import algos
+
+
+@njit
+def green_to_built(
+    y_idx: int,
+    x_idx: int,
+    state_arr: Any,
+    old_green_itx_arr: Any,
+    old_green_acc_arr: Any,
+    granularity_m: int,
+    max_distance_m: int,
+    min_green_cont_km2: int | float,
+) -> tuple[bool, Any, Any]:
+    """
+    can't track state directly... because local actions have non-local impact
+    avoids checking each reachable cell's green access causes exponential complexity
+    """
+    new_green_itx_arr = np.copy(old_green_itx_arr)
+    new_green_acc_arr = np.copy(old_green_acc_arr)
+    # enforce green spans
+    span_m = np.sqrt((min_green_cont_km2 * 1000**2))
+    if not algos.green_spans(state_arr, y_idx, x_idx, granularity_m, min_green_span_m=span_m):
+        return False, old_green_itx_arr, old_green_acc_arr
+    # check neighbours situation
+    _tot_urban_nbs, _cont_urban_nbs, urban_regions = algos.count_cont_nbs(state_arr, y_idx, x_idx, [1, 2])
+    # if splitting green into two regions
+    if urban_regions > 1:
+        # required number of contiguous green cells
+        target_count = int((min_green_cont_km2 * 1000**2) / granularity_m**2)
+        # use a mock state - otherwise dijkstra doesn't know that current y, x is tentatively built
+        mock_state_arr = np.copy(state_arr)
+        # mock built state
+        mock_state_arr[y_idx, x_idx] = 1
+        # review neighbours in turn to check that each has access to continuous green space
+        for y_nb_idx, x_nb_idx in algos.iter_nbs(new_green_itx_arr, y_idx, x_idx, rook=False):
+            if not state_arr[y_nb_idx, x_nb_idx] == 0:
+                continue
+            nb_green_acc_arr = algos.agg_dijkstra_cont(
+                mock_state_arr,
+                y_nb_idx,
+                x_nb_idx,
+                [0],
+                [0],
+                max_distance_m=max_distance_m * 2,
+                granularity_m=granularity_m,
+                break_count=target_count,
+                rook=True,  # rook has to be true otherwise diagonal steps are allowed
+            )
+            if nb_green_acc_arr.sum() < target_count:
+                return False, old_green_itx_arr, old_green_acc_arr
+    # check if cell is currently green_itx
+    # if so, set itx to off and decrement green access accordingly
+    if new_green_itx_arr[y_idx, x_idx] == 2:
+        new_green_itx_arr[y_idx, x_idx] = 1
+        # decrement green access as consequence of converting cell from itx to built
+        new_green_acc_arr -= algos.agg_dijkstra_cont(
+            new_green_itx_arr, y_idx, x_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
+        )
+    # scan through neighbours - set new green itx - use rook for checking contiguity
+    for y_nb_idx, x_nb_idx in algos.iter_nbs(new_green_itx_arr, y_idx, x_idx, rook=True):
+        # convert green space to itx
+        if new_green_itx_arr[y_nb_idx, x_nb_idx] == 0:
+            new_green_itx_arr[y_nb_idx, x_nb_idx] = 2
+            # increment green access to existing built cells
+            new_green_acc_arr += algos.agg_dijkstra_cont(
+                new_green_itx_arr, y_nb_idx, x_nb_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
+            )
+    # check that green access has not been cut off for built areas
+    # green_acc_diff = new_green_acc_arr - old_green_acc_arr
+    ny_idxs, nx_idxs = np.nonzero(np.logical_and(state_arr > 0, new_green_acc_arr <= 0))
+    for ny_idx, nx_idx in zip(ny_idxs, nx_idxs):
+        # bail if built and below zero
+        if old_green_acc_arr[ny_idx, nx_idx] > new_green_acc_arr[ny_idx, nx_idx]:
+            return False, old_green_itx_arr, old_green_acc_arr
+    return True, new_green_itx_arr, new_green_acc_arr
 
 
 class Land(QgsTask):
@@ -62,10 +138,13 @@ class Land(QgsTask):
     trf: transform.Affine
     # parameters
     build_prob: float
-    cent_prob_nb: float  # TODO: pending
-    cent_prob_isol: float  # TODO: pending
+    cent_prob_nb: float
+    cent_prob_isol: float
+    pop_target_ratio: float  # for tracking current ratio of target population
+    pop_target_cent_threshold: float  # parameter above which new centralities are not created
     prob_distribution: tuple[float, float, float]
     density_factors: tuple[float, float, float]
+    pop_target_ratio: float
     # state - QGIS / gdal numpy veresion doesn't yet support numpy typing for NDArray
     state_arr: Any
     green_itx_arr: Any
@@ -88,13 +167,14 @@ class Land(QgsTask):
         total_iters: int,
         granularity_m: int,
         max_distance_m: int,
-        max_populat: int = 10000,
-        min_green_km2: int | float = 1,
-        build_prob: float = 0.1,
-        cent_prob_nb: float = 0.05,
-        cent_prob_isol: float = 0,
-        prob_distribution: tuple[float, float, float] = (0.7, 0.3, 0),
-        density_factors: tuple[float, float, float] = (1, 0.1, 0.01),
+        max_populat: int,
+        min_green_km2: int | float,
+        build_prob: float,
+        cent_prob_nb: float,
+        cent_prob_isol: float,
+        pop_target_cent_threshold: float,
+        prob_distribution: tuple[float, float, float] = (0.6, 0.3, 0.1),
+        density_factors: tuple[float, float, float] = (8000, 4000, 2000),
         random_seed: int = 0,
     ):
         """ """
@@ -120,13 +200,15 @@ class Land(QgsTask):
         self.build_prob = build_prob
         self.cent_prob_nb = cent_prob_nb
         self.cent_prob_isol = cent_prob_isol
+        self.pop_target_cent_threshold = pop_target_cent_threshold
         # the assumption is that T_star is the number of blocks
         # that equals to a 15 minutes walk, i.e. roughly 1 km. 1 block has size 1000/T_star metres
-        if not np.sum(prob_distribution) == 1:
+        if not round(np.sum(prob_distribution), 4) == 1:
             raise ValueError("The prob_distribution parameter must sum to 1.")
         self.max_populat = max_populat
         self.prob_distribution = prob_distribution
         self.density_factors = density_factors
+        self.pop_target_ratio = 0
         self.min_green_km2 = min_green_km2
         # checks
         prob_sum = sum(prob_distribution)
@@ -185,6 +267,8 @@ class Land(QgsTask):
                 transform=self.extents_transform,
                 all_touched=False,
             )
+        # density
+        self.density_arr = np.full(self.state_arr.shape, 0, dtype=np.float32)
         if built_areas_layer is not None:
             for feature in built_areas_layer.getFeatures():
                 geom_wkt = feature.geometry().asWkt()
@@ -194,6 +278,12 @@ class Land(QgsTask):
                     out=self.state_arr,
                     transform=self.extents_transform,
                     all_touched=False,
+                )
+            # initialise density based on existing urban areas
+            y_idxs, x_idxs = np.nonzero(self.state_arr > 0)
+            for y_idx, x_idx in zip(y_idxs, x_idxs):
+                self.density_arr[y_idx, x_idx] = algos.random_density(
+                    self.prob_distribution, self.density_factors, self.granularity_m
                 )
         if green_areas_layer is not None:
             for feature in green_areas_layer.getFeatures():
@@ -246,10 +336,6 @@ class Land(QgsTask):
         self.green_itx_arr, self.green_acc_arr = algos.prepare_green_arrs(
             self.state_arr, self.max_distance_m, self.granularity_m
         )
-        # density
-        self.density_arr = np.full(self.state_arr.shape, 0, dtype=np.float32)
-        # buildable_arr is set by iter
-        self.buildable_arr = np.full(self.state_arr.shape, 0, dtype=np.int16)
 
     def save_snapshot(self) -> None:
         """ """
@@ -286,7 +372,8 @@ class Land(QgsTask):
         layer_root = QgsProject.instance().layerTreeRoot()
         for plot_theme in self.plot_themes:
             layer_group: QgsLayerTreeGroup = layer_root.insertGroup(0, f"{self.out_file_name} {plot_theme} outputs")
-            for iter in range(1, self.total_iters + 1):
+            # use current iter because not all iters will have runned if population target has been reached
+            for iter in range(1, self.current_iter + 1):
                 load_path: str = self.path_template.format(theme=plot_theme, iter=iter)
                 # create QGIS layer and renderer
                 rast_layer = QgsRasterLayer(
@@ -325,120 +412,66 @@ class Land(QgsTask):
         QgsTask uses 'run' as entry point for managing task.
         https://qgis.org/pyqgis/master/core/QgsTask.html
         """
-        QgsMessageLog.logMessage("Starting Futurb simulation.", level=Qgis.Info)
         t_zero = time.time()
-        for this_iter in range(self.total_iters + 1):
-            if self.isCanceled():
-                return False
-            self.iterate()
-            self.setProgress(self.current_iter / self.total_iters * 100)
-            QgsMessageLog.logMessage(f"iter: {this_iter}", level=Qgis.Info)
-        QgsMessageLog.logMessage(f"Simulation ended. Duration: {round(time.time() - t_zero)}s", level=Qgis.Info)
-        self.load_snapshots()
-        # setup temporal controller
-        start_date = datetime.now()
-        end_date = start_date.replace(year=start_date.year + self.total_iters)
-        temporal: QgsTemporalNavigationObject = cast(
-            QgsTemporalNavigationObject, self.iface_ref.mapCanvas().temporalController()
+        QgsMessageLog.logMessage("Starting Futurb simulation.", level=Qgis.Info)
+        self.pop_target_ratio = self.density_arr.sum() / self.max_populat
+        QgsMessageLog.logMessage(
+            f"Starting population count {int(self.density_arr.sum())}; "
+            f"which is {self.pop_target_ratio:.0%} of the {self.max_populat} persons target.",
+            level=Qgis.Info,
         )
-        temporal.setTemporalExtents(QgsDateTimeRange(begin=start_date, end=end_date))
-        temporal.rewindToStart()
-        temporal.setLooping(False)
-        temporal.setFrameDuration(QgsInterval(1, 0, 0, 0, 0, 0, 0))  # one year
-        temporal.setFramesPerSecond(5)
-        temporal.setAnimationState(QgsTemporalNavigationObject.Forward)
+        if self.pop_target_ratio >= 1:
+            QgsMessageLog.logMessage(
+                f"Randomly assigned population for existing urban areas exceeds the target population; aborting.",
+                level=Qgis.Info,
+                notifyUser=True,
+            )
+        else:
+            for _ in range(self.total_iters + 1):
+                if self.isCanceled():
+                    return False
+                self.iterate()
+                self.setProgress(self.current_iter / self.total_iters * 100)
+                self.pop_target_ratio = self.density_arr.sum() / self.max_populat
+                QgsMessageLog.logMessage(
+                    f"iter: {self.current_iter}; {self.pop_target_ratio:.0%} of population target", level=Qgis.Info
+                )
+                if self.pop_target_ratio >= 1:
+                    QgsMessageLog.logMessage(f"Population target reached", level=Qgis.Info, notifyUser=True)
+                    break
+            QgsMessageLog.logMessage(
+                f"Simulation ended; total duration: {round(time.time() - t_zero)}s", level=Qgis.Info
+            )
+            self.load_snapshots()
+            # setup temporal controller
+            start_date = datetime.now()
+            end_date = start_date.replace(year=start_date.year + self.total_iters)
+            temporal: QgsTemporalNavigationObject = cast(
+                QgsTemporalNavigationObject, self.iface_ref.mapCanvas().temporalController()
+            )
+            temporal.setTemporalExtents(QgsDateTimeRange(begin=start_date, end=end_date))
+            temporal.rewindToStart()
+            temporal.setLooping(False)
+            temporal.setFrameDuration(QgsInterval(1, 0, 0, 0, 0, 0, 0))  # one year
+            temporal.setFramesPerSecond(5)
+            temporal.setAnimationState(QgsTemporalNavigationObject.Forward)
+            QgsMessageLog.logMessage(
+                f"Ending population count {int(self.density_arr.sum())}; "
+                f"which is {self.pop_target_ratio:.0%} of the {self.max_populat} persons target.",
+                level=Qgis.Info,
+            )
         return True
 
     def iterate(self):
         """ """
         self.current_iter += 1
-        # extract green space features
-        feats: list[tuple[dict, float]] = features.shapes(  # type: ignore
-            self.state_arr, mask=self.state_arr == 0, connectivity=4, transform=self.extents_transform
-        )
-        # prime buildable_arr
-        self.buildable_arr.fill(0)
-        for feat, _val in feats:  # type: ignore
-            poly = geometry.shape(feat)  # convert from geo interface to shapely geom
-            # convert to square km - continue if below min threshold
-            if poly.area < self.min_green_km2 * 1000**2:
-                continue
-            # reverse buffer step 1
-            buffer_dist = 100
-            rev_buf: geometry.Polygon | geometry.MultiPolygon = poly.buffer(
-                -buffer_dist, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre
-            )
-            geoms: list[geometry.Polygon] = []
-            # if an area is split, a MultiPolygon is returned
-            if isinstance(rev_buf, geometry.Polygon):
-                geoms.append(rev_buf)
-            elif isinstance(rev_buf, geometry.MultiPolygon):
-                geoms += rev_buf.geoms
-            else:
-                raise ValueError("Unexpected geometry")
-            buildable_geom: geometry.MultiPolygon = geometry.MultiPolygon(polygons=None)
-            for geom in geoms:
-                back_buf = geom.buffer(buffer_dist, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre)
-                # clip for situations where approaching borders
-                back_buf = back_buf.intersection(poly)
-                # add to buildable if larger than min threshold
-                if back_buf.area >= self.min_green_km2 * 1000**2:
-                    buildable_geom = buildable_geom.union(back_buf)
-            # generate a negative of green extents vs. deemed buildable extents
-            unbuildable_geom: geometry.MultiPolygon = geometry.MultiPolygon(polygons=None)
-            neg_extents: geometry.Polygon | geometry.MultiPolygon = poly.difference(buildable_geom)
-            if not neg_extents.is_empty:
-                # cycle buffer to cleanly separate
-                neg_geoms: list[geometry.Polygon] = []
-                # if an area is split, a MultiPolygon is returned
-                if isinstance(neg_extents, geometry.Polygon) and not neg_extents.is_empty:
-                    neg_geoms.append(neg_extents)
-                elif isinstance(neg_extents, geometry.MultiPolygon) and not neg_extents.is_empty:
-                    neg_geoms += neg_extents.geoms
-                # sort through neg geoms and assign to buildable or non buildable based on sizes
-                for neg_geom in neg_geoms:
-                    # look for smaller chunks
-                    neg_buf: geometry.Polygon | geometry.MultiPolygon = neg_geom.buffer(
-                        self.granularity_m, cap_style=BufferCapStyle.square, join_style=BufferJoinStyle.mitre
-                    )
-                    # if smaller than min - then discard
-                    if neg_buf.area < self.min_green_km2 * 1000**2:
-                        unbuildable_geom = unbuildable_geom.union(neg_buf)  # type: ignore
-                        # difference padded from buildable to shelter new parks from rapid infill
-                        buildable_geom = buildable_geom.difference(neg_buf)
-                    # otherwise salvage as buildable
-                    else:
-                        buildable_geom = buildable_geom.union(neg_buf)
-            # burn raster
-            if not buildable_geom.is_empty:
-                features.rasterize(  # type: ignore
-                    shapes=[(geometry.mapping(buildable_geom), 1)],  # convert back to geo interface
-                    out=self.buildable_arr,
-                    transform=self.extents_transform,
-                    all_touched=False,
-                )
-            if not unbuildable_geom.is_empty:
-                features.rasterize(  # type: ignore
-                    shapes=[(geometry.mapping(unbuildable_geom), -1)],  # convert back to geo interface
-                    out=self.buildable_arr,
-                    transform=self.extents_transform,
-                    all_touched=False,
-                )
-            # plt.plot(poly.exterior.xy[0], poly.exterior.xy[1])
-            # plt.plot(pos_poly.exterior.xy[0], pos_poly.exterior.xy[1])
-            # plt.show()
-            if False:
-                scale_factor = 1 / self.granularity_m
-                plt.plot(poly.exterior.xy[0], poly.exterior.xy[1])
-                plt.plot(pos_poly.exterior.xy[0], pos_poly.exterior.xy[1])
-                plt.show()
         # shuffle indices
         arr_idxs = list(np.ndindex(self.state_arr.shape))
         np.random.shuffle(arr_idxs)
         old_state_arr = np.copy(self.state_arr)
         for y_idx, x_idx in arr_idxs:
-            # bail if already built
-            if self.state_arr[y_idx, x_idx] > 0:
+            # bail if already built or if unbuildable
+            if self.state_arr[y_idx, x_idx] != 0:
                 continue
             # a cell can be developed if it is on the green periphery adjacent to built areas
             if self.green_itx_arr[y_idx, x_idx] == 2:
@@ -452,15 +485,15 @@ class Land(QgsTask):
                 if self.cent_acc_arr[y_idx, x_idx] > 0:
                     if np.random.rand() < self.build_prob:
                         # update green state
-                        success, self.green_itx_arr, self.green_acc_arr = algos.green_to_built(
+                        success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                             y_idx,
                             x_idx,
                             self.state_arr,
                             self.green_itx_arr,
                             self.green_acc_arr,
-                            self.buildable_arr,
                             self.granularity_m,
                             self.max_distance_m,
+                            self.min_green_km2,
                         )
                         # claim as built
                         if success is True:
@@ -468,20 +501,20 @@ class Land(QgsTask):
                             self.state_arr[y_idx, x_idx] = 1
                             # set random density
                             self.density_arr[y_idx, x_idx] = algos.random_density(
-                                self.prob_distribution, self.density_factors
+                                self.prob_distribution, self.density_factors, self.granularity_m
                             )
                 # otherwise, consider adding a new centrality
-                elif np.random.rand() < self.cent_prob_nb:
+                elif self.pop_target_ratio <= self.pop_target_cent_threshold and np.random.rand() < self.cent_prob_nb:
                     # update green state
-                    success, self.green_itx_arr, self.green_acc_arr = algos.green_to_built(
+                    success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                         y_idx,
                         x_idx,
                         self.state_arr,
                         self.green_itx_arr,
                         self.green_acc_arr,
-                        self.buildable_arr,
                         self.granularity_m,
                         self.max_distance_m,
+                        self.min_green_km2,
                     )
                     if success is True:
                         # state
@@ -498,33 +531,33 @@ class Land(QgsTask):
                         )
                         # set random density
                         self.density_arr[y_idx, x_idx] = algos.random_density(
-                            self.prob_distribution, self.density_factors
+                            self.prob_distribution, self.density_factors, self.granularity_m
                         )
             # handle random conversion of green space to centralities
             elif self.state_arr[y_idx, x_idx] == 0:
-                if np.random.rand() < 0:  # self.cent_prob_isol:
+                if self.pop_target_ratio <= self.pop_target_cent_threshold and np.random.rand() < self.cent_prob_isol:
                     # if self.nature_stays_extended(x, y):
                     # if self.nature_stays_reachable(x, y):
                     # update green state
-                    success, self.green_itx_arr, self.green_acc_arr = algos.green_to_built(
+                    success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                         y_idx,
                         x_idx,
                         self.state_arr,
                         self.green_itx_arr,
                         self.green_acc_arr,
-                        self.buildable_arr,
                         self.granularity_m,
                         self.max_distance_m,
+                        self.min_green_km2,
                     )
                     if success is True:
                         # claim as built
                         self.state_arr[y_idx, x_idx] = 2
-                        self.cent_acc_arr = algos._inc_access(
+                        self.cent_acc_arr = algos.inc_access(
                             y_idx, x_idx, self.cent_acc_arr, self.granularity_m, self.max_distance_m
                         )
                         # set random density
                         self.density_arr[y_idx, x_idx] = algos.random_density(
-                            self.prob_distribution, self.density_factors
+                            self.prob_distribution, self.density_factors, self.granularity_m
                         )
         # write iter snapshot
         self.save_snapshot()
@@ -538,108 +571,3 @@ class Land(QgsTask):
             "low": self.density_factors[2],
             "empty": 0,
         }
-
-
-'''
-# @njit
-def _compute_arr_cont_access(
-    state_arr: Any, seed_state: int, path_state: list[int], max_distance_m: int, granularity_m: int
-) -> Any:
-    """Computes accessibility surface to centres"""
-    agg_arr = np.full(state_arr.shape, 0, dtype=np.float32)
-    for y_idx, x_idx in np.ndindex(state_arr.shape):
-        if state_arr[y_idx, x_idx] != seed_state:
-            continue
-        claimed_arr = agg_dijkstra_cont(state_arr, y_idx, x_idx, path_state, max_distance_m, granularity_m)
-        agg_arr += claimed_arr
-    return agg_arr
-
-# @njit
-def _compute_arr_access(state_arr: Any, target_state: int, granularity_m: int, max_distance_m: int) -> Any:
-    """Computes accessibility surface to centres"""
-    arr = np.full(state_arr.shape, 0, dtype=np.float32)
-    for y_idx, x_idx in np.ndindex(state_arr.shape):
-        # bail if not a centre
-        if state_arr[y_idx, x_idx] != target_state:
-            continue
-        # otherwise, agg access to surrounding extents
-        arr = _inc_access(y_idx, x_idx, arr, granularity_m, max_distance_m)
-    return arr
-
-# @njit
-def recurse_gobble(
-    arr: Any,
-    y_idx: int,
-    x_idx: int,
-    target_state: int,
-    cell_counter: int,
-    target_cell_count: int,
-    max_recurse_depth: int,
-    last_recurse_depth: int,
-    visited_arr: Any,
-) -> tuple[int, Any]:
-    """
-    0 - not visited
-    1 - visited and claimed
-    """
-    # explore neighbours
-    for nb_y_idx, nb_x_idx in iter_nbs(arr, y_idx, x_idx, rook=False):
-        # ignore if already visited
-        if visited_arr[nb_y_idx, nb_x_idx] != 1:
-            continue
-        # ignore if not target value
-        if arr[nb_y_idx, nb_x_idx] != target_state:
-            continue
-        # otherwise claim
-        visited_arr[nb_y_idx, nb_x_idx] = 1
-        cell_counter += 1
-        # break if target cells reached
-        if cell_counter >= target_cell_count:
-            break
-        # halt recursion if max recursion depth reached
-        this_recurse_depth = last_recurse_depth + 1
-        if this_recurse_depth == max_recurse_depth:
-            continue
-        # otherwise recurse
-        cell_counter, visited_arr = recurse_gobble(
-            arr,
-            nb_y_idx,
-            nb_x_idx,
-            target_state,
-            cell_counter,
-            target_cell_count,
-            max_recurse_depth,
-            this_recurse_depth,
-            visited_arr,
-        )
-    return cell_counter, visited_arr
-
-# @njit
-def continuous_state_extents(
-    arr: Any,
-    y_idx: int,
-    x_idx: int,
-    target_state: int,
-    target_area_m: int,
-    max_dist_m: int,
-    granularity_m: int,
-) -> bool:
-    """ """
-    cell_counter = 0
-    target_cell_count = int(np.ceil(target_area_m / granularity_m**2))
-    max_recurse_depth = int(np.floor(max_dist_m / granularity_m))
-    visited_arr = np.full(arr.shape, 0)
-    visited_arr[y_idx, x_idx] = 1
-    cell_counter, visited_arr = recurse_gobble(
-        arr,
-        y_idx,
-        x_idx,
-        target_state,
-        cell_counter,
-        target_cell_count,
-        max_recurse_depth,
-        last_recurse_depth=0,
-        visited_arr=visited_arr,
-    )
-    return cell_counter >= target_cell_count
-'''
