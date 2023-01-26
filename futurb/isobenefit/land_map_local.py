@@ -141,6 +141,7 @@ class Land(QgsTask):
     granularity_m: int
     max_distance_m: int
     max_populat: int
+    exist_built_density: int
     min_green_km2: int | float
     trf: transform.Affine
     # parameters
@@ -175,6 +176,7 @@ class Land(QgsTask):
         granularity_m: int,
         max_distance_m: int,
         max_populat: int,
+        exist_built_density: int,
         min_green_km2: int | float,
         build_prob: float,
         cent_prob_nb: float,
@@ -220,12 +222,13 @@ class Land(QgsTask):
         if not round(np.sum(prob_distribution), 4) == 1:
             raise ValueError("The prob_distribution parameter must sum to 1.")
         self.max_populat = max_populat
+        self.exist_built_density = exist_built_density
         self.prob_distribution = prob_distribution
         self.density_factors = density_factors
         self.pop_target_ratio = 0
         self.min_green_km2 = min_green_km2
         # checks
-        prob_sum = sum(prob_distribution)
+        prob_sum = round(sum(prob_distribution), 2)
         if not prob_sum == 1:
             raise ValueError(f"The probability distribution doesn't sum to 1 ({prob_sum})")
         if not density_factors[0] >= density_factors[1] >= density_factors[2]:

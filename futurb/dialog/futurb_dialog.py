@@ -22,6 +22,7 @@ class LayerSpec:
 class FuturbDialog(QtWidgets.QDialog):
     """ """
 
+    prob_sum: float | None
     out_dir_path: Path | None
     out_file_name: str | None
     extents_layer: QgsVectorLayer | None
@@ -32,6 +33,7 @@ class FuturbDialog(QtWidgets.QDialog):
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """ """
         super(FuturbDialog, self).__init__(parent)
+        self.prob_sum = None
         # paths state
         self.out_dir_path = None
         self.out_file_name = None
@@ -52,177 +54,235 @@ class FuturbDialog(QtWidgets.QDialog):
         self.setWindowTitle("Future Urban Growth simulator")
         # overall grid layout
         self.grid = QtWidgets.QGridLayout(self)
-        # model mode buttons
+        # heading
         self.model_mode_label = QtWidgets.QLabel("Simulator parameters", self)
         self.grid.addWidget(self.model_mode_label, 0, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
+
+        # left column container
+        self.left_col = QtWidgets.QGridLayout(self)
+        self.grid.addLayout(self.left_col, 1, 0)
         # iterations
         self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
-        self.grid.addWidget(self.n_iterations_label, 1, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.n_iterations_label, 0, 0, alignment=QtCore.Qt.AlignRight)
         self.n_iterations = QtWidgets.QLineEdit("100", self)
-        self.grid.addWidget(self.n_iterations, 1, 1)
+        self.left_col.addWidget(self.n_iterations, 0, 1)
         # grid size
         self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
-        self.grid.addWidget(self.grid_size_m_label, 2, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignRight)
         self.grid_size_m = QtWidgets.QLineEdit("75", self)
-        self.grid.addWidget(self.grid_size_m, 2, 1)
+        self.left_col.addWidget(self.grid_size_m, 1, 1)
         # walking distance
         self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
-        self.grid.addWidget(self.walk_dist_label, 3, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.walk_dist_label, 2, 0, alignment=QtCore.Qt.AlignRight)
         self.walk_dist = QtWidgets.QLineEdit("1000", self)
-        self.grid.addWidget(self.walk_dist, 3, 1)
+        self.left_col.addWidget(self.walk_dist, 2, 1)
         # max population
         self.max_populat_label = QtWidgets.QLabel("Target population", self)
-        self.grid.addWidget(self.max_populat_label, 4, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.max_populat_label, 3, 0, alignment=QtCore.Qt.AlignRight)
         self.max_populat = QtWidgets.QLineEdit("1000", self)
-        self.grid.addWidget(self.max_populat, 4, 1)
+        self.left_col.addWidget(self.max_populat, 3, 1)
         # min green km2
         self.min_green_km2_label = QtWidgets.QLabel("Min km2 for green space", self)
-        self.grid.addWidget(self.min_green_km2_label, 5, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.min_green_km2_label, 4, 0, alignment=QtCore.Qt.AlignRight)
         self.min_green_km2 = QtWidgets.QLineEdit("0.5", self)
-        self.grid.addWidget(self.min_green_km2, 5, 1)
+        self.left_col.addWidget(self.min_green_km2, 4, 1)
+
+        # right column container
+        self.right_col = QtWidgets.QGridLayout(self)
+        self.grid.addLayout(self.right_col, 1, 1)
         # build prob
         self.build_prob_label = QtWidgets.QLabel("Build probability", self)
-        self.grid.addWidget(self.build_prob_label, 6, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.build_prob_label, 0, 0, alignment=QtCore.Qt.AlignRight)
         self.build_prob = QtWidgets.QLineEdit("0.5", self)
-        self.grid.addWidget(self.build_prob, 6, 1)
+        self.right_col.addWidget(self.build_prob, 0, 1)
         # nb centrality prob
         self.cent_prob_nb_label = QtWidgets.QLabel("Neighbouring prob", self)
-        self.grid.addWidget(self.cent_prob_nb_label, 7, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.cent_prob_nb_label, 1, 0, alignment=QtCore.Qt.AlignRight)
         self.cent_prob_nb = QtWidgets.QLineEdit("0.01", self)
-        self.grid.addWidget(self.cent_prob_nb, 7, 1)
+        self.right_col.addWidget(self.cent_prob_nb, 1, 1)
         # isolated centrality prob
         self.cent_prob_isol_label = QtWidgets.QLabel("Isolated centrality prob", self)
-        self.grid.addWidget(self.cent_prob_isol_label, 8, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.cent_prob_isol_label, 2, 0, alignment=QtCore.Qt.AlignRight)
         self.cent_prob_isol = QtWidgets.QLineEdit("0", self)
-        self.grid.addWidget(self.cent_prob_isol, 8, 1)
+        self.right_col.addWidget(self.cent_prob_isol, 2, 1)
         # centrality permitted threshold
-        self.pop_target_cent_threshold_label = QtWidgets.QLabel("Population threshold for centres", self)
-        self.grid.addWidget(self.pop_target_cent_threshold_label, 9, 0, alignment=QtCore.Qt.AlignRight)
+        self.pop_target_cent_threshold_label = QtWidgets.QLabel("Pop threshold for centres", self)
+        self.right_col.addWidget(self.pop_target_cent_threshold_label, 3, 0, alignment=QtCore.Qt.AlignRight)
         self.pop_target_cent_threshold = QtWidgets.QLineEdit("0.8", self)
-        self.grid.addWidget(self.pop_target_cent_threshold, 9, 1)
+        self.right_col.addWidget(self.pop_target_cent_threshold, 3, 1)
         # random seed
         self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
-        self.grid.addWidget(self.random_seed_label, 10, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.random_seed_label, 4, 0, alignment=QtCore.Qt.AlignRight)
         self.random_seed = QtWidgets.QLineEdit("42", self)
-        self.grid.addWidget(self.random_seed, 10, 1)
+        self.right_col.addWidget(self.random_seed, 4, 1)
+
         # spacer
         self.grid.addItem(
             QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
-            11,
+            2,
             0,
             1,
             2,
         )
-        # file output
-        self.file_output_label = QtWidgets.QLabel("File output path", self)
-        self.grid.addWidget(self.file_output_label, 12, 0, 1, 2)
-        self.file_output = QgsFileWidget(self)
-        self.file_output.setStorageMode(QgsFileWidget.SaveFile)
-        self.file_output.fileChanged.connect(self.handle_output_path)  # type: ignore (connect works)
-        self.grid.addWidget(self.file_output, 13, 0, 1, 2)
-        # feedback for file path
-        self.file_path_feedback = QtWidgets.QLabel("Select an output file path", self)
-        self.file_path_feedback.setWordWrap(True)
-        self.grid.addWidget(self.file_path_feedback, 14, 0, 1, 2)
+
+        self.dens_block = QtWidgets.QGridLayout(self)
+        self.grid.addLayout(self.dens_block, 3, 0, 1, 2)
+        # low density
+        self.low_density_label = QtWidgets.QLabel("Low density (km2)", self)
+        self.dens_block.addWidget(self.low_density_label, 0, 0, alignment=QtCore.Qt.AlignRight)
+        self.low_density = QtWidgets.QLineEdit("2000", self)
+        self.dens_block.addWidget(self.low_density, 0, 1)
+        self.low_density_prob = QtWidgets.QLineEdit("0.1", self)
+        self.low_density_prob.textChanged.connect(self.handle_probs)
+        self.dens_block.addWidget(self.low_density_prob, 0, 2)
+        # medium density
+        self.med_density_label = QtWidgets.QLabel("Medium density (km2)", self)
+        self.dens_block.addWidget(self.med_density_label, 1, 0, alignment=QtCore.Qt.AlignRight)
+        self.med_density = QtWidgets.QLineEdit("4000", self)
+        self.dens_block.addWidget(self.med_density, 1, 1)
+        self.med_density_prob = QtWidgets.QLineEdit("0.3", self)
+        self.med_density_prob.textChanged.connect(self.handle_probs)
+        self.dens_block.addWidget(self.med_density_prob, 1, 2)
+        # high density
+        self.high_density_label = QtWidgets.QLabel("High density (km2)", self)
+        self.dens_block.addWidget(self.high_density_label, 2, 0, alignment=QtCore.Qt.AlignRight)
+        self.high_density = QtWidgets.QLineEdit("8000", self)
+        self.dens_block.addWidget(self.high_density, 2, 1)
+        self.high_density_prob = QtWidgets.QLineEdit("0.6", self)
+        self.high_density_prob.textChanged.connect(self.handle_probs)
+        self.dens_block.addWidget(self.high_density_prob, 2, 2)
+        # built density
+        self.built_density_label = QtWidgets.QLabel("Built density (km2)", self)
+        self.dens_block.addWidget(self.built_density_label, 3, 0, alignment=QtCore.Qt.AlignRight)
+        self.built_density = QtWidgets.QLineEdit("2000", self)
+        self.dens_block.addWidget(self.built_density, 3, 1, 1, 1)
+        # densities and related probabilities
+        self.density_text_feedback = QtWidgets.QLabel("Density probabilities must sum to 1", self)
+        self.dens_block.addWidget(self.density_text_feedback, 4, 0, 1, 3, alignment=QtCore.Qt.AlignCenter)
+
         # spacer
         self.grid.addItem(
             QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
-            15,
+            4,
+            0,
+            1,
+            2,
+        )
+
+        # files and inputs
+        self.inputs_outputs_block = QtWidgets.QGridLayout(self)
+        self.grid.addLayout(self.inputs_outputs_block, 5, 0, 1, 2)
+        # file output
+        self.file_output_label = QtWidgets.QLabel("File output path", self)
+        self.inputs_outputs_block.addWidget(self.file_output_label, 0, 0, 1, 2)
+        self.file_output = QgsFileWidget(self)
+        self.file_output.setStorageMode(QgsFileWidget.SaveFile)
+        self.file_output.fileChanged.connect(self.handle_output_path)  # type: ignore (connect works)
+        self.inputs_outputs_block.addWidget(self.file_output, 1, 0, 1, 2)
+        # feedback for file path
+        self.file_path_feedback = QtWidgets.QLabel("Select an output file path", self)
+        self.file_path_feedback.setWordWrap(True)
+        self.inputs_outputs_block.addWidget(self.file_path_feedback, 2, 0, 1, 2)
+        # spacer
+        self.inputs_outputs_block.addItem(
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            3,
             0,
             1,
             2,
         )
         # extents
         self.extents_layer_label = QtWidgets.QLabel("Input layer indicating extents for simulation", self)
-        self.grid.addWidget(self.extents_layer_label, 16, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.extents_layer_label, 4, 0, 1, 2)
         self.extents_layer_box = QgsMapLayerComboBox(self)
         self.extents_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
         self.extents_layer_box.setShowCrs(True)
         self.extents_layer_box.layerChanged.connect(self.handle_extents_layer)  # type: ignore (connect works)
-        self.grid.addWidget(self.extents_layer_box, 17, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.extents_layer_box, 5, 0, 1, 2)
         # feedback for layers selection
         self.extents_layer_feedback = QtWidgets.QLabel("Select an extents layer", self)
         self.extents_layer_feedback.setWordWrap(True)
-        self.grid.addWidget(self.extents_layer_feedback, 18, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.extents_layer_feedback, 6, 0, 1, 2)
         # spacer
-        self.grid.addItem(
+        self.inputs_outputs_block.addItem(
             QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
-            19,
+            7,
             0,
             1,
             2,
         )
         # existing built areas
         self.built_layer_label = QtWidgets.QLabel("Extents for existing urban areas [optional]", self)
-        self.grid.addWidget(self.built_layer_label, 20, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.built_layer_label, 8, 0, 1, 2)
         self.built_layer_box = QgsMapLayerComboBox(self)
         self.built_layer_box.setAllowEmptyLayer(True)
         self.built_layer_box.setCurrentIndex(0)  # type: ignore
         self.built_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
         self.built_layer_box.setShowCrs(True)
-        self.grid.addWidget(self.built_layer_box, 21, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.built_layer_box, 9, 0, 1, 2)
+
         # green areas
         self.green_layer_label = QtWidgets.QLabel("Extents for existing green areas [optional]", self)
-        self.grid.addWidget(self.green_layer_label, 22, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.green_layer_label, 10, 0, 1, 2)
         self.green_layer_box = QgsMapLayerComboBox(self)
         self.green_layer_box.setAllowEmptyLayer(True)
         self.green_layer_box.setCurrentIndex(0)  # type: ignore
         self.green_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
         self.green_layer_box.setShowCrs(True)
-        self.grid.addWidget(self.green_layer_box, 23, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.green_layer_box, 11, 0, 1, 2)
         # unbuildable areas
         self.unbuildable_layer_label = QtWidgets.QLabel("Extents for unbuildable areas [optional]", self)
-        self.grid.addWidget(self.unbuildable_layer_label, 24, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.unbuildable_layer_label, 12, 0, 1, 2)
         self.unbuildable_layer_box = QgsMapLayerComboBox(self)
         self.unbuildable_layer_box.setAllowEmptyLayer(True)
         self.unbuildable_layer_box.setCurrentIndex(0)  # type: ignore
         self.unbuildable_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
         self.unbuildable_layer_box.setShowCrs(True)
-        self.grid.addWidget(self.unbuildable_layer_box, 25, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.unbuildable_layer_box, 13, 0, 1, 2)
         # centre seeds
         self.centre_seeds_layer_label = QtWidgets.QLabel("Seeds for urban centres [optional]", self)
-        self.grid.addWidget(self.centre_seeds_layer_label, 26, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.centre_seeds_layer_label, 14, 0, 1, 2)
         self.centre_seeds_layer_box = QgsMapLayerComboBox(self)
         self.centre_seeds_layer_box.setAllowEmptyLayer(True)
         self.centre_seeds_layer_box.setCurrentIndex(0)  # type: ignore
         self.centre_seeds_layer_box.setFilters(QgsMapLayerProxyModel.PointLayer)
         self.centre_seeds_layer_box.setShowCrs(True)
-        self.grid.addWidget(self.centre_seeds_layer_box, 27, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.centre_seeds_layer_box, 15, 0, 1, 2)
         # spacer
-        self.grid.addItem(
+        self.inputs_outputs_block.addItem(
             QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
-            28,
+            16,
             0,
             1,
             2,
         )
         # projection
         self.crs_label = QtWidgets.QLabel("Coordinate reference system for simulation", self)
-        self.grid.addWidget(self.crs_label, 29, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.crs_label, 17, 0, 1, 2)
         self.crs_selection = QgsProjectionSelectionWidget(self)
         # feedback for layers selection
         # crsChanged event fires immediately, so self.crs_feedback has to exist beforehand
         self.crs_feedback = QtWidgets.QLabel("Select a CRS", self)
         self.crs_feedback.setWordWrap(True)
-        self.grid.addWidget(self.crs_feedback, 30, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.crs_feedback, 18, 0, 1, 2)
         self.crs_selection.crsChanged.connect(self.handle_crs)  # type: ignore (connect works)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, False)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.DefaultCrs, False)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.RecentCrs, False)
-        self.grid.addWidget(self.crs_selection, 31, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.crs_selection, 19, 0, 1, 2)
         # spacer
-        self.grid.addItem(
+        self.inputs_outputs_block.addItem(
             QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
-            32,
+            20,
             0,
             1,
             2,
         )
         # Cancel / OK buttons
         self.button_box = QtWidgets.QDialogButtonBox(self)
-        self.grid.addWidget(self.button_box, 33, 0, 1, 2)
+        self.grid.addWidget(self.button_box, 6, 0, 1, 2)
         self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
@@ -231,6 +291,7 @@ class FuturbDialog(QtWidgets.QDialog):
         """Primes layers logic when opening dialog."""
         # reset
         self.handle_extents_layer()
+        self.handle_probs()
         self.handle_output_path()
         return super().show()
 
@@ -248,7 +309,26 @@ class FuturbDialog(QtWidgets.QDialog):
             return
         if self.selected_crs is None:
             return
+        if self.prob_sum != 1:
+            return
         self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(False)
+
+    def handle_probs(self) -> None:
+        """ """
+        try:
+            high_prob = float(self.high_density_prob.text())
+            med_prob = float(self.med_density_prob.text())
+            low_prob = float(self.low_density_prob.text())
+            self.prob_sum = round(high_prob + med_prob + low_prob, 2)
+            if self.prob_sum == 1:
+                self.refresh_state()
+                self.density_text_feedback.setText("")
+            else:
+                self.reset_state()
+                self.density_text_feedback.setText(f"Density probabilities must sum to 1")
+        except Exception:
+            self.reset_state()
+            self.density_text_feedback.setText("Density probabilities must sum to 1")
 
     def handle_output_path(self) -> None:
         """ """

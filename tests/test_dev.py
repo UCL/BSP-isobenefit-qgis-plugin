@@ -12,9 +12,8 @@ TEMP_DIR.mkdir(parents=False, exist_ok=True)
 
 """
 # TODO:
-- move setup to task
-- fix border degeneration
 - add colours
+- fix border degeneration
 
 ENHANCE
 - recalculate the centrality access on each run using contiguity?

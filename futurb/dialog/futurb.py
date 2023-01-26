@@ -232,13 +232,22 @@ class Futurb:
                 granularity_m=granularity_m,
                 max_distance_m=int(self.dlg.walk_dist.text()),
                 max_populat=int(self.dlg.max_populat.text()),
+                exist_built_density=int(self.dlg.built_density.text()),
                 min_green_km2=float(self.dlg.min_green_km2.text()),
                 build_prob=float(self.dlg.build_prob.text()),
                 cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
                 cent_prob_isol=float(self.dlg.cent_prob_isol.text()),
                 pop_target_cent_threshold=float(self.dlg.pop_target_cent_threshold.text()),
-                prob_distribution=(0.7, 0.3, 0),
-                density_factors=(1, 0.1, 0.01),
+                prob_distribution=(
+                    float(self.dlg.high_density_prob.text()),
+                    float(self.dlg.med_density_prob.text()),
+                    float(self.dlg.low_density_prob.text()),
+                ),
+                density_factors=(
+                    float(self.dlg.high_density.text()),
+                    float(self.dlg.med_density.text()),
+                    float(self.dlg.low_density.text()),
+                ),
                 random_seed=int(self.dlg.random_seed.text()),
             )
             # task doesn't seem to register if only addTask?
