@@ -128,6 +128,13 @@ class Land(QgsTask):
     # crs
     target_crs: QgsCoordinateReferenceSystem
     extents_transform: transform.Affine
+    # save input layers
+    bounds_layer: QgsVectorLayer
+    extents_layer: QgsVectorLayer
+    built_areas_layer: QgsVectorLayer | None
+    green_areas_layer: QgsVectorLayer | None
+    unbuildable_areas_layer: QgsVectorLayer | None
+    centre_seeds_layer: QgsVectorLayer | None
     # substrate
     total_iters: int
     current_iter: int
@@ -190,6 +197,13 @@ class Land(QgsTask):
         self.plot_themes = ["state"]  # 'green', 'centre', 'density'
         # crs
         self.target_crs = target_crs
+        # save input layers
+        self.bounds_layer = bounds_layer
+        self.extents_layer = extents_layer
+        self.built_areas_layer = built_areas_layer
+        self.green_areas_layer = green_areas_layer
+        self.unbuildable_areas_layer = unbuildable_areas_layer
+        self.centre_seeds_layer = centre_seeds_layer
         # initialise iters state
         self.total_iters = total_iters
         self.current_iter = 0
@@ -216,33 +230,15 @@ class Land(QgsTask):
             raise ValueError(f"The probability distribution doesn't sum to 1 ({prob_sum})")
         if not density_factors[0] >= density_factors[1] >= density_factors[2]:
             raise ValueError(f"The density factors are not decreasing in value: {density_factors}.")
-        # prepare state
-        self.prepare_state(
-            bounds_layer,
-            extents_layer,
-            built_areas_layer,
-            green_areas_layer,
-            unbuildable_areas_layer,
-            centre_seeds_layer,
-        )
-        self.save_snapshot()
         QgsMessageLog.logMessage("Futurb instance ready.", level=Qgis.Info)
 
-    def prepare_state(
-        self,
-        bounds_layer: QgsVectorLayer,
-        extents_layer: QgsVectorLayer,
-        built_areas_layer: QgsVectorLayer | None,
-        green_areas_layer: QgsVectorLayer | None,
-        unbuildable_areas_layer: QgsVectorLayer | None,
-        centre_seeds_layer: QgsVectorLayer | None,
-    ) -> None:
+    def prepare_state(self) -> None:
         """ """
         # prepare bounds
-        x_min = bounds_layer.extent().xMinimum()
-        x_max = bounds_layer.extent().xMaximum()
-        y_min = bounds_layer.extent().yMinimum()
-        y_max = bounds_layer.extent().yMaximum()
+        x_min = self.bounds_layer.extent().xMinimum()
+        x_max = self.bounds_layer.extent().xMaximum()
+        y_min = self.bounds_layer.extent().yMinimum()
+        y_max = self.bounds_layer.extent().yMaximum()
         size_x_m = int(x_max - x_min)
         size_y_m = int(y_max - y_min)
         cells_x = int(np.ceil(size_x_m / self.granularity_m))
@@ -258,7 +254,7 @@ class Land(QgsTask):
         # transform
         self.extents_transform: transform.Affine = transform.from_bounds(x_min, y_min, x_max, y_max, cells_x, cells_y)
         # review input layers and configure accordingly
-        for feature in extents_layer.getFeatures():
+        for feature in self.extents_layer.getFeatures():
             geom_wkt = feature.geometry().asWkt()
             shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
             features.rasterize(  # type: ignore
@@ -269,8 +265,8 @@ class Land(QgsTask):
             )
         # density
         self.density_arr = np.full(self.state_arr.shape, 0, dtype=np.float32)
-        if built_areas_layer is not None:
-            for feature in built_areas_layer.getFeatures():
+        if self.built_areas_layer is not None:
+            for feature in self.built_areas_layer.getFeatures():
                 geom_wkt = feature.geometry().asWkt()
                 shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
                 features.rasterize(  # type: ignore
@@ -285,8 +281,8 @@ class Land(QgsTask):
                 self.density_arr[y_idx, x_idx] = algos.random_density(
                     self.prob_distribution, self.density_factors, self.granularity_m
                 )
-        if green_areas_layer is not None:
-            for feature in green_areas_layer.getFeatures():
+        if self.green_areas_layer is not None:
+            for feature in self.green_areas_layer.getFeatures():
                 geom_wkt = feature.geometry().asWkt()
                 shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
                 features.rasterize(  # type: ignore
@@ -295,8 +291,8 @@ class Land(QgsTask):
                     transform=self.extents_transform,
                     all_touched=False,
                 )
-        if unbuildable_areas_layer is not None:
-            for feature in unbuildable_areas_layer.getFeatures():
+        if self.unbuildable_areas_layer is not None:
+            for feature in self.unbuildable_areas_layer.getFeatures():
                 geom_wkt = feature.geometry().asWkt()
                 shapely_geom: geometry.Polygon = wkt.loads(geom_wkt)
                 features.rasterize(  # type: ignore
@@ -306,8 +302,8 @@ class Land(QgsTask):
                     all_touched=False,
                 )
         centre_seeds: list[tuple[int, int]] = []
-        if centre_seeds_layer is not None:
-            for feature in centre_seeds_layer.getFeatures():
+        if self.centre_seeds_layer is not None:
+            for feature in self.centre_seeds_layer.getFeatures():
                 point = feature.geometry().asPoint()
                 centre_seeds.append((int(point.x()), int(point.y())))
         # seed centres
@@ -413,7 +409,10 @@ class Land(QgsTask):
         https://qgis.org/pyqgis/master/core/QgsTask.html
         """
         t_zero = time.time()
-        QgsMessageLog.logMessage("Starting Futurb simulation.", level=Qgis.Info)
+        # prepare state
+        QgsMessageLog.logMessage("Preparing starting state.", level=Qgis.Info)
+        self.prepare_state()
+        self.save_snapshot()
         self.pop_target_ratio = self.density_arr.sum() / self.max_populat
         QgsMessageLog.logMessage(
             f"Starting population count {int(self.density_arr.sum())}; "
@@ -427,6 +426,7 @@ class Land(QgsTask):
                 notifyUser=True,
             )
         else:
+            QgsMessageLog.logMessage("Starting iterations.", level=Qgis.Info)
             for _ in range(self.total_iters + 1):
                 if self.isCanceled():
                     return False
