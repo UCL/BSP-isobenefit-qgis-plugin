@@ -12,7 +12,6 @@ TEMP_DIR.mkdir(parents=False, exist_ok=True)
 
 """
 # TODO:
-- add colours
 - fix border degeneration
 
 ENHANCE
@@ -28,6 +27,20 @@ OR
 - aggressive exploration - only infill neighbours 6 or more? 
 - then when a concavity is greater than min - instead of switching straight to buildable - start reverse buffering to allow infill around edges - like deflating a balloon - to preserve shape?
 """
+
+
+def test_a():
+
+    density = 1000
+
+    gran_a = 50
+    gran_b = 100
+
+    block_dens_a = density / 1000**2 * gran_a**2
+    block_dens_b = density / 1000**2 * gran_b**2
+
+    print(block_dens_a, block_dens_a * 4)
+    print(block_dens_b, block_dens_b * 1)
 
 
 def test_plot(land: land_map_local.Land):
@@ -86,5 +99,6 @@ def test_land_map():
 
 
 if __name__ == "__main__":
-    test_land_map()
+    # test_land_map()
     # test_recurse_gobble()
+    test_a()

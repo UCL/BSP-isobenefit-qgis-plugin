@@ -62,24 +62,24 @@ class FuturbDialog(QtWidgets.QDialog):
         self.left_col = QtWidgets.QGridLayout(self)
         self.grid.addLayout(self.left_col, 1, 0)
         # iterations
-        self.n_iterations_label = QtWidgets.QLabel("Iterations", self)
+        self.n_iterations_label = QtWidgets.QLabel("Max iterations", self)
         self.left_col.addWidget(self.n_iterations_label, 0, 0, alignment=QtCore.Qt.AlignRight)
         self.n_iterations = QtWidgets.QLineEdit("100", self)
         self.left_col.addWidget(self.n_iterations, 0, 1)
         # grid size
         self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
         self.left_col.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignRight)
-        self.grid_size_m = QtWidgets.QLineEdit("75", self)
+        self.grid_size_m = QtWidgets.QLineEdit("100", self)
         self.left_col.addWidget(self.grid_size_m, 1, 1)
         # walking distance
         self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
         self.left_col.addWidget(self.walk_dist_label, 2, 0, alignment=QtCore.Qt.AlignRight)
-        self.walk_dist = QtWidgets.QLineEdit("1000", self)
+        self.walk_dist = QtWidgets.QLineEdit("800", self)
         self.left_col.addWidget(self.walk_dist, 2, 1)
         # max population
         self.max_populat_label = QtWidgets.QLabel("Target population", self)
         self.left_col.addWidget(self.max_populat_label, 3, 0, alignment=QtCore.Qt.AlignRight)
-        self.max_populat = QtWidgets.QLineEdit("1000", self)
+        self.max_populat = QtWidgets.QLineEdit("100000", self)
         self.left_col.addWidget(self.max_populat, 3, 1)
         # min green km2
         self.min_green_km2_label = QtWidgets.QLabel("Min km2 for green space", self)
@@ -93,7 +93,7 @@ class FuturbDialog(QtWidgets.QDialog):
         # build prob
         self.build_prob_label = QtWidgets.QLabel("Build probability", self)
         self.right_col.addWidget(self.build_prob_label, 0, 0, alignment=QtCore.Qt.AlignRight)
-        self.build_prob = QtWidgets.QLineEdit("0.5", self)
+        self.build_prob = QtWidgets.QLineEdit("0.25", self)
         self.right_col.addWidget(self.build_prob, 0, 1)
         # nb centrality prob
         self.cent_prob_nb_label = QtWidgets.QLabel("Neighbouring prob", self)
@@ -131,25 +131,28 @@ class FuturbDialog(QtWidgets.QDialog):
         self.low_density_label = QtWidgets.QLabel("Low density (km2)", self)
         self.dens_block.addWidget(self.low_density_label, 0, 0, alignment=QtCore.Qt.AlignRight)
         self.low_density = QtWidgets.QLineEdit("2000", self)
+        self.low_density.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.low_density, 0, 1)
         self.low_density_prob = QtWidgets.QLineEdit("0.1", self)
-        self.low_density_prob.textChanged.connect(self.handle_probs)
+        self.low_density_prob.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.low_density_prob, 0, 2)
         # medium density
         self.med_density_label = QtWidgets.QLabel("Medium density (km2)", self)
         self.dens_block.addWidget(self.med_density_label, 1, 0, alignment=QtCore.Qt.AlignRight)
         self.med_density = QtWidgets.QLineEdit("4000", self)
+        self.med_density.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.med_density, 1, 1)
         self.med_density_prob = QtWidgets.QLineEdit("0.3", self)
-        self.med_density_prob.textChanged.connect(self.handle_probs)
+        self.med_density_prob.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.med_density_prob, 1, 2)
         # high density
         self.high_density_label = QtWidgets.QLabel("High density (km2)", self)
         self.dens_block.addWidget(self.high_density_label, 2, 0, alignment=QtCore.Qt.AlignRight)
         self.high_density = QtWidgets.QLineEdit("8000", self)
+        self.high_density.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.high_density, 2, 1)
         self.high_density_prob = QtWidgets.QLineEdit("0.6", self)
-        self.high_density_prob.textChanged.connect(self.handle_probs)
+        self.high_density_prob.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.high_density_prob, 2, 2)
         # built density
         self.built_density_label = QtWidgets.QLabel("Built density (km2)", self)
@@ -291,7 +294,7 @@ class FuturbDialog(QtWidgets.QDialog):
         """Primes layers logic when opening dialog."""
         # reset
         self.handle_extents_layer()
-        self.handle_probs()
+        self.handle_densities()
         self.handle_output_path()
         return super().show()
 
@@ -313,19 +316,27 @@ class FuturbDialog(QtWidgets.QDialog):
             return
         self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(False)
 
-    def handle_probs(self) -> None:
+    def handle_densities(self) -> None:
         """ """
         try:
             high_prob = float(self.high_density_prob.text())
             med_prob = float(self.med_density_prob.text())
             low_prob = float(self.low_density_prob.text())
             self.prob_sum = round(high_prob + med_prob + low_prob, 2)
-            if self.prob_sum == 1:
-                self.refresh_state()
-                self.density_text_feedback.setText("")
-            else:
+            if self.prob_sum != 1:
                 self.reset_state()
-                self.density_text_feedback.setText(f"Density probabilities must sum to 1")
+                self.density_text_feedback.setText("Density probabilities must sum to 1")
+                return
+            if int(self.high_density.text()) <= int(self.med_density.text()):
+                self.density_text_feedback.setText("High density must be greater than medium")
+                self.reset_state()
+                return
+            if int(self.med_density.text()) <= int(self.low_density.text()):
+                self.density_text_feedback.setText("Medium density must be greater than low")
+                self.reset_state()
+                return
+            self.refresh_state()
+            self.density_text_feedback.setText("")
         except Exception:
             self.reset_state()
             self.density_text_feedback.setText("Density probabilities must sum to 1")

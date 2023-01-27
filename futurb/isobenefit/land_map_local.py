@@ -141,7 +141,6 @@ class Land(QgsTask):
     granularity_m: int
     max_distance_m: int
     max_populat: int
-    exist_built_density: int
     min_green_km2: int | float
     trf: transform.Affine
     # parameters
@@ -151,14 +150,18 @@ class Land(QgsTask):
     pop_target_ratio: float  # for tracking current ratio of target population
     pop_target_cent_threshold: float  # parameter above which new centralities are not created
     prob_distribution: tuple[float, float, float]
-    density_factors: tuple[float, float, float]
+    exist_built_density_per_block: float
+    high_density_per_block: float
+    med_density_per_block: float
+    low_density_per_block: float
     pop_target_ratio: float
     # state - QGIS / gdal numpy veresion doesn't yet support numpy typing for NDArray
-    state_arr: Any
-    green_itx_arr: Any
-    green_acc_arr: Any
-    cent_acc_arr: Any
-    density_arr: Any
+    state_arr: Any  # for tracking simulation state
+    origin_arr: Any  # copy of origin state for plots
+    green_itx_arr: Any  # green periphery - i.e. candidate for buildable
+    green_acc_arr: Any  # access to green space
+    cent_acc_arr: Any  # access to centres
+    density_arr: Any  # density - low, mid, high
 
     def __init__(
         self,
@@ -217,22 +220,21 @@ class Land(QgsTask):
         self.cent_prob_nb = cent_prob_nb
         self.cent_prob_isol = cent_prob_isol
         self.pop_target_cent_threshold = pop_target_cent_threshold
-        # the assumption is that T_star is the number of blocks
-        # that equals to a 15 minutes walk, i.e. roughly 1 km. 1 block has size 1000/T_star metres
-        if not round(np.sum(prob_distribution), 4) == 1:
-            raise ValueError("The prob_distribution parameter must sum to 1.")
         self.max_populat = max_populat
-        self.exist_built_density = exist_built_density
         self.prob_distribution = prob_distribution
-        self.density_factors = density_factors
+        # convert density factors to per block
+        self.exist_built_density_per_block = exist_built_density / 1000**2 * granularity_m**2
+        self.high_density_per_block = density_factors[0] / 1000**2 * granularity_m**2
+        self.med_density_per_block = density_factors[1] / 1000**2 * granularity_m**2
+        self.low_density_per_block = density_factors[2] / 1000**2 * granularity_m**2
         self.pop_target_ratio = 0
         self.min_green_km2 = min_green_km2
         # checks
         prob_sum = round(sum(prob_distribution), 2)
         if not prob_sum == 1:
-            raise ValueError(f"The probability distribution doesn't sum to 1 ({prob_sum})")
-        if not density_factors[0] >= density_factors[1] >= density_factors[2]:
-            raise ValueError(f"The density factors are not decreasing in value: {density_factors}.")
+            raise ValueError("The prob_distribution parameter must sum to 1.")
+        if not density_factors[0] > density_factors[1] or not density_factors[1] > density_factors[2]:
+            raise ValueError("Density factors should be in descending order")
         QgsMessageLog.logMessage("Futurb instance ready.", level=Qgis.Info)
 
     def prepare_state(self) -> None:
@@ -254,6 +256,8 @@ class Land(QgsTask):
             raise ValueError(f"The provided extents is too small. It should be larger than 2x walking distance.")
         # -1 unbuildable, 0 = green, 1 = built, 2 = centrality
         self.state_arr = np.full((cells_y, cells_x), -1, dtype=np.int16)
+        # -1 unbuildable, 0 = fixed green, 1 = exist built, 2 = exist centrality
+        self.origin_arr = np.full((cells_y, cells_x), -1, dtype=np.int16)
         # transform
         self.extents_transform: transform.Affine = transform.from_bounds(x_min, y_min, x_max, y_max, cells_x, cells_y)
         # review input layers and configure accordingly
@@ -278,12 +282,14 @@ class Land(QgsTask):
                     transform=self.extents_transform,
                     all_touched=False,
                 )
-            # initialise density based on existing urban areas
-            y_idxs, x_idxs = np.nonzero(self.state_arr > 0)
-            for y_idx, x_idx in zip(y_idxs, x_idxs):
-                self.density_arr[y_idx, x_idx] = algos.random_density(
-                    self.prob_distribution, self.density_factors, self.granularity_m
+                features.rasterize(  # type: ignore
+                    shapes=[(geometry.mapping(shapely_geom), 1)],  # convert back to geo interface
+                    out=self.origin_arr,
+                    transform=self.extents_transform,
+                    all_touched=False,
                 )
+            # initialise density based on existing urban areas
+            self.density_arr[self.state_arr > 0] = self.exist_built_density_per_block
         if self.green_areas_layer is not None:
             for feature in self.green_areas_layer.getFeatures():
                 geom_wkt = feature.geometry().asWkt()
@@ -291,6 +297,13 @@ class Land(QgsTask):
                 features.rasterize(  # type: ignore
                     shapes=[(geometry.mapping(shapely_geom), 0)],  # convert back to geo interface
                     out=self.state_arr,
+                    transform=self.extents_transform,
+                    all_touched=False,
+                )
+                # treated as intentional (preserved) park space
+                features.rasterize(  # type: ignore
+                    shapes=[(geometry.mapping(shapely_geom), 0)],  # convert back to geo interface
+                    out=self.origin_arr,
                     transform=self.extents_transform,
                     all_touched=False,
                 )
@@ -316,6 +329,7 @@ class Land(QgsTask):
         for east, north in centre_seeds:
             y_trf, x_trf = transform.rowcol(self.extents_transform, east, north)  # type: ignore
             self.state_arr[y_trf, x_trf] = 2
+            self.origin_arr[y_trf, x_trf] = 2
             # agg centrality to surroundings
             self.cent_acc_arr += algos.agg_dijkstra_cont(
                 self.state_arr,
@@ -337,7 +351,34 @@ class Land(QgsTask):
         )
 
     def save_snapshot(self) -> None:
-        """ """
+        """
+        Colours to match netlogo scenarios, using netlogo scheme:
+        https://ccl.northwestern.edu/netlogo/docs/programming.html#colors
+        RGB colours taken with color picker and included below:
+        water_bodies: blue (105) - 52, 93, 169
+        prin_transport: black (0) - 0, 0, 0
+        park: dark green (53) - 54, 109, 35
+        green_area: green (55) - 89, 176, 60
+        low_den_built: dark grey (2) - 59, 59, 59
+        med_den_built: med-grey (4) - 114, 114, 114
+        high_den_built: light grey (6) - 164, 164, 164
+        centrality: white (9.9) - 255, 255, 255
+        new_high_den_built: dark orange (22) - 101, 44, 7
+        new_med_den_built: med-orange (24) - 197, 86, 17
+        new_low_den_built: light-orange (26) - 242, 136, 68
+        """
+        # colours
+        col_water_bodies = [52, 93, 169, 255]
+        col_transport = [0, 0, 0, 255]
+        col_park = [54, 109, 35, 255]
+        col_green_area = [89, 176, 60, 255]
+        col_low_den_built = [59, 59, 59, 255]
+        col_med_den_built = [114, 114, 114, 255]
+        col_high_den_built = [164, 164, 164, 255]
+        col_centrality = [255, 255, 255, 255]
+        col_new_high_den_built = [101, 44, 7, 255]
+        col_new_med_den_built = [197, 86, 17, 255]
+        col_new_low_den_built = [242, 136, 68, 255]
         # plot state arr
         state_path = self.path_template.format(theme="state", iter=self.current_iter)
         with rio.open(  # type: ignore
@@ -352,16 +393,28 @@ class Land(QgsTask):
             dtype=np.byte,  # type: ignore
             nodata=-1,
         ) as out_rast:  # type: ignore
+            # initialise with fully transparent (fallback to unbuildable)
             rgb = np.full((self.state_arr.shape[0], self.state_arr.shape[1], 4), 0, dtype=np.byte)
+            # start with state array (do origin array later)
             # green areas
             green_idx = np.nonzero(self.state_arr == 0)
-            rgb[green_idx] = [84, 171, 67, 255]
+            rgb[green_idx] = col_green_area
             # built areas
-            built_idx = np.nonzero(self.state_arr == 1)
-            rgb[built_idx] = [179, 124, 105, 255]
+            low_dens_idx = np.nonzero(self.density_arr == self.low_density_per_block)
+            rgb[low_dens_idx] = col_new_low_den_built
+            med_dens_idx = np.nonzero(self.density_arr == self.med_density_per_block)
+            rgb[med_dens_idx] = col_new_med_den_built
+            high_dens_idx = np.nonzero(self.density_arr == self.high_density_per_block)
+            rgb[high_dens_idx] = col_new_high_den_built
             # centres
             centre_idx = np.nonzero(self.state_arr == 2)
-            rgb[centre_idx] = [194, 50, 50, 255]
+            rgb[centre_idx] = col_centrality
+            # origin built
+            built_idx = np.nonzero(self.origin_arr == 1)
+            rgb[built_idx] = col_med_den_built
+            # origin green
+            built_idx = np.nonzero(self.origin_arr == 0)
+            rgb[built_idx] = col_park
             # expects bands, rows, columns order
             out_rast.write(rgb.transpose(2, 0, 1))
 
@@ -476,6 +529,9 @@ class Land(QgsTask):
             # bail if already built or if unbuildable
             if self.state_arr[y_idx, x_idx] != 0:
                 continue
+            # bail if existing green space
+            if self.origin_arr[y_idx, x_idx] == 0:
+                continue
             # a cell can be developed if it is on the green periphery adjacent to built areas
             if self.green_itx_arr[y_idx, x_idx] == 2:
                 # don't allow double steps, i.e. a new built cell has to have at least one built neighbour in
@@ -504,7 +560,10 @@ class Land(QgsTask):
                             self.state_arr[y_idx, x_idx] = 1
                             # set random density
                             self.density_arr[y_idx, x_idx] = algos.random_density(
-                                self.prob_distribution, self.density_factors, self.granularity_m
+                                self.prob_distribution,
+                                self.high_density_per_block,
+                                self.med_density_per_block,
+                                self.low_density_per_block,
                             )
                 # otherwise, consider adding a new centrality
                 elif self.pop_target_ratio <= self.pop_target_cent_threshold and np.random.rand() < self.cent_prob_nb:
@@ -534,7 +593,10 @@ class Land(QgsTask):
                         )
                         # set random density
                         self.density_arr[y_idx, x_idx] = algos.random_density(
-                            self.prob_distribution, self.density_factors, self.granularity_m
+                            self.prob_distribution,
+                            self.high_density_per_block,
+                            self.med_density_per_block,
+                            self.low_density_per_block,
                         )
             # handle random conversion of green space to centralities
             elif self.state_arr[y_idx, x_idx] == 0:
@@ -560,7 +622,10 @@ class Land(QgsTask):
                         )
                         # set random density
                         self.density_arr[y_idx, x_idx] = algos.random_density(
-                            self.prob_distribution, self.density_factors, self.granularity_m
+                            self.prob_distribution,
+                            self.high_density_per_block,
+                            self.med_density_per_block,
+                            self.low_density_per_block,
                         )
         # write iter snapshot
         self.save_snapshot()

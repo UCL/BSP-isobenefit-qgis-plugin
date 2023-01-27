@@ -12,19 +12,17 @@ from numba import njit
 @njit
 def random_density(
     prob_distribution: tuple[float, float, float],
-    density_factors: tuple[float, float, float],
-    granularity_m: int,
+    high_density_per_block: float,
+    med_density_per_block: float,
+    low_density_per_block: float,
 ) -> float:
     """ """
     p = np.random.rand()
-    factor = density_factors[2]
     if p >= 0 and p < prob_distribution[0]:
-        factor = density_factors[0]
-    elif p >= prob_distribution[1] and p < prob_distribution[2]:
-        factor = density_factors[1]
-    # return factor divided by granularity
-    blocks_per_km2 = int(np.ceil(1000**2 / granularity_m**2))
-    return int(np.ceil(factor / blocks_per_km2))
+        return high_density_per_block
+    elif p < prob_distribution[0] + prob_distribution[1]:
+        return med_density_per_block
+    return low_density_per_block
 
 
 @njit
