@@ -15,9 +15,7 @@ TEMP_DIR.mkdir(parents=False, exist_ok=True)
 - fix border degeneration
 
 ENHANCE
-- recalculate the centrality access on each run using contiguity?
 - how to handle ratio of exploration vs. size of green space?
-- how to jump roads?
 - new centralities only along roads?
 - what about moving all state to vector and simply writing to raster?
 
