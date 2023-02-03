@@ -8,17 +8,6 @@ from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionW
 from qgis.PyQt import QtCore, QtWidgets
 
 
-class LayerSpec:
-
-    layer_key: str
-    qgis_layer: QgsVectorLayer
-
-    def __init__(self, layer_key: str, qgis_layer: QgsVectorLayer) -> None:
-        """ """
-        self.layer_key = layer_key
-        self.qgis_layer = qgis_layer
-
-
 class FuturbDialog(QtWidgets.QDialog):
     """ """
 

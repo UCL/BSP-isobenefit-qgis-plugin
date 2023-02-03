@@ -89,8 +89,7 @@ max-line-length = 120
 
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md#sample-pyprojecttoml-file
 [tool.pyright]
-pythonVersion = "3.10"
-include = ["src"]
+include = ["futurb"]
 exclude = [
   "**/node_modules",
   "**/__pycache__",
@@ -131,14 +130,14 @@ testpaths = ["tests"]
 # addopts = "--ignore=tests/test_performance.py"
 
 [tool.coverage.run]
-source = ["src"]
+source = ["futurb"]
 branch = true
 omit = [
   "**/__init__.py",
 ]
 
 [tool.coverage.report]
-include = ["src/**"]
+include = ["futurb/**"]
 omit = [
   "**/__init__.py",
 ]
