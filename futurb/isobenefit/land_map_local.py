@@ -427,6 +427,8 @@ class Land(QgsTask):
             # use current iter because not all iters will have runned if population target has been reached
             for iter in range(1, self.current_iter + 1):
                 load_path: str = self.path_template.format(theme=plot_theme, iter=iter)
+                # small wait to reduce crashes on file loading
+                time.sleep(0.05)
                 # first test for existence in case previously written files are still settling
                 # prompted by QGIS crashes when loading files to GUI
                 wait_idx = 10
@@ -441,6 +443,7 @@ class Land(QgsTask):
                         QgsMessageLog.logMessage(
                             f"{load_path} does not appear to be available.", level=Qgis.Critical, notifyUser=True
                         )
+                        break
                 # create QGIS layer and renderer
                 rast_layer = QgsRasterLayer(
                     load_path,
@@ -497,7 +500,7 @@ class Land(QgsTask):
             )
         else:
             QgsMessageLog.logMessage("Starting iterations.", level=Qgis.Info)
-            for _ in range(self.total_iters + 1):
+            for _ in range(self.total_iters):
                 if self.isCanceled():
                     return False
                 self.iterate()
