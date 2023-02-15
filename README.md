@@ -39,4 +39,6 @@ Plugin requires additional pip packages:
 
 - `pb_tool` uses a `pb_tool.cfg` file.
 - Build the resources: `pb_tool compile`.
-- Create a softlink from the dev plugin folder to the QGIS plugins directory: `ln -s /Users/gareth/dev/other/BSP-future-urban-growth/futurb /Users/gareth/Library/Application\ Support/QGIS/QGIS3/profiles/default/python/plugins`.
+- Create a softlink from the dev plugin folder to the QGIS plugins directory, this depends on the system, e.g.
+  - `ln -s /Users/gareth/dev/other/BSP-future-urban-growth/futurb /Users/gareth/Library/Application\ Support/QGIS/QGIS3/profiles/default/python/plugins`.
+  - `ln -s /Users/gareth/dev/BSP-future-urban-growth/futurb /Users/gareth/Library/Application\ Support/QGIS/QGIS3/profiles/default/python/plugins`
