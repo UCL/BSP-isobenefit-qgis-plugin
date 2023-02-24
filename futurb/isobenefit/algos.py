@@ -26,35 +26,6 @@ def random_density(
 
 
 @njit
-def inc_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int) -> Any:
-    """increment access"""
-    return agg_access(y_idx, x_idx, arr, granularity_m, max_distance_m, positive=True)
-
-
-@njit
-def decr_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int) -> Any:
-    """increment access"""
-    return agg_access(y_idx, x_idx, arr, granularity_m, max_distance_m, positive=False)
-
-
-@njit
-def agg_access(y_idx: int, x_idx: int, arr: Any, granularity_m: int, max_distance_m: int, positive: bool) -> Any:
-    """Aggregates access - from an x, y to provided array, either positive or negative"""
-    for cy_idx, cx_idx in np.ndindex(arr.shape):
-        y_dist = int(abs(y_idx - cy_idx) * granularity_m)
-        x_dist = int(abs(x_idx - cx_idx) * granularity_m)
-        dist = np.hypot(x_dist, y_dist)
-        if dist > max_distance_m:
-            continue
-        val = 1  #  - dist / max_distance_m
-        if positive:
-            arr[cy_idx, cx_idx] += val
-        else:
-            arr[cy_idx, cx_idx] -= val
-    return arr
-
-
-@njit
 def iter_nbs(arr: Any, y_idx: int, x_idx: int, rook: bool) -> Any:
     """Returns rook or queen neighbours - return in order - no shuffling?"""
     idxs: list[list[int]] = []
@@ -214,28 +185,14 @@ def green_spans(
     # x spans
     x_span_l = green_span(arr[y_idx, :], x_idx, positive=False)
     x_span_r = green_span(arr[y_idx, :], x_idx, positive=True)
-    x_spans = sorted([x_span_l, x_span_r])
     # y spans
     y_span_l = green_span(arr[:, x_idx], y_idx, positive=False)
     y_span_r = green_span(arr[:, x_idx], y_idx, positive=True)
-    y_spans = sorted([y_span_l, y_span_r])
-    # mins and maxes
-    xy_mins = sorted([x_spans[0], y_spans[0]])
-    xy_maxs = sorted([x_spans[-1], y_spans[-1]])
     # calculate blocks
     span_blocks = min_green_span_m / granularity_m
-    # allow piercing green space if clear in either direction
-    for a_set, b_set in [(x_spans, y_spans), (y_spans, x_spans)]:
-        if a_set[0] >= span_blocks and a_set[1] >= span_blocks:
-            if b_set[0] == 0 and b_set[1] >= span_blocks:
-                return True
-    # allow corner in fill if opposite is clear in both directions
-    if x_spans[0] == 0 and y_spans[0] == 0:
-        if x_spans[1] >= span_blocks and y_spans[1] >= span_blocks:
-            return True
-    # otherwise gaps greater than zero must meet the span
-    for span in [*xy_mins, *xy_maxs]:
-        if span > 0 and span < span_blocks:
+    # don't allow filling-in if span would be crimped
+    for span in [x_span_l, x_span_r, y_span_l, y_span_r]:
+        if span < span_blocks and span != 0:
             return False
     return True
 

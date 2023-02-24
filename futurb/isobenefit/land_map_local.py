@@ -53,15 +53,23 @@ def green_to_built(
     """
     new_green_itx_arr = np.copy(old_green_itx_arr)
     new_green_acc_arr = np.copy(old_green_acc_arr)
-    # enforce green spans
-    span_m = np.sqrt((min_green_cont_km2 * 1000**2))
-    if not algos.green_spans(state_arr, y_idx, x_idx, granularity_m, min_green_span_m=span_m):
-        return False, old_green_itx_arr, old_green_acc_arr
     # check neighbours situation
-    _tot_urban_nbs, _cont_urban_nbs, urban_regions = algos.count_cont_nbs(state_arr, y_idx, x_idx, [1, 2])
+    _tot_urban_nbs, cont_urban_nbs, urban_regions = algos.count_cont_nbs(state_arr, y_idx, x_idx, [1, 2])
+    # if a single neighbour, don't proceed unless that neighbour is a centrality
+    # this prevents runaway single streaks of built areas
+    if cont_urban_nbs == 1:
+        _cent_tot_urban_nbs, cent_cont_urban_nbs, _cent_urban_regions = algos.count_cont_nbs(
+            state_arr, y_idx, x_idx, [2]
+        )
+        if not cent_cont_urban_nbs == 1:
+            return False, old_green_itx_arr, old_green_acc_arr
+    # bail if a green span would be crimped below min
+    span_m = np.sqrt((min_green_cont_km2 * 1000**2))
+    if not algos.green_spans(state_arr, y_idx, x_idx, granularity_m, span_m):
+        return False, old_green_itx_arr, old_green_acc_arr
     # if splitting green into two regions
     if urban_regions > 1:
-        # required number of contiguous green cells
+        # required number of contiguous green cells for min green area
         target_count = int((min_green_cont_km2 * 1000**2) / granularity_m**2)
         # use a mock state - otherwise dijkstra doesn't know that current y, x is tentatively built
         mock_state_arr = np.copy(state_arr)
@@ -102,10 +110,8 @@ def green_to_built(
                 new_green_itx_arr, y_nb_idx, x_nb_idx, [0, 1, 2], [0, 1, 2], max_distance_m, granularity_m
             )
     # check that green access has not been cut off for built areas
-    # green_acc_diff = new_green_acc_arr - old_green_acc_arr
     ny_idxs, nx_idxs = np.nonzero(np.logical_and(state_arr > 0, new_green_acc_arr <= 0))
     for ny_idx, nx_idx in zip(ny_idxs, nx_idxs):
-        # bail if built and below zero
         if old_green_acc_arr[ny_idx, nx_idx] > new_green_acc_arr[ny_idx, nx_idx]:
             return False, old_green_itx_arr, old_green_acc_arr
     return True, new_green_itx_arr, new_green_acc_arr
@@ -424,6 +430,7 @@ class Land(QgsTask):
         layer_root = QgsProject.instance().layerTreeRoot()
         for plot_theme in self.plot_themes:
             layer_group: QgsLayerTreeGroup = layer_root.insertGroup(0, f"{self.out_file_name} {plot_theme} outputs")
+            layer_group.setExpanded(False)
             # use current iter because not all iters will have runned if population target has been reached
             for iter in range(1, self.current_iter + 1):
                 load_path: str = self.path_template.format(theme=plot_theme, iter=iter)
@@ -538,6 +545,8 @@ class Land(QgsTask):
     def iterate(self):
         """ """
         self.current_iter += 1
+        # track new centralities (whether neighbouring or isolated) - to enforce max of 1 per iter
+        centrality_this_iter = False
         # shuffle indices
         arr_idxs = list(np.ndindex(self.state_arr.shape))
         np.random.shuffle(arr_idxs)
@@ -583,7 +592,11 @@ class Land(QgsTask):
                                 self.low_density_per_block,
                             )
                 # otherwise, consider adding a new centrality
-                elif self.pop_target_ratio <= self.pop_target_cent_threshold and np.random.rand() < self.cent_prob_nb:
+                elif (
+                    centrality_this_iter is False
+                    and self.pop_target_ratio <= self.pop_target_cent_threshold
+                    and np.random.rand() < self.cent_prob_nb
+                ):
                     # update green state
                     success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                         y_idx,
@@ -615,11 +628,10 @@ class Land(QgsTask):
                             self.med_density_per_block,
                             self.low_density_per_block,
                         )
+                        centrality_this_iter = True
             # handle random conversion of green space to centralities
-            elif self.state_arr[y_idx, x_idx] == 0:
+            elif centrality_this_iter is False and self.state_arr[y_idx, x_idx] == 0:
                 if self.pop_target_ratio <= self.pop_target_cent_threshold and np.random.rand() < self.cent_prob_isol:
-                    # if self.nature_stays_extended(x, y):
-                    # if self.nature_stays_reachable(x, y):
                     # update green state
                     success, self.green_itx_arr, self.green_acc_arr = green_to_built(
                         y_idx,
@@ -632,10 +644,17 @@ class Land(QgsTask):
                         self.min_green_km2,
                     )
                     if success is True:
-                        # claim as built
+                        # state
                         self.state_arr[y_idx, x_idx] = 2
-                        self.cent_acc_arr = algos.inc_access(
-                            y_idx, x_idx, self.cent_acc_arr, self.granularity_m, self.max_distance_m
+                        # increment centrality access
+                        self.cent_acc_arr += algos.agg_dijkstra_cont(
+                            self.state_arr,
+                            y_idx,
+                            x_idx,
+                            path_state=[0, 1, 2],
+                            target_state=[0, 1, 2],
+                            max_distance_m=self.max_distance_m,
+                            granularity_m=self.granularity_m,
                         )
                         # set random density
                         self.density_arr[y_idx, x_idx] = algos.random_density(
@@ -644,6 +663,7 @@ class Land(QgsTask):
                             self.med_density_per_block,
                             self.low_density_per_block,
                         )
+                        centrality_this_iter = True
         # write iter snapshot
         self.save_snapshot()
 
