@@ -233,7 +233,7 @@ class Futurb:
                 max_distance_m=int(self.dlg.walk_dist.text()),
                 max_populat=int(self.dlg.max_populat.text()),
                 exist_built_density=int(self.dlg.built_density.text()),
-                min_green_km2=float(self.dlg.min_green_km2.text()),
+                min_green_span=int(self.dlg.min_green_span.text()),
                 build_prob=float(self.dlg.build_prob.text()),
                 cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
                 cent_prob_isol=float(self.dlg.cent_prob_isol.text()),

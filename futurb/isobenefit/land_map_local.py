@@ -45,7 +45,7 @@ def green_to_built(
     old_green_acc_arr: Any,
     granularity_m: int,
     max_distance_m: int,
-    min_green_cont_km2: int | float,
+    min_green_span: int,
 ) -> tuple[bool, Any, Any]:
     """
     can't track state directly... because local actions have non-local impact
@@ -64,13 +64,12 @@ def green_to_built(
         if not cent_cont_urban_nbs == 1:
             return False, old_green_itx_arr, old_green_acc_arr
     # bail if a green span would be crimped below min
-    span_m = np.sqrt((min_green_cont_km2 * 1000**2))
-    if not algos.green_spans(state_arr, y_idx, x_idx, granularity_m, span_m):
+    if not algos.green_spans(state_arr, y_idx, x_idx, granularity_m, min_green_span):
         return False, old_green_itx_arr, old_green_acc_arr
     # if splitting green into two regions
     if urban_regions > 1:
         # required number of contiguous green cells for min green area
-        target_count = int((min_green_cont_km2 * 1000**2) / granularity_m**2)
+        target_count = int((min_green_span**2 * 1000**2) / granularity_m**2)
         # use a mock state - otherwise dijkstra doesn't know that current y, x is tentatively built
         mock_state_arr = np.copy(state_arr)
         # mock built state
@@ -147,7 +146,7 @@ class Land(QgsTask):
     granularity_m: int
     max_distance_m: int
     max_populat: int
-    min_green_km2: int | float
+    min_green_span: int | float
     trf: transform.Affine
     # parameters
     build_prob: float
@@ -186,7 +185,7 @@ class Land(QgsTask):
         max_distance_m: int,
         max_populat: int,
         exist_built_density: int,
-        min_green_km2: int | float,
+        min_green_span: int,
         build_prob: float,
         cent_prob_nb: float,
         cent_prob_isol: float,
@@ -234,7 +233,7 @@ class Land(QgsTask):
         self.med_density_per_block = density_factors[1] / 1000**2 * granularity_m**2
         self.low_density_per_block = density_factors[2] / 1000**2 * granularity_m**2
         self.pop_target_ratio = 0
-        self.min_green_km2 = min_green_km2
+        self.min_green_span = min_green_span
         # checks
         prob_sum = round(sum(prob_distribution), 2)
         if not prob_sum == 1:
@@ -346,10 +345,6 @@ class Land(QgsTask):
                 max_distance_m=self.max_distance_m,
                 granularity_m=self.granularity_m,
             )
-        # check size vs. min green
-        area = self.state_arr.shape[0] * self.granularity_m * self.state_arr.shape[1] * self.granularity_m
-        if area / 1000**2 < 2 * self.min_green_km2:
-            raise ValueError("Please decrease min_green_km2 in relation to provided extents.")
         # find boundary of built land
         # 0 = green, 1 = built, 2 = itx bounds
         self.green_itx_arr, self.green_acc_arr = algos.prepare_green_arrs(
@@ -578,7 +573,7 @@ class Land(QgsTask):
                             self.green_acc_arr,
                             self.granularity_m,
                             self.max_distance_m,
-                            self.min_green_km2,
+                            self.min_green_span,
                         )
                         # claim as built
                         if success is True:
@@ -606,7 +601,7 @@ class Land(QgsTask):
                         self.green_acc_arr,
                         self.granularity_m,
                         self.max_distance_m,
-                        self.min_green_km2,
+                        self.min_green_span,
                     )
                     if success is True:
                         # state
@@ -641,7 +636,7 @@ class Land(QgsTask):
                         self.green_acc_arr,
                         self.granularity_m,
                         self.max_distance_m,
-                        self.min_green_km2,
+                        self.min_green_span,
                     )
                     if success is True:
                         # state

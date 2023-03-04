@@ -71,10 +71,10 @@ class FuturbDialog(QtWidgets.QDialog):
         self.max_populat = QtWidgets.QLineEdit("100000", self)
         self.left_col.addWidget(self.max_populat, 3, 1)
         # min green km2
-        self.min_green_km2_label = QtWidgets.QLabel("Min km2 for green space", self)
-        self.left_col.addWidget(self.min_green_km2_label, 4, 0, alignment=QtCore.Qt.AlignRight)
-        self.min_green_km2 = QtWidgets.QLineEdit("0.5", self)
-        self.left_col.addWidget(self.min_green_km2, 4, 1)
+        self.min_green_span_label = QtWidgets.QLabel("Min green span (m)", self)
+        self.left_col.addWidget(self.min_green_span_label, 4, 0, alignment=QtCore.Qt.AlignRight)
+        self.min_green_span = QtWidgets.QLineEdit("800", self)
+        self.left_col.addWidget(self.min_green_span, 4, 1)
 
         # right column container
         self.right_col = QtWidgets.QGridLayout(self)
