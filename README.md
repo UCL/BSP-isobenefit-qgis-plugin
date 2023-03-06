@@ -22,6 +22,8 @@ Plugin requires additional pip packages:
 /Applications/QGIS.app/Contents/MacOS/bin/pip install shapely rasterio numba
 ```
 
+> On windows, use the OSGeo4W shell app to run pip
+
 ## References
 
 - [http://g-sherman.github.io/plugin_build_tool/](PB Tool)
@@ -33,12 +35,15 @@ Plugin requires additional pip packages:
 - [https://anitagraser.com](open source GIS ramblings)
 - [https://docs.qgis.org/3.4/en/docs/user_manual/working_with_mesh/mesh_properties.html#what-s-a-mesh](mesh layers)
 
-## Dev
+## PB Tool
 
-> Using `pb_tool` deploy doesn't seem to copy the files across, so use a softlink instead.
-
+- Using `pb_tool` deploy doesn't seem to copy the files across, so use a softlink instead.
 - `pb_tool` uses a `pb_tool.cfg` file.
 - Build the resources: `pb_tool compile`.
-- Create a softlink from the dev plugin folder to the QGIS plugins directory, this depends on the system, e.g.
+
+## Linking plugin file
+
+- On Windows: copy and paste the dev plugin folder to the user's plugin directory, e.g. `<user>/AppData/Roaming/QGIS/QGIS3/prfiles/default/plugins`
+- On Mac: Create a softlink from the dev plugin folder to the QGIS plugins directory, this depends on the system, e.g.
   - `ln -s /Users/gareth/dev/other/BSP-future-urban-growth/futurb /Users/gareth/Library/Application\ Support/QGIS/QGIS3/profiles/default/python/plugins`.
   - `ln -s /Users/gareth/dev/BSP-future-urban-growth/futurb /Users/gareth/Library/Application\ Support/QGIS/QGIS3/profiles/default/python/plugins`
