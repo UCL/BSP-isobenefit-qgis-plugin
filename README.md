@@ -12,6 +12,10 @@ Future Urban Growth (Isobenefit Cities)
 PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/plugins:/Applications/Qgis.app/Contents/Resources/python"
 ```
 
+## Website
+
+A website providing a broad overview of this plugin can be found at: [BSP-futurb](https://github.com/UCL/BSP-futurb)
+
 ## Plugin setup
 
 Plugin requires additional pip packages:
