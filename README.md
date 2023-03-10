@@ -14,7 +14,7 @@ PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/p
 
 ## Website
 
-A website providing a broad overview of this plugin can be found at: [BSP-futurb](https://github-pages.ucl.ac.uk/BSP-futurb) with the associated repo located at [UCL/BSP-futurb](https://github.com/UCL/BSP-futurb).
+A website providing a broad overview of this plugin can be found at [BSP-futurb](https://github-pages.ucl.ac.uk/BSP-futurb) with the associated repo located at [UCL/BSP-futurb](https://github.com/UCL/BSP-futurb).
 
 ## Plugin setup
 
