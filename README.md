@@ -29,17 +29,19 @@ QGIS does not yet have an integrated dependency management system. This means th
 ### Windows
 
 1. From the Start menu, open OSGeo4W Shell.
-2. Run `pip install shapely==2.0.1 rasterio==1.3.6 numba==0.55.2`
+2. Run `pip install numba==0.55.2`
 
 ### Mac
 
 1. Open the Terminal application
-2. Run `/Applications/QGIS.app/Contents/MacOS/bin/pip install shapely==2.0.1 rasterio==1.3.6 numba==0.55.2`
+2. Run `/Applications/QGIS.app/Contents/MacOS/bin/pip install numba==0.55.2`
 
 ### Linux
 
 1. Open the terminal
-2. Run `python3 -m pip install shapely==2.0.1 rasterio==1.3.6 numba==0.55.2`
+2. Run `python3 -m pip install numba==0.55.2`
+
+> NOTE: If you are missing the `shapely` or `fiona` packages, then you may also need to install these.
 
 ## PB Tool
 
