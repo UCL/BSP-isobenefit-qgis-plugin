@@ -12,6 +12,10 @@ QGIS plugin for Isobenefit Urbanism
 PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/plugins:/Applications/Qgis.app/Contents/Resources/python"
 ```
 
+## Original version
+
+This work is an outgrowth of the [original work](https://github.com/mitochevole/isobenefit-cities) (forked to [BSP-isobenefit-original](https://github.com/UCL/BSP-isobenefit-original)) developed by Michele Voto and Luca D'Acci. This has subsequently been developed as part of the Future Urban Growth project at the Bartlett School of Planning.
+
 ## Website
 
 A website providing a broad overview of this plugin can be found at [BSP-isobenefit-urbanism](https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism) with the associated repo located at [UCL/BSP-isobenefit-urbanism](https://github.com/UCL/BSP-isobenefit-urbanism).
