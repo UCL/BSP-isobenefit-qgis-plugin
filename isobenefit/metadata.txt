@@ -5,34 +5,34 @@
 # Mandatory items:
 
 [general]
-name=futurb
+name=isobenefit
 qgisMinimumVersion=3.0
 qgisMaximumVersion=3.99
 
 # Provide a brief description of the plugin
-description=Future Urban Growth (Isobenefit Cities)
+description=Isobenefit Urbanism plugin for QGIS.
 version=0.1
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
 about=Enter more info about your plugin here
 
-tracker=https://github.com/UCL/BSP-future-urban-growth/issues
-repository=https://github.com/UCL/BSP-future-urban-growth
+tracker=https://github.com/UCL/BSP-isobenefit-qgis-plugin/issues
+repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 # End of mandatory metadata
 
 # Recommended items:
 
 # Uncomment the following line and add your changelog:
-changelog=https://github.com/UCL/BSP-future-urban-growth/releases
+# changelog=
 
 # Tags are comma separated with spaces allowed
 tags=pyqgis simulation planning
 
-homepage=https://github.com/UCL/BSP-future-urban-growth
+homepage=https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism/
 icon=icon.png
 # experimental flag
-experimental=False
+experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False

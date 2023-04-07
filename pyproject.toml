@@ -6,15 +6,10 @@ authors = [
     {name = "Gareth Simons", email = "garethsimons@me.com"},
 ]
 dependencies = [
-    "numpy>=1.22,<1.23",
-    "matplotlib>=3.6.2",
-    "Pillow>=9.3.0",
-    "scipy>=1.9.3",
-    "pb-tool>=3.1.0",
-    "shapely>=1.8.5.post1",
-    "PyQt5>=5.15.7",
-    "rasterio>=1.3.4",
-    "numba>=0.55,<0.56",
+    "numpy==1.22.4",
+    "shapely==2.0.1",
+    "rasterio==1.3.6",
+    "numba==0.55.2",
 ]
 requires-python = ">=3.8,<3.11"
 readme = "README.md"
@@ -35,6 +30,11 @@ repository = "https://github.com/songololo/isobenefit-cities"
 [tool.pdm]
 [tool.pdm.dev-dependencies]
 dev = [
+  "matplotlib>=3.6.2",
+    "Pillow>=9.3.0",
+    "scipy>=1.9.3",
+    "pb-tool>=3.1.0",
+    "PyQt5>=5.15.7",
     "pytest>=7.2.0",
     "pylint>=2.15.5",
     "black>=22.10.0",
@@ -89,7 +89,7 @@ max-line-length = 120
 
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md#sample-pyprojecttoml-file
 [tool.pyright]
-include = ["futurb"]
+include = ["isobenefit"]
 exclude = [
   "**/node_modules",
   "**/__pycache__",
@@ -121,23 +121,3 @@ line_length = 120
 atomic = true
 filter_files = true
 src_paths = ["src", "tests"]
-
-[tool.pytest.ini_options]
-console_output_style = "count"
-log_cli = true
-log_cli_level = "INFO"
-testpaths = ["tests"]
-# addopts = "--ignore=tests/test_performance.py"
-
-[tool.coverage.run]
-source = ["futurb"]
-branch = true
-omit = [
-  "**/__init__.py",
-]
-
-[tool.coverage.report]
-include = ["futurb/**"]
-omit = [
-  "**/__init__.py",
-]

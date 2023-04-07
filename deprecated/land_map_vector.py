@@ -150,7 +150,7 @@ class Land(QgsTask):
         random_seed: int = 0,
     ):
         """ """
-        QgsMessageLog.logMessage("Instancing Futurb simulation.", level=Qgis.Info)
+        QgsMessageLog.logMessage("Instancing Isobenefit simulation.", level=Qgis.Info)
         QgsTask.__init__(self, "Future Urban Growth")
         # set reference to interface
         self.iface_ref = iface_ref
@@ -196,7 +196,7 @@ class Land(QgsTask):
             centre_seeds_layer,
         )
         self.save_snapshot()
-        QgsMessageLog.logMessage("Futurb instance ready.", level=Qgis.Info)
+        QgsMessageLog.logMessage("Isobenefit instance ready.", level=Qgis.Info)
 
     def prepare_state(
         self,
@@ -377,7 +377,7 @@ class Land(QgsTask):
         QgsTask uses 'run' as entry point for managing task.
         https://qgis.org/pyqgis/master/core/QgsTask.html
         """
-        QgsMessageLog.logMessage("Starting Futurb simulation.", level=Qgis.Info)
+        QgsMessageLog.logMessage("Starting Isobenefit simulation.", level=Qgis.Info)
         t_zero = time.time()
         for this_iter in range(self.total_iters + 1):
             if self.isCanceled():

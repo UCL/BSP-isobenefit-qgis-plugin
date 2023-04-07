@@ -21,7 +21,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 
-from ..isobenefit import land_map_local
+from . import land_map_local
 from .futurb_dialog import FuturbDialog  # Import the code for the dialog
 from .resources import *  # Initialize Qt resources from file resources.py
 
