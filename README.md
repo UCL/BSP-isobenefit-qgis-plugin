@@ -1,6 +1,6 @@
-# bsp-future-urban-growth
+# BSP Isobenefit Urbanism QGIS Plugin
 
-Future Urban Growth (Isobenefit Cities)
+QGIS plugin for Isobenefit Urbanism
 
 ## Installation
 
@@ -14,7 +14,7 @@ PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/p
 
 ## Website
 
-A website providing a broad overview of this plugin can be found at [BSP-futurb](https://github-pages.ucl.ac.uk/BSP-futurb) with the associated repo located at [UCL/BSP-futurb](https://github.com/UCL/BSP-futurb).
+A website providing a broad overview of this plugin can be found at [BSP-isobenefit-urbanism](https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism) with the associated repo located at [UCL/BSP-isobenefit-urbanism](https://github.com/UCL/BSP-isobenefit-urbanism).
 
 ## Plugin setup
 
