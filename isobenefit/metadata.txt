@@ -15,7 +15,7 @@ version=0.1
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
-about=Enter more info about your plugin here
+about=Please see the homepage link for more information about how the plugin works. Please refer to the repository for the source code and the README.md file for additional information. Installation requires the installation of the numba Python package. QGIS does not yet have an automated dependency resolution work flow so this package has to be installed directly; please see the repository README file for examples of how to do this on your system.
 
 tracker=https://github.com/UCL/BSP-isobenefit-qgis-plugin/issues
 repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
