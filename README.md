@@ -50,12 +50,17 @@ QGIS does not yet have an integrated dependency management system. This means th
 - `pb_tool` uses a `pb_tool.cfg` file.
 - Build the resources: `pb_tool compile`.
 
-## Linking plugin file
+## Linking plugin file for local development
 
 - On Windows: copy and paste the dev plugin folder to the user's plugin directory, e.g. `<user>/AppData/Roaming/QGIS/QGIS3/prfiles/default/plugins`
 - On Mac: Create a softlink from the development folder (`isobenefit`) to the QGIS plugins directory, this depends on the system, e.g.
   - `ln -s /Users/gareth/dev/other/BSP-isobenefit-qgis-plugin/isobenefit/ '/Users/gareth/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins'`
 - Restart QGIS.
+
+## Zipping for distribution
+
+If zipping the plugin directory on a mac, remove the `__MACOSX` directory:
+`zip -d isobenefit.zip __MACOSX/\*`
 
 ## References
 
