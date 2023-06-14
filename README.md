@@ -52,7 +52,7 @@ QGIS does not yet have an integrated dependency management system. This means th
 
 ## Linking plugin file for local development
 
-- On Windows: copy and paste the dev plugin folder (i.e. `isobenefit` folder) into the user's plugin directory, e.g. `<user>/AppData/Roaming/QGIS/QGIS3/profiles/default/plugins`
+- On Windows: copy and paste the dev plugin folder (i.e. `isobenefit` folder) into the user's plugin directory, e.g. `<user>/AppData/Roaming/QGIS/QGIS3/profiles/default/python/plugins`
 - On Mac: Create a softlink from the development folder (`isobenefit`) to the QGIS plugins directory, this depends on the system, e.g.
   - `ln -s /Users/gareth/dev/other/BSP-isobenefit-qgis-plugin/isobenefit/ '/Users/gareth/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins'`
 - Restart QGIS.
