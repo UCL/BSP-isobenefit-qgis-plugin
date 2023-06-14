@@ -30,6 +30,7 @@ QGIS does not yet have an integrated dependency management system. This means th
 
 1. From the Start menu, open OSGeo4W Shell.
 2. Run `pip install numba==0.55.2`
+3. If it complains that `rasterio` is missing, then install per `pip install rasterio`
 
 ### Mac
 
