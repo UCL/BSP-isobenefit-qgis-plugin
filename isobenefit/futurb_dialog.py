@@ -41,8 +41,19 @@ class FuturbDialog(QtWidgets.QDialog):
         """ """
         self.setObjectName("FuturbDialog")
         self.setWindowTitle("Future Urban Growth simulator")
-        # overall grid layout
-        self.grid = QtWidgets.QGridLayout(self)
+        # main layout
+        main_layout = QtWidgets.QVBoxLayout(self)
+        self.resize(550, 700)
+        # scroll
+        self.scroll = QtWidgets.QScrollArea(self)
+        self.scroll.setWidgetResizable(True)
+        # add to main layout
+        main_layout.addWidget(self.scroll)
+        # wrap grid layout inside a generic widget (scroll doesn't accept grid layout directly)
+        self.content = QtWidgets.QWidget()
+        self.scroll.setWidget(self.content)
+        # grid layout
+        self.grid = QtWidgets.QGridLayout(self.content)
         # heading
         self.model_mode_label = QtWidgets.QLabel("Simulator parameters", self)
         self.grid.addWidget(self.model_mode_label, 0, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)

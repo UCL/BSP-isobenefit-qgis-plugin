@@ -6,7 +6,7 @@ __pycache__/
 .DS_Store
 .ipynb_checkpoints
 **/.ipynb_checkpoints/*
-.pdm.toml
+.pdm-python
 
 # C extensions
 *.so
