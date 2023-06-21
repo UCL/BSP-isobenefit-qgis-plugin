@@ -11,15 +11,14 @@ qgisMaximumVersion=3.99
 
 # Provide a brief description of the plugin
 description=Isobenefit Urbanism plugin for QGIS.
-version=0.3
+version=0.4
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
 about=The Isobenefit Urbanism QGIS plugin is a tool for brainstorming walkable urban development against real-world datasets. The algorithm is based on walkable access to centralities (shops, services) and green spaces. Please see the homepage link for more information.
-    
     Please refer to the repository for the source code and the README.md file for additional information.
-    
     Installation requires the installation of the numba and rasterio Python packages. QGIS does not yet have an automated dependency resolution work flow so these packages have to be installed directly; please see the repository README file for examples of how to do this on your system.
+    A demo project is provided in the project repository.
 
 tracker=https://github.com/UCL/BSP-isobenefit-qgis-plugin/issues
 repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
