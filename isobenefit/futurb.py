@@ -22,16 +22,16 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 
 from . import land_map_local
-from .futurb_dialog import FuturbDialog  # Import the code for the dialog
+from .isobenefit_dialog import IsobenefitDialog  # Import the code for the dialog
 from .resources import *  # Initialize Qt resources from file resources.py
 
 
-class Futurb:
+class Isobenefit:
     """QGIS Plugin Implementation."""
 
     iface: QgisInterface
     plugin_dir: str
-    dlg: FuturbDialog
+    dlg: IsobenefitDialog
     actions: list[QAction]
     menu: str
     toolbar: QToolBar
@@ -50,20 +50,20 @@ class Futurb:
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
         locale = QSettings().value("locale/userLocale")[0:2]
-        locale_path = os.path.join(self.plugin_dir, "i18n", "Futurb_{}.qm".format(locale))
+        locale_path = os.path.join(self.plugin_dir, "i18n", "Isobenefit_{}.qm".format(locale))
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
             if qVersion() > "4.3.3":
                 QCoreApplication.installTranslator(self.translator)
         # Create the dialog (after translation) and keep reference
-        self.dlg = FuturbDialog()
+        self.dlg = IsobenefitDialog()
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr("&Future Urban Growth test.")
         # TODO: We are going to let the user set this up in a future iteration
-        self.toolbar = self.iface.addToolBar("Futurb")
-        self.toolbar.setObjectName("Futurb")
+        self.toolbar = self.iface.addToolBar("Isobenefit")
+        self.toolbar.setObjectName("Isobenefit")
 
     def tr(self, message: str):
         """Get the translation for a string using Qt translation API.
@@ -76,7 +76,7 @@ class Futurb:
         :returns: Translated version of message.
         :rtype: QString
         """
-        return QCoreApplication.translate("Futurb", message)
+        return QCoreApplication.translate("Isobenefit", message)
 
     def add_action(
         self,
@@ -155,7 +155,7 @@ class Futurb:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ":/plugins/futurb/icon.png"
+        icon_path = ":/plugins/isobenefit/icon.png"
         self.add_action(
             icon_path, text=self.tr("Future Urban Growth test."), callback=self.run, parent=self.iface.mainWindow()
         )
@@ -255,4 +255,6 @@ class Futurb:
             QgsApplication.taskManager().addTask(land)
             QgsMessageLog.logMessage("Running task.", level=Qgis.Info, notifyUser=True)
         else:
-            QgsMessageLog.logMessage("No input for Futurb dialogue to process.", level=Qgis.Warning, notifyUser=True)
+            QgsMessageLog.logMessage(
+                "No input for Isobenefit dialogue to process.", level=Qgis.Warning, notifyUser=True
+            )

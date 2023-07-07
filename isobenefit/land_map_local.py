@@ -195,7 +195,7 @@ class Land(QgsTask):
         random_seed: int = 0,
     ):
         """ """
-        QgsMessageLog.logMessage("Instancing Futurb simulation.", level=Qgis.Info)
+        QgsMessageLog.logMessage("Instancing Isobenefit simulation.", level=Qgis.Info)
         QgsTask.__init__(self, "Future Urban Growth")
         # set reference to interface
         self.iface_ref = iface_ref
@@ -240,7 +240,7 @@ class Land(QgsTask):
             raise ValueError("The prob_distribution parameter must sum to 1.")
         if not density_factors[0] > density_factors[1] or not density_factors[1] > density_factors[2]:
             raise ValueError("Density factors should be in descending order")
-        QgsMessageLog.logMessage("Futurb instance ready.", level=Qgis.Info)
+        QgsMessageLog.logMessage("Isobenefit instance ready.", level=Qgis.Info)
 
     def prepare_state(self) -> None:
         """ """

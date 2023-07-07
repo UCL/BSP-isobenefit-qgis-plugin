@@ -39,7 +39,7 @@ class FuturbDialog(QtWidgets.QDialog):
 
     def setupUi(self):
         """ """
-        self.setObjectName("FuturbDialog")
+        self.setObjectName("IsobenefitDialog")
         self.setWindowTitle("Future Urban Growth simulator")
         # main layout
         main_layout = QtWidgets.QVBoxLayout(self)
