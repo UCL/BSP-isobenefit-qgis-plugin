@@ -151,7 +151,7 @@ class Land(QgsTask):
     ):
         """ """
         QgsMessageLog.logMessage("Instancing Isobenefit simulation.", level=Qgis.Info)
-        QgsTask.__init__(self, "Future Urban Growth")
+        QgsTask.__init__(self, "Isobenefit")
         # set reference to interface
         self.iface_ref = iface_ref
         # set random state

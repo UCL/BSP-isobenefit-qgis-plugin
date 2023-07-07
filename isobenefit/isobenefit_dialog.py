@@ -8,7 +8,7 @@ from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionW
 from qgis.PyQt import QtCore, QtWidgets
 
 
-class FuturbDialog(QtWidgets.QDialog):
+class IsobenefitDialog(QtWidgets.QDialog):
     """ """
 
     prob_sum: float | None
@@ -21,7 +21,7 @@ class FuturbDialog(QtWidgets.QDialog):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """ """
-        super(FuturbDialog, self).__init__(parent)
+        super(IsobenefitDialog, self).__init__(parent)
         self.prob_sum = None
         # paths state
         self.out_dir_path = None
@@ -40,7 +40,7 @@ class FuturbDialog(QtWidgets.QDialog):
     def setupUi(self):
         """ """
         self.setObjectName("IsobenefitDialog")
-        self.setWindowTitle("Future Urban Growth simulator")
+        self.setWindowTitle("Isobenefit Urbanism")
         # main layout
         main_layout = QtWidgets.QVBoxLayout(self)
         self.resize(550, 700)

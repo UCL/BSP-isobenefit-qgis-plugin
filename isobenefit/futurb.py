@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os.path
+from pathlib import Path
 from typing import Any, Callable
 
 from qgis.core import (
@@ -50,7 +51,7 @@ class Isobenefit:
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
         locale = QSettings().value("locale/userLocale")[0:2]
-        locale_path = os.path.join(self.plugin_dir, "i18n", "Isobenefit_{}.qm".format(locale))
+        locale_path = os.path.join(self.plugin_dir, "i18n", "isobenefit_{}.qm".format(locale))
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
@@ -60,7 +61,7 @@ class Isobenefit:
         self.dlg = IsobenefitDialog()
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr("&Future Urban Growth test.")
+        self.menu = self.tr("Isobenefit")
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar("Isobenefit")
         self.toolbar.setObjectName("Isobenefit")
@@ -154,16 +155,15 @@ class Isobenefit:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-
-        icon_path = ":/plugins/isobenefit/icon.png"
+        icon_path = Path(os.path.dirname(__file__)) / "icon.png"
         self.add_action(
-            icon_path, text=self.tr("Future Urban Growth test."), callback=self.run, parent=self.iface.mainWindow()
+            str(icon_path), text=self.tr("Isobenefit Urbanism"), callback=self.run, parent=self.iface.mainWindow()
         )
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginMenu(self.tr("&Future Urban Growth test."), action)
+            self.iface.removePluginMenu(self.tr("Isobenefit Urbanism"), action)
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar

@@ -1,6 +1,10 @@
 # BSP Isobenefit Urbanism QGIS Plugin
 
-QGIS plugin for Isobenefit Urbanism
+QGIS plugin for Isobenefit Urbanism.
+
+## QGIS Plugin Installation
+
+To install the plugin in QGIS, enable the experimental plugins setting and then search for the "isobenefit" plugin.
 
 ## Original version
 

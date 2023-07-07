@@ -196,7 +196,7 @@ class Land(QgsTask):
     ):
         """ """
         QgsMessageLog.logMessage("Instancing Isobenefit simulation.", level=Qgis.Info)
-        QgsTask.__init__(self, "Future Urban Growth")
+        QgsTask.__init__(self, "Isobenefit")
         # set reference to interface
         self.iface_ref = iface_ref
         # set random state
@@ -379,7 +379,7 @@ class Land(QgsTask):
         col_centrality = [255, 255, 255, 255]
         col_new_high_den_built = [101, 44, 7, 255]
         col_new_med_den_built = [197, 86, 17, 255]
-        col_new_low_den_built = [242, 136, 68, 255]
+        col_new_low_den_built = [200, 136, 68, 255]
         # plot state arr
         state_path = self.path_template.format(theme="state", iter=self.current_iter)
         with rio.open(  # type: ignore
@@ -391,22 +391,21 @@ class Land(QgsTask):
             height=self.state_arr.shape[0],
             crs=self.target_crs.authid(),
             transform=self.extents_transform,
-            dtype=np.byte,  # type: ignore
-            nodata=-1,
+            dtype=np.uint8,  # type: ignore
         ) as out_rast:  # type: ignore
             # initialise with fully transparent (fallback to unbuildable)
-            rgb = np.full((self.state_arr.shape[0], self.state_arr.shape[1], 4), 0, dtype=np.byte)
+            rgb = np.full((self.state_arr.shape[0], self.state_arr.shape[1], 4), 0, dtype=np.uint8)
             # start with state array (do origin array later)
             # green areas
             green_idx = np.nonzero(self.state_arr == 0)
             rgb[green_idx] = col_green_area
             # built areas
-            low_dens_idx = np.nonzero(self.density_arr == self.low_density_per_block)
-            rgb[low_dens_idx] = col_new_low_den_built
             med_dens_idx = np.nonzero(self.density_arr == self.med_density_per_block)
             rgb[med_dens_idx] = col_new_med_den_built
             high_dens_idx = np.nonzero(self.density_arr == self.high_density_per_block)
             rgb[high_dens_idx] = col_new_high_den_built
+            low_dens_idx = np.nonzero(self.density_arr == self.low_density_per_block)
+            rgb[low_dens_idx] = col_new_low_den_built
             # centres
             centre_idx = np.nonzero(self.state_arr == 2)
             rgb[centre_idx] = col_centrality
