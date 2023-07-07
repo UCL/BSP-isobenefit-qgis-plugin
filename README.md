@@ -26,11 +26,13 @@ QGIS does not yet have an integrated dependency management system. This means th
 
 1. Open the Terminal application
 2. Run `/Applications/QGIS.app/Contents/MacOS/bin/pip install numba==0.55.2`
+3. If `rasterio` errors are encountered, then install the `rasterio` package as well.
 
 ### Linux
 
 1. Open the terminal
 2. Run `python3 -m pip install numba==0.55.2`
+3. If `rasterio` errors are encountered, then install the `rasterio` package as well.
 
 > NOTE: If you are missing the `shapely` or `fiona` packages, then you may also need to install these.
 
