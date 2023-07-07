@@ -2,16 +2,6 @@
 
 QGIS plugin for Isobenefit Urbanism
 
-## Installation
-
-- `brew install qt5 pyqt pdm qgis`
-- `pdm install`
-- add `.env` file with path appendages:
-
-```bash
-PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/plugins:/Applications/Qgis.app/Contents/Resources/python"
-```
-
 ## Original version
 
 This work is an outgrowth of the [original work](https://github.com/mitochevole/isobenefit-cities) (forked to [BSP-isobenefit-original](https://github.com/UCL/BSP-isobenefit-original)) developed by Michele Voto and Luca D'Acci. This has subsequently been developed as part of the Future Urban Growth project at the Bartlett School of Planning.
@@ -43,6 +33,16 @@ QGIS does not yet have an integrated dependency management system. This means th
 2. Run `python3 -m pip install numba==0.55.2`
 
 > NOTE: If you are missing the `shapely` or `fiona` packages, then you may also need to install these.
+
+## Development Setup
+
+- `brew install qt5 pyqt pdm qgis`
+- `pdm install`
+- add `.env` file with path appendages:
+
+```bash
+PYTHONPATH="${env:PYTHONPATH}:/Applications/Qgis.app/Contents/Resources/python/plugins:/Applications/Qgis.app/Contents/Resources/python"
+```
 
 ## PB Tool
 
