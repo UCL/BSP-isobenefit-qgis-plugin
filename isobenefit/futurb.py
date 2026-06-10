@@ -5,26 +5,14 @@ import os.path
 from pathlib import Path
 from typing import Any, Callable
 
-from qgis.core import (
-    Qgis,
-    QgsApplication,
-    QgsCoordinateTransform,
-    QgsFeature,
-    QgsFillSymbol,
-    QgsGeometry,
-    QgsMessageLog,
-    QgsProject,
-    QgsRectangle,
-    QgsVectorLayer,
-)
+from qgis.core import Qgis, QgsApplication, QgsMessageLog
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
 
-from . import land_map_local
+from . import bootstrap, sim_runner
 from .isobenefit_dialog import IsobenefitDialog  # Import the code for the dialog
-from .resources import *  # Initialize Qt resources from file resources.py
 
 
 class Isobenefit:
@@ -65,6 +53,8 @@ class Isobenefit:
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar("Isobenefit")
         self.toolbar.setObjectName("Isobenefit")
+        # keep a reference to the running task so it is not garbage-collected
+        self._task: sim_runner.IsobenefitTask | None = None
 
     def tr(self, message: str):
         """Get the translation for a string using Qt translation API.
@@ -173,88 +163,46 @@ class Isobenefit:
         # show the dialog
         self.dlg.show()
         result: int = self.dlg.exec_()  # returns 1 if pressed
-        if result:
-            # None checking is handled by dialogue
-            granularity_m: int = int(self.dlg.grid_size_m.text())  # type: ignore
-            # extents
-            input_extents: QgsRectangle = self.dlg.extents_layer.extent()
-            x_min = input_extents.xMinimum()
-            x_max = input_extents.xMaximum()
-            y_min = input_extents.yMinimum()
-            y_max = input_extents.yMaximum()
-            x_pad_min = int(x_min - x_min % granularity_m)
-            x_pad_max = int(x_max - x_max % granularity_m) + granularity_m
-            y_pad_min = int(y_min - y_min % granularity_m)
-            y_pad_max = int(y_max - y_max % granularity_m) + granularity_m
-            # create padded extents
-            padded_extents_geom: QgsGeometry = QgsGeometry.fromRect(
-                QgsRectangle(x_pad_min, y_pad_min, x_pad_max, y_pad_max)
-            )
-            # transform CRS if necessary
-            crs_transform = QgsCoordinateTransform(
-                self.dlg.extents_layer.crs(), self.dlg.selected_crs, QgsProject.instance()
-            )
-            padded_extents_geom.transform(crs_transform)  # type: ignore
-            # prepare extents layer
-            bounds_layer = QgsVectorLayer(
-                f"Polygon?crs={self.dlg.selected_crs.authid()}&field=id:integer&index=yes",
-                "sim_input_extents",
-                "memory",
-            )
-            target_feature = QgsFeature(id=1)
-            target_feature.setGeometry(padded_extents_geom)
-            bounds_layer.dataProvider().addFeature(target_feature)
-            bounds_layer.dataProvider().updateExtents()
-            bounds_layer.renderer().setSymbol(
-                QgsFillSymbol.createSimple(
-                    {"color": "0, 0, 0, 0", "outline_color": "black", "outline_width": "0.5", "outline_style": "dash"}
-                )
-            )
-            QgsProject.instance().addMapLayer(bounds_layer, addToLegend=True)
-            # layers
-            built_areas_layer: QgsVectorLayer | None = self.dlg.built_layer_box.currentLayer()
-            green_areas_layer: QgsVectorLayer | None = self.dlg.green_layer_box.currentLayer()
-            unbuildable_areas_layer: QgsVectorLayer | None = self.dlg.unbuildable_layer_box.currentLayer()
-            centre_seeds_layer: QgsVectorLayer | None = self.dlg.centre_seeds_layer_box.currentLayer()
-            # prepare and run
-            land = land_map_local.Land(
-                iface_ref=self.iface,
-                out_dir_path=self.dlg.out_dir_path,  # type: ignore
-                out_file_name=self.dlg.out_file_name,  # type: ignore
-                target_crs=self.dlg.selected_crs,
-                bounds_layer=bounds_layer,
-                extents_layer=self.dlg.extents_layer,
-                built_areas_layer=built_areas_layer,
-                green_areas_layer=green_areas_layer,
-                unbuildable_areas_layer=unbuildable_areas_layer,
-                centre_seeds_layer=centre_seeds_layer,
-                total_iters=int(self.dlg.n_iterations.text()),
-                granularity_m=granularity_m,
-                max_distance_m=int(self.dlg.walk_dist.text()),
-                max_populat=int(self.dlg.max_populat.text()),
-                exist_built_density=int(self.dlg.built_density.text()),
-                min_green_span=int(self.dlg.min_green_span.text()),
-                build_prob=float(self.dlg.build_prob.text()),
-                cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
-                cent_prob_isol=float(self.dlg.cent_prob_isol.text()),
-                pop_target_cent_threshold=float(self.dlg.pop_target_cent_threshold.text()),
-                prob_distribution=(
-                    float(self.dlg.high_density_prob.text()),
-                    float(self.dlg.med_density_prob.text()),
-                    float(self.dlg.low_density_prob.text()),
-                ),
-                density_factors=(
-                    float(self.dlg.high_density.text()),
-                    float(self.dlg.med_density.text()),
-                    float(self.dlg.low_density.text()),
-                ),
-                random_seed=int(self.dlg.random_seed.text()),
-            )
-            # task doesn't seem to register if only addTask?
-            # padding with logMessage to prompt task run...
-            QgsApplication.taskManager().addTask(land)
-            QgsMessageLog.logMessage("Running task.", level=Qgis.Info, notifyUser=True)
-        else:
-            QgsMessageLog.logMessage(
-                "No input for Isobenefit dialogue to process.", level=Qgis.Warning, notifyUser=True
-            )
+        if not result:
+            QgsMessageLog.logMessage("No input for Isobenefit dialogue to process.", level=Qgis.Warning)
+            return
+        # ensure the Rust simulation core is installed and compatible
+        if not bootstrap.ensure_core(self.iface.mainWindow()):
+            return
+        # build and queue the background task (the core is array-in / array-out;
+        # all GIS IO is handled inside the task via gis_io)
+        task = sim_runner.IsobenefitTask(
+            iface=self.iface,
+            out_dir_path=self.dlg.out_dir_path,
+            out_file_name=self.dlg.out_file_name,
+            target_crs=self.dlg.selected_crs,
+            extents_layer=self.dlg.extents_layer,
+            built_layer=self.dlg.built_layer_box.currentLayer(),
+            green_layer=self.dlg.green_layer_box.currentLayer(),
+            unbuildable_layer=self.dlg.unbuildable_layer_box.currentLayer(),
+            centre_seeds_layer=self.dlg.centre_seeds_layer_box.currentLayer(),
+            total_iters=int(self.dlg.n_iterations.text()),
+            granularity_m=int(self.dlg.grid_size_m.text()),
+            max_distance_m=int(self.dlg.walk_dist.text()),
+            max_populat=int(self.dlg.max_populat.text()),
+            exist_built_density=int(self.dlg.built_density.text()),
+            min_green_span=int(self.dlg.min_green_span.text()),
+            build_prob=float(self.dlg.build_prob.text()),
+            cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
+            cent_prob_isol=float(self.dlg.cent_prob_isol.text()),
+            pop_target_cent_threshold=float(self.dlg.pop_target_cent_threshold.text()),
+            prob_distribution=(
+                float(self.dlg.high_density_prob.text()),
+                float(self.dlg.med_density_prob.text()),
+                float(self.dlg.low_density_prob.text()),
+            ),
+            density_factors=(
+                float(self.dlg.high_density.text()),
+                float(self.dlg.med_density.text()),
+                float(self.dlg.low_density.text()),
+            ),
+            random_seed=int(self.dlg.random_seed.text()),
+        )
+        self._task = task  # retain reference so the task is not garbage-collected
+        QgsApplication.taskManager().addTask(task)
+        QgsMessageLog.logMessage("Isobenefit simulation queued.", level=Qgis.Info, notifyUser=True)

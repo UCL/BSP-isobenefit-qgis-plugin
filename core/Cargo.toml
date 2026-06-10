@@ -1,0 +1,30 @@
+[package]
+name = "isobenefit_core"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+description = "Rust simulation core for the Isobenefit Urbanism QGIS plugin"
+repository = "https://github.com/UCL/BSP-isobenefit-qgis-plugin"
+rust-version = "1.74"
+
+[lib]
+name = "isobenefit_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ndarray = "0.16"
+rayon = "1.10"
+rand = "0.8"
+rand_chacha = "0.3"
+pyo3 = { version = "0.22", features = ["abi3-py39"], optional = true }
+numpy = { version = "0.22", optional = true }
+
+[features]
+default = []
+# Enabled by maturin when building the Python extension; left off for `cargo test`
+# so the pure-Rust algorithm modules compile and test without linking libpython.
+python = ["dep:pyo3", "dep:numpy", "pyo3/extension-module"]
+
+[profile.release]
+lto = true
+codegen-units = 1

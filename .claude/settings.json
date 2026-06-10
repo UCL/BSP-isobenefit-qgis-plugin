@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run ruff check *)",
+      "Bash(uv run poe typecheck)",
+      "Bash(uv run poe lint)",
+      "Bash(uv run ty check *)",
+      "Bash(uv run poe audit)",
+      "Bash(uv run coverage report *)"
+    ]
+  }
+}

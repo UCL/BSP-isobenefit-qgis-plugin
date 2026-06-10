@@ -1,19 +1,22 @@
 [project]
-name = "isobenefit-cities"
+name = "isobenefit-qgis-plugin"
 version = "0.4.0"
-description = ""
+description = "QGIS plugin for Isobenefit Urbanism simulation."
 authors = [
-    {name = "Gareth Simons", email = "garethsimons@me.com"},
+    {name = "Gareth Simons", email = "gareth.simons@ucl.ac.uk"},
 ]
+# Runtime deps come from QGIS (numpy + GDAL) plus the pip-installed isobenefit-core
+# engine (bootstrapped on first use). Only dev tooling is listed here.
 dependencies = [
-    "numpy==1.22.4",
-    "shapely==2.0.1",
-    "rasterio==1.3.6",
-    "numba==0.55.2",
+    "ruff>=0.15.16",
+    "ty>=0.0.46",
 ]
-requires-python = ">=3.8,<3.11"
+requires-python = ">=3.9"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "AGPL-3.0-or-later"}
+classifiers = [
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+]
 [project.optional-dependencies]
 
 [build-system]
@@ -21,9 +24,9 @@ requires = ["pdm-pep517>=1.0.0"]
 build-backend = "pdm.pep517.api"
 
 [project.urls]
-homepage = "https://github.com/songololo/isobenefit-cities"
-documentation = "https://github.com/songololo/isobenefit-cities"
-repository = "https://github.com/songololo/isobenefit-cities"
+homepage = "https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism/"
+documentation = "https://github.com/UCL/BSP-isobenefit-qgis-plugin"
+repository = "https://github.com/UCL/BSP-isobenefit-qgis-plugin"
 
 
 [tool]
@@ -54,7 +57,7 @@ dev = [
 docstyle = "pydocstyle --config=pyproject.toml"
 formatting = { shell = "black --config=pyproject.toml ./ && isort --settings-file=pyproject.toml ./" }
 typechecks = "pyright ."
-linting = "pylint --rcfile=pyproject.toml ./src"
+linting = "pylint --rcfile=pyproject.toml ./isobenefit"
 tests = "pytest ./tests"
 coverage_run = "coverage run pytest"
 coverage_report = { shell = "coverage report --show-missing --skip-empty && coverage lcov" }
@@ -62,6 +65,10 @@ coverage_report = { shell = "coverage report --show-missing --skip-empty && cove
 [tool.black]
 line-length = 120
 color = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
 
 [tool.pylint.master]
 disable = [
@@ -103,7 +110,6 @@ exclude = [
   ".venv",
 ]
 typeCheckingMode = "strict"
-stubPath = "src/stubs"
 useLibraryCodeForTypes = true
 
 [tool.pydocstyle]
@@ -120,4 +126,4 @@ skip_gitignore = true
 line_length = 120
 atomic = true
 filter_files = true
-src_paths = ["src", "tests"]
+src_paths = ["isobenefit", "tests"]
