@@ -133,9 +133,9 @@ def ensure_core(parent: QWidget | None = None) -> bool:
         parent,
         "Isobenefit: engine required",
         question + "\n\n(Requires an internet connection; QGIS must be restarted afterwards.)",
-        QMessageBox.Yes | QMessageBox.No,
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
     )
-    if choice != QMessageBox.Yes:
+    if choice != QMessageBox.StandardButton.Yes:
         return False
 
     success, output = _pip_install(PIP_SPEC)

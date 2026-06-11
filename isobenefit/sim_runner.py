@@ -168,7 +168,7 @@ class IsobenefitTask(QgsTask):
         if not result:
             QgsMessageLog.logMessage(
                 f"Isobenefit simulation did not complete: {self.error_message or 'cancelled'}",
-                level=Qgis.Warning,
+                level=Qgis.MessageLevel.Warning,
                 notifyUser=True,
             )
             return
@@ -179,12 +179,12 @@ class IsobenefitTask(QgsTask):
         for iteration, path in self.written_paths:
             layer = QgsRasterLayer(path, f"step {iteration}", "gdal")
             if not layer.isValid():
-                QgsMessageLog.logMessage(f"Invalid output raster: {path}", level=Qgis.Warning)
+                QgsMessageLog.logMessage(f"Invalid output raster: {path}", level=Qgis.MessageLevel.Warning)
                 continue
             layer.setCrs(self.target_crs)
             gis_io.apply_palette(layer)
             tprops = layer.temporalProperties()
-            tprops.setMode(QgsRasterLayerTemporalProperties.ModeFixedTemporalRange)
+            tprops.setMode(QgsRasterLayerTemporalProperties.TemporalMode.ModeFixedTemporalRange)
             begin = start.replace(year=start.year + iteration)
             end = start.replace(year=start.year + iteration + 1)
             tprops.setFixedTemporalRange(QgsDateTimeRange(begin, end))
@@ -193,7 +193,7 @@ class IsobenefitTask(QgsTask):
             node = group.addLayer(layer)
             node.setExpanded(False)
         self._setup_temporal_controller(start)
-        QgsMessageLog.logMessage("Isobenefit simulation complete.", level=Qgis.Info, notifyUser=True)
+        QgsMessageLog.logMessage("Isobenefit simulation complete.", level=Qgis.MessageLevel.Info, notifyUser=True)
 
     def _setup_temporal_controller(self, start: datetime) -> None:
         temporal = self.iface.mapCanvas().temporalController()
@@ -205,4 +205,4 @@ class IsobenefitTask(QgsTask):
         temporal.setLooping(False)
         temporal.setFrameDuration(QgsInterval(1, 0, 0, 0, 0, 0, 0))
         temporal.setFramesPerSecond(5)
-        temporal.setAnimationState(QgsTemporalNavigationObject.Forward)
+        temporal.setAnimationState(QgsTemporalNavigationObject.AnimationState.Forward)

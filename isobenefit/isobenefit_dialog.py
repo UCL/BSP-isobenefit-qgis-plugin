@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsMapLayerProxyModel, QgsVectorLayer, QgsWkbTypes
+from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsVectorLayer
 from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
 
@@ -56,34 +56,34 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.grid = QtWidgets.QGridLayout(self.content)
         # heading
         self.model_mode_label = QtWidgets.QLabel("Simulator parameters", self)
-        self.grid.addWidget(self.model_mode_label, 0, 0, 1, 2, alignment=QtCore.Qt.AlignCenter)
+        self.grid.addWidget(self.model_mode_label, 0, 0, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # left column container
         self.left_col = QtWidgets.QGridLayout(self)
         self.grid.addLayout(self.left_col, 1, 0)
         # iterations
         self.n_iterations_label = QtWidgets.QLabel("Max iterations", self)
-        self.left_col.addWidget(self.n_iterations_label, 0, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.n_iterations_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.n_iterations = QtWidgets.QLineEdit("100", self)
         self.left_col.addWidget(self.n_iterations, 0, 1)
         # grid size
         self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
-        self.left_col.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.grid_size_m = QtWidgets.QLineEdit("100", self)
         self.left_col.addWidget(self.grid_size_m, 1, 1)
         # walking distance
         self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
-        self.left_col.addWidget(self.walk_dist_label, 2, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.walk_dist_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.walk_dist = QtWidgets.QLineEdit("800", self)
         self.left_col.addWidget(self.walk_dist, 2, 1)
         # max population
         self.max_populat_label = QtWidgets.QLabel("Target population", self)
-        self.left_col.addWidget(self.max_populat_label, 3, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.max_populat_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.max_populat = QtWidgets.QLineEdit("100000", self)
         self.left_col.addWidget(self.max_populat, 3, 1)
         # min green km2
         self.min_green_span_label = QtWidgets.QLabel("Min green span (m)", self)
-        self.left_col.addWidget(self.min_green_span_label, 4, 0, alignment=QtCore.Qt.AlignRight)
+        self.left_col.addWidget(self.min_green_span_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.min_green_span = QtWidgets.QLineEdit("800", self)
         self.left_col.addWidget(self.min_green_span, 4, 1)
 
@@ -92,33 +92,33 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.grid.addLayout(self.right_col, 1, 1)
         # build prob
         self.build_prob_label = QtWidgets.QLabel("Build probability", self)
-        self.right_col.addWidget(self.build_prob_label, 0, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.build_prob_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.build_prob = QtWidgets.QLineEdit("0.25", self)
         self.right_col.addWidget(self.build_prob, 0, 1)
         # nb centrality prob
         self.cent_prob_nb_label = QtWidgets.QLabel("Neighbouring prob", self)
-        self.right_col.addWidget(self.cent_prob_nb_label, 1, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.cent_prob_nb_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.cent_prob_nb = QtWidgets.QLineEdit("0.01", self)
         self.right_col.addWidget(self.cent_prob_nb, 1, 1)
         # isolated centrality prob
         self.cent_prob_isol_label = QtWidgets.QLabel("Isolated centrality prob", self)
-        self.right_col.addWidget(self.cent_prob_isol_label, 2, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.cent_prob_isol_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.cent_prob_isol = QtWidgets.QLineEdit("0", self)
         self.right_col.addWidget(self.cent_prob_isol, 2, 1)
         # centrality permitted threshold
         self.pop_target_cent_threshold_label = QtWidgets.QLabel("Pop threshold for centres", self)
-        self.right_col.addWidget(self.pop_target_cent_threshold_label, 3, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.pop_target_cent_threshold_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.pop_target_cent_threshold = QtWidgets.QLineEdit("0.8", self)
         self.right_col.addWidget(self.pop_target_cent_threshold, 3, 1)
         # random seed
         self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
-        self.right_col.addWidget(self.random_seed_label, 4, 0, alignment=QtCore.Qt.AlignRight)
+        self.right_col.addWidget(self.random_seed_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.random_seed = QtWidgets.QLineEdit("42", self)
         self.right_col.addWidget(self.random_seed, 4, 1)
 
         # spacer
         self.grid.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
             2,
             0,
             1,
@@ -129,7 +129,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.grid.addLayout(self.dens_block, 3, 0, 1, 2)
         # low density
         self.low_density_label = QtWidgets.QLabel("Low density (km2)", self)
-        self.dens_block.addWidget(self.low_density_label, 0, 0, alignment=QtCore.Qt.AlignRight)
+        self.dens_block.addWidget(self.low_density_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.low_density = QtWidgets.QLineEdit("1000", self)
         self.low_density.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.low_density, 0, 1)
@@ -138,7 +138,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.dens_block.addWidget(self.low_density_prob, 0, 2)
         # medium density
         self.med_density_label = QtWidgets.QLabel("Medium density (km2)", self)
-        self.dens_block.addWidget(self.med_density_label, 1, 0, alignment=QtCore.Qt.AlignRight)
+        self.dens_block.addWidget(self.med_density_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.med_density = QtWidgets.QLineEdit("3000", self)
         self.med_density.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.med_density, 1, 1)
@@ -147,7 +147,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.dens_block.addWidget(self.med_density_prob, 1, 2)
         # high density
         self.high_density_label = QtWidgets.QLabel("High density (km2)", self)
-        self.dens_block.addWidget(self.high_density_label, 2, 0, alignment=QtCore.Qt.AlignRight)
+        self.dens_block.addWidget(self.high_density_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.high_density = QtWidgets.QLineEdit("6000", self)
         self.high_density.textChanged.connect(self.handle_densities)
         self.dens_block.addWidget(self.high_density, 2, 1)
@@ -156,16 +156,16 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.dens_block.addWidget(self.high_density_prob, 2, 2)
         # built density
         self.built_density_label = QtWidgets.QLabel("Built density (km2)", self)
-        self.dens_block.addWidget(self.built_density_label, 3, 0, alignment=QtCore.Qt.AlignRight)
+        self.dens_block.addWidget(self.built_density_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.built_density = QtWidgets.QLineEdit("2000", self)
         self.dens_block.addWidget(self.built_density, 3, 1, 1, 1)
         # densities and related probabilities
         self.density_text_feedback = QtWidgets.QLabel("Density probabilities must sum to 1", self)
-        self.dens_block.addWidget(self.density_text_feedback, 4, 0, 1, 3, alignment=QtCore.Qt.AlignCenter)
+        self.dens_block.addWidget(self.density_text_feedback, 4, 0, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # spacer
         self.grid.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
             4,
             0,
             1,
@@ -179,7 +179,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.file_output_label = QtWidgets.QLabel("File output path", self)
         self.inputs_outputs_block.addWidget(self.file_output_label, 0, 0, 1, 2)
         self.file_output = QgsFileWidget(self)
-        self.file_output.setStorageMode(QgsFileWidget.SaveFile)
+        self.file_output.setStorageMode(QgsFileWidget.StorageMode.SaveFile)
         self.file_output.fileChanged.connect(self.handle_output_path)  # type: ignore (connect works)
         self.inputs_outputs_block.addWidget(self.file_output, 1, 0, 1, 2)
         # feedback for file path
@@ -188,7 +188,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.inputs_outputs_block.addWidget(self.file_path_feedback, 2, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
             3,
             0,
             1,
@@ -198,7 +198,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.extents_layer_label = QtWidgets.QLabel("Input layer indicating extents for simulation", self)
         self.inputs_outputs_block.addWidget(self.extents_layer_label, 4, 0, 1, 2)
         self.extents_layer_box = QgsMapLayerComboBox(self)
-        self.extents_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        self.extents_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
         self.extents_layer_box.setShowCrs(True)
         self.extents_layer_box.layerChanged.connect(self.handle_extents_layer)  # type: ignore (connect works)
         self.inputs_outputs_block.addWidget(self.extents_layer_box, 5, 0, 1, 2)
@@ -208,7 +208,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.inputs_outputs_block.addWidget(self.extents_layer_feedback, 6, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
             7,
             0,
             1,
@@ -220,7 +220,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.built_layer_box = QgsMapLayerComboBox(self)
         self.built_layer_box.setAllowEmptyLayer(True)
         self.built_layer_box.setCurrentIndex(0)  # type: ignore
-        self.built_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        self.built_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
         self.built_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.built_layer_box, 9, 0, 1, 2)
 
@@ -230,7 +230,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.green_layer_box = QgsMapLayerComboBox(self)
         self.green_layer_box.setAllowEmptyLayer(True)
         self.green_layer_box.setCurrentIndex(0)  # type: ignore
-        self.green_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        self.green_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
         self.green_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.green_layer_box, 11, 0, 1, 2)
         # unbuildable areas
@@ -239,7 +239,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.unbuildable_layer_box = QgsMapLayerComboBox(self)
         self.unbuildable_layer_box.setAllowEmptyLayer(True)
         self.unbuildable_layer_box.setCurrentIndex(0)  # type: ignore
-        self.unbuildable_layer_box.setFilters(QgsMapLayerProxyModel.PolygonLayer)
+        self.unbuildable_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
         self.unbuildable_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.unbuildable_layer_box, 13, 0, 1, 2)
         # centre seeds
@@ -248,12 +248,12 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.centre_seeds_layer_box = QgsMapLayerComboBox(self)
         self.centre_seeds_layer_box.setAllowEmptyLayer(True)
         self.centre_seeds_layer_box.setCurrentIndex(0)  # type: ignore
-        self.centre_seeds_layer_box.setFilters(QgsMapLayerProxyModel.PointLayer)
+        self.centre_seeds_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
         self.centre_seeds_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.centre_seeds_layer_box, 15, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
             16,
             0,
             1,
@@ -269,15 +269,15 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.crs_feedback.setWordWrap(True)
         self.inputs_outputs_block.addWidget(self.crs_feedback, 18, 0, 1, 2)
         self.crs_selection.crsChanged.connect(self.handle_crs)  # type: ignore (connect works)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CurrentCrs, False)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.DefaultCrs, False)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.LayerCrs, True)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.ProjectCrs, True)
-        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.RecentCrs, False)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.CurrentCrs, False)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.DefaultCrs, False)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.LayerCrs, True)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.ProjectCrs, True)
+        self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.RecentCrs, False)
         self.inputs_outputs_block.addWidget(self.crs_selection, 19, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Expanding, vPolicy=QtWidgets.QSizePolicy.Fixed),
+            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
             20,
             0,
             1,
@@ -286,7 +286,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
         # Cancel / OK buttons
         self.button_box = QtWidgets.QDialogButtonBox(self)
         self.grid.addWidget(self.button_box, 6, 0, 1, 2)
-        self.button_box.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
+        self.button_box.setStandardButtons(
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel | QtWidgets.QDialogButtonBox.StandardButton.Ok
+        )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
@@ -300,7 +302,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
     def reset_state(self) -> None:
         """ """
-        self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(True)
+        self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(True)
 
     def refresh_state(self) -> None:
         """ """
@@ -314,7 +316,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             return
         if self.prob_sum != 1:
             return
-        self.button_box.button(QtWidgets.QDialogButtonBox.Ok).setDisabled(False)
+        self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(False)
 
     def handle_densities(self) -> None:
         """ """
@@ -385,8 +387,8 @@ class IsobenefitDialog(QtWidgets.QDialog):
         if not isinstance(candidate_layer, QgsVectorLayer):
             self.extents_layer_feedback.setText("Geometry of type Polygon required.")
             return
-        geom_type: QgsWkbTypes.GeometryType = candidate_layer.geometryType()  # type: ignore
-        if geom_type != QgsWkbTypes.PolygonGeometry:
+        geom_type = candidate_layer.geometryType()
+        if geom_type != Qgis.GeometryType.Polygon:
             self.extents_layer_feedback.setText("Geometry of type Polygon required.")
             return
         # success

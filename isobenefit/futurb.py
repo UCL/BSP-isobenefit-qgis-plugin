@@ -162,9 +162,9 @@ class Isobenefit:
         """Run method that performs all the real work"""
         # show the dialog
         self.dlg.show()
-        result: int = self.dlg.exec_()  # returns 1 if pressed
+        result: int = self.dlg.exec()  # returns 1 if pressed
         if not result:
-            QgsMessageLog.logMessage("No input for Isobenefit dialogue to process.", level=Qgis.Warning)
+            QgsMessageLog.logMessage("No input for Isobenefit dialogue to process.", level=Qgis.MessageLevel.Warning)
             return
         # ensure the Rust simulation core is installed and compatible
         if not bootstrap.ensure_core(self.iface.mainWindow()):
@@ -205,4 +205,4 @@ class Isobenefit:
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)
-        QgsMessageLog.logMessage("Isobenefit simulation queued.", level=Qgis.Info, notifyUser=True)
+        QgsMessageLog.logMessage("Isobenefit simulation queued.", level=Qgis.MessageLevel.Info, notifyUser=True)
