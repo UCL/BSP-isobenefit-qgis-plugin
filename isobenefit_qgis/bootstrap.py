@@ -64,33 +64,60 @@ def core_status() -> tuple[bool, str | None]:
 def _python_executable() -> str:
     """Best-effort path to the QGIS Python interpreter to drive pip.
 
-    ``sys.executable`` is often the QGIS application binary rather than Python, so
-    fall back to interpreters under the install prefixes (covers Windows OSGeo4W,
-    macOS and Linux layouts).
+    On some platforms (notably macOS) ``sys.executable`` is the host *application*
+    binary rather than Python, and ``sys.prefix`` may point at a build path that
+    does not exist locally. We therefore prefer ``sys._base_executable`` (the real
+    interpreter) and ONLY ever return a python-named binary — never the host app,
+    which would otherwise try to open the pip arguments as data sources.
     """
-    exe = sys.executable or ""
-    if os.path.basename(exe).lower().startswith("python"):
-        return exe
-    candidates: list[str] = []
-    if os.name == "nt":
-        candidates += [
-            os.path.join(sys.exec_prefix, "python.exe"),
-            os.path.join(sys.prefix, "python.exe"),
-        ]
-    else:
-        for prefix in (sys.prefix, sys.exec_prefix):
-            candidates += [
-                os.path.join(prefix, "bin", "python3"),
-                os.path.join(prefix, "bin", "python"),
-            ]
+    base = getattr(sys, "_base_executable", "") or ""
+    names = ["python.exe", "python3.exe"] if os.name == "nt" else [
+        "python3",
+        "python3.13",
+        "python3.12",
+        "python3.11",
+        "python3.10",
+        "python3.9",
+        "python",
+    ]
+    candidates: list[str] = [base, sys.executable or ""]
+    for ref in (base, sys.executable or ""):
+        ref_dir = os.path.dirname(ref)
+        if ref_dir:
+            candidates += [os.path.join(ref_dir, n) for n in names]
+    for prefix in (sys.prefix, sys.exec_prefix, sys.base_prefix, sys.base_exec_prefix):
+        if os.name == "nt":
+            candidates.append(os.path.join(prefix, "python.exe"))
+        else:
+            candidates += [os.path.join(prefix, "bin", n) for n in ("python3", "python")]
     for candidate in candidates:
-        if os.path.exists(candidate):
+        if candidate and os.path.basename(candidate).lower().startswith("python") and os.path.exists(candidate):
             return candidate
-    return exe or "python3"
+    # never fall back to the host app binary; defer to PATH instead
+    return "python3"
+
+
+def _subprocess_env() -> dict:
+    """Environment for the pip subprocess.
+
+    A bundled interpreter may not boot standalone unless ``PYTHONHOME`` is set,
+    because the host can configure it via the C API rather than env vars. Derive
+    the home from the running stdlib location (don't override an existing value).
+    """
+    env = os.environ.copy()
+    try:
+        stdlib = os.path.dirname(os.__file__)  # <prefix>/lib/pythonX.Y
+        home = os.path.dirname(os.path.dirname(stdlib))  # <prefix>
+        if os.path.isdir(stdlib) and "PYTHONHOME" not in env:
+            env["PYTHONHOME"] = home
+    except Exception:
+        pass
+    return env
 
 
 def _pip_install(spec: str) -> tuple[bool, str]:
     python = _python_executable()
+    env = _subprocess_env()
     attempts = [
         [python, "-m", "pip", "install", "--upgrade", spec],
         [python, "-m", "pip", "install", "--user", "--upgrade", spec],
@@ -98,7 +125,7 @@ def _pip_install(spec: str) -> tuple[bool, str]:
     last_output = ""
     for cmd in attempts:
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
         except Exception as exc:  # network, permissions, missing pip, ...
             last_output = str(exc)
             continue
