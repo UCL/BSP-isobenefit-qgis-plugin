@@ -83,7 +83,7 @@ On Windows, copy/paste the `isobenefit_qgis` folder into
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the Rust tests,
 builds and smoke-tests abi3 wheels on Linux/macOS/Windows, builds the plugin zip,
-and (on a `core-v*` tag) publishes the engine to PyPI via trusted publishing.
+and (on a `v*` version tag, e.g. `v0.1.0`) publishes the engine to PyPI via trusted publishing.
 
 ## Packaging the plugin
 
