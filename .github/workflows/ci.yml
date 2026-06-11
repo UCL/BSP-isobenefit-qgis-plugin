@@ -66,13 +66,28 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: dist/*.whl
 
+  # --- Source distribution (lets pip build from source when no wheel matches) ---
+  core-sdist:
+    name: core sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --manifest-path core/Cargo.toml --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist/*.tar.gz
+
   # --- Publish to PyPI on a core-v* tag (PyPI trusted publishing) ---
   core-publish:
     name: publish core to PyPI
-    needs: [core-test, core-wheels]
+    needs: [core-test, core-wheels, core-sdist]
     if: startsWith(github.ref, 'refs/tags/core-v')
     runs-on: ubuntu-latest
-    environment: pypi
     permissions:
       id-token: write
     steps:
