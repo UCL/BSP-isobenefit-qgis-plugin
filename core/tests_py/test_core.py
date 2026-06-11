@@ -1,4 +1,4 @@
-"""Python-level tests for the isobenefit_core extension.
+"""Python-level tests for the isobenefit extension.
 
 These require the compiled extension (``maturin develop`` or an installed wheel).
 They cover the public API surface the QGIS plugin relies on: construction,
@@ -10,8 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-import isobenefit_core
-from isobenefit_core import Simulation, run_ensemble
+import isobenefit
+from isobenefit import Simulation, run_ensemble
 
 
 def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25) -> Simulation:
@@ -41,8 +41,8 @@ def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25) -> Simulation
 
 
 def test_version_exposed() -> None:
-    assert isinstance(isobenefit_core.__version__, str)
-    assert isobenefit_core.__version__
+    assert isinstance(isobenefit.__version__, str)
+    assert isobenefit.__version__
 
 
 def test_construction_seeds_centre() -> None:

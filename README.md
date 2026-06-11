@@ -8,11 +8,11 @@ development against real-world datasets, based on walkable access to centralitie
 
 This repository contains two deliverables:
 
-- [`isobenefit/`](isobenefit/) — the **QGIS plugin** (thin). It handles the UI and
+- [`isobenefit_qgis/`](isobenefit_qgis/) — the **QGIS plugin** (thin). It handles the UI and
   all GIS IO (reading layers, reprojection, rasterization, writing rasters,
   temporal animation), and depends only on libraries QGIS already bundles (numpy +
   GDAL) plus the simulation engine below.
-- [`core/`](core/) — the **simulation engine** (`isobenefit-core`), a Rust
+- [`core/`](core/) — the **simulation engine** (`isobenefit`), a Rust
   extension built with PyO3/maturin and published to PyPI as abi3 wheels. It is
   pure compute (arrays in, arrays out) and never imports QGIS.
 
@@ -24,7 +24,7 @@ binaries: the compiled engine is installed from PyPI rather than bundled.
 1. In QGIS, enable experimental plugins (Plugins → Manage and Install Plugins →
    Settings → "Show also experimental plugins"), then search for **isobenefit**
    and install it.
-2. The first time you run the plugin it will check for the `isobenefit-core`
+2. The first time you run the plugin it will check for the `isobenefit`
    engine and, if it is missing, offer to install it into the QGIS Python
    environment for you. This needs an internet connection; **restart QGIS** once
    it finishes.
@@ -35,7 +35,7 @@ If the automatic install is blocked (e.g. a locked-down environment), the dialog
 shows the exact command to run yourself, which is simply:
 
 ```bash
-<qgis-python> -m pip install "isobenefit-core>=0.1,<0.2"
+<qgis-python> -m pip install "isobenefit>=0.1,<0.2"
 ```
 
 ## Usage
@@ -68,15 +68,15 @@ count — see [`core/README.md`](core/README.md).
 
 ### QGIS plugin
 
-Lint with `ruff check isobenefit`.
+Lint with `ruff check isobenefit_qgis`.
 
 For live development, link the plugin folder into your QGIS profile, e.g. on macOS:
 
 ```bash
-ln -s "$(pwd)/isobenefit" "$HOME/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/"
+ln -s "$(pwd)/isobenefit_qgis" "$HOME/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/"
 ```
 
-On Windows, copy/paste the `isobenefit` folder into
+On Windows, copy/paste the `isobenefit_qgis` folder into
 `%APPDATA%/QGIS/QGIS3/profiles/default/python/plugins`. Restart QGIS after linking.
 
 ### CI
@@ -87,10 +87,10 @@ and (on a `core-v*` tag) publishes the engine to PyPI via trusted publishing.
 
 ## Packaging the plugin
 
-The plugin zip is the `isobenefit/` folder only (never `core/`):
+The plugin zip is the `isobenefit_qgis/` folder only (never `core/`):
 
 ```bash
-zip -r isobenefit.zip isobenefit -x '*/__pycache__/*' '*.pyc'
+zip -r isobenefit_qgis.zip isobenefit_qgis -x '*/__pycache__/*' '*.pyc'
 ```
 
 ## Licensing

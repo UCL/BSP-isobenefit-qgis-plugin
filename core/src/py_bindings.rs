@@ -1,4 +1,4 @@
-//! PyO3 bindings: the `isobenefit_core._core` extension module.
+//! PyO3 bindings: the `isobenefit._core` extension module.
 //!
 //! Only compiled with `--features python` (maturin). Exposes the [`Simulation`]
 //! state machine and the parallel `run_ensemble`, marshalling numpy arrays in and

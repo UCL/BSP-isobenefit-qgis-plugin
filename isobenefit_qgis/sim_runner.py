@@ -1,7 +1,7 @@
 """QgsTask wrapper that drives the Rust simulation core.
 
 Reads the input layers via :mod:`gis_io` (reprojecting to the target CRS),
-constructs an ``isobenefit_core.Simulation``, runs it iteration-by-iteration with
+constructs an ``isobenefit.Simulation``, runs it iteration-by-iteration with
 QGIS progress/cancellation, writes a categorical GeoTIFF per step, and — on the
 main thread in ``finished()`` — loads them as a temporal animation.
 """
@@ -91,7 +91,7 @@ class IsobenefitTask(QgsTask):
 
     def run(self) -> bool:
         try:
-            import isobenefit_core
+            import isobenefit
         except Exception as exc:  # core not importable for some reason
             self.error_message = f"Could not import the simulation engine: {exc}"
             return False
@@ -124,7 +124,7 @@ class IsobenefitTask(QgsTask):
                 seeds = gis_io.point_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
 
             self.per_block = self._per_block()
-            sim = isobenefit_core.Simulation(
+            sim = isobenefit.Simulation(
                 state,
                 origin,
                 density,

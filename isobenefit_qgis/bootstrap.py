@@ -1,11 +1,11 @@
 """Runtime dependency bootstrap for the Isobenefit simulation core.
 
 The QGIS plugin repository does not allow shipping binaries, so the compiled Rust
-core (``isobenefit-core``) cannot live in the plugin zip. Instead, on use, the
+core (``isobenefit``) cannot live in the plugin zip. Instead, on use, the
 plugin checks whether the core is importable and version-compatible and, if not,
 offers to ``pip install`` it into the QGIS Python environment.
 
-This module must stay import-safe: it never imports ``isobenefit_core`` at module
+This module must stay import-safe: it never imports ``isobenefit`` at module
 load (the real import happens lazily in ``sim_runner``), so the plugin always
 loads in QGIS even when the core is absent.
 """
@@ -20,11 +20,11 @@ import sys
 
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
-CORE_IMPORT = "isobenefit_core"
-CORE_PACKAGE = "isobenefit-core"
+CORE_IMPORT = "isobenefit"
+CORE_PACKAGE = "isobenefit"
 MIN_VERSION = (0, 1, 0)
 MAX_VERSION_EXCLUSIVE = (0, 2, 0)
-PIP_SPEC = "isobenefit-core>=0.1,<0.2"
+PIP_SPEC = "isobenefit>=0.1,<0.2"
 
 
 def _parse_version(version: str) -> tuple[int, int, int]:

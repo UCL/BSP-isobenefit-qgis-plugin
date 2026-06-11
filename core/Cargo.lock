@@ -72,7 +72,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "isobenefit_core"
+name = "isobenefit"
 version = "0.1.0"
 dependencies = [
  "ndarray",

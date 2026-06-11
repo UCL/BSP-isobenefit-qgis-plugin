@@ -1,4 +1,4 @@
-# isobenefit-core
+# isobenefit
 
 The Rust simulation core for the [Isobenefit Urbanism QGIS plugin](https://github.com/UCL/BSP-isobenefit-qgis-plugin).
 

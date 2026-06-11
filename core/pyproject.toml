@@ -3,7 +3,7 @@ requires = ["maturin>=1.5,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "isobenefit-core"
+name = "isobenefit"
 description = "Rust simulation core for Isobenefit Urbanism (arrays-in / arrays-out)."
 readme = "README.md"
 license = { text = "AGPL-3.0-or-later" }
@@ -22,6 +22,6 @@ repository = "https://github.com/UCL/BSP-isobenefit-qgis-plugin"
 
 [tool.maturin]
 python-source = "python"
-module-name = "isobenefit_core._core"
+module-name = "isobenefit._core"
 features = ["python"]
 # abi3 wheel: one wheel per platform across Python >=3.9
