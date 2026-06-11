@@ -138,19 +138,29 @@ def classify(state, origin, density, per_block):
     return cls
 
 
-def write_class_raster(path, cls_arr, geotransform, target_crs):
-    """Write a single-band Byte GeoTIFF of class codes (with nodata)."""
-    rows, cols = cls_arr.shape
+def write_temporal_class_raster(path, frames, geotransform, target_crs):
+    """Write one multi-band Byte GeoTIFF; band ``i+1`` holds step ``i``'s class codes.
+
+    A single file (rather than one raster per step) keeps the output tidy and is
+    loaded as a temporal raster via ``FixedRangePerBand``. ``frames`` is a list of
+    equal-shape uint8 arrays, one per simulation step.
+    """
+    if not frames:
+        raise ValueError("no frames to write")
+    rows, cols = frames[0].shape
     srs = _srs_from_crs(target_crs)
     ds = gdal.GetDriverByName("GTiff").Create(
-        path, cols, rows, 1, gdal.GDT_Byte, options=["COMPRESS=DEFLATE", "TILED=YES"]
+        path, cols, rows, len(frames), gdal.GDT_Byte, options=["COMPRESS=DEFLATE", "TILED=YES"]
     )
     ds.SetGeoTransform(geotransform)
     ds.SetProjection(srs.ExportToWkt())
-    band = ds.GetRasterBand(1)
-    band.WriteArray(cls_arr.astype(np.uint8))
-    band.SetNoDataValue(NODATA)
-    band.FlushCache()
+    for i, frame in enumerate(frames, start=1):
+        band = ds.GetRasterBand(i)
+        band.WriteArray(frame.astype(np.uint8))
+        band.SetNoDataValue(NODATA)
+        band.SetDescription(f"step {i - 1}")
+    ds.FlushCache()
+    ds = None
 
 
 def apply_palette(rast_layer):
