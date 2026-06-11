@@ -163,8 +163,16 @@ class IsobenefitTask(QgsTask):
             )
             self._log(
                 f"Starting population {int(sim.population)} "
-                f"({sim.pop_target_ratio:.0%} of the {self.max_populat:.0f} target). Running…"
+                f"({sim.pop_target_ratio:.0%} of the {self.max_populat:.0f} target)."
             )
+            if sim.pop_target_ratio >= 1.0:
+                self.error_message = (
+                    f"The existing built area already holds {int(sim.population)} people — "
+                    f"{sim.pop_target_ratio:.0%} of the {self.max_populat:.0f} target, so there is nothing "
+                    "to simulate. Raise the target population (or lower the built density) and rerun."
+                )
+                return False
+            self._log("Running…")
             self.frames.append(self._frame(sim))  # step 0 (initial state)
             for i in range(self.total_iters):
                 if self.isCanceled():
