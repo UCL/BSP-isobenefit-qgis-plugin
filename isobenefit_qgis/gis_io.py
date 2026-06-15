@@ -140,10 +140,13 @@ def apply_palette(rast_layer):
 
 # Per-class probability ramps: transparent at 0 -> the class hue at 1, matching
 # the recommended-plan palette (green / yellow-brown / red).
+# Alpha tracks the probability (transparent at 0 -> ~47% at 0.5 -> opaque at 1) so
+# stacked likelihood layers composite — where one class fades out the next shows
+# through. Hue also darkens with the value for single-layer readability.
 PROB_RAMPS = {
-    "built": [(0.0, (255, 255, 255, 0)), (0.5, (221, 184, 120, 210)), (1.0, (170, 120, 60, 255))],
-    "green": [(0.0, (255, 255, 255, 0)), (0.5, (148, 201, 122, 210)), (1.0, (54, 109, 35, 255))],
-    "centre": [(0.0, (255, 255, 255, 0)), (0.5, (252, 146, 114, 210)), (1.0, (200, 30, 30, 255))],
+    "built": [(0.0, (224, 196, 140, 0)), (0.5, (196, 150, 92, 120)), (1.0, (150, 100, 45, 255))],
+    "green": [(0.0, (160, 205, 130, 0)), (0.5, (96, 160, 78, 120)), (1.0, (40, 100, 30, 255))],
+    "centre": [(0.0, (250, 150, 120, 0)), (0.5, (228, 90, 70, 120)), (1.0, (190, 20, 25, 255))],
 }
 
 
