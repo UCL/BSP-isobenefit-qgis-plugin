@@ -32,9 +32,7 @@ def prepare_grid(extents_layer, target_crs, granularity_m):
     """
     xform = QgsCoordinateTransform(extents_layer.crs(), target_crs, QgsProject.instance())
     bbox = xform.transformBoundingBox(extents_layer.extent())
-    return align_bounds(
-        bbox.xMinimum(), bbox.yMinimum(), bbox.xMaximum(), bbox.yMaximum(), float(granularity_m)
-    )
+    return align_bounds(bbox.xMinimum(), bbox.yMinimum(), bbox.xMaximum(), bbox.yMaximum(), float(granularity_m))
 
 
 def _srs_from_crs(target_crs) -> "osr.SpatialReference":
@@ -135,10 +133,7 @@ def write_probability_bands(path, bands, names, geotransform, target_crs):
 
 def apply_palette(rast_layer):
     """Apply the categorical colour palette to a loaded raster layer."""
-    classes = [
-        QgsPalettedRasterRenderer.Class(value, QColor(r, g, b), label)
-        for value, (r, g, b), label in PALETTE
-    ]
+    classes = [QgsPalettedRasterRenderer.Class(value, QColor(r, g, b), label) for value, (r, g, b), label in PALETTE]
     renderer = QgsPalettedRasterRenderer(rast_layer.dataProvider(), 1, classes)
     rast_layer.setRenderer(renderer)
 

@@ -33,9 +33,7 @@ PALETTE = [
 ]
 
 
-def align_bounds(
-    x_min: float, y_min: float, x_max: float, y_max: float, granularity_m: float
-):
+def align_bounds(x_min: float, y_min: float, x_max: float, y_max: float, granularity_m: float):
     """Snap a bounding box out to whole cells and return the grid geometry.
 
     Returns ``(rows, cols, geotransform, (x_min, y_min, x_max, y_max))`` where the

@@ -16,11 +16,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import isobenefit
 import numpy as np
 import pytest
 import shapely
 
-import isobenefit
 from isobenefit_qgis.grid import EXIST_BUILT, NATURE, NODATA, align_bounds, classify
 
 DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
@@ -94,11 +94,23 @@ def grid():
 
 def _make(grid, total_iters=50, seed=42):
     return isobenefit.Simulation(
-        grid["state"], grid["origin"], grid["density"], grid["seeds"],
-        GRAN, 800.0, 10_000_000.0, 100.0,
-        0.25, 0.05, 0.0, 0.8,
-        (0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0), 2000.0,
-        total_iters, seed,
+        grid["state"],
+        grid["origin"],
+        grid["density"],
+        grid["seeds"],
+        GRAN,
+        800.0,
+        10_000_000.0,
+        100.0,
+        0.25,
+        0.05,
+        0.0,
+        0.8,
+        (0.4, 0.4, 0.2),
+        (6000.0, 3000.0, 1000.0),
+        2000.0,
+        total_iters,
+        seed,
     )
 
 

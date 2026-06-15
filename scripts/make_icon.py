@@ -34,9 +34,7 @@ def main() -> None:
     # rounded-square mask
     pad = int(S * 0.05)
     mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        [pad, pad, S - pad, S - pad], radius=int(S * 0.20), fill=255
-    )
+    ImageDraw.Draw(mask).rounded_rectangle([pad, pad, S - pad, S - pad], radius=int(S * 0.20), fill=255)
     tile = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     tile.paste(base, (0, 0), mask)
 
@@ -53,15 +51,11 @@ def main() -> None:
     for ang in (35, 125, 215, 305):
         bx = cx + int(ring * math.cos(math.radians(ang)))
         by = cy + int(ring * math.sin(math.radians(ang)))
-        draw.rounded_rectangle(
-            [bx - blk, by - blk, bx + blk, by + blk], radius=int(blk * 0.3), fill=ORANGE
-        )
+        draw.rounded_rectangle([bx - blk, by - blk, bx + blk, by + blk], radius=int(blk * 0.3), fill=ORANGE)
 
     # central centrality node
     nr = int(S * 0.115)
-    draw.ellipse(
-        [cx - nr, cy - nr, cx + nr, cy + nr], fill=WHITE, outline=ORANGE, width=int(S * 0.026)
-    )
+    draw.ellipse([cx - nr, cy - nr, cx + nr, cy + nr], fill=WHITE, outline=ORANGE, width=int(S * 0.026))
 
     tile.resize((128, 128), Image.LANCZOS).save(OUT)
     print(f"wrote {OUT}")

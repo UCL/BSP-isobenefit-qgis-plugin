@@ -8,10 +8,10 @@ plugin, not here.
 
 from ._core import (
     Simulation,
+    __version__,
     ensemble_class_counts,
     ensemble_probability,
     run_ensemble,
-    __version__,
 )
 
 __all__ = [

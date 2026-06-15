@@ -18,10 +18,9 @@ import os
 import time
 from pathlib import Path
 
+import isobenefit
 import numpy as np
 import shapely
-
-import isobenefit
 
 DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
 GRAN = 100.0
@@ -78,11 +77,23 @@ def main() -> None:
 
     def make():
         return isobenefit.Simulation(
-            state, origin, density, seeds,
-            GRAN, 800.0, MAX_POPULAT, 100.0,
-            0.25, 0.05, 0.0, 0.8,
-            (0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0), 2000.0,
-            TOTAL_ITERS, 42,
+            state,
+            origin,
+            density,
+            seeds,
+            GRAN,
+            800.0,
+            MAX_POPULAT,
+            100.0,
+            0.25,
+            0.05,
+            0.0,
+            0.8,
+            (0.4, 0.4, 0.2),
+            (6000.0, 3000.0, 1000.0),
+            2000.0,
+            TOTAL_ITERS,
+            42,
         )
 
     cores = os.cpu_count() or 1
@@ -101,8 +112,7 @@ def main() -> None:
     prob = isobenefit.ensemble_probability(template, 2024, n)
     ens = time.time() - t
     print(
-        f"ensemble of {n}: {ens:.2f}s wall  "
-        f"(serial-equivalent ~{single * n:.1f}s -> {single * n / ens:.1f}x speedup)"
+        f"ensemble of {n}: {ens:.2f}s wall  (serial-equivalent ~{single * n:.1f}s -> {single * n / ens:.1f}x speedup)"
     )
     print(f"probability grid: min {prob.min():.2f}, max {prob.max():.2f}, mean {prob.mean():.3f}")
 

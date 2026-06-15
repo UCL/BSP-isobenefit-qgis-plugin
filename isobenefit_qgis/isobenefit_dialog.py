@@ -1,4 +1,5 @@
 """ """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -125,7 +126,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.right_col.addWidget(self.cent_prob_isol, 2, 1)
         # centrality permitted threshold
         self.pop_target_cent_threshold_label = QtWidgets.QLabel("Pop threshold for centres", self)
-        self.right_col.addWidget(self.pop_target_cent_threshold_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.right_col.addWidget(
+            self.pop_target_cent_threshold_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight
+        )
         self.pop_target_cent_threshold = QtWidgets.QLineEdit("0.8", self)
         self.right_col.addWidget(self.pop_target_cent_threshold, 3, 1)
         # random seed
@@ -136,7 +139,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
         # spacer
         self.grid.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
+            QtWidgets.QSpacerItem(
+                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
+            ),
             2,
             0,
             1,
@@ -183,7 +188,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
         # spacer
         self.grid.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
+            QtWidgets.QSpacerItem(
+                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
+            ),
             4,
             0,
             1,
@@ -206,7 +213,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.inputs_outputs_block.addWidget(self.file_path_feedback, 2, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
+            QtWidgets.QSpacerItem(
+                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
+            ),
             3,
             0,
             1,
@@ -226,7 +235,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.inputs_outputs_block.addWidget(self.extents_layer_feedback, 6, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
+            QtWidgets.QSpacerItem(
+                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
+            ),
             7,
             0,
             1,
@@ -271,7 +282,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.inputs_outputs_block.addWidget(self.centre_seeds_layer_box, 15, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
+            QtWidgets.QSpacerItem(
+                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
+            ),
             16,
             0,
             1,
@@ -295,7 +308,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.inputs_outputs_block.addWidget(self.crs_selection, 19, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed),
+            QtWidgets.QSpacerItem(
+                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
+            ),
             20,
             0,
             1,

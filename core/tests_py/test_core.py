@@ -7,10 +7,9 @@ stepping/running, snapshots, determinism, ensemble runs, and input validation.
 
 from __future__ import annotations
 
+import isobenefit
 import numpy as np
 import pytest
-
-import isobenefit
 from isobenefit import Simulation, ensemble_class_counts, ensemble_probability, run_ensemble
 
 
@@ -127,9 +126,21 @@ def test_bad_prob_distribution_raises() -> None:
     density = np.zeros((grid, grid), dtype=np.float32)
     with pytest.raises(ValueError):
         Simulation(
-            state, origin, density, [(5, 5)],
-            100.0, 600.0, 1_000_000.0, 100.0,
-            0.6, 0.1, 0.0, 0.8,
+            state,
+            origin,
+            density,
+            [(5, 5)],
+            100.0,
+            600.0,
+            1_000_000.0,
+            100.0,
+            0.6,
+            0.1,
+            0.0,
+            0.8,
             (0.5, 0.4, 0.2),  # sums to 1.1 -> invalid
-            (6000.0, 3000.0, 1000.0), 2000.0, 5, 0,
+            (6000.0, 3000.0, 1000.0),
+            2000.0,
+            5,
+            0,
         )

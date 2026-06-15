@@ -194,9 +194,7 @@ class IsobenefitTask(QgsTask):
                         return False
                     members = min(batch, n - done)
                     # distinct, reproducible seed per batch so members never repeat
-                    b, g, c = isobenefit.ensemble_class_counts(
-                        sim, self.random_seed + batch_idx, members
-                    )
+                    b, g, c = isobenefit.ensemble_class_counts(sim, self.random_seed + batch_idx, members)
                     built = b if built is None else built + b
                     green = g if green is None else green + g
                     centre = c if centre is None else centre + c
@@ -268,9 +266,7 @@ class IsobenefitTask(QgsTask):
                 gis_io.apply_probability_style(lyr, band)
                 QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                 group.addLayer(lyr)
-            self._log(
-                f"Loaded built / green / centre likelihood for '{self.out_file_name}'.", notify=True
-            )
+            self._log(f"Loaded built / green / centre likelihood for '{self.out_file_name}'.", notify=True)
             return
 
         layer = QgsRasterLayer(self.out_path, self.out_file_name, "gdal")

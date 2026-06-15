@@ -71,15 +71,19 @@ def _python_executable() -> str:
     which would otherwise try to open the pip arguments as data sources.
     """
     base = getattr(sys, "_base_executable", "") or ""
-    names = ["python.exe", "python3.exe"] if os.name == "nt" else [
-        "python3",
-        "python3.13",
-        "python3.12",
-        "python3.11",
-        "python3.10",
-        "python3.9",
-        "python",
-    ]
+    names = (
+        ["python.exe", "python3.exe"]
+        if os.name == "nt"
+        else [
+            "python3",
+            "python3.13",
+            "python3.12",
+            "python3.11",
+            "python3.10",
+            "python3.9",
+            "python",
+        ]
+    )
     candidates: list[str] = [base, sys.executable or ""]
     for ref in (base, sys.executable or ""):
         ref_dir = os.path.dirname(ref)
