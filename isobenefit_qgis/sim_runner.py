@@ -178,11 +178,34 @@ class IsobenefitTask(QgsTask):
                 return False
 
             if self.is_ensemble:
-                cores = os.cpu_count() or 1
-                self._log(
-                    f"Running an ensemble of {self.n_ensemble} simulations across {cores} cores…"
-                )
-                prob = isobenefit.ensemble_probability(sim, self.random_seed, self.n_ensemble)
+                cores = os.cpu_count() or 4
+                n = self.n_ensemble
+                batch = max(1, cores)  # ~one run per core keeps all cores busy
+                self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
+                # Blend in batches so we can drive the progress bar and allow
+                # cancellation. Each batch returns a mean over its members; we
+                # weight by batch size to recover the overall mean.
+                weighted_sum = None
+                done = 0
+                batch_idx = 0
+                while done < n:
+                    if self.isCanceled():
+                        self._log("Simulation cancelled by user.", Qgis.MessageLevel.Warning)
+                        return False
+                    members = min(batch, n - done)
+                    # distinct, reproducible seed per batch so members never repeat
+                    batch_prob = isobenefit.ensemble_probability(
+                        sim, self.random_seed + batch_idx, members
+                    )
+                    contribution = batch_prob.astype(np.float64) * members
+                    weighted_sum = (
+                        contribution if weighted_sum is None else weighted_sum + contribution
+                    )
+                    done += members
+                    batch_idx += 1
+                    self.setProgress(done / n * 100.0)
+                    self._log(f"ensemble: {done}/{n} runs blended")
+                prob = (weighted_sum / n).astype(np.float32)
                 gis_io.write_float_raster(self.out_path, prob, geotransform, self.target_crs)
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
