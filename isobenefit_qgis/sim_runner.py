@@ -9,6 +9,7 @@ GeoTIFF** (one band per step) loaded as a temporal animation (``FixedRangePerBan
 
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -58,6 +59,7 @@ class IsobenefitTask(QgsTask):
         prob_distribution,
         density_factors,
         random_seed,
+        n_ensemble=1,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -82,6 +84,8 @@ class IsobenefitTask(QgsTask):
         self.prob_distribution = tuple(float(p) for p in prob_distribution)
         self.density_factors = tuple(float(d) for d in density_factors)
         self.random_seed = int(random_seed)
+        self.n_ensemble = int(n_ensemble)
+        self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
         self.per_block = None
@@ -172,6 +176,20 @@ class IsobenefitTask(QgsTask):
                     "to simulate. Raise the target population (or lower the built density) and rerun."
                 )
                 return False
+
+            if self.is_ensemble:
+                cores = os.cpu_count() or 1
+                self._log(
+                    f"Running an ensemble of {self.n_ensemble} simulations across {cores} cores…"
+                )
+                prob = isobenefit.ensemble_probability(sim, self.random_seed, self.n_ensemble)
+                gis_io.write_float_raster(self.out_path, prob, geotransform, self.target_crs)
+                self._log(
+                    f"Ensemble finished in {time.time() - t_zero:.0f}s; "
+                    f"wrote probability-of-development raster: {self.out_path}"
+                )
+                return True
+
             self._log("Running…")
             self.frames.append(self._frame(sim))  # step 0 (initial state)
             for i in range(self.total_iters):
@@ -215,6 +233,12 @@ class IsobenefitTask(QgsTask):
             self._log(f"Output raster is not valid: {self.out_path}", Qgis.MessageLevel.Critical, notify=True)
             return
         layer.setCrs(self.target_crs)
+        if self.is_ensemble:
+            gis_io.apply_probability_style(layer)
+            QgsProject.instance().addMapLayer(layer)
+            self._log(f"Loaded probability-of-development map '{self.out_file_name}'.", notify=True)
+            return
+
         gis_io.apply_palette(layer)
 
         # Each band is one yearly step; FixedRangePerBand animates through the bands.

@@ -22,9 +22,9 @@ from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 CORE_IMPORT = "isobenefit"
 CORE_PACKAGE = "isobenefit"
-MIN_VERSION = (0, 1, 0)
-MAX_VERSION_EXCLUSIVE = (0, 2, 0)
-PIP_SPEC = "isobenefit>=0.1,<0.2"
+MIN_VERSION = (0, 2, 0)
+MAX_VERSION_EXCLUSIVE = (0, 3, 0)
+PIP_SPEC = "isobenefit>=0.2,<0.3"
 
 
 def _parse_version(version: str) -> tuple[int, int, int]:

@@ -202,6 +202,7 @@ class Isobenefit:
                 float(self.dlg.low_density.text()),
             ),
             random_seed=int(self.dlg.random_seed.text()),
+            n_ensemble=int(self.dlg.n_ensemble.text()),
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)

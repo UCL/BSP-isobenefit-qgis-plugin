@@ -1,62 +1,40 @@
-"""GIS IO for the Isobenefit plugin.
+"""GIS IO for the Isobenefit plugin (QGIS + GDAL only; no rasterio/shapely).
 
-All coordinate-reference-system handling, rasterization and raster writing lives
-here, using only QGIS-bundled libraries (numpy + GDAL/OGR/OSR) — no rasterio or
-shapely. Crucially, every input layer is **reprojected to the target CRS** before
-rasterization (the previous implementation did not, which silently misplaced any
-layer whose CRS differed from the chosen one).
-
-The simulation core never sees any of this: it receives plain numpy arrays.
+The pure, QGIS-free logic (class codes, ``classify``, grid maths) lives in
+``grid.py`` so it can be unit-tested in a plain venv. This module holds the
+QGIS/GDAL-coupled parts: reading layers, **reprojection to the target CRS** before
+rasterization (the previous implementation skipped this, silently misplacing any
+layer whose CRS differed from the chosen one), raster writing, and renderers.
 """
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 from osgeo import gdal, ogr, osr
-from qgis.core import QgsCoordinateTransform, QgsGeometry, QgsPalettedRasterRenderer, QgsProject
+from qgis.core import (
+    QgsColorRampShader,
+    QgsCoordinateTransform,
+    QgsGeometry,
+    QgsPalettedRasterRenderer,
+    QgsProject,
+    QgsRasterShader,
+    QgsSingleBandPseudoColorRenderer,
+)
 from qgis.PyQt.QtGui import QColor
 
-# Categorical class codes for the output raster.
-NODATA = 255
-NATURE = 0
-NEW_LOW = 1
-NEW_MED = 2
-NEW_HIGH = 3
-CENTRE = 4
-EXIST_BUILT = 5
-FIXED_GREEN = 6
-
-# (class code, (r, g, b), legend label) — palette echoes the original NetLogo scheme.
-_PALETTE = [
-    (NATURE, (89, 176, 60), "Nature / green"),
-    (NEW_LOW, (200, 136, 68), "New built — low density"),
-    (NEW_MED, (197, 86, 17), "New built — medium density"),
-    (NEW_HIGH, (101, 44, 7), "New built — high density"),
-    (CENTRE, (255, 255, 255), "Centrality"),
-    (EXIST_BUILT, (114, 114, 114), "Existing built"),
-    (FIXED_GREEN, (54, 109, 35), "Existing green / park"),
-]
+from .grid import NODATA, PALETTE, align_bounds, classify  # noqa: F401  (re-exported)
 
 
 def prepare_grid(extents_layer, target_crs, granularity_m):
-    """Compute the simulation grid for the extents, padded to the granularity.
+    """Compute the simulation grid for the extents, reprojected to the target CRS.
 
-    Returns ``(rows, cols, geotransform, bounds)`` with the bounds and transform
-    expressed in the target CRS. ``bounds`` is ``(x_min, y_min, x_max, y_max)``.
+    Returns ``(rows, cols, geotransform, bounds)``.
     """
     xform = QgsCoordinateTransform(extents_layer.crs(), target_crs, QgsProject.instance())
     bbox = xform.transformBoundingBox(extents_layer.extent())
-    g = float(granularity_m)
-    x_min = math.floor(bbox.xMinimum() / g) * g
-    y_min = math.floor(bbox.yMinimum() / g) * g
-    x_max = math.ceil(bbox.xMaximum() / g) * g
-    y_max = math.ceil(bbox.yMaximum() / g) * g
-    cols = int(round((x_max - x_min) / g))
-    rows = int(round((y_max - y_min) / g))
-    geotransform = (x_min, g, 0.0, y_max, 0.0, -g)
-    return rows, cols, geotransform, (x_min, y_min, x_max, y_max)
+    return align_bounds(
+        bbox.xMinimum(), bbox.yMinimum(), bbox.xMaximum(), bbox.yMaximum(), float(granularity_m)
+    )
 
 
 def _srs_from_crs(target_crs) -> "osr.SpatialReference":
@@ -68,8 +46,8 @@ def _srs_from_crs(target_crs) -> "osr.SpatialReference":
 def burn_layer(arr, layer, target_crs, geotransform, burn_value):
     """Reproject ``layer`` to the target CRS and burn ``burn_value`` into ``arr``.
 
-    Returns a new int16 array; the input is not mutated. Reprojection is the fix
-    for the long-standing CRS bug — geometries are transformed before rasterizing.
+    Returns a new int16 array; the input is not mutated. Geometries are transformed
+    before rasterizing (the fix for the long-standing CRS bug).
     """
     rows, cols = arr.shape
     srs = _srs_from_crs(target_crs)
@@ -118,33 +96,8 @@ def point_cells(layer, target_crs, geotransform, rows, cols):
     return seeds
 
 
-def classify(state, origin, density, per_block):
-    """Map the simulation arrays to a uint8 categorical raster (see class codes).
-
-    ``per_block`` is ``(high, med, low)`` persons-per-block; built cells carry one
-    of these exact values, so density tiers can be matched directly.
-    """
-    high_pb, med_pb, low_pb = per_block
-    cls = np.full(state.shape, NODATA, dtype=np.uint8)
-    cls[state == 0] = NATURE
-    built = state == 1
-    cls[built & np.isclose(density, low_pb)] = NEW_LOW
-    cls[built & np.isclose(density, med_pb)] = NEW_MED
-    cls[built & np.isclose(density, high_pb)] = NEW_HIGH
-    cls[state == 2] = CENTRE
-    # existing (origin) features take visual precedence
-    cls[origin == 1] = EXIST_BUILT
-    cls[origin == 0] = FIXED_GREEN
-    return cls
-
-
 def write_temporal_class_raster(path, frames, geotransform, target_crs):
-    """Write one multi-band Byte GeoTIFF; band ``i+1`` holds step ``i``'s class codes.
-
-    A single file (rather than one raster per step) keeps the output tidy and is
-    loaded as a temporal raster via ``FixedRangePerBand``. ``frames`` is a list of
-    equal-shape uint8 arrays, one per simulation step.
-    """
+    """Write one multi-band Byte GeoTIFF; band ``i+1`` holds step ``i``'s class codes."""
     if not frames:
         raise ValueError("no frames to write")
     rows, cols = frames[0].shape
@@ -163,11 +116,44 @@ def write_temporal_class_raster(path, frames, geotransform, target_crs):
     ds = None
 
 
+def write_float_raster(path, arr, geotransform, target_crs):
+    """Write a single-band Float32 GeoTIFF (used for the ensemble probability map)."""
+    rows, cols = arr.shape
+    srs = _srs_from_crs(target_crs)
+    ds = gdal.GetDriverByName("GTiff").Create(
+        path, cols, rows, 1, gdal.GDT_Float32, options=["COMPRESS=DEFLATE", "TILED=YES"]
+    )
+    ds.SetGeoTransform(geotransform)
+    ds.SetProjection(srs.ExportToWkt())
+    ds.GetRasterBand(1).WriteArray(arr.astype(np.float32))
+    ds.FlushCache()
+    ds = None
+
+
 def apply_palette(rast_layer):
     """Apply the categorical colour palette to a loaded raster layer."""
     classes = [
         QgsPalettedRasterRenderer.Class(value, QColor(r, g, b), label)
-        for value, (r, g, b), label in _PALETTE
+        for value, (r, g, b), label in PALETTE
     ]
     renderer = QgsPalettedRasterRenderer(rast_layer.dataProvider(), 1, classes)
+    rast_layer.setRenderer(renderer)
+
+
+def apply_probability_style(rast_layer):
+    """Apply a 0–1 graduated colour ramp for the ensemble probability map."""
+    ramp = QgsColorRampShader(0.0, 1.0)
+    ramp.setColorRampType(QgsColorRampShader.Type.Interpolated)
+    ramp.setColorRampItemList(
+        [
+            QgsColorRampShader.ColorRampItem(0.0, QColor(255, 255, 255, 0), "0.0"),
+            QgsColorRampShader.ColorRampItem(0.25, QColor(254, 224, 144), "0.25"),
+            QgsColorRampShader.ColorRampItem(0.5, QColor(252, 141, 89), "0.5"),
+            QgsColorRampShader.ColorRampItem(0.75, QColor(215, 48, 39), "0.75"),
+            QgsColorRampShader.ColorRampItem(1.0, QColor(165, 0, 38), "1.0"),
+        ]
+    )
+    shader = QgsRasterShader()
+    shader.setRasterShaderFunction(ramp)
+    renderer = QgsSingleBandPseudoColorRenderer(rast_layer.dataProvider(), 1, shader)
     rast_layer.setRenderer(renderer)

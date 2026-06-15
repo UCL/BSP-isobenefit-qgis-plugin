@@ -11,7 +11,7 @@ qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
 description=Isobenefit Urbanism plugin for QGIS.
-version=0.4
+version=0.5
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
