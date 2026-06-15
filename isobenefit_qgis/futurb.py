@@ -171,6 +171,12 @@ class Isobenefit:
             return
         # build and queue the background task (the core is array-in / array-out;
         # all GIS IO is handled inside the task via gis_io)
+        # the likelihood map runs an automatically-sized ensemble (~2 per CPU core);
+        # the growth animation is a single run.
+        if self.dlg.output_mode.currentData() == "probability":
+            n_ensemble = max(8, 2 * (os.cpu_count() or 4))
+        else:
+            n_ensemble = 1
         task = sim_runner.IsobenefitTask(
             iface=self.iface,
             out_dir_path=self.dlg.out_dir_path,
@@ -202,7 +208,7 @@ class Isobenefit:
                 float(self.dlg.low_density.text()),
             ),
             random_seed=int(self.dlg.random_seed.text()),
-            n_ensemble=int(self.dlg.n_ensemble.text()),
+            n_ensemble=n_ensemble,
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)

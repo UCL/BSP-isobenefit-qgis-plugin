@@ -86,11 +86,13 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.left_col.addWidget(self.min_green_span_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.min_green_span = QtWidgets.QLineEdit("800", self)
         self.left_col.addWidget(self.min_green_span, 4, 1)
-        # ensemble runs: 1 = single temporal run; >1 = parallel probability map
-        self.n_ensemble_label = QtWidgets.QLabel("Ensemble runs (1 = single)", self)
-        self.left_col.addWidget(self.n_ensemble_label, 5, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.n_ensemble = QtWidgets.QLineEdit("1", self)
-        self.left_col.addWidget(self.n_ensemble, 5, 1)
+        # output type — plain language; the number of runs is chosen automatically
+        self.output_label = QtWidgets.QLabel("Output", self)
+        self.left_col.addWidget(self.output_label, 5, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.output_mode = QtWidgets.QComboBox(self)
+        self.output_mode.addItem("Development likelihood (recommended)", "probability")
+        self.output_mode.addItem("Growth animation (single run)", "animation")
+        self.left_col.addWidget(self.output_mode, 5, 1)
 
         # right column container
         self.right_col = QtWidgets.QGridLayout(self)
