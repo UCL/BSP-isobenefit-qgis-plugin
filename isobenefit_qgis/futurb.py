@@ -171,12 +171,9 @@ class Isobenefit:
             return
         # build and queue the background task (the core is array-in / array-out;
         # all GIS IO is handled inside the task via gis_io)
-        # the likelihood map runs an automatically-sized ensemble (~2 per CPU core);
-        # the growth animation is a single run.
-        if self.dlg.output_mode.currentData() == "probability":
-            n_ensemble = max(8, 2 * (os.cpu_count() or 4))
-        else:
-            n_ensemble = 1
+        # likelihood map blends N runs (chosen by the Detail picker); a single run
+        # gives the growth animation. N sets statistical precision; cores set speed.
+        n_ensemble = self.dlg.detail_mode.currentData() if self.dlg.ensemble_check.isChecked() else 1
         task = sim_runner.IsobenefitTask(
             iface=self.iface,
             out_dir_path=self.dlg.out_dir_path,

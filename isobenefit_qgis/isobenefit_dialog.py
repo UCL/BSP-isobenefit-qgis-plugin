@@ -86,13 +86,24 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.left_col.addWidget(self.min_green_span_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.min_green_span = QtWidgets.QLineEdit("800", self)
         self.left_col.addWidget(self.min_green_span, 4, 1)
-        # output type — plain language; the number of runs is chosen automatically
-        self.output_label = QtWidgets.QLabel("Output", self)
-        self.left_col.addWidget(self.output_label, 5, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.output_mode = QtWidgets.QComboBox(self)
-        self.output_mode.addItem("Development likelihood (recommended)", "probability")
-        self.output_mode.addItem("Growth animation (single run)", "animation")
-        self.left_col.addWidget(self.output_mode, 5, 1)
+        # ensemble likelihood map (on) vs a single growth animation (off)
+        self.ensemble_check = QtWidgets.QCheckBox("Development likelihood (blend many runs)", self)
+        self.ensemble_check.setChecked(True)
+        self.ensemble_check.setToolTip(
+            "On: blend many simulations into a probability-of-development map.\n"
+            "Off: a single growth animation over time."
+        )
+        self.left_col.addWidget(self.ensemble_check, 5, 0, 1, 2)
+        # detail = how many simulations to blend (precision vs time; noise ~ 1/sqrt(runs))
+        self.detail_label = QtWidgets.QLabel("Detail", self)
+        self.left_col.addWidget(self.detail_label, 6, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.detail_mode = QtWidgets.QComboBox(self)
+        self.detail_mode.addItem("Quick (25 runs)", 25)
+        self.detail_mode.addItem("Standard (100 runs)", 100)
+        self.detail_mode.addItem("Thorough (400 runs)", 400)
+        self.detail_mode.setCurrentIndex(1)
+        self.left_col.addWidget(self.detail_mode, 6, 1)
+        self.ensemble_check.toggled.connect(self.detail_mode.setEnabled)
 
         # right column container
         self.right_col = QtWidgets.QGridLayout(self)
