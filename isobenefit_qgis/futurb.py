@@ -9,7 +9,7 @@ from qgis.core import Qgis, QgsApplication, QgsMessageLog
 from qgis.gui import QgisInterface
 from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QToolBar, QWidget
+from qgis.PyQt.QtWidgets import QAction, QMessageBox, QToolBar, QWidget
 
 from . import bootstrap, sim_runner
 from .isobenefit_dialog import IsobenefitDialog  # Import the code for the dialog
@@ -169,10 +169,40 @@ class Isobenefit:
         # ensure the Rust simulation core is installed and compatible
         if not bootstrap.ensure_core(self.iface.mainWindow()):
             return
+        # collect + validate the numeric parameters (a friendly message, not a traceback)
+        try:
+            total_iters = int(self.dlg.n_iterations.text())
+            granularity_m = int(self.dlg.grid_size_m.text())
+            max_distance_m = int(self.dlg.walk_dist.text())
+            max_populat = int(self.dlg.max_populat.text())
+            exist_built_density = int(self.dlg.built_density.text())
+            min_green_span = int(self.dlg.min_green_span.text())
+            random_seed = int(self.dlg.random_seed.text())
+            build_prob = float(self.dlg.build_prob.text())
+            cent_prob_nb = float(self.dlg.cent_prob_nb.text())
+            cent_prob_isol = float(self.dlg.cent_prob_isol.text())
+            pop_target_cent_threshold = float(self.dlg.pop_target_cent_threshold.text())
+            prob_distribution = (
+                float(self.dlg.high_density_prob.text()),
+                float(self.dlg.med_density_prob.text()),
+                float(self.dlg.low_density_prob.text()),
+            )
+            density_factors = (
+                float(self.dlg.high_density.text()),
+                float(self.dlg.med_density.text()),
+                float(self.dlg.low_density.text()),
+            )
+        except ValueError:
+            QMessageBox.warning(
+                self.iface.mainWindow(),
+                "Isobenefit",
+                "Please enter valid numbers for all simulation parameters before running.",
+            )
+            return
+
         # build and queue the background task (the core is array-in / array-out;
-        # all GIS IO is handled inside the task via gis_io)
-        # likelihood map blends N runs (chosen by the Detail picker); a single run
-        # gives the growth animation. N sets statistical precision; cores set speed.
+        # all GIS IO is handled inside the task via gis_io).
+        # likelihood map blends N runs (Detail picker); a single run = growth animation.
         n_ensemble = self.dlg.detail_mode.currentData() if self.dlg.ensemble_check.isChecked() else 1
         task = sim_runner.IsobenefitTask(
             iface=self.iface,
@@ -184,27 +214,19 @@ class Isobenefit:
             green_layer=self.dlg.green_layer_box.currentLayer(),
             unbuildable_layer=self.dlg.unbuildable_layer_box.currentLayer(),
             centre_seeds_layer=self.dlg.centre_seeds_layer_box.currentLayer(),
-            total_iters=int(self.dlg.n_iterations.text()),
-            granularity_m=int(self.dlg.grid_size_m.text()),
-            max_distance_m=int(self.dlg.walk_dist.text()),
-            max_populat=int(self.dlg.max_populat.text()),
-            exist_built_density=int(self.dlg.built_density.text()),
-            min_green_span=int(self.dlg.min_green_span.text()),
-            build_prob=float(self.dlg.build_prob.text()),
-            cent_prob_nb=float(self.dlg.cent_prob_nb.text()),
-            cent_prob_isol=float(self.dlg.cent_prob_isol.text()),
-            pop_target_cent_threshold=float(self.dlg.pop_target_cent_threshold.text()),
-            prob_distribution=(
-                float(self.dlg.high_density_prob.text()),
-                float(self.dlg.med_density_prob.text()),
-                float(self.dlg.low_density_prob.text()),
-            ),
-            density_factors=(
-                float(self.dlg.high_density.text()),
-                float(self.dlg.med_density.text()),
-                float(self.dlg.low_density.text()),
-            ),
-            random_seed=int(self.dlg.random_seed.text()),
+            total_iters=total_iters,
+            granularity_m=granularity_m,
+            max_distance_m=max_distance_m,
+            max_populat=max_populat,
+            exist_built_density=exist_built_density,
+            min_green_span=min_green_span,
+            build_prob=build_prob,
+            cent_prob_nb=cent_prob_nb,
+            cent_prob_isol=cent_prob_isol,
+            pop_target_cent_threshold=pop_target_cent_threshold,
+            prob_distribution=prob_distribution,
+            density_factors=density_factors,
+            random_seed=random_seed,
             n_ensemble=n_ensemble,
         )
         self._task = task  # retain reference so the task is not garbage-collected
