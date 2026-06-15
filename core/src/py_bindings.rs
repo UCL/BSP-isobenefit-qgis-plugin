@@ -4,7 +4,10 @@
 //! state machine and the parallel `run_ensemble`, marshalling numpy arrays in and
 //! out. All heavy compute releases the GIL where it runs across threads.
 
-use crate::sim::{run_ensemble as core_run_ensemble, Params, Simulation};
+use crate::sim::{
+    ensemble_probability as core_ensemble_probability, run_ensemble as core_run_ensemble, Params,
+    Simulation,
+};
 use ndarray::Array2;
 use numpy::{IntoPyArray, PyArray2, PyReadonlyArray2, ToPyArray};
 use pyo3::exceptions::PyValueError;
@@ -134,10 +137,26 @@ fn run_ensemble(
         .collect()
 }
 
+/// Run `n_members` simulations from `template` in parallel and return a
+/// probability-of-development grid (fraction of members urban per cell) as a
+/// float32 numpy array. Releases the GIL during compute.
+#[pyfunction]
+fn ensemble_probability(
+    py: Python<'_>,
+    template: &PySimulation,
+    base_seed: u64,
+    n_members: usize,
+) -> Py<PyArray2<f32>> {
+    let prob =
+        py.allow_threads(|| core_ensemble_probability(&template.inner, base_seed, n_members));
+    prob.into_pyarray_bound(py).unbind()
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<PySimulation>()?;
     m.add_function(wrap_pyfunction!(run_ensemble, m)?)?;
+    m.add_function(wrap_pyfunction!(ensemble_probability, m)?)?;
     Ok(())
 }

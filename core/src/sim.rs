@@ -382,6 +382,32 @@ pub fn run_ensemble(template: &Simulation, base_seed: u64, n_members: usize) -> 
         .collect()
 }
 
+/// Runs `n_members` independent simulations from `template` in parallel and
+/// returns, per cell, the fraction of members in which it ended urban
+/// (`state > 0`) — a probability-of-development surface in `[0, 1]`. The result
+/// is independent of thread count (integer-count reduction, per-member seeding).
+pub fn ensemble_probability(
+    template: &Simulation,
+    base_seed: u64,
+    n_members: usize,
+) -> Array2<f32> {
+    let dim = template.state.dim();
+    if n_members == 0 {
+        return Array2::<f32>::zeros(dim);
+    }
+    let counts = (0..n_members)
+        .into_par_iter()
+        .map(|member| {
+            let mut sim = template.clone();
+            sim.master_seed = splitmix64(base_seed ^ splitmix64(member as u64));
+            sim.current_iter = 0;
+            sim.run();
+            sim.state.mapv(|v| u32::from(v > 0))
+        })
+        .reduce(|| Array2::<u32>::zeros(dim), |a, b| a + b);
+    counts.mapv(|c| c as f32 / n_members as f32)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -506,5 +532,22 @@ mod tests {
         // at least two members should differ given independent seeds
         let all_same = results.iter().all(|r| *r == results[0]);
         assert!(!all_same);
+    }
+
+    #[test]
+    fn ensemble_probability_is_unit_range_and_thread_independent() {
+        let template = seeded_sim(30, 7);
+        let prob = ensemble_probability(&template, 2024, 6);
+        assert_eq!(prob.dim(), template.state.dim());
+        assert!(prob.iter().all(|&p| (0.0..=1.0).contains(&p)));
+        // the seeded centre is urban in every member -> probability 1.0
+        assert_eq!(prob[[15, 15]], 1.0);
+        // identical regardless of how many threads run the members
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(1)
+            .build()
+            .unwrap();
+        let single = pool.install(|| ensemble_probability(&template, 2024, 6));
+        assert_eq!(prob, single);
     }
 }

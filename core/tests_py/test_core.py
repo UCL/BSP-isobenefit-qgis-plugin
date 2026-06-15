@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 import isobenefit
-from isobenefit import Simulation, run_ensemble
+from isobenefit import Simulation, ensemble_probability, run_ensemble
 
 
 def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25) -> Simulation:
@@ -96,6 +96,16 @@ def test_ensemble_is_deterministic_across_calls() -> None:
     second = run_ensemble(template, 2024, 4)
     for a, b in zip(first, second):
         np.testing.assert_array_equal(a, b)
+
+
+def test_ensemble_probability() -> None:
+    template = make_sim(grid=30, seed=7)
+    prob = ensemble_probability(template, 2024, 6)
+    assert prob.shape == (30, 30)
+    assert prob.dtype == np.float32
+    assert (prob >= 0.0).all() and (prob <= 1.0).all()
+    # the seeded centre is urban in every member
+    assert prob[15, 15] == 1.0
 
 
 def test_bad_prob_distribution_raises() -> None:
