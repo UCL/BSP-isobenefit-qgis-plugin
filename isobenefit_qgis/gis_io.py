@@ -116,16 +116,19 @@ def write_temporal_class_raster(path, frames, geotransform, target_crs):
     ds = None
 
 
-def write_float_raster(path, arr, geotransform, target_crs):
-    """Write a single-band Float32 GeoTIFF (used for the ensemble probability map)."""
-    rows, cols = arr.shape
+def write_probability_bands(path, bands, names, geotransform, target_crs):
+    """Write a multi-band Float32 GeoTIFF — one probability surface per band."""
+    rows, cols = bands[0].shape
     srs = _srs_from_crs(target_crs)
     ds = gdal.GetDriverByName("GTiff").Create(
-        path, cols, rows, 1, gdal.GDT_Float32, options=["COMPRESS=DEFLATE", "TILED=YES"]
+        path, cols, rows, len(bands), gdal.GDT_Float32, options=["COMPRESS=DEFLATE", "TILED=YES"]
     )
     ds.SetGeoTransform(geotransform)
     ds.SetProjection(srs.ExportToWkt())
-    ds.GetRasterBand(1).WriteArray(arr.astype(np.float32))
+    for i, (arr, name) in enumerate(zip(bands, names), start=1):
+        band = ds.GetRasterBand(i)
+        band.WriteArray(arr.astype(np.float32))
+        band.SetDescription(name)
     ds.FlushCache()
     ds = None
 
@@ -140,8 +143,8 @@ def apply_palette(rast_layer):
     rast_layer.setRenderer(renderer)
 
 
-def apply_probability_style(rast_layer):
-    """Apply a 0–1 graduated colour ramp for the ensemble probability map."""
+def apply_probability_style(rast_layer, band=1):
+    """Apply a 0–1 graduated colour ramp to ``band`` of a probability raster."""
     ramp = QgsColorRampShader(0.0, 1.0)
     ramp.setColorRampType(QgsColorRampShader.Type.Interpolated)
     ramp.setColorRampItemList(
@@ -155,5 +158,5 @@ def apply_probability_style(rast_layer):
     )
     shader = QgsRasterShader()
     shader.setRasterShaderFunction(ramp)
-    renderer = QgsSingleBandPseudoColorRenderer(rast_layer.dataProvider(), 1, shader)
+    renderer = QgsSingleBandPseudoColorRenderer(rast_layer.dataProvider(), band, shader)
     rast_layer.setRenderer(renderer)

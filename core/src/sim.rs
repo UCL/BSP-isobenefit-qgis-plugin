@@ -383,29 +383,57 @@ pub fn run_ensemble(template: &Simulation, base_seed: u64, n_members: usize) -> 
 }
 
 /// Runs `n_members` independent simulations from `template` in parallel and
-/// returns, per cell, the fraction of members in which it ended urban
-/// (`state > 0`) — a probability-of-development surface in `[0, 1]`. The result
-/// is independent of thread count (integer-count reduction, per-member seeding).
-pub fn ensemble_probability(
+/// returns, per cell, **counts** of how many members ended in each class:
+/// `(built, green, centre)` for `state == 1 / 0 / 2`. The reduction is integer
+/// sums, so the result is independent of thread count; callers divide by
+/// `n_members` for per-class probabilities. P(green) reveals the robust green
+/// network; smoothed P(centre) reveals natural centre locations.
+pub fn ensemble_class_counts(
     template: &Simulation,
     base_seed: u64,
     n_members: usize,
-) -> Array2<f32> {
+) -> (Array2<u32>, Array2<u32>, Array2<u32>) {
     let dim = template.state.dim();
     if n_members == 0 {
-        return Array2::<f32>::zeros(dim);
+        return (Array2::zeros(dim), Array2::zeros(dim), Array2::zeros(dim));
     }
-    let counts = (0..n_members)
+    (0..n_members)
         .into_par_iter()
         .map(|member| {
             let mut sim = template.clone();
             sim.master_seed = splitmix64(base_seed ^ splitmix64(member as u64));
             sim.current_iter = 0;
             sim.run();
-            sim.state.mapv(|v| u32::from(v > 0))
+            (
+                sim.state.mapv(|v| u32::from(v == 1)),
+                sim.state.mapv(|v| u32::from(v == 0)),
+                sim.state.mapv(|v| u32::from(v == 2)),
+            )
         })
-        .reduce(|| Array2::<u32>::zeros(dim), |a, b| a + b);
-    counts.mapv(|c| c as f32 / n_members as f32)
+        .reduce(
+            || {
+                (
+                    Array2::<u32>::zeros(dim),
+                    Array2::<u32>::zeros(dim),
+                    Array2::<u32>::zeros(dim),
+                )
+            },
+            |(b1, g1, c1), (b2, g2, c2)| (b1 + b2, g1 + g2, c1 + c2),
+        )
+}
+
+/// Probability that each cell ends urban (`state > 0`) across `n_members` runs —
+/// a convenience over [`ensemble_class_counts`] (built + centre).
+pub fn ensemble_probability(
+    template: &Simulation,
+    base_seed: u64,
+    n_members: usize,
+) -> Array2<f32> {
+    if n_members == 0 {
+        return Array2::<f32>::zeros(template.state.dim());
+    }
+    let (built, _green, centre) = ensemble_class_counts(template, base_seed, n_members);
+    (built + centre).mapv(|c| c as f32 / n_members as f32)
 }
 
 #[cfg(test)]
@@ -549,5 +577,18 @@ mod tests {
             .unwrap();
         let single = pool.install(|| ensemble_probability(&template, 2024, 6));
         assert_eq!(prob, single);
+    }
+
+    #[test]
+    fn ensemble_class_counts_partition() {
+        let template = seeded_sim(30, 7);
+        let n = 8u32;
+        let (built, green, centre) = ensemble_class_counts(&template, 2024, n as usize);
+        // every cell ends in exactly one class, so the counts partition: each cell
+        // sums to n (or 0 where permanently unbuildable — none here).
+        let total = &built + &green + &centre;
+        assert!(total.iter().all(|&t| t == 0 || t == n));
+        // the seeded centre is a centre in every member
+        assert_eq!(centre[[15, 15]], n);
     }
 }

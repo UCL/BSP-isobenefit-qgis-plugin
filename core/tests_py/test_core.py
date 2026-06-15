@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 import isobenefit
-from isobenefit import Simulation, ensemble_probability, run_ensemble
+from isobenefit import Simulation, ensemble_class_counts, ensemble_probability, run_ensemble
 
 
 def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25) -> Simulation:
@@ -106,6 +106,18 @@ def test_ensemble_probability() -> None:
     assert (prob >= 0.0).all() and (prob <= 1.0).all()
     # the seeded centre is urban in every member
     assert prob[15, 15] == 1.0
+
+
+def test_ensemble_class_counts() -> None:
+    built, green, centre = ensemble_class_counts(make_sim(grid=30, seed=7), 2024, 8)
+    for a in (built, green, centre):
+        assert a.shape == (30, 30)
+        assert a.dtype == np.uint32
+    # cells partition into exactly one class -> per-cell counts sum to n (8)
+    total = built + green + centre
+    assert set(np.unique(total)).issubset({0, 8})
+    # the seeded centre is a centre in every member
+    assert centre[15, 15] == 8
 
 
 def test_bad_prob_distribution_raises() -> None:

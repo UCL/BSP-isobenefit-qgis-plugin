@@ -6,6 +6,18 @@ arrays plus scalar parameters and returns numpy arrays / snapshots. All GIS IO
 plugin, not here.
 """
 
-from ._core import Simulation, ensemble_probability, run_ensemble, __version__
+from ._core import (
+    Simulation,
+    ensemble_class_counts,
+    ensemble_probability,
+    run_ensemble,
+    __version__,
+)
 
-__all__ = ["Simulation", "ensemble_probability", "run_ensemble", "__version__"]
+__all__ = [
+    "Simulation",
+    "ensemble_class_counts",
+    "ensemble_probability",
+    "run_ensemble",
+    "__version__",
+]

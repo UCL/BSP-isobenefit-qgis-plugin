@@ -5,6 +5,7 @@
 //! out. All heavy compute releases the GIL where it runs across threads.
 
 use crate::sim::{
+    ensemble_class_counts as core_ensemble_class_counts,
     ensemble_probability as core_ensemble_probability, run_ensemble as core_run_ensemble, Params,
     Simulation,
 };
@@ -152,11 +153,30 @@ fn ensemble_probability(
     prob.into_pyarray_bound(py).unbind()
 }
 
+/// Run `n_members` simulations from `template` in parallel and return per-class
+/// development counts as three uint32 numpy arrays: (built, green, centre).
+#[pyfunction]
+fn ensemble_class_counts(
+    py: Python<'_>,
+    template: &PySimulation,
+    base_seed: u64,
+    n_members: usize,
+) -> (Py<PyArray2<u32>>, Py<PyArray2<u32>>, Py<PyArray2<u32>>) {
+    let (b, g, c) =
+        py.allow_threads(|| core_ensemble_class_counts(&template.inner, base_seed, n_members));
+    (
+        b.into_pyarray_bound(py).unbind(),
+        g.into_pyarray_bound(py).unbind(),
+        c.into_pyarray_bound(py).unbind(),
+    )
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<PySimulation>()?;
     m.add_function(wrap_pyfunction!(run_ensemble, m)?)?;
     m.add_function(wrap_pyfunction!(ensemble_probability, m)?)?;
+    m.add_function(wrap_pyfunction!(ensemble_class_counts, m)?)?;
     Ok(())
 }

@@ -183,9 +183,9 @@ class IsobenefitTask(QgsTask):
                 batch = max(1, cores)  # ~one run per core keeps all cores busy
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
                 # Blend in batches so we can drive the progress bar and allow
-                # cancellation. Each batch returns a mean over its members; we
-                # weight by batch size to recover the overall mean.
-                weighted_sum = None
+                # cancellation. Each batch returns per-class counts; we sum them and
+                # divide by N to get P(built), P(green), P(centre).
+                built = green = centre = None
                 done = 0
                 batch_idx = 0
                 while done < n:
@@ -194,22 +194,26 @@ class IsobenefitTask(QgsTask):
                         return False
                     members = min(batch, n - done)
                     # distinct, reproducible seed per batch so members never repeat
-                    batch_prob = isobenefit.ensemble_probability(
+                    b, g, c = isobenefit.ensemble_class_counts(
                         sim, self.random_seed + batch_idx, members
                     )
-                    contribution = batch_prob.astype(np.float64) * members
-                    weighted_sum = (
-                        contribution if weighted_sum is None else weighted_sum + contribution
-                    )
+                    built = b if built is None else built + b
+                    green = g if green is None else green + g
+                    centre = c if centre is None else centre + c
                     done += members
                     batch_idx += 1
                     self.setProgress(done / n * 100.0)
                     self._log(f"ensemble: {done}/{n} runs blended")
-                prob = (weighted_sum / n).astype(np.float32)
-                gis_io.write_float_raster(self.out_path, prob, geotransform, self.target_crs)
+                gis_io.write_probability_bands(
+                    self.out_path,
+                    [built / n, green / n, centre / n],
+                    ["built likelihood", "green likelihood", "centre likelihood"],
+                    geotransform,
+                    self.target_crs,
+                )
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
-                    f"wrote probability-of-development raster: {self.out_path}"
+                    f"wrote built/green/centre likelihood: {self.out_path}"
                 )
                 return True
 
@@ -251,17 +255,29 @@ class IsobenefitTask(QgsTask):
                 notify=True,
             )
             return
+        if self.is_ensemble:
+            root = QgsProject.instance().layerTreeRoot()
+            group = root.insertGroup(0, f"{self.out_file_name} likelihood")
+            group.setExpanded(True)
+            for band, label in [(1, "built"), (2, "green"), (3, "centre")]:
+                lyr = QgsRasterLayer(self.out_path, f"{self.out_file_name} — {label} likelihood", "gdal")
+                if not lyr.isValid():
+                    self._log(f"Output raster is not valid: {self.out_path}", Qgis.MessageLevel.Critical, notify=True)
+                    return
+                lyr.setCrs(self.target_crs)
+                gis_io.apply_probability_style(lyr, band)
+                QgsProject.instance().addMapLayer(lyr, addToLegend=False)
+                group.addLayer(lyr)
+            self._log(
+                f"Loaded built / green / centre likelihood for '{self.out_file_name}'.", notify=True
+            )
+            return
+
         layer = QgsRasterLayer(self.out_path, self.out_file_name, "gdal")
         if not layer.isValid():
             self._log(f"Output raster is not valid: {self.out_path}", Qgis.MessageLevel.Critical, notify=True)
             return
         layer.setCrs(self.target_crs)
-        if self.is_ensemble:
-            gis_io.apply_probability_style(layer)
-            QgsProject.instance().addMapLayer(layer)
-            self._log(f"Loaded probability-of-development map '{self.out_file_name}'.", notify=True)
-            return
-
         gis_io.apply_palette(layer)
 
         # Each band is one yearly step; FixedRangePerBand animates through the bands.
