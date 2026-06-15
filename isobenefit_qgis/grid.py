@@ -69,3 +69,107 @@ def classify(state, origin, density, per_block) -> np.ndarray:
     cls[origin == 1] = EXIST_BUILT
     cls[origin == 0] = FIXED_GREEN
     return cls
+
+
+# --- constraint-aware "recommended plan" derived from the probability surfaces ---
+
+PLAN_NONE = 0
+PLAN_GREEN = 1
+PLAN_BUILT = 2
+PLAN_CENTRE = 3
+
+PLAN_PALETTE = [
+    (PLAN_GREEN, (54, 109, 35), "Recommended green network"),
+    (PLAN_BUILT, (150, 110, 90), "Recommended development"),
+    (PLAN_CENTRE, (200, 30, 30), "Recommended centre"),
+]
+
+
+def _keep_large_components(mask: np.ndarray, min_cells: int) -> np.ndarray:
+    """Zero out rook-connected components of ``mask`` smaller than ``min_cells``."""
+    rows, cols = mask.shape
+    out = np.zeros_like(mask)
+    seen = np.zeros_like(mask)
+    for sy in range(rows):
+        for sx in range(cols):
+            if not mask[sy, sx] or seen[sy, sx]:
+                continue
+            stack = [(sy, sx)]
+            seen[sy, sx] = True
+            comp = []
+            while stack:
+                y, x = stack.pop()
+                comp.append((y, x))
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < rows and 0 <= nx < cols and mask[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True
+                        stack.append((ny, nx))
+            if len(comp) >= min_cells:
+                for y, x in comp:
+                    out[y, x] = True
+    return out
+
+
+def _box_sum(a: np.ndarray, r: int) -> np.ndarray:
+    """Sum of ``a`` over each (2r+1)-square window (edge-clamped) via an integral image."""
+    rows, cols = a.shape
+    ii = np.zeros((rows + 1, cols + 1), dtype=np.float64)
+    ii[1:, 1:] = a.astype(np.float64).cumsum(0).cumsum(1)
+    y0 = np.clip(np.arange(rows) - r, 0, rows)
+    y1 = np.clip(np.arange(rows) + r + 1, 0, rows)
+    x0 = np.clip(np.arange(cols) - r, 0, cols)
+    x1 = np.clip(np.arange(cols) + r + 1, 0, cols)
+    return ii[np.ix_(y1, x1)] - ii[np.ix_(y0, x1)] - ii[np.ix_(y1, x0)] + ii[np.ix_(y0, x0)]
+
+
+def _centre_peaks(p_centre, radius, threshold_frac, max_centres):
+    """Greedy non-max suppression on the walk-smoothed centre surface.
+
+    Returns up to ``max_centres`` (row, col) peaks, each at least ``threshold_frac``
+    of the strongest and spaced at least ``radius`` cells apart.
+    """
+    suit = _box_sum(p_centre, radius)
+    peak_floor = threshold_frac * float(suit.max()) if suit.size and suit.max() > 0 else None
+    if peak_floor is None:
+        return []
+    rows, cols = suit.shape
+    peaks = []
+    for _ in range(max_centres):
+        y, x = divmod(int(np.argmax(suit)), cols)
+        if suit[y, x] < peak_floor or suit[y, x] <= 0.0:
+            break
+        peaks.append((y, x))
+        suit[max(0, y - radius) : y + radius + 1, max(0, x - radius) : x + radius + 1] = -1.0
+    return peaks
+
+
+def recommended_plan(
+    p_built,
+    p_green,
+    p_centre,
+    granularity_m,
+    min_green_span_m,
+    max_distance_m,
+    green_thresh: float = 0.5,
+    built_thresh: float = 0.5,
+    max_centres: int = 50,
+) -> np.ndarray:
+    """Constraint-aware plan from the per-class probability surfaces.
+
+    - green network: ``P(green) >= green_thresh`` kept only as connected components
+      at least the min-green-span area (slivers dropped);
+    - centres: peaks of the walk-smoothed ``P(centre)``, spaced >= a walk apart;
+    - built: ``P(built) >= built_thresh`` elsewhere.
+
+    Returns a uint8 categorical grid using the ``PLAN_*`` codes.
+    """
+    plan = np.zeros(p_built.shape, dtype=np.uint8)
+    plan[p_built >= built_thresh] = PLAN_BUILT
+    min_cells = max(1, round((min_green_span_m / granularity_m) ** 2))
+    green = _keep_large_components(np.asarray(p_green) >= green_thresh, min_cells)
+    plan[green] = PLAN_GREEN
+    radius = max(1, round(max_distance_m / granularity_m))
+    for y, x in _centre_peaks(np.asarray(p_centre), radius, 0.25, max_centres):
+        plan[y, x] = PLAN_CENTRE
+    return plan

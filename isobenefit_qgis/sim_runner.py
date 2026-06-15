@@ -26,7 +26,7 @@ from qgis.core import (
     QgsTemporalNavigationObject,
 )
 
-from . import gis_io
+from . import gis_io, grid
 
 LOG_TAG = "Isobenefit"
 
@@ -65,6 +65,7 @@ class IsobenefitTask(QgsTask):
         self.iface = iface
         self.out_file_name = out_file_name
         self.out_path = str(Path(out_dir_path) / f"{out_file_name}.tif")
+        self.plan_path = str(Path(out_dir_path) / f"{out_file_name}_plan.tif")
         self.target_crs = target_crs
         self.extents_layer = extents_layer
         self.built_layer = built_layer
@@ -209,6 +210,15 @@ class IsobenefitTask(QgsTask):
                     geotransform,
                     self.target_crs,
                 )
+                plan = grid.recommended_plan(
+                    built / n,
+                    green / n,
+                    centre / n,
+                    self.granularity_m,
+                    self.min_green_span,
+                    self.max_distance_m,
+                )
+                gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
                     f"wrote built/green/centre likelihood: {self.out_path}"
@@ -266,7 +276,13 @@ class IsobenefitTask(QgsTask):
                 gis_io.apply_probability_style(lyr, band)
                 QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                 group.addLayer(lyr)
-            self._log(f"Loaded built / green / centre likelihood for '{self.out_file_name}'.", notify=True)
+            plan_layer = QgsRasterLayer(self.plan_path, f"{self.out_file_name} — recommended plan", "gdal")
+            if plan_layer.isValid():
+                plan_layer.setCrs(self.target_crs)
+                gis_io.apply_plan_style(plan_layer)
+                QgsProject.instance().addMapLayer(plan_layer, addToLegend=False)
+                group.insertLayer(0, plan_layer)
+            self._log(f"Loaded likelihood + recommended plan for '{self.out_file_name}'.", notify=True)
             return
 
         layer = QgsRasterLayer(self.out_path, self.out_file_name, "gdal")

@@ -22,7 +22,7 @@ from qgis.core import (
 )
 from qgis.PyQt.QtGui import QColor
 
-from .grid import NODATA, PALETTE, align_bounds, classify  # noqa: F401  (re-exported)
+from .grid import NODATA, PALETTE, PLAN_PALETTE, align_bounds, classify  # noqa: F401  (re-exported)
 
 
 def prepare_grid(extents_layer, target_crs, granularity_m):
@@ -154,4 +154,29 @@ def apply_probability_style(rast_layer, band=1):
     shader = QgsRasterShader()
     shader.setRasterShaderFunction(ramp)
     renderer = QgsSingleBandPseudoColorRenderer(rast_layer.dataProvider(), band, shader)
+    rast_layer.setRenderer(renderer)
+
+
+def write_plan_raster(path, plan, geotransform, target_crs):
+    """Write the recommended-plan categorical raster (single-band Byte; 0 = none)."""
+    rows, cols = plan.shape
+    srs = _srs_from_crs(target_crs)
+    ds = gdal.GetDriverByName("GTiff").Create(
+        path, cols, rows, 1, gdal.GDT_Byte, options=["COMPRESS=DEFLATE", "TILED=YES"]
+    )
+    ds.SetGeoTransform(geotransform)
+    ds.SetProjection(srs.ExportToWkt())
+    band = ds.GetRasterBand(1)
+    band.WriteArray(plan.astype(np.uint8))
+    band.SetNoDataValue(0)
+    ds.FlushCache()
+    ds = None
+
+
+def apply_plan_style(rast_layer):
+    """Apply the categorical palette for the recommended-plan raster."""
+    classes = [
+        QgsPalettedRasterRenderer.Class(value, QColor(r, g, b), label) for value, (r, g, b), label in PLAN_PALETTE
+    ]
+    renderer = QgsPalettedRasterRenderer(rast_layer.dataProvider(), 1, classes)
     rast_layer.setRenderer(renderer)

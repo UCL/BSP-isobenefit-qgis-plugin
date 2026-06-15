@@ -21,7 +21,18 @@ import numpy as np
 import pytest
 import shapely
 
-from isobenefit_qgis.grid import EXIST_BUILT, NATURE, NODATA, align_bounds, classify
+from isobenefit_qgis.grid import (
+    EXIST_BUILT,
+    NATURE,
+    NODATA,
+    PLAN_BUILT,
+    PLAN_CENTRE,
+    PLAN_GREEN,
+    PLAN_NONE,
+    align_bounds,
+    classify,
+    recommended_plan,
+)
 
 DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
 GRAN = 100.0
@@ -138,3 +149,32 @@ def test_ensemble_probability_on_demo(grid):
     assert float(prob[grid["state"] == 1].min()) == 1.0
     # some speculative (0<p<1) development occurs
     assert bool(((prob > 0.0) & (prob < 1.0)).any())
+
+
+def test_recommended_plan_synthetic():
+    g = 20
+    p_green = np.zeros((g, g), np.float32)
+    p_built = np.zeros((g, g), np.float32)
+    p_centre = np.zeros((g, g), np.float32)
+    p_green[2:12, 2:12] = 1.0  # large green block (100 cells) -> kept
+    p_green[0, 18] = 1.0  # 1-cell sliver -> dropped (min area 9 cells)
+    p_built[14:18, 2:8] = 1.0  # built region
+    p_centre[15, 15] = 1.0  # a centre hotspot
+    plan = recommended_plan(
+        p_built, p_green, p_centre, granularity_m=100.0, min_green_span_m=300.0, max_distance_m=300.0
+    )
+    assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
+    assert plan[5, 5] == PLAN_GREEN  # inside the large block
+    assert plan[0, 18] == PLAN_NONE  # sliver dropped by the min-area rule
+    assert plan[15, 5] == PLAN_BUILT  # built region
+    assert int((plan == PLAN_CENTRE).sum()) >= 1  # a centre near the hotspot
+
+
+def test_recommended_plan_on_demo(grid):
+    n = 8
+    built, green, centre = isobenefit.ensemble_class_counts(_make(grid), 2024, n)
+    plan = recommended_plan(built / n, green / n, centre / n, GRAN, 100.0, 800.0)
+    assert plan.shape == (grid["rows"], grid["cols"])
+    assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
+    assert (plan == PLAN_GREEN).any() and (plan == PLAN_BUILT).any()
+    assert int((plan == PLAN_CENTRE).sum()) >= 1
