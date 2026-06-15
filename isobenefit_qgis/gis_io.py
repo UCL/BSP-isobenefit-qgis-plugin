@@ -138,18 +138,26 @@ def apply_palette(rast_layer):
     rast_layer.setRenderer(renderer)
 
 
-def apply_probability_style(rast_layer, band=1):
-    """Apply a 0–1 graduated colour ramp to ``band`` of a probability raster."""
+# Per-class probability ramps: transparent at 0 -> the class hue at 1, matching
+# the recommended-plan palette (green / yellow-brown / red).
+PROB_RAMPS = {
+    "built": [(0.0, (255, 255, 255, 0)), (0.5, (221, 184, 120, 210)), (1.0, (170, 120, 60, 255))],
+    "green": [(0.0, (255, 255, 255, 0)), (0.5, (148, 201, 122, 210)), (1.0, (54, 109, 35, 255))],
+    "centre": [(0.0, (255, 255, 255, 0)), (0.5, (252, 146, 114, 210)), (1.0, (200, 30, 30, 255))],
+}
+
+
+def apply_probability_style(rast_layer, band=1, stops=None):
+    """Apply a graduated colour ramp to ``band`` (transparent at 0).
+
+    ``stops`` is a list of ``(value, (r, g, b, a))``; defaults to an orange-red ramp.
+    """
+    if stops is None:
+        stops = [(0.0, (255, 255, 255, 0)), (0.5, (252, 141, 89, 255)), (1.0, (165, 0, 38, 255))]
     ramp = QgsColorRampShader(0.0, 1.0)
     ramp.setColorRampType(QgsColorRampShader.Type.Interpolated)
     ramp.setColorRampItemList(
-        [
-            QgsColorRampShader.ColorRampItem(0.0, QColor(255, 255, 255, 0), "0.0"),
-            QgsColorRampShader.ColorRampItem(0.25, QColor(254, 224, 144), "0.25"),
-            QgsColorRampShader.ColorRampItem(0.5, QColor(252, 141, 89), "0.5"),
-            QgsColorRampShader.ColorRampItem(0.75, QColor(215, 48, 39), "0.75"),
-            QgsColorRampShader.ColorRampItem(1.0, QColor(165, 0, 38), "1.0"),
-        ]
+        [QgsColorRampShader.ColorRampItem(v, QColor(*rgba), f"{v:g}") for v, rgba in stops]
     )
     shader = QgsRasterShader()
     shader.setRasterShaderFunction(ramp)

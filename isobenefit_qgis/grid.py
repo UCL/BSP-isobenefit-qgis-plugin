@@ -80,7 +80,7 @@ PLAN_CENTRE = 3
 
 PLAN_PALETTE = [
     (PLAN_GREEN, (54, 109, 35), "Recommended green network"),
-    (PLAN_BUILT, (150, 110, 90), "Recommended development"),
+    (PLAN_BUILT, (170, 120, 60), "Recommended development"),
     (PLAN_CENTRE, (200, 30, 30), "Recommended centre"),
 ]
 

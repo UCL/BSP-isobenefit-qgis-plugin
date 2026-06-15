@@ -273,7 +273,7 @@ class IsobenefitTask(QgsTask):
                     self._log(f"Output raster is not valid: {self.out_path}", Qgis.MessageLevel.Critical, notify=True)
                     return
                 lyr.setCrs(self.target_crs)
-                gis_io.apply_probability_style(lyr, band)
+                gis_io.apply_probability_style(lyr, band, gis_io.PROB_RAMPS[label])
                 QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                 group.addLayer(lyr)
             plan_layer = QgsRasterLayer(self.plan_path, f"{self.out_file_name} — recommended plan", "gdal")
