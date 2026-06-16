@@ -217,12 +217,17 @@ class IsobenefitTask(QgsTask):
                     self.min_green_span,
                     self.max_distance_m,
                 )
-                # hybrid polish: carve an equitable green network into the consensus
+                # hybrid polish: carve an equitable green network into the consensus.
+                # Population-aware — green is funded by densifying the rest up to the
+                # max tier, never by deleting homes (Isobenefit "constant inhabitants").
+                mean_density = sum(p * d for p, d in zip(self.prob_distribution, self.density_factors))
                 plan = grid.optimise_plan(
                     plan,
                     self.granularity_m,
                     self.min_green_span,
                     self.max_distance_m,
+                    mean_density=mean_density,
+                    max_density=max(self.density_factors),
                 )
                 gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                 self._log(

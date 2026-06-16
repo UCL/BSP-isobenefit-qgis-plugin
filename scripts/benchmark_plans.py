@@ -27,10 +27,17 @@ from isobenefit_qgis.grid import (
     PLAN_NONE,
     _gravity_centres,
     _keep_large_components,
+    capacity_summary,
     evaluate_plan,
     optimise_plan,
     recommended_plan,
 )
+
+# density tiers (high, med, low) and their probabilities — as in the demo
+DENSITY_FACTORS = (6000.0, 3000.0, 1000.0)
+PROB_DISTRIBUTION = (0.4, 0.4, 0.2)
+MEAN_DENSITY = sum(p * d for p, d in zip(PROB_DISTRIBUTION, DENSITY_FACTORS))
+MAX_DENSITY = max(DENSITY_FACTORS)
 
 DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
 GRAN = 100.0
@@ -123,7 +130,9 @@ def main():
 
     built, green, _c = isobenefit.ensemble_class_counts(make(rows, cols, state, origin, seeds, 1), 2024, ENSEMBLE_N)
     consensus = recommended_plan(built / ENSEMBLE_N, green / ENSEMBLE_N, GRAN, GREEN_SPAN, MAX_DISTANCE)
-    optimised = optimise_plan(consensus, GRAN, GREEN_SPAN, MAX_DISTANCE)
+    optimised = optimise_plan(
+        consensus, GRAN, GREEN_SPAN, MAX_DISTANCE, mean_density=MEAN_DENSITY, max_density=MAX_DENSITY
+    )
     singles = [score(single_run_plan(rows, cols, state, origin, seeds, s)) for s in SINGLE_SEEDS]
 
     hdr = f"{'method':28s}{'served':>8s}{'green_cov':>10s}{'centre_cov':>11s}{'worst':>7s}{'built':>7s}{'green':>7s}"
@@ -146,6 +155,16 @@ def main():
           f"{med('centre_coverage'):>11.1%}{med('worst_benefit'):>7.1%}"
           f"{round(med('built')):>7d}{round(med('green')):>7d}")
     print(f"{'  single-run served range':28s}{lo:>7.1%} .. {hi:.1%}")
+
+    # population accounting for the optimised plan (constant-inhabitants check)
+    cs = capacity_summary(score(consensus)["built"], score(optimised)["built"], MEAN_DENSITY, MAX_DENSITY)
+    print("\nPopulation check (Isobenefit 'constant inhabitants'):")
+    print(f"  population held         {cs['population']:,.0f}")
+    print(f"  built cells   {cs['built_before']} -> {cs['built_after']}  "
+          f"({(cs['built_before'] - cs['built_after']) / cs['built_before']:.0%} freed to green)")
+    print(f"  mean density  {cs['density_before']:,.0f} -> {cs['density_after']:,.0f} / cell "
+          f"(max {cs['max_density']:,.0f})")
+    print(f"  feasible by densifying the rest: {cs['feasible']}")
 
 
 if __name__ == "__main__":

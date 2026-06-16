@@ -30,6 +30,7 @@ from isobenefit_qgis.grid import (
     PLAN_GREEN,
     PLAN_NONE,
     align_bounds,
+    capacity_summary,
     classify,
     evaluate_plan,
     optimise_plan,
@@ -220,6 +221,30 @@ def test_optimise_plan_improves_green_access():
     assert after["green_coverage"] > before["green_coverage"]
     assert after["served_coverage"] > before["served_coverage"]
     assert (opt == PLAN_CENTRE).any()  # centres re-placed on the reduced fabric
-    # green spent stays within budget (+ at most one final park's worth)
+    # green spent stays within budget (strict, no overshoot)
     n_built0 = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
-    assert int((opt == PLAN_GREEN).sum()) <= 0.3 * n_built0 + 16
+    assert int((opt == PLAN_GREEN).sum()) <= 0.3 * n_built0
+
+
+def test_optimise_plan_population_aware_never_overhouses():
+    # all-built grid; mean density 3800, max 6000 -> may free up to 1-3800/6000 = 36.7%
+    g = 40
+    plan = np.full((g, g), PLAN_BUILT, np.uint8)
+    plan[20, 20] = PLAN_CENTRE
+    n0 = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
+    opt = optimise_plan(plan, 100.0, 400.0, 800.0, mean_density=3800.0, max_density=6000.0)
+    n1 = int(((opt == PLAN_BUILT) | (opt == PLAN_CENTRE)).sum())
+    freed = n0 - n1
+    assert 0 < freed <= round((1.0 - 3800.0 / 6000.0) * n0)  # within the densification headroom
+    # the population is genuinely re-housed by densifying the rest, not deleted
+    summary = capacity_summary(n0, n1, 3800.0, 6000.0)
+    assert summary["feasible"]
+    assert summary["density_after"] <= 6000.0
+    assert summary["population"] == n0 * 3800.0
+
+
+def test_capacity_summary_flags_infeasible():
+    # freeing too much (no densities given -> flat 20% on a tiny grid) should still re-house
+    s = capacity_summary(built_before=1000, built_after=500, mean_density=3800.0, max_density=6000.0)
+    assert not s["feasible"]  # would need 7600 > 6000
+    assert s["density_after"] == 7600.0

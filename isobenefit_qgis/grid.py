@@ -277,11 +277,20 @@ def evaluate_plan(plan: np.ndarray, granularity_m: float, max_distance_m: float)
 #
 # The consensus plan (recommended_plan) is the CA's forecast; the evaluator shows
 # its weak spot is usually green access. This polishes that prior toward the
-# objective: greedily carve a green network into the built fabric where the
-# worst-served homes are, until everyone has a park within a walk or a green budget
-# is spent, then re-place centres on the (reduced) fabric. Greedy max-coverage is
-# submodular, so each step is within (1-1/e) of the best possible — deterministic
-# and intuitive, no annealing schedule to tune.
+# objective: greedily carve a green network into the built fabric at the spots where
+# the worst-served homes are, until coverage stops improving meaningfully or the
+# green budget is spent, then re-place centres on the fabric.
+#
+# Population-aware budget (the "constant inhabitants" principle of Isobenefit
+# urbanism): green is paid for by DENSIFYING the remaining built fabric, never by
+# deleting homes. If the current fabric houses its population at ``mean_density`` and
+# can be densified up to ``max_density``, then a fraction ``1 - mean_density/max_density``
+# of built cells can be freed to green while still housing everyone — that is the
+# budget. With no densities given it falls back to a flat ``max_green_frac``.
+#
+# Park placement uses a fast box-sum coverage proxy; the actual coverage that decides
+# the loop is recomputed each step by real walk-distance, so this is a deterministic
+# greedy heuristic (no global-optimality claim) whose reported coverage is honest.
 
 
 def optimise_plan(
@@ -289,16 +298,20 @@ def optimise_plan(
     granularity_m: float,
     min_green_span_m: float,
     max_distance_m: float,
+    mean_density: float | None = None,
+    max_density: float | None = None,
     max_green_frac: float = 0.2,
     max_centres: int = 50,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
-    Starting from ``plan`` (the consensus prior), repeatedly place a compact park of
-    side ``min_green_span`` at the spot covering the most currently-unserved homes
-    (converting built -> green), until every home has qualifying green within a walk
-    or ``max_green_frac`` of the built area has been spent. Centres are then
-    re-placed by the gravity model on the reduced fabric. Returns a new plan.
+    From ``plan`` (the consensus prior), repeatedly place a compact park of side
+    ``min_green_span`` at the spot serving the most currently-unserved homes (built ->
+    green), stopping when the best park adds too few homes or the green budget is
+    spent; then re-place centres by gravity on the reduced fabric. The budget is
+    population-aware when ``mean_density`` and ``max_density`` are given (green funded
+    by densification, never by lost housing); otherwise a flat ``max_green_frac``.
+    Returns a new plan.
     """
     plan = plan.copy()
     g = float(granularity_m)
@@ -310,7 +323,12 @@ def optimise_plan(
     n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
     if n_built == 0:
         return plan
-    green_budget = int(max_green_frac * n_built)
+    if mean_density and max_density and max_density > 0:
+        budget_frac = max(0.0, 1.0 - mean_density / max_density)
+    else:
+        budget_frac = max_green_frac
+    green_budget = int(budget_frac * n_built)
+    min_gain = max(1.0, 0.002 * n_built)  # stop once a park serves only a few stragglers
 
     spent = 0
     while spent < green_budget:
@@ -322,17 +340,18 @@ def optimise_plan(
         # homes a park here would newly serve: unserved within a walk of the park
         gain = _box_sum(unserved.astype(np.float64), walk_r + half)
         gain = np.where(built, gain, -1.0)  # a park must land on developable (built) land
-        if gain.max() <= 0.0:
+        if gain.max() < min_gain:  # diminishing returns — don't over-green for stragglers
             break
         cy, cx = divmod(int(np.argmax(gain)), cols)
         y0, y1 = max(0, cy - half), min(rows, cy + half + 1)
         x0, x1 = max(0, cx - half), min(cols, cx + half + 1)
         block = plan[y0:y1, x0:x1]
         carved = (block == PLAN_BUILT) | (block == PLAN_CENTRE)
-        block[carved] = PLAN_GREEN
-        if not carved.any():  # nothing left to carve here — avoid an infinite loop
+        carved_n = int(carved.sum())
+        if carved_n == 0 or spent + carved_n > green_budget:  # never overshoot the budget
             break
-        spent += int(carved.sum())
+        block[carved] = PLAN_GREEN
+        spent += carved_n
 
     # re-place centres on the fabric that remains after carving
     plan[plan == PLAN_CENTRE] = PLAN_BUILT
@@ -340,3 +359,24 @@ def optimise_plan(
     for y, x in _gravity_centres(built.astype(np.float64), built, walk_r, max_centres):
         plan[y, x] = PLAN_CENTRE
     return plan
+
+
+def capacity_summary(built_before: int, built_after: int, mean_density: float, max_density: float) -> dict:
+    """Population accounting for an optimised plan (constant-inhabitants check).
+
+    The plan held its population (``built_before * mean_density``) while freeing some
+    built cells to green; the remaining cells must absorb everyone by densifying.
+    Returns the population held, the density before and the density now required, the
+    max permitted, and whether that is feasible (required <= max).
+    """
+    population = built_before * mean_density
+    density_after = population / built_after if built_after else math.inf
+    return {
+        "population": population,
+        "built_before": built_before,
+        "built_after": built_after,
+        "density_before": mean_density,
+        "density_after": density_after,
+        "max_density": max_density,
+        "feasible": density_after <= max_density + 1e-9,
+    }
