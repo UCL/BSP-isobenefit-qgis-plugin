@@ -25,8 +25,8 @@ from isobenefit_qgis.grid import (
     PLAN_CENTRE,
     PLAN_GREEN,
     PLAN_NONE,
-    _gravity_centres,
     _keep_large_components,
+    _place_centres,
     capacity_summary,
     evaluate_plan,
     optimise_plan,
@@ -100,8 +100,7 @@ def normalise(plan: np.ndarray) -> np.ndarray:
     plan[(plan == PLAN_GREEN) & ~keep] = PLAN_NONE
     plan[plan == PLAN_CENTRE] = PLAN_BUILT
     built = plan == PLAN_BUILT
-    walk_r = max(1, round(MAX_DISTANCE / GRAN))
-    for y, x in _gravity_centres(built.astype(float), built, walk_r, MAX_CENTRES):
+    for y, x in _place_centres(built, GRAN, MAX_DISTANCE, MAX_CENTRES):
         plan[y, x] = PLAN_CENTRE
     return plan
 

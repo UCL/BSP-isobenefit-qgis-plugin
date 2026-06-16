@@ -27,17 +27,17 @@ The key idea: **a probability surface is not a plan.** You can't read a buildabl
 
 1. **Ensemble.** Run the cellular automaton N times with different random seeds. Each run is a complete, valid city (the growth rules keep green accessible and place centres as it grows). Different seeds put the green/centres in *different but equally valid* places.
 
-2. **Consensus.** Average the runs into probability surfaces and threshold them into a first-cut plan (built where P(built) is high, green where P(green) is high and forms a park ≥ the minimum span, centres by a gravity model). This is a *robust* starting point — it only commits where the runs broadly agree.
+2. **Consensus.** Average the runs into probability surfaces and threshold them into a first-cut plan (built where P(built) is high, green where P(green) is high and forms a park ≥ the minimum span). This is a *robust* starting point — it only commits where the runs broadly agree.
 
-3. **Population-aware optimiser.** The consensus alone is mediocre on access (see numbers). So we greedily carve compact parks into the built fabric, always at the spot serving the most currently-unserved homes, until coverage stops improving meaningfully. **Crucially, the green budget is set by densification headroom**: if the fabric houses its people at a mean density and can be densified up to the maximum tier, we may free `1 − mean/max` of the built cells to green and re-house everyone by building the rest denser. Then centres are re-placed on the result.
+3. **Population-aware optimiser.** The consensus alone is mediocre on access (see numbers). So we greedily carve compact parks into the built fabric, always at the spot serving the most currently-unserved homes, until coverage stops improving meaningfully. **Crucially, the green budget is set by densification headroom**: if the fabric houses its people at a mean density and can be densified up to the maximum tier, we may free `1 − mean/max` of the built cells to green and re-house everyone by building the rest denser. Then **centres are placed**: existing centres are kept fixed, and new ones are positioned by facility location — each at the *centroid* of the homes it serves, so it sits central to its catchment rather than on an edge — until everyone is within a walk of a centre.
 
 ## The numbers (Cambourne, 800 m walk, all plans scored identically)
 
 | method | served* | green cov | centre cov | worst-off† | built | green |
 |---|---|---|---|---|---|---|
-| consensus | 33.6% | 45.3% | 79.0% | 0.0% | 7030 | 614 |
-| **optimised** | **77.8%** | 97.2% | 79.0% | **8.4%** | 6261 | 1339 |
-| single run (median of 16) | 34.9% | 46.4% | 79.6% | 0.0% | 6910 | 718 |
+| consensus | 36.6% | 45.3% | 82.4% | 0.0% | 7030 | 614 |
+| **optimised** | **87.3%** | 97.2% | 89.7% | **15.7%** | 6261 | 1339 |
+| single run (median of 16) | 40.8% | 46.4% | 88.9% | 0.0% | 6910 | 718 |
 
 \* *served* = share of homes within an 800 m walk of **both** qualifying green and a centre.
 † *worst-off* = benefit of the 5th-percentile (least-served) home; the equity headline.
@@ -51,11 +51,11 @@ mean density  3,800 -> 4,267 / cell   (max 6,000)
 feasible by densifying the rest: True
 ```
 
-So the optimiser added a green network reaching ~97% of homes and lifted the worst-off from *nothing* to 8.4%, **without losing a single home** — the freed land is compensated by a modest (~12%) density increase that stays comfortably under the maximum tier.
+So the optimiser added a green network reaching ~97% of homes, brought ~87% within a walk of both green and a centre, and lifted the worst-off from *nothing* to 15.7%, **without losing a single home** — the freed land is compensated by a modest (~12%) density increase that stays comfortably under the maximum tier.
 
 ## A correction worth recording
 
-Earlier in this work I claimed a *single* simulation run was far better than the consensus (94% vs 34% served) and nearly recommended shipping one representative run. **That was wrong — an unfair comparison.** The single run had been scored keeping ~100 centres and counting every stray green cell as a park, while the consensus is capped at 50 centres and only counts parks ≥ the minimum span. Scored on equal terms (the table above), a single run is **no better than the consensus** (~35%). The thing that actually helps is the optimiser. This is exactly why the benchmark now routes *every* candidate through identical scoring.
+Earlier in this work I claimed a *single* simulation run was far better than the consensus (94% vs 34% served) and nearly recommended shipping one representative run. **That was wrong — an unfair comparison.** The single run had been scored keeping ~100 centres and counting every stray green cell as a park, while the consensus is capped at 50 centres and only counts parks ≥ the minimum span. Scored on equal terms (the table above), a single run is **no better than the consensus** (~37–41%, overlapping ranges). The thing that actually helps is the optimiser. This is exactly why the benchmark now routes *every* candidate through identical scoring.
 
 ## Is this a legitimate direction?
 

@@ -124,30 +124,72 @@ def _box_sum(a: np.ndarray, r: int) -> np.ndarray:
     return ii[np.ix_(y1, x1)] - ii[np.ix_(y0, x1)] - ii[np.ix_(y1, x0)] + ii[np.ix_(y0, x0)]
 
 
-def _gravity_centres(p_built, built_mask, radius, max_centres, threshold_frac=0.25):
-    """Place centres by a gravity model.
+def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
+    """Nearest built cell to (y, x) (itself if already built)."""
+    rows, cols = built.shape
+    if 0 <= y < rows and 0 <= x < cols and built[y, x]:
+        return y, x
+    for r in range(1, max(rows, cols)):
+        y0, y1 = max(0, y - r), min(rows, y + r + 1)
+        x0, x1 = max(0, x - r), min(cols, x + r + 1)
+        sub = built[y0:y1, x0:x1]
+        if sub.any():
+            ys, xs = np.nonzero(sub)
+            i = int(np.argmin((y0 + ys - y) ** 2 + (x0 + xs - x) ** 2))
+            return int(y0 + ys[i]), int(x0 + xs[i])
+    return y, x
 
-    Greedily pick the built cell that can reach the most built "population" within a
-    walk — a box-sum of ``p_built`` over the ``radius`` catchment — then suppress a
-    walk-radius neighbourhood and repeat. Candidates are restricted to ``built_mask``
-    so centres sit in the fabric: an isolated spot reaches little built, scores low,
-    and is never chosen; the catchment radius bakes in the max-distance constraint.
-    Returns up to ``max_centres`` (row, col)s spaced >= ``radius`` apart.
+
+def _place_centres(built, granularity_m, max_distance_m, max_new=50, existing=None, min_homes_frac=0.003):
+    """Reverse-engineer good locations for NEW centres (facility location).
+
+    Greedily serve the homes (``built`` cells) not yet within a walk of a centre: each
+    step take the densest pocket of unserved homes and place a centre at the CENTROID
+    of the homes it would serve (a Lloyd step), so the centre sits *central* to its
+    catchment instead of on an edge. ``existing`` centres are kept fixed and seed the
+    initial coverage; only new centres are placed, and how many emerges from need.
+    Returns the list of NEW ``(row, col)`` (excludes the existing ones).
     """
-    gravity = _box_sum(np.asarray(p_built), radius)
-    gravity = np.where(built_mask, gravity, -1.0)  # a centre must sit in built fabric
-    if gravity.max() <= 0.0:
-        return []
-    peak_floor = threshold_frac * float(gravity.max())
-    rows, cols = gravity.shape
-    peaks = []
-    for _ in range(max_centres):
-        y, x = divmod(int(np.argmax(gravity)), cols)
-        if gravity[y, x] < peak_floor or gravity[y, x] <= 0.0:
+    built = np.asarray(built, dtype=bool)
+    rows, cols = built.shape
+    r = max(1, round(max_distance_m / granularity_m))
+    yy, xx = np.ogrid[-r : r + 1, -r : r + 1]
+    disk = (yy * yy + xx * xx) <= r * r  # circular walk catchment
+
+    def stamp(mask, y, x):  # mark the walk catchment of a centre at (y, x)
+        y0, y1 = max(0, y - r), min(rows, y + r + 1)
+        x0, x1 = max(0, x - r), min(cols, x + r + 1)
+        mask[y0:y1, x0:x1] |= disk[y0 - (y - r) : y1 - (y - r), x0 - (x - r) : x1 - (x - r)]
+
+    covered = np.zeros((rows, cols), dtype=bool)
+    for ey, ex in existing or []:
+        if 0 <= ey < rows and 0 <= ex < cols:
+            stamp(covered, ey, ex)
+
+    min_homes = max(1, int(min_homes_frac * int(built.sum())))
+    new = []
+    for _ in range(max_new):
+        unserved = built & ~covered
+        if int(unserved.sum()) < min_homes:
             break
-        peaks.append((y, x))
-        gravity[max(0, y - radius) : y + radius + 1, max(0, x - radius) : x + radius + 1] = -1.0
-    return peaks
+        gain = np.where(built, _box_sum(unserved.astype(np.float64), r), -1.0)
+        if gain.max() <= 0.0:
+            break
+        y, x = divmod(int(np.argmax(gain)), cols)
+        for _ in range(4):  # settle onto the centroid of the homes this centre serves
+            y0, y1 = max(0, y - r), min(rows, y + r + 1)
+            x0, x1 = max(0, x - r), min(cols, x + r + 1)
+            served = unserved[y0:y1, x0:x1] & disk[y0 - (y - r) : y1 - (y - r), x0 - (x - r) : x1 - (x - r)]
+            ys, xs = np.nonzero(served)
+            if ys.size == 0:
+                break
+            cy, cx = _nearest_built(built, y0 + int(round(ys.mean())), x0 + int(round(xs.mean())))
+            if (cy, cx) == (y, x):
+                break
+            y, x = cy, cx
+        new.append((y, x))
+        stamp(covered, y, x)
+    return new
 
 
 def recommended_plan(
@@ -160,6 +202,7 @@ def recommended_plan(
     built_thresh: float = 0.5,
     min_built_cells: int = 6,
     max_centres: int = 50,
+    existing_centres=None,
 ) -> np.ndarray:
     """Constraint-aware plan from the per-class probability surfaces.
 
@@ -167,8 +210,8 @@ def recommended_plan(
       least ``min_built_cells`` cells (slivers / leftover drips dropped);
     - green network: ``P(green) >= green_thresh`` kept as connected components of at
       least the min-green-span area;
-    - centres: a gravity model — built cells that maximise reachable built within a
-      walk (see ``_gravity_centres``), spaced >= a walk apart.
+    - centres: new centres placed centrally to serve homes not already within a walk
+      of an ``existing_centres`` location (see ``_place_centres``).
 
     Returns a uint8 categorical grid using the ``PLAN_*`` codes. ``P(centre)`` is no
     longer used for placement (centres are derived from access to built fabric) but
@@ -180,8 +223,10 @@ def recommended_plan(
     green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
     green = _keep_large_components(np.asarray(p_green) >= green_thresh, green_min)
     plan[green] = PLAN_GREEN
-    radius = max(1, round(max_distance_m / granularity_m))
-    for y, x in _gravity_centres(p_built, built, radius, max_centres):
+    for ey, ex in existing_centres or []:
+        if 0 <= ey < plan.shape[0] and 0 <= ex < plan.shape[1] and plan[ey, ex] == PLAN_BUILT:
+            plan[ey, ex] = PLAN_CENTRE
+    for y, x in _place_centres(built, granularity_m, max_distance_m, max_centres, existing=existing_centres):
         plan[y, x] = PLAN_CENTRE
     return plan
 
@@ -302,16 +347,17 @@ def optimise_plan(
     max_density: float | None = None,
     max_green_frac: float = 0.2,
     max_centres: int = 50,
+    existing_centres=None,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
     From ``plan`` (the consensus prior), repeatedly place a compact park of side
     ``min_green_span`` at the spot serving the most currently-unserved homes (built ->
     green), stopping when the best park adds too few homes or the green budget is
-    spent; then re-place centres by gravity on the reduced fabric. The budget is
-    population-aware when ``mean_density`` and ``max_density`` are given (green funded
-    by densification, never by lost housing); otherwise a flat ``max_green_frac``.
-    Returns a new plan.
+    spent; then re-place new centres centrally on the reduced fabric (existing centres
+    kept). The budget is population-aware when ``mean_density`` and ``max_density`` are
+    given (green funded by densification, never by lost housing); otherwise a flat
+    ``max_green_frac``. Returns a new plan.
     """
     plan = plan.copy()
     g = float(granularity_m)
@@ -353,10 +399,14 @@ def optimise_plan(
         block[carved] = PLAN_GREEN
         spent += carved_n
 
-    # re-place centres on the fabric that remains after carving
+    # re-place centres on the fabric that remains after carving: keep existing
+    # centres, add new ones centrally to serve homes they don't already reach
     plan[plan == PLAN_CENTRE] = PLAN_BUILT
     built = plan == PLAN_BUILT
-    for y, x in _gravity_centres(built.astype(np.float64), built, walk_r, max_centres):
+    for ey, ex in existing_centres or []:
+        if 0 <= ey < rows and 0 <= ex < cols and plan[ey, ex] == PLAN_BUILT:
+            plan[ey, ex] = PLAN_CENTRE
+    for y, x in _place_centres(built, granularity_m, max_distance_m, max_centres, existing=existing_centres):
         plan[y, x] = PLAN_CENTRE
     return plan
 
