@@ -32,6 +32,7 @@ from isobenefit_qgis.grid import (
     align_bounds,
     classify,
     evaluate_plan,
+    optimise_plan,
     recommended_plan,
 )
 
@@ -203,3 +204,22 @@ def test_evaluate_plan_metrics_in_range():
 
 def test_evaluate_empty_plan():
     assert evaluate_plan(np.zeros((10, 10), np.uint8), 100.0, 800.0) == {"built_cells": 0}
+
+
+def test_optimise_plan_improves_green_access():
+    g = 40
+    plan = np.full((g, g), PLAN_BUILT, np.uint8)  # all built, no green
+    plan[20, 20] = PLAN_CENTRE
+    before = evaluate_plan(plan, 100.0, 800.0)
+    assert before["green_coverage"] == 0.0  # nothing green to reach
+
+    opt = optimise_plan(plan, 100.0, min_green_span_m=400.0, max_distance_m=800.0, max_green_frac=0.3)
+    after = evaluate_plan(opt, 100.0, 800.0)
+    assert opt.shape == plan.shape
+    assert set(np.unique(opt)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
+    assert after["green_coverage"] > before["green_coverage"]
+    assert after["served_coverage"] > before["served_coverage"]
+    assert (opt == PLAN_CENTRE).any()  # centres re-placed on the reduced fabric
+    # green spent stays within budget (+ at most one final park's worth)
+    n_built0 = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
+    assert int((opt == PLAN_GREEN).sum()) <= 0.3 * n_built0 + 16

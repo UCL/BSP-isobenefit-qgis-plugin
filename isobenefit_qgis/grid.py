@@ -271,3 +271,72 @@ def evaluate_plan(plan: np.ndarray, granularity_m: float, max_distance_m: float)
         "green_walk_mean": float(d_green[d_green < math.inf].mean()) if (d_green < math.inf).any() else math.inf,
         "compactness": adj / (4.0 * n_built),
     }
+
+
+# --- hybrid optimiser: greedy coverage over the consensus prior ------------------
+#
+# The consensus plan (recommended_plan) is the CA's forecast; the evaluator shows
+# its weak spot is usually green access. This polishes that prior toward the
+# objective: greedily carve a green network into the built fabric where the
+# worst-served homes are, until everyone has a park within a walk or a green budget
+# is spent, then re-place centres on the (reduced) fabric. Greedy max-coverage is
+# submodular, so each step is within (1-1/e) of the best possible — deterministic
+# and intuitive, no annealing schedule to tune.
+
+
+def optimise_plan(
+    plan: np.ndarray,
+    granularity_m: float,
+    min_green_span_m: float,
+    max_distance_m: float,
+    max_green_frac: float = 0.2,
+    max_centres: int = 50,
+) -> np.ndarray:
+    """Improve a plan's walkable green access by carving parks where access is worst.
+
+    Starting from ``plan`` (the consensus prior), repeatedly place a compact park of
+    side ``min_green_span`` at the spot covering the most currently-unserved homes
+    (converting built -> green), until every home has qualifying green within a walk
+    or ``max_green_frac`` of the built area has been spent. Centres are then
+    re-placed by the gravity model on the reduced fabric. Returns a new plan.
+    """
+    plan = plan.copy()
+    g = float(granularity_m)
+    side = max(2, round(min_green_span_m / g))
+    half = side // 2
+    walk_r = max(1, round(max_distance_m / g))
+    rows, cols = plan.shape
+
+    n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
+    if n_built == 0:
+        return plan
+    green_budget = int(max_green_frac * n_built)
+
+    spent = 0
+    while spent < green_budget:
+        built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
+        d_green = _walk_distance(plan == PLAN_GREEN, g, max_distance_m)
+        unserved = built & ~np.isfinite(d_green)
+        if not unserved.any():
+            break
+        # homes a park here would newly serve: unserved within a walk of the park
+        gain = _box_sum(unserved.astype(np.float64), walk_r + half)
+        gain = np.where(built, gain, -1.0)  # a park must land on developable (built) land
+        if gain.max() <= 0.0:
+            break
+        cy, cx = divmod(int(np.argmax(gain)), cols)
+        y0, y1 = max(0, cy - half), min(rows, cy + half + 1)
+        x0, x1 = max(0, cx - half), min(cols, cx + half + 1)
+        block = plan[y0:y1, x0:x1]
+        carved = (block == PLAN_BUILT) | (block == PLAN_CENTRE)
+        block[carved] = PLAN_GREEN
+        if not carved.any():  # nothing left to carve here — avoid an infinite loop
+            break
+        spent += int(carved.sum())
+
+    # re-place centres on the fabric that remains after carving
+    plan[plan == PLAN_CENTRE] = PLAN_BUILT
+    built = plan == PLAN_BUILT
+    for y, x in _gravity_centres(built.astype(np.float64), built, walk_r, max_centres):
+        plan[y, x] = PLAN_CENTRE
+    return plan

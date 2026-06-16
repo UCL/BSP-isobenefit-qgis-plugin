@@ -217,6 +217,13 @@ class IsobenefitTask(QgsTask):
                     self.min_green_span,
                     self.max_distance_m,
                 )
+                # hybrid polish: carve an equitable green network into the consensus
+                plan = grid.optimise_plan(
+                    plan,
+                    self.granularity_m,
+                    self.min_green_span,
+                    self.max_distance_m,
+                )
                 gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
