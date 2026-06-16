@@ -43,7 +43,7 @@ DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
 GRAN = 100.0
 MAX_DISTANCE = 800.0  # walk
 GREEN_SPAN = 400.0  # a park must be at least this across to "count"
-MAX_CENTRES = 50
+MAX_CENTRES = 200
 ENSEMBLE_N = 64
 SINGLE_SEEDS = list(range(1, 17))  # 16 independent single runs for the distribution
 
@@ -164,16 +164,18 @@ def main():
           f"(max {cs['max_density']:,.0f})")
     print(f"  feasible by densifying the rest: {cs['feasible']}")
 
-    # Centre-cost dial: cheaper centres -> more of them, shorter walks; pricier -> fewer, busier.
-    print("\nCentre-cost dial (min audience per centre -> how many centres, how busy):")
-    for cf in (0.002, 0.005, 0.01, 0.02):
+    # Centre-cost dial: 0% = minimum centres for full coverage (set cover); higher = fewer, busier.
+    print("\nCentre-cost dial (0% = fewest centres for full coverage; higher = fewer, busier):")
+    for cf in (0.0, 0.002, 0.005, 0.01, 0.02):
         o = optimise_plan(
-            consensus, GRAN, GREEN_SPAN, MAX_DISTANCE,
-            mean_density=MEAN_DENSITY, max_density=MAX_DENSITY, existing_centres=seeds, centre_cost_frac=cf,
+            consensus, GRAN, GREEN_SPAN, MAX_DISTANCE, mean_density=MEAN_DENSITY, max_density=MAX_DENSITY,
+            existing_centres=seeds, max_centres=200, centre_cost_frac=cf,
         )
         m = evaluate_plan(o, GRAN, MAX_DISTANCE, min_green_span_m=GREEN_SPAN)
-        print(f"  cost {cf:>5.1%}: {int((o == PLAN_CENTRE).sum()):3d} centres, "
-              f"served {m['served_coverage']:5.1%}, {m['centre_efficiency']:4.0f} homes/centre")
+        label = "full cover" if cf == 0.0 else f"cost {cf:.1%}"
+        print(f"  {label:>11s}: {int((o == PLAN_CENTRE).sum()):3d} centres, "
+              f"centre cov {m['centre_coverage']:5.1%}, served {m['served_coverage']:5.1%}, "
+              f"{m['centre_efficiency']:4.0f} homes/centre")
 
     # Selection: optimise every run, pick the one with the lowest average walk.
     print("\nSelection — optimise each run, pick the lowest average walk to amenities:")

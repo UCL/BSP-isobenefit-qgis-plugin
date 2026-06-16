@@ -140,16 +140,17 @@ def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
     return y, x
 
 
-def _place_centres(built, granularity_m, max_distance_m, max_new=50, existing=None, centre_cost_frac=0.005):
+def _place_centres(built, granularity_m, max_distance_m, max_new=200, existing=None, centre_cost_frac=0.0):
     """Reverse-engineer good locations for NEW centres (facility location).
 
-    Add a centre only while it newly serves enough homes to be worth it:
-    ``centre_cost_frac`` (× total homes) is the **cost-per-centre dial** — the minimum
-    new audience a centre must reach. It sets HOW MANY centres (cheap → many, short
-    walks; expensive → few, busy) and bakes in efficiency (no centre serves fewer than
-    that). Each new centre is snapped to the CENTROID of the homes it serves (a Lloyd
-    step) so it sits central to its catchment; ``existing`` centres are kept fixed and
-    seed the initial coverage. Returns the list of NEW ``(row, col)``.
+    Default (``centre_cost_frac=0``): the **fewest centres that still put every
+    reachable home within a walk** — greedy set cover, parameter-free. ``centre_cost_frac``
+    (× total homes) is an optional **cost-per-centre dial**: a centre is added only while
+    it newly serves at least that many homes, so raising it trims to fewer, busier
+    centres (and leaves the thinnest pockets uncovered). Each new centre is snapped to
+    the CENTROID of the homes it serves (a Lloyd step) so it sits central to its
+    catchment; ``existing`` centres are kept fixed and seed the initial coverage.
+    Returns the list of NEW ``(row, col)``.
     """
     built = np.asarray(built, dtype=bool)
     rows, cols = built.shape
@@ -228,7 +229,7 @@ def recommended_plan(
     green_thresh: float = 0.5,
     built_thresh: float = 0.5,
     min_built_cells: int = 6,
-    max_centres: int = 50,
+    max_centres: int = 200,
     existing_centres=None,
 ) -> np.ndarray:
     """Constraint-aware plan from the per-class probability surfaces.
@@ -395,9 +396,9 @@ def optimise_plan(
     mean_density: float | None = None,
     max_density: float | None = None,
     max_green_frac: float = 0.2,
-    max_centres: int = 50,
+    max_centres: int = 200,
     existing_centres=None,
-    centre_cost_frac: float = 0.005,
+    centre_cost_frac: float = 0.0,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
