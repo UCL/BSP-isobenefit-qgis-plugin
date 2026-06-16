@@ -7,6 +7,7 @@ from here.
 
 from __future__ import annotations
 
+import heapq
 import math
 
 import numpy as np
@@ -123,53 +124,150 @@ def _box_sum(a: np.ndarray, r: int) -> np.ndarray:
     return ii[np.ix_(y1, x1)] - ii[np.ix_(y0, x1)] - ii[np.ix_(y1, x0)] + ii[np.ix_(y0, x0)]
 
 
-def _centre_peaks(p_centre, radius, threshold_frac, max_centres):
-    """Greedy non-max suppression on the walk-smoothed centre surface.
+def _gravity_centres(p_built, built_mask, radius, max_centres, threshold_frac=0.25):
+    """Place centres by a gravity model.
 
-    Returns up to ``max_centres`` (row, col) peaks, each at least ``threshold_frac``
-    of the strongest and spaced at least ``radius`` cells apart.
+    Greedily pick the built cell that can reach the most built "population" within a
+    walk — a box-sum of ``p_built`` over the ``radius`` catchment — then suppress a
+    walk-radius neighbourhood and repeat. Candidates are restricted to ``built_mask``
+    so centres sit in the fabric: an isolated spot reaches little built, scores low,
+    and is never chosen; the catchment radius bakes in the max-distance constraint.
+    Returns up to ``max_centres`` (row, col)s spaced >= ``radius`` apart.
     """
-    suit = _box_sum(p_centre, radius)
-    peak_floor = threshold_frac * float(suit.max()) if suit.size and suit.max() > 0 else None
-    if peak_floor is None:
+    gravity = _box_sum(np.asarray(p_built), radius)
+    gravity = np.where(built_mask, gravity, -1.0)  # a centre must sit in built fabric
+    if gravity.max() <= 0.0:
         return []
-    rows, cols = suit.shape
+    peak_floor = threshold_frac * float(gravity.max())
+    rows, cols = gravity.shape
     peaks = []
     for _ in range(max_centres):
-        y, x = divmod(int(np.argmax(suit)), cols)
-        if suit[y, x] < peak_floor or suit[y, x] <= 0.0:
+        y, x = divmod(int(np.argmax(gravity)), cols)
+        if gravity[y, x] < peak_floor or gravity[y, x] <= 0.0:
             break
         peaks.append((y, x))
-        suit[max(0, y - radius) : y + radius + 1, max(0, x - radius) : x + radius + 1] = -1.0
+        gravity[max(0, y - radius) : y + radius + 1, max(0, x - radius) : x + radius + 1] = -1.0
     return peaks
 
 
 def recommended_plan(
     p_built,
     p_green,
-    p_centre,
     granularity_m,
     min_green_span_m,
     max_distance_m,
     green_thresh: float = 0.5,
     built_thresh: float = 0.5,
+    min_built_cells: int = 6,
     max_centres: int = 50,
 ) -> np.ndarray:
     """Constraint-aware plan from the per-class probability surfaces.
 
-    - green network: ``P(green) >= green_thresh`` kept only as connected components
-      at least the min-green-span area (slivers dropped);
-    - centres: peaks of the walk-smoothed ``P(centre)``, spaced >= a walk apart;
-    - built: ``P(built) >= built_thresh`` elsewhere.
+    - built: ``P(built) >= built_thresh``, kept only as connected components of at
+      least ``min_built_cells`` cells (slivers / leftover drips dropped);
+    - green network: ``P(green) >= green_thresh`` kept as connected components of at
+      least the min-green-span area;
+    - centres: a gravity model — built cells that maximise reachable built within a
+      walk (see ``_gravity_centres``), spaced >= a walk apart.
 
-    Returns a uint8 categorical grid using the ``PLAN_*`` codes.
+    Returns a uint8 categorical grid using the ``PLAN_*`` codes. ``P(centre)`` is no
+    longer used for placement (centres are derived from access to built fabric) but
+    is still emitted as a likelihood layer by the plugin.
     """
     plan = np.zeros(p_built.shape, dtype=np.uint8)
-    plan[p_built >= built_thresh] = PLAN_BUILT
-    min_cells = max(1, round((min_green_span_m / granularity_m) ** 2))
-    green = _keep_large_components(np.asarray(p_green) >= green_thresh, min_cells)
+    built = _keep_large_components(np.asarray(p_built) >= built_thresh, min_built_cells)
+    plan[built] = PLAN_BUILT
+    green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
+    green = _keep_large_components(np.asarray(p_green) >= green_thresh, green_min)
     plan[green] = PLAN_GREEN
     radius = max(1, round(max_distance_m / granularity_m))
-    for y, x in _centre_peaks(np.asarray(p_centre), radius, 0.25, max_centres):
+    for y, x in _gravity_centres(p_built, built, radius, max_centres):
         plan[y, x] = PLAN_CENTRE
     return plan
+
+
+# --- plan evaluator: the "isobenefit" objective, method-agnostic ----------------
+#
+# Scores any PLAN_* layout so different extraction methods (consensus, greedy,
+# annealing, …) can be compared on the same yardstick, and so an optimiser has an
+# objective to maximise. The headline question is equity of *walkable* access:
+# is every home within a walk of both a centre and qualifying green, and how badly
+# off is the worst-served home? "Isobenefit" = equal benefit, so we report both the
+# utilitarian mean and the egalitarian worst-case.
+
+
+def _walk_distance(targets: np.ndarray, granularity_m: float, max_distance_m: float) -> np.ndarray:
+    """Walking distance (metres) from every cell to the nearest target cell.
+
+    A bounded multi-source Dijkstra over an open grid (every cell walkable), queen
+    moves with diagonal cost ``sqrt(2) * granularity``. Cells further than
+    ``max_distance_m`` from any target stay ``inf``.
+    """
+    rows, cols = targets.shape
+    dist = np.full((rows, cols), math.inf)
+    g = float(granularity_m)
+    diag = math.sqrt(2.0)
+    steps = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
+             (1, 1, diag), (1, -1, diag), (-1, 1, diag), (-1, -1, diag))
+    heap: list[tuple[float, int, int]] = []
+    for y, x in zip(*np.nonzero(targets)):
+        y, x = int(y), int(x)
+        dist[y, x] = 0.0
+        heap.append((0.0, y, x))
+    heapq.heapify(heap)
+    while heap:
+        d, y, x = heapq.heappop(heap)
+        if d > dist[y, x]:
+            continue
+        for dy, dx, w in steps:
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < rows and 0 <= nx < cols:
+                nd = d + w * g
+                if nd <= max_distance_m and nd < dist[ny, nx]:
+                    dist[ny, nx] = nd
+                    heapq.heappush(heap, (nd, ny, nx))
+    return dist
+
+
+def evaluate_plan(plan: np.ndarray, granularity_m: float, max_distance_m: float) -> dict:
+    """Score a recommended plan by walkable access to centres and green.
+
+    Per built cell (centres count as built fabric) the "benefit" of each amenity is
+    ``1`` at the doorstep, fading linearly to ``0`` at ``max_distance_m`` and ``0``
+    beyond. Returns intuitive metrics in ``[0, 1]`` plus walk distances in metres:
+
+    - ``centre_coverage`` / ``green_coverage`` — share of homes within a walk;
+    - ``served_coverage`` — share within a walk of *both*;
+    - ``mean_benefit`` — utilitarian average benefit;
+    - ``worst_benefit`` — 5th-percentile benefit (the egalitarian/isobenefit headline);
+    - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (reachable only);
+    - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
+    """
+    built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
+    n_built = int(built.sum())
+    if n_built == 0:
+        return {"built_cells": 0}
+
+    d_cent = _walk_distance(plan == PLAN_CENTRE, granularity_m, max_distance_m)[built]
+    d_green = _walk_distance(plan == PLAN_GREEN, granularity_m, max_distance_m)[built]
+    a_cent = np.clip(1.0 - d_cent / max_distance_m, 0.0, 1.0)  # inf -> 0 benefit
+    a_green = np.clip(1.0 - d_green / max_distance_m, 0.0, 1.0)
+    benefit = 0.5 * (a_cent + a_green)
+
+    rows, cols = plan.shape
+    adj = 0
+    for dy, dx in ((1, 0), (0, 1)):
+        a = built[: rows - dy, : cols - dx] & built[dy:, dx:]
+        adj += 2 * int(a.sum())  # each shared edge counts for both cells
+
+    return {
+        "built_cells": n_built,
+        "centre_coverage": float(np.mean(d_cent < math.inf)),
+        "green_coverage": float(np.mean(d_green < math.inf)),
+        "served_coverage": float(np.mean((d_cent < math.inf) & (d_green < math.inf))),
+        "mean_benefit": float(benefit.mean()),
+        "worst_benefit": float(np.percentile(benefit, 5)),
+        "centre_walk_mean": float(d_cent[d_cent < math.inf].mean()) if (d_cent < math.inf).any() else math.inf,
+        "green_walk_mean": float(d_green[d_green < math.inf].mean()) if (d_green < math.inf).any() else math.inf,
+        "compactness": adj / (4.0 * n_built),
+    }

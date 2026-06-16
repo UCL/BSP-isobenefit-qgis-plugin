@@ -213,7 +213,6 @@ class IsobenefitTask(QgsTask):
                 plan = grid.recommended_plan(
                     built / n,
                     green / n,
-                    centre / n,
                     self.granularity_m,
                     self.min_green_span,
                     self.max_distance_m,

@@ -31,6 +31,7 @@ from isobenefit_qgis.grid import (
     PLAN_NONE,
     align_bounds,
     classify,
+    evaluate_plan,
     recommended_plan,
 )
 
@@ -155,26 +156,50 @@ def test_recommended_plan_synthetic():
     g = 20
     p_green = np.zeros((g, g), np.float32)
     p_built = np.zeros((g, g), np.float32)
-    p_centre = np.zeros((g, g), np.float32)
     p_green[2:12, 2:12] = 1.0  # large green block (100 cells) -> kept
     p_green[0, 18] = 1.0  # 1-cell sliver -> dropped (min area 9 cells)
-    p_built[14:18, 2:8] = 1.0  # built region
-    p_centre[15, 15] = 1.0  # a centre hotspot
-    plan = recommended_plan(
-        p_built, p_green, p_centre, granularity_m=100.0, min_green_span_m=300.0, max_distance_m=300.0
-    )
+    p_built[14:18, 2:8] = 1.0  # built region (24 cells) -> kept
+    p_built[19, 19] = 1.0  # 1-cell built drip -> dropped (min 6 cells)
+    plan = recommended_plan(p_built, p_green, granularity_m=100.0, min_green_span_m=300.0, max_distance_m=300.0)
     assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
     assert plan[5, 5] == PLAN_GREEN  # inside the large block
-    assert plan[0, 18] == PLAN_NONE  # sliver dropped by the min-area rule
-    assert plan[15, 5] == PLAN_BUILT  # built region
-    assert int((plan == PLAN_CENTRE).sum()) >= 1  # a centre near the hotspot
+    assert plan[0, 18] == PLAN_NONE  # green sliver dropped by the min-area rule
+    assert plan[19, 19] == PLAN_NONE  # built drip dropped by the min-area rule
+    assert plan[15, 5] in (PLAN_BUILT, PLAN_CENTRE)  # built region survives
+    # a centre is placed by the gravity model, sitting inside the built fabric
+    centres = np.argwhere(plan == PLAN_CENTRE)
+    assert len(centres) >= 1
+    for cy, cx in centres:
+        assert 14 <= cy < 18 and 2 <= cx < 8
 
 
 def test_recommended_plan_on_demo(grid):
     n = 8
-    built, green, centre = isobenefit.ensemble_class_counts(_make(grid), 2024, n)
-    plan = recommended_plan(built / n, green / n, centre / n, GRAN, 100.0, 800.0)
+    built, green, _centre = isobenefit.ensemble_class_counts(_make(grid), 2024, n)
+    plan = recommended_plan(built / n, green / n, GRAN, 100.0, 800.0)
     assert plan.shape == (grid["rows"], grid["cols"])
     assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
     assert (plan == PLAN_GREEN).any() and (plan == PLAN_BUILT).any()
     assert int((plan == PLAN_CENTRE).sum()) >= 1
+
+
+def test_evaluate_plan_metrics_in_range():
+    g = 24
+    plan = np.zeros((g, g), np.uint8)
+    plan[4:20, 4:20] = PLAN_BUILT  # a built block
+    plan[11, 11] = PLAN_CENTRE  # a centre inside it
+    plan[4:20, 20:24] = PLAN_GREEN  # green alongside
+    m = evaluate_plan(plan, granularity_m=100.0, max_distance_m=800.0)
+    for k in ("centre_coverage", "green_coverage", "served_coverage", "mean_benefit", "worst_benefit", "compactness"):
+        assert 0.0 <= m[k] <= 1.0
+    assert m["built_cells"] == int((plan == PLAN_BUILT).sum()) + 1  # centre counts as built
+    assert m["centre_coverage"] > 0.0  # the centre serves its block
+    # a centre embedded in the block beats one shoved into a corner (equity drops)
+    far = plan.copy()
+    far[11, 11] = PLAN_BUILT
+    far[4, 4] = PLAN_CENTRE
+    assert evaluate_plan(far, 100.0, 800.0)["worst_benefit"] <= m["worst_benefit"]
+
+
+def test_evaluate_empty_plan():
+    assert evaluate_plan(np.zeros((10, 10), np.uint8), 100.0, 800.0) == {"built_cells": 0}
