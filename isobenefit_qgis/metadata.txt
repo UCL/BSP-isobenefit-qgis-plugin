@@ -11,7 +11,7 @@ qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
 description=Isobenefit Urbanism plugin for QGIS.
-version=0.7.0
+version=0.8.0
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -27,8 +27,7 @@ repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 
 # Recommended items:
 
-# Uncomment the following line and add your changelog:
-# changelog=
+changelog=0.8.0 Recommended plan rebuilt: best single run (not the averaged consensus), population-aware green network funded by densification (housing held), facility-location centres (fewest for full coverage, central to their catchment), honest within-a-walk coverage scoring reporting walk-to-centre and walk-to-green separately.
 
 # Tags are comma separated with spaces allowed
 tags=pyqgis simulation planning
