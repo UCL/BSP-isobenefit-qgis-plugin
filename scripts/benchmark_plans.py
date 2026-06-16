@@ -164,6 +164,26 @@ def main():
           f"(max {cs['max_density']:,.0f})")
     print(f"  feasible by densifying the rest: {cs['feasible']}")
 
+    # Selection: optimise every run, pick the one with the lowest average walk.
+    print("\nSelection — optimise each run, pick the lowest average walk to amenities:")
+    gmin = max(1, round((GREEN_SPAN / GRAN) ** 2))
+    picks = []
+    for s in SINGLE_SEEDS:
+        sp = single_run_plan(rows, cols, state, origin, seeds, s)
+        sp[sp == PLAN_CENTRE] = PLAN_BUILT  # optimiser re-places centres
+        keep = _keep_large_components(sp == PLAN_GREEN, gmin)
+        sp[(sp == PLAN_GREEN) & ~keep] = PLAN_NONE
+        opt = optimise_plan(
+            sp, GRAN, GREEN_SPAN, MAX_DISTANCE,
+            mean_density=MEAN_DENSITY, max_density=MAX_DENSITY, existing_centres=seeds,
+        )
+        picks.append((s, evaluate_plan(opt, GRAN, MAX_DISTANCE, min_green_span_m=GREEN_SPAN)))
+    best_seed, best = min(picks, key=lambda sm: sm[1]["access_cost"])
+    costs = sorted(m["access_cost"] for _, m in picks)
+    print(f"  winner: seed {best_seed} — avg walk {best['access_cost']:.0f} m, "
+          f"served {best['served_coverage']:.1%}, unserved {best['unserved_fraction']:.1%}")
+    print(f"  avg-walk range over {len(picks)} runs: {costs[0]:.0f} .. {costs[-1]:.0f} m")
+
 
 if __name__ == "__main__":
     main()

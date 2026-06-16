@@ -310,7 +310,9 @@ def evaluate_plan(
     - ``centre_coverage`` / ``green_coverage`` — share of homes within a walk of each;
     - ``served_coverage`` — share within a walk of *both* (the headline);
     - ``unserved_fraction`` — share left out (the equity headline);
-    - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (proximity tiebreaker);
+    - ``access_cost`` — average walk (m) to amenities over every home, the unreachable
+      counted at a penalty distance; **the metric for picking between runs** (lower is better);
+    - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (reachable only);
     - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
     """
     built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
@@ -329,6 +331,14 @@ def evaluate_plan(
     near_green = d_green < math.inf
     served = near_cent & near_green
 
+    # selection metric: average walk to amenities over EVERY home, with anyone who
+    # can't reach within the limit counted at a penalty distance (so a plan can't
+    # score well by abandoning the fringe). Lower is better.
+    penalty = 2.0 * max_distance_m
+    cost_cent = np.where(near_cent, d_cent, penalty)
+    cost_green = np.where(near_green, d_green, penalty)
+    access_cost = float((0.5 * (cost_cent + cost_green)).mean())
+
     rows, cols = plan.shape
     adj = 0
     for dy, dx in ((1, 0), (0, 1)):
@@ -341,6 +351,7 @@ def evaluate_plan(
         "green_coverage": float(near_green.mean()),
         "served_coverage": float(served.mean()),
         "unserved_fraction": float((~served).mean()),
+        "access_cost": access_cost,  # average walk over all homes (penalised) — the selection metric
         "centre_walk_mean": float(d_cent[near_cent].mean()) if near_cent.any() else math.inf,
         "green_walk_mean": float(d_green[near_green].mean()) if near_green.any() else math.inf,
         "compactness": adj / (4.0 * n_built),
