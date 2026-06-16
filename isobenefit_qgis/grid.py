@@ -189,6 +189,30 @@ def _place_centres(built, granularity_m, max_distance_m, max_new=50, existing=No
             y, x = cy, cx
         new.append((y, x))
         stamp(covered, y, x)
+
+    # Global refinement (Lloyd / k-means): with existing centres fixed, repeatedly
+    # assign every home to its nearest centre and move each NEW centre to the centroid
+    # of the homes assigned to it. This settles all new centres jointly into central,
+    # balanced positions (≈ the p-median optimum) rather than the greedy placement.
+    fixed = list(existing or [])
+    if new:
+        hy, hx = np.nonzero(built)
+        for _ in range(12):
+            sites = fixed + new
+            sy = np.array([s[0] for s in sites])
+            sx = np.array([s[1] for s in sites])
+            nearest = np.argmin((hy[:, None] - sy) ** 2 + (hx[:, None] - sx) ** 2, axis=1)
+            moved = False
+            for j in range(len(new)):
+                members = nearest == (len(fixed) + j)
+                if not members.any():
+                    continue
+                ny, nx = _nearest_built(built, round(hy[members].mean()), round(hx[members].mean()))
+                if (ny, nx) != new[j]:
+                    new[j] = (ny, nx)
+                    moved = True
+            if not moved:
+                break
     return new
 
 
@@ -233,12 +257,11 @@ def recommended_plan(
 
 # --- plan evaluator: the "isobenefit" objective, method-agnostic ----------------
 #
-# Scores any PLAN_* layout so different extraction methods (consensus, greedy,
-# annealing, …) can be compared on the same yardstick, and so an optimiser has an
-# objective to maximise. The headline question is equity of *walkable* access:
-# is every home within a walk of both a centre and qualifying green, and how badly
-# off is the worst-served home? "Isobenefit" = equal benefit, so we report both the
-# utilitarian mean and the egalitarian worst-case.
+# Scores any PLAN_* layout on the same yardstick so extraction methods can be
+# compared. The standard is a THRESHOLD, not a gradient: being within a walk
+# (<= max_distance) of an amenity is "okay", full stop — 800 m is fine, not "almost
+# zero". So the score is COVERAGE — is each home within a walk of a centre and of a
+# real park? — and the equity headline is simply how many homes are left out.
 
 
 def _walk_distance(targets: np.ndarray, granularity_m: float, max_distance_m: float) -> np.ndarray:
@@ -274,18 +297,20 @@ def _walk_distance(targets: np.ndarray, granularity_m: float, max_distance_m: fl
     return dist
 
 
-def evaluate_plan(plan: np.ndarray, granularity_m: float, max_distance_m: float) -> dict:
-    """Score a recommended plan by walkable access to centres and green.
+def evaluate_plan(
+    plan: np.ndarray, granularity_m: float, max_distance_m: float, min_green_span_m: float | None = None
+) -> dict:
+    """Score a recommended plan by COVERAGE — who is within a walk of what.
 
-    Per built cell (centres count as built fabric) the "benefit" of each amenity is
-    ``1`` at the doorstep, fading linearly to ``0`` at ``max_distance_m`` and ``0``
-    beyond. Returns intuitive metrics in ``[0, 1]`` plus walk distances in metres:
+    A home is *served* if it is within ``max_distance_m`` of both a centre and a real
+    park (within the walk = okay; not a gradient). Only green patches of at least
+    ``min_green_span_m`` across count as parks (specks don't). Returns shares in
+    ``[0, 1]``:
 
-    - ``centre_coverage`` / ``green_coverage`` — share of homes within a walk;
-    - ``served_coverage`` — share within a walk of *both*;
-    - ``mean_benefit`` — utilitarian average benefit;
-    - ``worst_benefit`` — 5th-percentile benefit (the egalitarian/isobenefit headline);
-    - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (reachable only);
+    - ``centre_coverage`` / ``green_coverage`` — share of homes within a walk of each;
+    - ``served_coverage`` — share within a walk of *both* (the headline);
+    - ``unserved_fraction`` — share left out (the equity headline);
+    - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (proximity tiebreaker);
     - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
     """
     built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
@@ -293,11 +318,16 @@ def evaluate_plan(plan: np.ndarray, granularity_m: float, max_distance_m: float)
     if n_built == 0:
         return {"built_cells": 0}
 
+    green_mask = plan == PLAN_GREEN
+    if min_green_span_m:  # only real parks count, matching recommended_plan
+        green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
+        green_mask = _keep_large_components(green_mask, green_min)
+
     d_cent = _walk_distance(plan == PLAN_CENTRE, granularity_m, max_distance_m)[built]
-    d_green = _walk_distance(plan == PLAN_GREEN, granularity_m, max_distance_m)[built]
-    a_cent = np.clip(1.0 - d_cent / max_distance_m, 0.0, 1.0)  # inf -> 0 benefit
-    a_green = np.clip(1.0 - d_green / max_distance_m, 0.0, 1.0)
-    benefit = 0.5 * (a_cent + a_green)
+    d_green = _walk_distance(green_mask, granularity_m, max_distance_m)[built]
+    near_cent = d_cent < math.inf
+    near_green = d_green < math.inf
+    served = near_cent & near_green
 
     rows, cols = plan.shape
     adj = 0
@@ -307,13 +337,12 @@ def evaluate_plan(plan: np.ndarray, granularity_m: float, max_distance_m: float)
 
     return {
         "built_cells": n_built,
-        "centre_coverage": float(np.mean(d_cent < math.inf)),
-        "green_coverage": float(np.mean(d_green < math.inf)),
-        "served_coverage": float(np.mean((d_cent < math.inf) & (d_green < math.inf))),
-        "mean_benefit": float(benefit.mean()),
-        "worst_benefit": float(np.percentile(benefit, 5)),
-        "centre_walk_mean": float(d_cent[d_cent < math.inf].mean()) if (d_cent < math.inf).any() else math.inf,
-        "green_walk_mean": float(d_green[d_green < math.inf].mean()) if (d_green < math.inf).any() else math.inf,
+        "centre_coverage": float(near_cent.mean()),
+        "green_coverage": float(near_green.mean()),
+        "served_coverage": float(served.mean()),
+        "unserved_fraction": float((~served).mean()),
+        "centre_walk_mean": float(d_cent[near_cent].mean()) if near_cent.any() else math.inf,
+        "green_walk_mean": float(d_green[near_green].mean()) if near_green.any() else math.inf,
         "compactness": adj / (4.0 * n_built),
     }
 

@@ -107,7 +107,7 @@ def normalise(plan: np.ndarray) -> np.ndarray:
 
 def score(plan):
     p = normalise(plan)
-    m = evaluate_plan(p, GRAN, MAX_DISTANCE)
+    m = evaluate_plan(p, GRAN, MAX_DISTANCE, min_green_span_m=GREEN_SPAN)
     m["built"] = int((p == PLAN_BUILT).sum()) + int((p == PLAN_CENTRE).sum())
     m["green"] = int((p == PLAN_GREEN).sum())
     return m
@@ -134,13 +134,13 @@ def main():
     )
     singles = [score(single_run_plan(rows, cols, state, origin, seeds, s)) for s in SINGLE_SEEDS]
 
-    hdr = f"{'method':28s}{'served':>8s}{'green_cov':>10s}{'centre_cov':>11s}{'worst':>7s}{'built':>7s}{'green':>7s}"
+    hdr = f"{'method':28s}{'served':>8s}{'unserved':>9s}{'green_cov':>10s}{'centre_cov':>11s}{'built':>7s}{'green':>7s}"
     print(hdr)
     print("-" * len(hdr))
 
     def row(tag, m):
-        print(f"{tag:28s}{m['served_coverage']:>7.1%}{m['green_coverage']:>10.1%}"
-              f"{m['centre_coverage']:>11.1%}{m['worst_benefit']:>7.1%}{m['built']:>7d}{m['green']:>7d}")
+        print(f"{tag:28s}{m['served_coverage']:>7.1%}{m['unserved_fraction']:>9.1%}{m['green_coverage']:>10.1%}"
+              f"{m['centre_coverage']:>11.1%}{m['built']:>7d}{m['green']:>7d}")
 
     row("consensus (ensemble)", score(consensus))
     row("optimised (+greedy green)", score(optimised))
@@ -150,9 +150,8 @@ def main():
 
     lo, hi = min(m["served_coverage"] for m in singles), max(m["served_coverage"] for m in singles)
     print(f"{'single run (median of ' + str(len(singles)) + ')':28s}"
-          f"{med('served_coverage'):>7.1%}{med('green_coverage'):>10.1%}"
-          f"{med('centre_coverage'):>11.1%}{med('worst_benefit'):>7.1%}"
-          f"{round(med('built')):>7d}{round(med('green')):>7d}")
+          f"{med('served_coverage'):>7.1%}{med('unserved_fraction'):>9.1%}{med('green_coverage'):>10.1%}"
+          f"{med('centre_coverage'):>11.1%}{round(med('built')):>7d}{round(med('green')):>7d}")
     print(f"{'  single-run served range':28s}{lo:>7.1%} .. {hi:.1%}")
 
     # population accounting for the optimised plan (constant-inhabitants check)

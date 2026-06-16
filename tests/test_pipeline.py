@@ -185,26 +185,47 @@ def test_recommended_plan_on_demo(grid):
     assert int((plan == PLAN_CENTRE).sum()) >= 1
 
 
-def test_evaluate_plan_metrics_in_range():
+def test_evaluate_plan_coverage_in_range():
     g = 24
     plan = np.zeros((g, g), np.uint8)
     plan[4:20, 4:20] = PLAN_BUILT  # a built block
     plan[11, 11] = PLAN_CENTRE  # a centre inside it
     plan[4:20, 20:24] = PLAN_GREEN  # green alongside
     m = evaluate_plan(plan, granularity_m=100.0, max_distance_m=800.0)
-    for k in ("centre_coverage", "green_coverage", "served_coverage", "mean_benefit", "worst_benefit", "compactness"):
+    for k in ("centre_coverage", "green_coverage", "served_coverage", "unserved_fraction", "compactness"):
         assert 0.0 <= m[k] <= 1.0
+    assert abs(m["served_coverage"] + m["unserved_fraction"] - 1.0) < 1e-9  # served + unserved = all
     assert m["built_cells"] == int((plan == PLAN_BUILT).sum()) + 1  # centre counts as built
-    assert m["centre_coverage"] > 0.0  # the centre serves its block
-    # a centre embedded in the block beats one shoved into a corner (equity drops)
+    assert m["centre_coverage"] > 0.0
+    # a central centre covers more homes than one shoved into a corner
     far = plan.copy()
     far[11, 11] = PLAN_BUILT
     far[4, 4] = PLAN_CENTRE
-    assert evaluate_plan(far, 100.0, 800.0)["worst_benefit"] <= m["worst_benefit"]
+    assert evaluate_plan(far, 100.0, 800.0)["centre_coverage"] <= m["centre_coverage"]
+
+
+def test_evaluate_plan_only_real_parks_count():
+    g = 24
+    plan = np.full((g, g), PLAN_BUILT, np.uint8)
+    plan[0, 0] = PLAN_GREEN  # a single-cell speck, not a park
+    assert evaluate_plan(plan, 100.0, 800.0)["green_coverage"] > 0.0  # speck counts when unfiltered
+    assert evaluate_plan(plan, 100.0, 800.0, min_green_span_m=400.0)["green_coverage"] == 0.0  # filtered out
 
 
 def test_evaluate_empty_plan():
     assert evaluate_plan(np.zeros((10, 10), np.uint8), 100.0, 800.0) == {"built_cells": 0}
+
+
+def test_place_centres_lands_central():
+    from isobenefit_qgis.grid import _place_centres
+
+    g = 30
+    built = np.zeros((g, g), bool)
+    built[5:25, 5:25] = True  # one block, centroid ~ (14.5, 14.5)
+    centres = _place_centres(built, 100.0, 2000.0, max_new=1)  # one big-catchment centre covers it
+    assert len(centres) == 1
+    cy, cx = centres[0]
+    assert 12 <= cy <= 17 and 12 <= cx <= 17  # near the centroid, not an edge
 
 
 def test_optimise_plan_improves_green_access():
