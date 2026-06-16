@@ -225,8 +225,9 @@ class IsobenefitTask(QgsTask):
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                 if metrics:
                     self._log(
-                        f"Recommended plan: {metrics['served_coverage']:.0%} of homes within a walk of "
-                        f"both green and a centre (avg walk {metrics['access_cost']:.0f} m)."
+                        f"Recommended plan: {metrics['served_coverage']:.0%} of homes within a walk of both "
+                        f"green and a centre (avg walk to a centre {metrics['centre_access']:.0f} m, "
+                        f"to green {metrics['green_access']:.0f} m)."
                     )
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "

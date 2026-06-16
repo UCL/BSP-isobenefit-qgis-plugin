@@ -314,8 +314,9 @@ def evaluate_plan(
     - ``centre_coverage`` / ``green_coverage`` — share of homes within a walk of each;
     - ``served_coverage`` — share within a walk of *both* (the headline);
     - ``unserved_fraction`` — share left out (the equity headline);
-    - ``access_cost`` — average walk (m) to amenities over every home, the unreachable
-      counted at a penalty distance; **the metric for picking between runs** (lower is better);
+    - ``access_cost`` — average walk (m) to amenities over every home (unreachable counted
+      at a penalty); the **selection metric** (lower better). ``centre_access`` /
+      ``green_access`` are its two halves — avg walk to a centre, and to green, separately;
     - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (reachable only);
     - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
     """
@@ -339,9 +340,9 @@ def evaluate_plan(
     # can't reach within the limit counted at a penalty distance (so a plan can't
     # score well by abandoning the fringe). Lower is better.
     penalty = 2.0 * max_distance_m
-    cost_cent = np.where(near_cent, d_cent, penalty)
-    cost_green = np.where(near_green, d_green, penalty)
-    access_cost = float((0.5 * (cost_cent + cost_green)).mean())
+    centre_access = float(np.where(near_cent, d_cent, penalty).mean())
+    green_access = float(np.where(near_green, d_green, penalty).mean())
+    access_cost = 0.5 * (centre_access + green_access)
 
     rows, cols = plan.shape
     adj = 0
@@ -359,7 +360,9 @@ def evaluate_plan(
         "green_coverage": float(near_green.mean()),
         "served_coverage": float(served.mean()),
         "unserved_fraction": float((~served).mean()),
-        "access_cost": access_cost,  # average walk over all homes (penalised) — the selection metric
+        "access_cost": access_cost,  # mean of the two below — the selection metric (lower better)
+        "centre_access": centre_access,  # avg walk to a centre over all homes (penalised)
+        "green_access": green_access,  # avg walk to green over all homes (penalised)
         "centre_walk_mean": float(d_cent[near_cent].mean()) if near_cent.any() else math.inf,
         "green_walk_mean": float(d_green[near_green].mean()) if near_green.any() else math.inf,
         "compactness": adj / (4.0 * n_built),
@@ -522,20 +525,21 @@ def select_plan(
     mean_density=None,
     max_density=None,
     existing_centres=None,
-    centre_cost_frac=0.005,
-    max_eval=24,
+    centre_cost_frac=0.0,
+    max_eval=None,
 ):
-    """Pick the recommended plan from per-run final states: optimise each run and keep
-    the one with the lowest average walk (``access_cost``). Runs are similar, so at most
-    ``max_eval`` of them (evenly sampled) are optimised to bound cost. Returns
-    ``(best_plan, best_metrics)`` — ``(None, None)`` if ``states`` is empty.
+    """Pick the recommended plan from per-run final states: optimise EVERY run and keep
+    the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
+    only that many evenly-sampled runs (faster for very large ensembles; runs are
+    similar). Returns ``(best_plan, best_metrics)`` — ``(None, None)`` if ``states`` empty.
     """
     states = list(states)
     if not states:
         return None, None
-    step = max(1, len(states) // max_eval)
+    if max_eval and len(states) > max_eval:  # optional cap for very large ensembles
+        states = states[:: len(states) // max_eval][:max_eval]
     best_plan, best = None, None
-    for st in states[::step][:max_eval]:
+    for st in states:
         opt = optimise_plan(
             _state_to_plan(st, min_green_span_m, granularity_m),
             granularity_m, min_green_span_m, max_distance_m,

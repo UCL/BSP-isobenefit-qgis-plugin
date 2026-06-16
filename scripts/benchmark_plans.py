@@ -193,9 +193,10 @@ def main():
         picks.append((s, evaluate_plan(opt, GRAN, MAX_DISTANCE, min_green_span_m=GREEN_SPAN)))
     best_seed, best = min(picks, key=lambda sm: sm[1]["access_cost"])
     costs = sorted(m["access_cost"] for _, m in picks)
-    print(f"  winner: seed {best_seed} — avg walk {best['access_cost']:.0f} m, "
-          f"served {best['served_coverage']:.1%}, unserved {best['unserved_fraction']:.1%}")
-    print(f"  avg-walk range over {len(picks)} runs: {costs[0]:.0f} .. {costs[-1]:.0f} m")
+    print(f"  winner: seed {best_seed} — served {best['served_coverage']:.1%}, "
+          f"walk to a centre {best['centre_access']:.0f} m, to green {best['green_access']:.0f} m "
+          f"(combined {best['access_cost']:.0f} m)")
+    print(f"  combined avg-walk range over {len(picks)} runs: {costs[0]:.0f} .. {costs[-1]:.0f} m")
 
 
 if __name__ == "__main__":

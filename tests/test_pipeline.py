@@ -197,6 +197,7 @@ def test_evaluate_plan_coverage_in_range():
     for k in ("centre_coverage", "green_coverage", "served_coverage", "unserved_fraction", "compactness"):
         assert 0.0 <= m[k] <= 1.0
     assert abs(m["served_coverage"] + m["unserved_fraction"] - 1.0) < 1e-9  # served + unserved = all
+    assert abs(m["access_cost"] - 0.5 * (m["centre_access"] + m["green_access"])) < 1e-6  # combined = mean of halves
     assert m["built_cells"] == int((plan == PLAN_BUILT).sum()) + 1  # centre counts as built
     assert m["centre_coverage"] > 0.0
     # a central centre covers more homes than one shoved into a corner
