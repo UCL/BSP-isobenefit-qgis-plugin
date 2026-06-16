@@ -134,13 +134,13 @@ def main():
     )
     singles = [score(single_run_plan(rows, cols, state, origin, seeds, s)) for s in SINGLE_SEEDS]
 
-    hdr = f"{'method':28s}{'served':>8s}{'unserved':>9s}{'green_cov':>10s}{'centre_cov':>11s}{'built':>7s}{'green':>7s}"
+    hdr = f"{'method':28s}{'served':>8s}{'unserved':>9s}{'green_cov':>10s}{'centre_cov':>11s}{'homes/centre':>13s}"
     print(hdr)
     print("-" * len(hdr))
 
     def row(tag, m):
         print(f"{tag:28s}{m['served_coverage']:>7.1%}{m['unserved_fraction']:>9.1%}{m['green_coverage']:>10.1%}"
-              f"{m['centre_coverage']:>11.1%}{m['built']:>7d}{m['green']:>7d}")
+              f"{m['centre_coverage']:>11.1%}{m['centre_efficiency']:>13.0f}")
 
     row("consensus (ensemble)", score(consensus))
     row("optimised (+greedy green)", score(optimised))
@@ -151,7 +151,7 @@ def main():
     lo, hi = min(m["served_coverage"] for m in singles), max(m["served_coverage"] for m in singles)
     print(f"{'single run (median of ' + str(len(singles)) + ')':28s}"
           f"{med('served_coverage'):>7.1%}{med('unserved_fraction'):>9.1%}{med('green_coverage'):>10.1%}"
-          f"{med('centre_coverage'):>11.1%}{round(med('built')):>7d}{round(med('green')):>7d}")
+          f"{med('centre_coverage'):>11.1%}{med('centre_efficiency'):>13.0f}")
     print(f"{'  single-run served range':28s}{lo:>7.1%} .. {hi:.1%}")
 
     # population accounting for the optimised plan (constant-inhabitants check)
@@ -163,6 +163,17 @@ def main():
     print(f"  mean density  {cs['density_before']:,.0f} -> {cs['density_after']:,.0f} / cell "
           f"(max {cs['max_density']:,.0f})")
     print(f"  feasible by densifying the rest: {cs['feasible']}")
+
+    # Centre-cost dial: cheaper centres -> more of them, shorter walks; pricier -> fewer, busier.
+    print("\nCentre-cost dial (min audience per centre -> how many centres, how busy):")
+    for cf in (0.002, 0.005, 0.01, 0.02):
+        o = optimise_plan(
+            consensus, GRAN, GREEN_SPAN, MAX_DISTANCE,
+            mean_density=MEAN_DENSITY, max_density=MAX_DENSITY, existing_centres=seeds, centre_cost_frac=cf,
+        )
+        m = evaluate_plan(o, GRAN, MAX_DISTANCE, min_green_span_m=GREEN_SPAN)
+        print(f"  cost {cf:>5.1%}: {int((o == PLAN_CENTRE).sum()):3d} centres, "
+              f"served {m['served_coverage']:5.1%}, {m['centre_efficiency']:4.0f} homes/centre")
 
     # Selection: optimise every run, pick the one with the lowest average walk.
     print("\nSelection — optimise each run, pick the lowest average walk to amenities:")

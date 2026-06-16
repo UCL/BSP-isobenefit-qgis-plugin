@@ -228,6 +228,17 @@ def test_place_centres_lands_central():
     assert 12 <= cy <= 17 and 12 <= cx <= 17  # near the centroid, not an edge
 
 
+def test_centre_cost_dial_controls_count():
+    from isobenefit_qgis.grid import _place_centres
+
+    g = 60
+    built = np.ones((g, g), bool)
+    cheap = _place_centres(built, 100.0, 800.0, centre_cost_frac=0.002)  # cheap -> many centres
+    pricey = _place_centres(built, 100.0, 800.0, centre_cost_frac=0.03)  # expensive -> few
+    assert len(pricey) <= len(cheap)
+    assert len(pricey) >= 1
+
+
 def test_optimise_plan_improves_green_access():
     g = 40
     plan = np.full((g, g), PLAN_BUILT, np.uint8)  # all built, no green

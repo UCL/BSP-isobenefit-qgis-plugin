@@ -140,15 +140,16 @@ def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
     return y, x
 
 
-def _place_centres(built, granularity_m, max_distance_m, max_new=50, existing=None, min_homes_frac=0.003):
+def _place_centres(built, granularity_m, max_distance_m, max_new=50, existing=None, centre_cost_frac=0.005):
     """Reverse-engineer good locations for NEW centres (facility location).
 
-    Greedily serve the homes (``built`` cells) not yet within a walk of a centre: each
-    step take the densest pocket of unserved homes and place a centre at the CENTROID
-    of the homes it would serve (a Lloyd step), so the centre sits *central* to its
-    catchment instead of on an edge. ``existing`` centres are kept fixed and seed the
-    initial coverage; only new centres are placed, and how many emerges from need.
-    Returns the list of NEW ``(row, col)`` (excludes the existing ones).
+    Add a centre only while it newly serves enough homes to be worth it:
+    ``centre_cost_frac`` (× total homes) is the **cost-per-centre dial** — the minimum
+    new audience a centre must reach. It sets HOW MANY centres (cheap → many, short
+    walks; expensive → few, busy) and bakes in efficiency (no centre serves fewer than
+    that). Each new centre is snapped to the CENTROID of the homes it serves (a Lloyd
+    step) so it sits central to its catchment; ``existing`` centres are kept fixed and
+    seed the initial coverage. Returns the list of NEW ``(row, col)``.
     """
     built = np.asarray(built, dtype=bool)
     rows, cols = built.shape
@@ -166,16 +167,15 @@ def _place_centres(built, granularity_m, max_distance_m, max_new=50, existing=No
         if 0 <= ey < rows and 0 <= ex < cols:
             stamp(covered, ey, ex)
 
-    min_homes = max(1, int(min_homes_frac * int(built.sum())))
+    min_audience = max(1, int(centre_cost_frac * int(built.sum())))
     new = []
     for _ in range(max_new):
         unserved = built & ~covered
-        if int(unserved.sum()) < min_homes:
-            break
         gain = np.where(built, _box_sum(unserved.astype(np.float64), r), -1.0)
         if gain.max() <= 0.0:
             break
         y, x = divmod(int(np.argmax(gain)), cols)
+        audience = 0
         for _ in range(4):  # settle onto the centroid of the homes this centre serves
             y0, y1 = max(0, y - r), min(rows, y + r + 1)
             x0, x1 = max(0, x - r), min(cols, x + r + 1)
@@ -183,10 +183,13 @@ def _place_centres(built, granularity_m, max_distance_m, max_new=50, existing=No
             ys, xs = np.nonzero(served)
             if ys.size == 0:
                 break
+            audience = int(ys.size)
             cy, cx = _nearest_built(built, y0 + int(round(ys.mean())), x0 + int(round(xs.mean())))
             if (cy, cx) == (y, x):
                 break
             y, x = cy, cx
+        if audience < min_audience:  # cost test — not enough new audience to justify a centre
+            break
         new.append((y, x))
         stamp(covered, y, x)
 
@@ -345,6 +348,10 @@ def evaluate_plan(
         a = built[: rows - dy, : cols - dx] & built[dy:, dx:]
         adj += 2 * int(a.sum())  # each shared edge counts for both cells
 
+    # supply-side efficiency: how well-used each centre / unit of green is
+    n_centres = int((plan == PLAN_CENTRE).sum())
+    n_green = int(green_mask.sum())
+
     return {
         "built_cells": n_built,
         "centre_coverage": float(near_cent.mean()),
@@ -355,6 +362,8 @@ def evaluate_plan(
         "centre_walk_mean": float(d_cent[near_cent].mean()) if near_cent.any() else math.inf,
         "green_walk_mean": float(d_green[near_green].mean()) if near_green.any() else math.inf,
         "compactness": adj / (4.0 * n_built),
+        "centre_efficiency": float(near_cent.sum()) / n_centres if n_centres else 0.0,  # homes served per centre
+        "green_efficiency": float(near_green.sum()) / n_green if n_green else 0.0,  # homes served per green cell
     }
 
 
@@ -388,6 +397,7 @@ def optimise_plan(
     max_green_frac: float = 0.2,
     max_centres: int = 50,
     existing_centres=None,
+    centre_cost_frac: float = 0.005,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
@@ -446,7 +456,9 @@ def optimise_plan(
     for ey, ex in existing_centres or []:
         if 0 <= ey < rows and 0 <= ex < cols and plan[ey, ex] == PLAN_BUILT:
             plan[ey, ex] = PLAN_CENTRE
-    for y, x in _place_centres(built, granularity_m, max_distance_m, max_centres, existing=existing_centres):
+    for y, x in _place_centres(
+        built, granularity_m, max_distance_m, max_centres, existing=existing_centres, centre_cost_frac=centre_cost_frac
+    ):
         plan[y, x] = PLAN_CENTRE
     return plan
 
