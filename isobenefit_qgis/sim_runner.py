@@ -183,48 +183,37 @@ class IsobenefitTask(QgsTask):
                 n = self.n_ensemble
                 batch = max(1, cores)  # ~one run per core keeps all cores busy
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
-                # Blend in batches so we can drive the progress bar and allow
-                # cancellation. Each batch returns per-class counts; we sum them and
-                # divide by N to get P(built), P(green), P(centre).
-                built = green = centre = None
-                done = 0
-                batch_idx = 0
-                while done < n:
+                # Collect each run's final layout (not just the blended average): the
+                # likelihood layers come from all runs, and the recommended plan is the
+                # best single run, optimised. Batched for progress + cancellation.
+                states = []
+                while len(states) < n:
                     if self.isCanceled():
                         self._log("Simulation cancelled by user.", Qgis.MessageLevel.Warning)
                         return False
-                    members = min(batch, n - done)
-                    # distinct, reproducible seed per batch so members never repeat
-                    b, g, c = isobenefit.ensemble_class_counts(sim, self.random_seed + batch_idx, members)
-                    built = b if built is None else built + b
-                    green = g if green is None else green + g
-                    centre = c if centre is None else centre + c
-                    done += members
-                    batch_idx += 1
-                    self.setProgress(done / n * 100.0)
-                    self._log(f"ensemble: {done}/{n} runs blended")
+                    members = min(batch, n - len(states))
+                    states.extend(isobenefit.run_ensemble(sim, self.random_seed + len(states), members))
+                    self.setProgress(len(states) / n * 80.0)
+                    self._log(f"ensemble: {len(states)}/{n} runs")
+
+                # likelihood (uncertainty) layers from all runs
+                p_built, p_green, p_centre = grid.class_probabilities(states)
                 gis_io.write_probability_bands(
                     self.out_path,
-                    [built / n, green / n, centre / n],
+                    [p_built, p_green, p_centre],
                     ["built likelihood", "green likelihood", "centre likelihood"],
                     geotransform,
                     self.target_crs,
                 )
-                plan = grid.recommended_plan(
-                    built / n,
-                    green / n,
-                    self.granularity_m,
-                    self.min_green_span,
-                    self.max_distance_m,
-                    existing_centres=seeds,
-                )
-                # hybrid polish: carve an equitable green network into the consensus.
-                # Population-aware — green is funded by densifying the rest up to the
-                # max tier, never by deleting homes (Isobenefit "constant inhabitants").
-                # Existing centre seeds are kept; new centres are placed centrally.
+
+                # recommended plan = the best single run, optimised. Population-aware
+                # green (funded by densification, not lost homes) + facility-location
+                # centres; existing centre seeds kept. Picked by shortest average walk.
+                self._log("Selecting and optimising the recommended plan…")
+                self.setProgress(90.0)
                 mean_density = sum(p * d for p, d in zip(self.prob_distribution, self.density_factors))
-                plan = grid.optimise_plan(
-                    plan,
+                plan, metrics = grid.select_plan(
+                    states,
                     self.granularity_m,
                     self.min_green_span,
                     self.max_distance_m,
@@ -232,10 +221,16 @@ class IsobenefitTask(QgsTask):
                     max_density=max(self.density_factors),
                     existing_centres=seeds,
                 )
-                gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
+                if plan is not None:
+                    gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
+                if metrics:
+                    self._log(
+                        f"Recommended plan: {metrics['served_coverage']:.0%} of homes within a walk of "
+                        f"both green and a centre (avg walk {metrics['access_cost']:.0f} m)."
+                    )
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
-                    f"wrote built/green/centre likelihood: {self.out_path}"
+                    f"wrote likelihood + recommended plan: {self.out_path}"
                 )
                 return True
 

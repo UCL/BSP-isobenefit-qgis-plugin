@@ -31,10 +31,12 @@ from isobenefit_qgis.grid import (
     PLAN_NONE,
     align_bounds,
     capacity_summary,
+    class_probabilities,
     classify,
     evaluate_plan,
     optimise_plan,
     recommended_plan,
+    select_plan,
 )
 
 DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
@@ -237,6 +239,28 @@ def test_centre_cost_dial_controls_count():
     pricey = _place_centres(built, 100.0, 800.0, centre_cost_frac=0.03)  # expensive -> few
     assert len(pricey) <= len(cheap)
     assert len(pricey) >= 1
+
+
+def test_class_probabilities():
+    s1 = np.array([[1, 0], [2, 1]], np.int16)
+    s2 = np.array([[1, 0], [0, 1]], np.int16)
+    pb, pg, pc = class_probabilities([s1, s2])
+    assert pb.dtype == np.float32
+    assert pb[0, 0] == 1.0  # built in both runs
+    assert pg[0, 1] == 1.0  # green in both
+    assert pc[1, 0] == 0.5  # centre in one of the two
+
+
+def test_select_plan_on_demo(grid):
+    states = isobenefit.run_ensemble(_make(grid), 7, 6)
+    md = sum(p * d for p, d in zip((0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0)))
+    plan, m = select_plan(
+        states, GRAN, 400.0, 800.0, mean_density=md, max_density=6000.0, existing_centres=grid["seeds"]
+    )
+    assert plan.shape == (grid["rows"], grid["cols"])
+    assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
+    assert (plan == PLAN_BUILT).any() and (plan == PLAN_CENTRE).any()
+    assert 0.0 <= m["served_coverage"] <= 1.0 and m["access_cost"] > 0.0
 
 
 def test_optimise_plan_improves_green_access():

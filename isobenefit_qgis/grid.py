@@ -482,3 +482,66 @@ def capacity_summary(built_before: int, built_after: int, mean_density: float, m
         "max_density": max_density,
         "feasible": density_after <= max_density + 1e-9,
     }
+
+
+# --- selecting the recommended plan from an ensemble of single runs --------------
+#
+# The ensemble gives both the uncertainty (likelihood) surfaces AND a set of coherent
+# single-run layouts. The recommended plan is the BEST single run, optimised — not the
+# blurred average — because a coherent fabric optimises far better (see the review).
+
+
+def class_probabilities(states):
+    """Per-class likelihood surfaces from a list of final-state grids (0 green / 1
+    built / 2 centre). Returns ``(p_built, p_green, p_centre)`` float32 in ``[0, 1]``."""
+    arr = np.stack([np.asarray(s) for s in states])
+    return (
+        (arr == 1).mean(0).astype(np.float32),
+        (arr == 0).mean(0).astype(np.float32),
+        (arr == 2).mean(0).astype(np.float32),
+    )
+
+
+def _state_to_plan(state: np.ndarray, min_green_span_m: float, granularity_m: float) -> np.ndarray:
+    """Map a single run's final state to a PLAN_* layout: built/centre -> built (the
+    optimiser re-places centres), green kept only as qualifying parks (>= min-span)."""
+    state = np.asarray(state)
+    plan = np.zeros(state.shape, dtype=np.uint8)
+    plan[(state == 1) | (state == 2)] = PLAN_BUILT
+    green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
+    plan[_keep_large_components(state == 0, green_min)] = PLAN_GREEN
+    return plan
+
+
+def select_plan(
+    states,
+    granularity_m,
+    min_green_span_m,
+    max_distance_m,
+    mean_density=None,
+    max_density=None,
+    existing_centres=None,
+    centre_cost_frac=0.005,
+    max_eval=24,
+):
+    """Pick the recommended plan from per-run final states: optimise each run and keep
+    the one with the lowest average walk (``access_cost``). Runs are similar, so at most
+    ``max_eval`` of them (evenly sampled) are optimised to bound cost. Returns
+    ``(best_plan, best_metrics)`` — ``(None, None)`` if ``states`` is empty.
+    """
+    states = list(states)
+    if not states:
+        return None, None
+    step = max(1, len(states) // max_eval)
+    best_plan, best = None, None
+    for st in states[::step][:max_eval]:
+        opt = optimise_plan(
+            _state_to_plan(st, min_green_span_m, granularity_m),
+            granularity_m, min_green_span_m, max_distance_m,
+            mean_density=mean_density, max_density=max_density,
+            existing_centres=existing_centres, centre_cost_frac=centre_cost_frac,
+        )
+        m = evaluate_plan(opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m)
+        if best is None or m["access_cost"] < best["access_cost"]:
+            best_plan, best = opt, m
+    return best_plan, best
