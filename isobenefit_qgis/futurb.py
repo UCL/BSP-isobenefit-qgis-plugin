@@ -12,8 +12,9 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox, QToolBar, QWidget
 
-from . import bootstrap, sim_runner
+from . import bootstrap, osm_fetcher, sim_runner
 from .isobenefit_dialog import IsobenefitDialog  # Import the code for the dialog
+from .osm_dialog import OsmDialog
 
 
 class Isobenefit:
@@ -48,14 +49,17 @@ class Isobenefit:
                 QCoreApplication.installTranslator(self.translator)
         # Create the dialog (after translation) and keep reference
         self.dlg = IsobenefitDialog()
+        # the OSM extraction dialog is created lazily (it needs the iface)
+        self.osm_dlg: OsmDialog | None = None
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr("Isobenefit")
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar("Isobenefit")
         self.toolbar.setObjectName("Isobenefit")
-        # keep a reference to the running task so it is not garbage-collected
+        # keep a reference to the running tasks so they are not garbage-collected
         self._task: sim_runner.IsobenefitTask | None = None
+        self._osm_task: osm_fetcher.OsmFetchTask | None = None
 
     def tr(self, message: str):
         """Get the translation for a string using Qt translation API.
@@ -146,9 +150,18 @@ class Isobenefit:
 
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
-        icon_path = Path(os.path.dirname(__file__)) / "icon.png"
+        plugin_dir = Path(os.path.dirname(__file__))
         self.add_action(
-            str(icon_path), text=self.tr("Isobenefit Urbanism"), callback=self.run, parent=self.iface.mainWindow()
+            str(plugin_dir / "icon.png"),
+            text=self.tr("Isobenefit Urbanism"),
+            callback=self.run,
+            parent=self.iface.mainWindow(),
+        )
+        self.add_action(
+            str(plugin_dir / "osm_icon.png"),
+            text=self.tr("Extract from OpenStreetMap"),
+            callback=self.run_osm,
+            parent=self.iface.mainWindow(),
         )
 
     def unload(self):
@@ -158,6 +171,46 @@ class Isobenefit:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
+
+    def run_osm(self):
+        """Show the OpenStreetMap extraction dialog (modeless) so the canvas stays live.
+
+        Fully independent of the simulation: it only writes editable layers to a
+        GeoPackage and loads them into the project (no engine needed). The dialog is
+        modeless so the user can draw the area of interest on the map; the fetch is
+        queued from its ``accepted`` signal.
+        """
+        if self.osm_dlg is None:
+            self.osm_dlg = OsmDialog(self.iface, self.iface.mainWindow())
+            self.osm_dlg.accepted.connect(self._start_osm_fetch)
+        self.osm_dlg.show()
+        self.osm_dlg.raise_()
+        self.osm_dlg.activateWindow()
+
+    def _start_osm_fetch(self):
+        """Build and queue the OSM download task from the dialog's current selection."""
+        dlg = self.osm_dlg
+        bbox = dlg.aoi_bbox_4326()
+        datasets = dlg.selected_datasets()
+        gpkg_path = dlg.output_path()
+        if bbox is None or not datasets or gpkg_path is None:
+            QMessageBox.warning(
+                self.iface.mainWindow(),
+                "Isobenefit",
+                "Define an area of interest, at least one dataset, and an output GeoPackage.",
+            )
+            return
+        task = osm_fetcher.OsmFetchTask(
+            iface=self.iface,
+            bbox=bbox,
+            aoi_wkt=dlg.aoi_polygon_wkt_4326(),
+            datasets=datasets,
+            gpkg_path=gpkg_path,
+            group_name=dlg.suggested_group_name(),
+        )
+        self._osm_task = task  # retain reference so the task is not garbage-collected
+        QgsApplication.taskManager().addTask(task)
+        QgsMessageLog.logMessage("OpenStreetMap download queued.", level=Qgis.MessageLevel.Info, notifyUser=True)
 
     def run(self):
         """Run method that performs all the real work"""

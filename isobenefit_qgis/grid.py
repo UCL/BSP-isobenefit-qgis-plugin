@@ -76,13 +76,17 @@ def classify(state, origin, density, per_block) -> np.ndarray:
 
 PLAN_NONE = 0
 PLAN_GREEN = 1
-PLAN_BUILT = 2
-PLAN_CENTRE = 3
+PLAN_BUILT = 2  # new (speculative) development
+PLAN_CENTRE = 3  # new centre
+PLAN_EXIST_BUILT = 4  # development that was already there (frozen, shown muted)
+PLAN_EXIST_CENTRE = 5  # centre that was already there
 
 PLAN_PALETTE = [
     (PLAN_GREEN, (54, 109, 35), "Recommended green network"),
-    (PLAN_BUILT, (170, 120, 60), "Recommended development"),
-    (PLAN_CENTRE, (200, 30, 30), "Recommended centre"),
+    (PLAN_EXIST_BUILT, (120, 92, 62), "Existing development"),
+    (PLAN_BUILT, (196, 140, 74), "New development"),
+    (PLAN_EXIST_CENTRE, (150, 40, 85), "Existing centre"),
+    (PLAN_CENTRE, (210, 35, 35), "New centre"),
 ]
 
 
@@ -194,26 +198,34 @@ def _place_centres(built, granularity_m, max_distance_m, max_new=200, existing=N
         new.append((y, x))
         stamp(covered, y, x)
 
-    # Global refinement (Lloyd / k-means): with existing centres fixed, repeatedly
-    # assign every home to its nearest centre and move each NEW centre to the centroid
-    # of the homes assigned to it. This settles all new centres jointly into central,
-    # balanced positions (≈ the p-median optimum) rather than the greedy placement.
-    fixed = list(existing or [])
+    # Global refinement (Lloyd / k-means): repeatedly assign each home to its nearest
+    # NEW centre and move that centre to its members' centroid, settling them jointly
+    # into central, balanced positions (≈ the p-median optimum) rather than the greedy
+    # placement. Homes already within an existing centre's walk are claimed by those
+    # centres and excluded — this keeps new centres out of already-served areas AND
+    # avoids an O(homes × centre-cells) matrix when ``existing`` is a whole centre AREA
+    # (true-area centres) rather than a few point seeds.
     if new:
-        hy, hx = np.nonzero(built)
+        fixed_cover = np.zeros((rows, cols), dtype=bool)
+        for ey, ex in existing or []:
+            if 0 <= ey < rows and 0 <= ex < cols:
+                stamp(fixed_cover, ey, ex)
+        hy, hx = np.nonzero(built & ~fixed_cover)
+        sy = np.array([s[0] for s in new])
+        sx = np.array([s[1] for s in new])
         for _ in range(12):
-            sites = fixed + new
-            sy = np.array([s[0] for s in sites])
-            sx = np.array([s[1] for s in sites])
+            if hy.size == 0:
+                break
             nearest = np.argmin((hy[:, None] - sy) ** 2 + (hx[:, None] - sx) ** 2, axis=1)
             moved = False
             for j in range(len(new)):
-                members = nearest == (len(fixed) + j)
+                members = nearest == j
                 if not members.any():
                     continue
                 ny, nx = _nearest_built(built, round(hy[members].mean()), round(hx[members].mean()))
                 if (ny, nx) != new[j]:
                     new[j] = (ny, nx)
+                    sy[j], sx[j] = ny, nx
                     moved = True
             if not moved:
                 break
@@ -402,6 +414,7 @@ def optimise_plan(
     max_centres: int = 200,
     existing_centres=None,
     centre_cost_frac: float = 0.0,
+    existing_built=None,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
@@ -412,6 +425,10 @@ def optimise_plan(
     kept). The budget is population-aware when ``mean_density`` and ``max_density`` are
     given (green funded by densification, never by lost housing); otherwise a flat
     ``max_green_frac``. Returns a new plan.
+
+    ``existing_built`` is a bool mask of cells that were already developed before the
+    simulation. Those are **frozen**: the plan may green-over only NEW (speculative)
+    built land, never prune what is already there.
     """
     plan = plan.copy()
     g = float(granularity_m)
@@ -430,23 +447,30 @@ def optimise_plan(
     green_budget = int(budget_frac * n_built)
     min_gain = max(1.0, 0.002 * n_built)  # stop once a park serves only a few stragglers
 
+    # Existing development is frozen: parks may be carved only from NEW (speculative)
+    # built land, never from what is already there.
+    frozen = np.zeros(plan.shape, dtype=bool)
+    if existing_built is not None:
+        frozen |= np.asarray(existing_built, dtype=bool)
+
     spent = 0
     while spent < green_budget:
         built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
+        carvable = built & ~frozen  # only new built may be freed to green
         d_green = _walk_distance(plan == PLAN_GREEN, g, max_distance_m)
-        unserved = built & ~np.isfinite(d_green)
+        unserved = built & ~np.isfinite(d_green)  # every home wants green access...
         if not unserved.any():
             break
         # homes a park here would newly serve: unserved within a walk of the park
         gain = _box_sum(unserved.astype(np.float64), walk_r + half)
-        gain = np.where(built, gain, -1.0)  # a park must land on developable (built) land
+        gain = np.where(carvable, gain, -1.0)  # ...but a park may only be carved from new land
         if gain.max() < min_gain:  # diminishing returns — don't over-green for stragglers
             break
         cy, cx = divmod(int(np.argmax(gain)), cols)
         y0, y1 = max(0, cy - half), min(rows, cy + half + 1)
         x0, x1 = max(0, cx - half), min(cols, cx + half + 1)
         block = plan[y0:y1, x0:x1]
-        carved = (block == PLAN_BUILT) | (block == PLAN_CENTRE)
+        carved = carvable[y0:y1, x0:x1]  # leave any existing built within the footprint intact
         carved_n = int(carved.sum())
         if carved_n == 0 or spent + carved_n > green_budget:  # never overshoot the budget
             break
@@ -506,15 +530,34 @@ def class_probabilities(states):
     )
 
 
-def _state_to_plan(state: np.ndarray, min_green_span_m: float, granularity_m: float) -> np.ndarray:
+def _state_to_plan(state, min_green_span_m, granularity_m, existing_green=None) -> np.ndarray:
     """Map a single run's final state to a PLAN_* layout: built/centre -> built (the
-    optimiser re-places centres), green kept only as qualifying parks (>= min-span)."""
+    optimiser re-places centres), green kept only as qualifying parks (>= min-span).
+    ``existing_green`` cells are always kept as green so existing parks are never lost."""
     state = np.asarray(state)
     plan = np.zeros(state.shape, dtype=np.uint8)
     plan[(state == 1) | (state == 2)] = PLAN_BUILT
     green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
     plan[_keep_large_components(state == 0, green_min)] = PLAN_GREEN
+    if existing_green is not None:
+        plan[np.asarray(existing_green, dtype=bool)] = PLAN_GREEN  # never drop existing green
     return plan
+
+
+def _mark_existing(plan: np.ndarray, existing_built=None, existing_centres=None) -> np.ndarray:
+    """Relabel existing development with its own PLAN_* codes (a different hue) so the map
+    distinguishes what is already there from what is newly recommended.
+
+    Runs once on the chosen plan, AFTER scoring, so the optimiser and evaluator still
+    operate on the merged built/centre codes.
+    """
+    out = plan.copy()
+    for ey, ex in existing_centres or []:
+        if 0 <= ey < out.shape[0] and 0 <= ex < out.shape[1] and out[ey, ex] == PLAN_CENTRE:
+            out[ey, ex] = PLAN_EXIST_CENTRE
+    if existing_built is not None:
+        out[(out == PLAN_BUILT) & np.asarray(existing_built, dtype=bool)] = PLAN_EXIST_BUILT
+    return out
 
 
 def select_plan(
@@ -527,11 +570,15 @@ def select_plan(
     existing_centres=None,
     centre_cost_frac=0.0,
     max_eval=None,
+    existing_built=None,
+    existing_green=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
     only that many evenly-sampled runs (faster for very large ensembles; runs are
-    similar). Returns ``(best_plan, best_metrics)`` — ``(None, None)`` if ``states`` empty.
+    similar). ``existing_built``/``existing_green`` (bool masks of already-developed land)
+    are frozen — never pruned — and the chosen plan tags them with the existing-* codes.
+    Returns ``(best_plan, best_metrics)`` — ``(None, None)`` if ``states`` empty.
     """
     states = list(states)
     if not states:
@@ -541,12 +588,15 @@ def select_plan(
     best_plan, best = None, None
     for st in states:
         opt = optimise_plan(
-            _state_to_plan(st, min_green_span_m, granularity_m),
+            _state_to_plan(st, min_green_span_m, granularity_m, existing_green=existing_green),
             granularity_m, min_green_span_m, max_distance_m,
             mean_density=mean_density, max_density=max_density,
             existing_centres=existing_centres, centre_cost_frac=centre_cost_frac,
+            existing_built=existing_built,
         )
         m = evaluate_plan(opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m)
         if best is None or m["access_cost"] < best["access_cost"]:
             best_plan, best = opt, m
+    if best_plan is not None:
+        best_plan = _mark_existing(best_plan, existing_built=existing_built, existing_centres=existing_centres)
     return best_plan, best

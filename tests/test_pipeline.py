@@ -27,6 +27,8 @@ from isobenefit_qgis.grid import (
     NODATA,
     PLAN_BUILT,
     PLAN_CENTRE,
+    PLAN_EXIST_BUILT,
+    PLAN_EXIST_CENTRE,
     PLAN_GREEN,
     PLAN_NONE,
     align_bounds,
@@ -242,6 +244,59 @@ def test_centre_cost_dial_controls_count():
     assert len(pricey) >= 1
 
 
+def test_place_centres_handles_existing_area():
+    # True-area centres pass a whole polygon's cells as `existing`; the Lloyd step
+    # must stay fast and still add centres for the far, unserved side.
+    from isobenefit_qgis.grid import _place_centres
+
+    g = 80
+    built = np.ones((g, g), bool)
+    existing_area = [(r, c) for r in range(0, 12) for c in range(0, 12)]  # 144-cell centre area in a corner
+    new = _place_centres(built, 100.0, 800.0, existing=existing_area)
+    assert len(new) >= 1  # the corner area can't serve the whole grid -> new centres added
+    for ny, nx in new:
+        assert 0 <= ny < g and 0 <= nx < g
+        assert (ny, nx) not in existing_area  # new centres land outside the existing area
+
+
+def test_optimise_never_prunes_existing_built():
+    # The green-carve may free NEW built to parks, but must never touch existing built.
+    g = 40
+    plan = np.full((g, g), PLAN_BUILT, np.uint8)  # solid built, no green -> carve wants parks
+    existing = np.zeros((g, g), bool)
+    existing[0:20, :] = True  # the top half is existing built (frozen)
+    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.4, existing_built=existing)
+    assert not ((out == PLAN_GREEN) & existing).any()  # not one existing cell pruned to green
+    assert (out == PLAN_GREEN).any()  # but new (bottom) land was greened — carve still works
+
+
+def test_select_plan_freezes_and_tags_existing():
+    g = 40
+    state = np.ones((g, g), np.int16)  # entirely built
+    existing_built = np.zeros((g, g), bool)
+    existing_built[0:20, :] = True  # top half already developed
+    plan, _m = select_plan(
+        [state], 100.0, 400.0, 800.0, existing_centres=[(5, 5)], existing_built=existing_built
+    )
+    assert plan is not None
+    assert not ((plan == PLAN_GREEN) & existing_built).any()  # existing never pruned to green
+    assert not ((plan == PLAN_BUILT) & existing_built).any()  # existing built tagged existing, not "new"
+    assert (plan == PLAN_EXIST_BUILT).any()
+    assert plan[5, 5] == PLAN_EXIST_CENTRE  # existing centre tagged with its own (hue) code
+
+
+def test_true_area_centres_marked_on_plan():
+    # An existing centre AREA (not a point) should come back entirely as PLAN_CENTRE.
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[5:35, 5:35] = PLAN_BUILT  # built block
+    centre_cells = [(r, c) for r in range(10, 16) for c in range(10, 16)]  # 6x6 centre area
+    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.0, existing_centres=centre_cells)
+    assert set(np.unique(out)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
+    for r, c in centre_cells:
+        assert out[r, c] == PLAN_CENTRE  # every covered, built cell is a centre cell
+
+
 def test_class_probabilities():
     s1 = np.array([[1, 0], [2, 1]], np.int16)
     s2 = np.array([[1, 0], [0, 1]], np.int16)
@@ -259,8 +314,10 @@ def test_select_plan_on_demo(grid):
         states, GRAN, 400.0, 800.0, mean_density=md, max_density=6000.0, existing_centres=grid["seeds"]
     )
     assert plan.shape == (grid["rows"], grid["cols"])
-    assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
-    assert (plan == PLAN_BUILT).any() and (plan == PLAN_CENTRE).any()
+    assert set(np.unique(plan)).issubset(
+        {PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE}
+    )
+    assert (plan == PLAN_BUILT).any() and ((plan == PLAN_CENTRE) | (plan == PLAN_EXIST_CENTRE)).any()
     assert 0.0 <= m["served_coverage"] <= 1.0 and m["access_cost"] > 0.0
 
 

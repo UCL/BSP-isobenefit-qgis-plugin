@@ -70,7 +70,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         # grid size
         self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
         self.left_col.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.grid_size_m = QtWidgets.QLineEdit("100", self)
+        self.grid_size_m = QtWidgets.QLineEdit("50", self)
         self.left_col.addWidget(self.grid_size_m, 1, 1)
         # walking distance
         self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
@@ -271,13 +271,13 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.unbuildable_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
         self.unbuildable_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.unbuildable_layer_box, 13, 0, 1, 2)
-        # centre seeds
-        self.centre_seeds_layer_label = QtWidgets.QLabel("Seeds for urban centres [optional]", self)
+        # centres — polygon areas (true-area centres) or point seeds
+        self.centre_seeds_layer_label = QtWidgets.QLabel("Urban centres — areas or point seeds [optional]", self)
         self.inputs_outputs_block.addWidget(self.centre_seeds_layer_label, 14, 0, 1, 2)
         self.centre_seeds_layer_box = QgsMapLayerComboBox(self)
         self.centre_seeds_layer_box.setAllowEmptyLayer(True)
         self.centre_seeds_layer_box.setCurrentIndex(0)  # type: ignore
-        self.centre_seeds_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
+        self.centre_seeds_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer | Qgis.LayerFilter.PointLayer)
         self.centre_seeds_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.centre_seeds_layer_box, 15, 0, 1, 2)
         # spacer

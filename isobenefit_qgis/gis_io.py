@@ -94,6 +94,18 @@ def point_cells(layer, target_crs, geotransform, rows, cols):
     return seeds
 
 
+def polygon_cells(layer, target_crs, geotransform, rows, cols):
+    """Reproject a polygon layer and return every covered grid ``(row, col)``.
+
+    The polygon analogue of :func:`point_cells`: used when centres are supplied as
+    areas rather than point seeds, so each covered cell becomes a true centre cell
+    (the CA and the recommended-plan logic both treat every seed cell as a centre).
+    """
+    base = np.zeros((rows, cols), dtype=np.int16)
+    burned = burn_layer(base, layer, target_crs, geotransform, 1)
+    return [(int(r), int(c)) for r, c in np.argwhere(burned > 0)]
+
+
 def write_temporal_class_raster(path, frames, geotransform, target_crs):
     """Write one multi-band Byte GeoTIFF; band ``i+1`` holds step ``i``'s class codes."""
     if not frames:

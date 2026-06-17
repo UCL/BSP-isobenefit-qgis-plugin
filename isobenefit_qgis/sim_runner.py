@@ -143,8 +143,14 @@ class IsobenefitTask(QgsTask):
             density = np.zeros((rows, cols), dtype=np.float32)
             seeds = []
             if self.centre_seeds_layer is not None:
-                seeds = gis_io.point_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
-                self._log(f"Placed {len(seeds)} centre seed(s).")
+                # Centres may be supplied as polygon AREAS (every covered cell becomes a
+                # true centre cell) or as point seeds (one cell each).
+                if self.centre_seeds_layer.geometryType() == Qgis.GeometryType.Polygon:
+                    seeds = gis_io.polygon_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
+                    self._log(f"Placed {len(seeds)} centre cell(s) from polygon areas.")
+                else:
+                    seeds = gis_io.point_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
+                    self._log(f"Placed {len(seeds)} centre seed(s).")
 
             self.per_block = self._per_block()
             sim = isobenefit.Simulation(
@@ -220,6 +226,9 @@ class IsobenefitTask(QgsTask):
                     mean_density=mean_density,
                     max_density=max(self.density_factors),
                     existing_centres=seeds,
+                    # existing development is frozen (never pruned) and tagged distinctly
+                    existing_built=(origin == 1),
+                    existing_green=(origin == 0),
                 )
                 if plan is not None:
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
