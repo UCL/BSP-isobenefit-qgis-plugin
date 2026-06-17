@@ -15,6 +15,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import os
+import shutil
 import subprocess
 import sys
 
@@ -119,13 +120,48 @@ def _subprocess_env() -> dict:
     return env
 
 
+def _profile_python_dir() -> str | None:
+    """The active QGIS profile's ``python/`` directory.
+
+    QGIS prepends this to ``sys.path``, so a package installed here is the copy that
+    actually gets imported — site-packages can be read-only, or shadowed by a copy
+    here. Returns None if it can't be determined.
+    """
+    try:
+        from qgis.core import QgsApplication
+
+        profile = QgsApplication.qgisSettingsDirPath()
+        if profile:
+            return os.path.join(profile, "python")
+    except Exception:
+        pass
+    return None
+
+
 def _pip_install(spec: str) -> tuple[bool, str]:
     python = _python_executable()
     env = _subprocess_env()
-    attempts = [
-        [python, "-m", "pip", "install", "--upgrade", spec],
-        [python, "-m", "pip", "install", "--user", "--upgrade", spec],
-    ]
+    target = _profile_python_dir()
+    if target:
+        # Install into the profile's python/ dir so the new copy is the one QGIS
+        # imports. Clear any prior copy first so an upgrade truly replaces it — a stale
+        # (e.g. hand-placed) copy here would otherwise shadow the new one and the
+        # version check would loop forever.
+        try:
+            os.makedirs(target, exist_ok=True)
+            for name in os.listdir(target):
+                if name == CORE_PACKAGE or (name.startswith(CORE_PACKAGE + "-") and name.endswith(".dist-info")):
+                    shutil.rmtree(os.path.join(target, name), ignore_errors=True)
+        except Exception:
+            pass
+        attempts = [
+            [python, "-m", "pip", "install", "--target", target, "--upgrade", "--no-deps", spec],
+        ]
+    else:
+        attempts = [
+            [python, "-m", "pip", "install", "--upgrade", spec],
+            [python, "-m", "pip", "install", "--user", "--upgrade", spec],
+        ]
     last_output = ""
     for cmd in attempts:
         try:
