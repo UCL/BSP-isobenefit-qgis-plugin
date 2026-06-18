@@ -144,25 +144,23 @@ def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
     return y, x
 
 
-def _place_centres(built, granularity_m, max_distance_m, max_new=200, existing=None, centre_cost_frac=0.0):
-    """Reverse-engineer good locations for NEW centres (facility location).
+def _disk(r: int) -> np.ndarray:
+    yy, xx = np.ogrid[-r : r + 1, -r : r + 1]
+    return (yy * yy + xx * xx) <= r * r  # circular walk catchment
 
-    Default (``centre_cost_frac=0``): the **fewest centres that still put every
-    reachable home within a walk** — greedy set cover, parameter-free. ``centre_cost_frac``
-    (× total homes) is an optional **cost-per-centre dial**: a centre is added only while
-    it newly serves at least that many homes, so raising it trims to fewer, busier
-    centres (and leaves the thinnest pockets uncovered). Each new centre is snapped to
-    the CENTROID of the homes it serves (a Lloyd step) so it sits central to its
-    catchment; ``existing`` centres are kept fixed and seed the initial coverage.
-    Returns the list of NEW ``(row, col)``.
+
+def _seed_centres_proximity(built, granularity_m, max_distance_m, existing=None):
+    """The original isobenefit seeding, by pure proximity: walk the built cells and plant a
+    centre at any cell that is beyond a walk of every centre so far. No coverage counting, no
+    Lloyd — just "is this cell out of reach of a centre? then it becomes one." ``existing``
+    centres seed the initial coverage. Returns NEW ``(row, col)``.
     """
     built = np.asarray(built, dtype=bool)
     rows, cols = built.shape
     r = max(1, round(max_distance_m / granularity_m))
-    yy, xx = np.ogrid[-r : r + 1, -r : r + 1]
-    disk = (yy * yy + xx * xx) <= r * r  # circular walk catchment
+    disk = _disk(r)
 
-    def stamp(mask, y, x):  # mark the walk catchment of a centre at (y, x)
+    def stamp(mask, y, x):
         y0, y1 = max(0, y - r), min(rows, y + r + 1)
         x0, x1 = max(0, x - r), min(cols, x + r + 1)
         mask[y0:y1, x0:x1] |= disk[y0 - (y - r) : y1 - (y - r), x0 - (x - r) : x1 - (x - r)]
@@ -170,65 +168,79 @@ def _place_centres(built, granularity_m, max_distance_m, max_new=200, existing=N
     covered = np.zeros((rows, cols), dtype=bool)
     for ey, ex in existing or []:
         if 0 <= ey < rows and 0 <= ex < cols:
-            stamp(covered, ey, ex)
-
-    min_audience = max(1, int(centre_cost_frac * int(built.sum())))
+            stamp(covered, int(ey), int(ex))
     new = []
-    for _ in range(max_new):
-        unserved = built & ~covered
-        gain = np.where(built, _box_sum(unserved.astype(np.float64), r), -1.0)
-        if gain.max() <= 0.0:
-            break
-        y, x = divmod(int(np.argmax(gain)), cols)
-        audience = 0
-        for _ in range(4):  # settle onto the centroid of the homes this centre serves
-            y0, y1 = max(0, y - r), min(rows, y + r + 1)
-            x0, x1 = max(0, x - r), min(cols, x + r + 1)
-            served = unserved[y0:y1, x0:x1] & disk[y0 - (y - r) : y1 - (y - r), x0 - (x - r) : x1 - (x - r)]
-            ys, xs = np.nonzero(served)
-            if ys.size == 0:
-                break
-            audience = int(ys.size)
-            cy, cx = _nearest_built(built, y0 + int(round(ys.mean())), x0 + int(round(xs.mean())))
-            if (cy, cx) == (y, x):
-                break
-            y, x = cy, cx
-        if audience < min_audience:  # cost test — not enough new audience to justify a centre
-            break
-        new.append((y, x))
-        stamp(covered, y, x)
+    for y, x in np.argwhere(built):
+        if not covered[y, x]:
+            new.append((int(y), int(x)))
+            stamp(covered, int(y), int(x))
+    return new
 
-    # Global refinement (Lloyd / k-means): repeatedly assign each home to its nearest
-    # NEW centre and move that centre to its members' centroid, settling them jointly
-    # into central, balanced positions (≈ the p-median optimum) rather than the greedy
-    # placement. Homes already within an existing centre's walk are claimed by those
-    # centres and excluded — this keeps new centres out of already-served areas AND
-    # avoids an O(homes × centre-cells) matrix when ``existing`` is a whole centre AREA
-    # (true-area centres) rather than a few point seeds.
-    if new:
-        fixed_cover = np.zeros((rows, cols), dtype=bool)
-        for ey, ex in existing or []:
-            if 0 <= ey < rows and 0 <= ex < cols:
-                stamp(fixed_cover, ey, ex)
-        hy, hx = np.nonzero(built & ~fixed_cover)
-        sy = np.array([s[0] for s in new])
-        sx = np.array([s[1] for s in new])
+
+def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3):
+    """Optimise seeded centres after the fact: re-position each onto NEW land, central to the
+    homes it serves (ALL built homes count; ``fixed``/existing centres compete in the
+    assignment), and cull any that uniquely serve fewer than ``cull_min_unique`` cells —
+    redundant centres, or ones feeding an overly small catchment. Returns the optimised new
+    ``(row, col)``.
+    """
+    built = np.asarray(built, dtype=bool)
+    new_built = np.asarray(new_built, dtype=bool) & built
+    rows, cols = built.shape
+    r = max(1, round(max_distance_m / granularity_m))
+    disk = _disk(r)
+
+    def window(y, x):
+        y0, y1 = max(0, y - r), min(rows, y + r + 1)
+        x0, x1 = max(0, x - r), min(cols, x + r + 1)
+        return y0, y1, x0, x1, disk[y0 - (y - r) : y1 - (y - r), x0 - (x - r) : x1 - (x - r)]
+
+    fixed = [(int(y), int(x)) for y, x in (fixed or [])]
+    if not new_built.any():
+        return []
+    new = [_nearest_built(new_built, int(y), int(x)) for y, x in seeds]
+    hy, hx = np.nonzero(built)
+    rr = r * r
+
+    def lloyd(centres):  # move each new centre to the centroid of the homes WITHIN A WALK of it
+        if not centres:
+            return centres
+        sy = np.array([s[0] for s in fixed + centres])
+        sx = np.array([s[1] for s in fixed + centres])
         for _ in range(12):
-            if hy.size == 0:
-                break
-            nearest = np.argmin((hy[:, None] - sy) ** 2 + (hx[:, None] - sx) ** 2, axis=1)
+            d2 = (hy[:, None] - sy) ** 2 + (hx[:, None] - sx) ** 2
+            nearest = np.argmin(d2, axis=1)
+            within = d2.min(axis=1) <= rr  # homes beyond a walk of every centre pull no one
             moved = False
-            for j in range(len(new)):
-                members = nearest == j
+            for j in range(len(centres)):
+                members = (nearest == len(fixed) + j) & within
                 if not members.any():
                     continue
-                ny, nx = _nearest_built(built, round(hy[members].mean()), round(hx[members].mean()))
-                if (ny, nx) != new[j]:
-                    new[j] = (ny, nx)
-                    sy[j], sx[j] = ny, nx
+                ny, nx = _nearest_built(new_built, round(hy[members].mean()), round(hx[members].mean()))
+                if (ny, nx) != centres[j]:
+                    centres[j] = (ny, nx)
+                    sy[len(fixed) + j], sx[len(fixed) + j] = ny, nx
                     moved = True
             if not moved:
                 break
+        return centres
+
+    new = lloyd(new)
+    while new:
+        # how many built cells each centre (fixed + new) covers, to find who uniquely serves few
+        count = np.zeros((rows, cols), dtype=np.int32)
+        for y, x in fixed + new:
+            y0, y1, x0, x1, d = window(y, x)
+            count[y0:y1, x0:x1] += d
+        unique = []
+        for y, x in new:
+            y0, y1, x0, x1, d = window(y, x)
+            unique.append(int((built[y0:y1, x0:x1] & d & (count[y0:y1, x0:x1] == 1)).sum()))
+        worst = min(range(len(new)), key=lambda j: unique[j])
+        if unique[worst] >= cull_min_unique:
+            break
+        new.pop(worst)  # redundant / overly-small catchment -> cull, then rebalance
+        new = lloyd(new)
     return new
 
 
@@ -250,8 +262,8 @@ def recommended_plan(
       least ``min_built_cells`` cells (slivers / leftover drips dropped);
     - green network: ``P(green) >= green_thresh`` kept as connected components of at
       least the min-green-span area;
-    - centres: new centres placed centrally to serve homes not already within a walk
-      of an ``existing_centres`` location (see ``_place_centres``).
+    - centres: seeded by proximity then optimised onto new land and culled (see
+      ``_seed_centres_proximity`` / ``_refine_centres``).
 
     Returns a uint8 categorical grid using the ``PLAN_*`` codes. ``P(centre)`` is no
     longer used for placement (centres are derived from access to built fabric) but
@@ -263,10 +275,16 @@ def recommended_plan(
     green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
     green = _keep_large_components(np.asarray(p_green) >= green_thresh, green_min)
     plan[green] = PLAN_GREEN
-    for ey, ex in existing_centres or []:
-        if 0 <= ey < plan.shape[0] and 0 <= ex < plan.shape[1] and plan[ey, ex] == PLAN_BUILT:
-            plan[ey, ex] = PLAN_CENTRE
-    for y, x in _place_centres(built, granularity_m, max_distance_m, max_centres, existing=existing_centres):
+    existing_on_built = [
+        (int(ey), int(ex))
+        for ey, ex in (existing_centres or [])
+        if 0 <= ey < plan.shape[0] and 0 <= ex < plan.shape[1] and plan[ey, ex] == PLAN_BUILT
+    ]
+    for ey, ex in existing_on_built:
+        plan[ey, ex] = PLAN_CENTRE
+    # seed centres by proximity (no CA run here), then optimise + cull
+    seed_new = _seed_centres_proximity(built, granularity_m, max_distance_m, existing_centres)
+    for y, x in _refine_centres(seed_new, existing_on_built, built, built, granularity_m, max_distance_m):
         plan[y, x] = PLAN_CENTRE
     return plan
 
@@ -280,12 +298,15 @@ def recommended_plan(
 # real park? — and the equity headline is simply how many homes are left out.
 
 
-def _walk_distance(targets: np.ndarray, granularity_m: float, max_distance_m: float) -> np.ndarray:
+def _walk_distance(
+    targets: np.ndarray, granularity_m: float, max_distance_m: float, blocked: np.ndarray | None = None
+) -> np.ndarray:
     """Walking distance (metres) from every cell to the nearest target cell.
 
-    A bounded multi-source Dijkstra over an open grid (every cell walkable), queen
-    moves with diagonal cost ``sqrt(2) * granularity``. Cells further than
-    ``max_distance_m`` from any target stay ``inf``.
+    A bounded multi-source Dijkstra, queen moves with diagonal cost
+    ``sqrt(2) * granularity``. Cells further than ``max_distance_m`` from any target stay
+    ``inf``. If ``blocked`` is given, the walk cannot enter those cells (it routes around
+    them) — used so distances don't cross the green network.
     """
     rows, cols = targets.shape
     dist = np.full((rows, cols), math.inf)
@@ -305,7 +326,7 @@ def _walk_distance(targets: np.ndarray, granularity_m: float, max_distance_m: fl
             continue
         for dy, dx, w in steps:
             ny, nx = y + dy, x + dx
-            if 0 <= ny < rows and 0 <= nx < cols:
+            if 0 <= ny < rows and 0 <= nx < cols and (blocked is None or not blocked[ny, nx]):
                 nd = d + w * g
                 if nd <= max_distance_m and nd < dist[ny, nx]:
                     dist[ny, nx] = nd
@@ -415,6 +436,7 @@ def optimise_plan(
     existing_centres=None,
     centre_cost_frac: float = 0.0,
     existing_built=None,
+    ca_centres=None,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
@@ -477,16 +499,26 @@ def optimise_plan(
         block[carved] = PLAN_GREEN
         spent += carved_n
 
-    # re-place centres on the fabric that remains after carving: keep existing
-    # centres, add new ones centrally to serve homes they don't already reach
+    # Centres: keep the existing ones; take the simulation's grown centres (``ca_centres`` — the
+    # original proximity seeding) and tidy them — re-position onto new land, central to what they
+    # serve, and cull redundant ones. With no ca_centres (direct calls) fall back to the same
+    # proximity seeding on the finished fabric.
     plan[plan == PLAN_CENTRE] = PLAN_BUILT
     built = plan == PLAN_BUILT
-    for ey, ex in existing_centres or []:
-        if 0 <= ey < rows and 0 <= ex < cols and plan[ey, ex] == PLAN_BUILT:
-            plan[ey, ex] = PLAN_CENTRE
-    for y, x in _place_centres(
-        built, granularity_m, max_distance_m, max_centres, existing=existing_centres, centre_cost_frac=centre_cost_frac
-    ):
+    new_built = built & ~frozen
+    existing_on_built = [
+        (int(ey), int(ex))
+        for ey, ex in (existing_centres or [])
+        if 0 <= ey < rows and 0 <= ex < cols and plan[ey, ex] == PLAN_BUILT
+    ]
+    if ca_centres is None:
+        seed_new = _seed_centres_proximity(built, granularity_m, max_distance_m, existing_centres)
+    else:
+        existing_set = {(int(ey), int(ex)) for ey, ex in (existing_centres or [])}
+        seed_new = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in existing_set]
+    for ey, ex in existing_on_built:
+        plan[ey, ex] = PLAN_CENTRE
+    for y, x in _refine_centres(seed_new, existing_on_built, built, new_built, granularity_m, max_distance_m):
         plan[y, x] = PLAN_CENTRE
     return plan
 
@@ -587,12 +619,14 @@ def select_plan(
         states = states[:: len(states) // max_eval][:max_eval]
     best_plan, best = None, None
     for st in states:
+        st = np.asarray(st)
+        ca_centres = [(int(y), int(x)) for y, x in np.argwhere(st == 2)]  # the CA's grown centres
         opt = optimise_plan(
             _state_to_plan(st, min_green_span_m, granularity_m, existing_green=existing_green),
             granularity_m, min_green_span_m, max_distance_m,
             mean_density=mean_density, max_density=max_density,
             existing_centres=existing_centres, centre_cost_frac=centre_cost_frac,
-            existing_built=existing_built,
+            existing_built=existing_built, ca_centres=ca_centres,
         )
         m = evaluate_plan(opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m)
         if best is None or m["access_cost"] < best["access_cost"]:

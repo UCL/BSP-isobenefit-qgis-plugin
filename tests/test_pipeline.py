@@ -221,42 +221,87 @@ def test_evaluate_empty_plan():
     assert evaluate_plan(np.zeros((10, 10), np.uint8), 100.0, 800.0) == {"built_cells": 0}
 
 
-def test_place_centres_lands_central():
-    from isobenefit_qgis.grid import _place_centres
+def test_seed_centres_proximity_covers_built():
+    # The original dumb rule: every built cell beyond a walk of a centre becomes one.
+    from isobenefit_qgis.grid import _seed_centres_proximity, _walk_distance
+
+    g = 40
+    built = np.zeros((g, g), bool)
+    built[5:35, 5:35] = True
+    seeds = _seed_centres_proximity(built, 100.0, 800.0)
+    assert len(seeds) >= 1
+    centres = np.zeros((g, g), bool)
+    for y, x in seeds:
+        centres[y, x] = True
+    assert np.isfinite(_walk_distance(centres, 100.0, 800.0)[built]).all()  # every home within a walk
+
+
+def test_refine_centres_culls_redundant():
+    # Two seeds on a small development that one centre already covers -> the redundant one goes.
+    from isobenefit_qgis.grid import _refine_centres
 
     g = 30
     built = np.zeros((g, g), bool)
-    built[5:25, 5:25] = True  # one block, centroid ~ (14.5, 14.5)
-    centres = _place_centres(built, 100.0, 2000.0, max_new=1)  # one big-catchment centre covers it
-    assert len(centres) == 1
-    cy, cx = centres[0]
-    assert 12 <= cy <= 17 and 12 <= cx <= 17  # near the centroid, not an edge
+    built[12:18, 12:18] = True  # small development, well within one 800 m catchment
+    out = _refine_centres([(14, 14), (15, 15)], [], built, built, 100.0, 800.0)
+    assert len(out) == 1
+    assert built[out[0][0], out[0][1]]  # the survivor sits on the development
 
 
-def test_centre_cost_dial_controls_count():
-    from isobenefit_qgis.grid import _place_centres
+def test_refine_centres_keeps_separate_developments():
+    from isobenefit_qgis.grid import _refine_centres
 
-    g = 60
-    built = np.ones((g, g), bool)
-    cheap = _place_centres(built, 100.0, 800.0, centre_cost_frac=0.002)  # cheap -> many centres
-    pricey = _place_centres(built, 100.0, 800.0, centre_cost_frac=0.03)  # expensive -> few
-    assert len(pricey) <= len(cheap)
-    assert len(pricey) >= 1
+    g = 70
+    built = np.zeros((g, g), bool)
+    built[5:25, 5:25] = True  # development A
+    built[45:65, 45:65] = True  # development B, beyond a walk away
+    out = _refine_centres([(15, 15), (55, 55)], [], built, built, 100.0, 800.0)
+    assert len(out) == 2  # each development keeps its own centre
 
 
-def test_place_centres_handles_existing_area():
-    # True-area centres pass a whole polygon's cells as `existing`; the Lloyd step
-    # must stay fast and still add centres for the far, unserved side.
-    from isobenefit_qgis.grid import _place_centres
+def test_optimise_plan_culls_tiny_ca_centre():
+    # A CA centre feeding a 2-cell speck is culled; the one for the real development is kept.
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:30, 10:30] = PLAN_BUILT  # real development
+    plan[2, 36:38] = PLAN_BUILT  # an isolated 2-cell speck
+    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[(20, 20), (2, 36)])
+    cs = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
+    assert any(10 <= y < 30 and 10 <= x < 30 for y, x in cs)  # real development keeps a centre
+    assert not any(y < 5 and x >= 35 for y, x in cs)  # the 2-cell speck's centre is culled
 
-    g = 80
-    built = np.ones((g, g), bool)
-    existing_area = [(r, c) for r in range(0, 12) for c in range(0, 12)]  # 144-cell centre area in a corner
-    new = _place_centres(built, 100.0, 800.0, existing=existing_area)
-    assert len(new) >= 1  # the corner area can't serve the whole grid -> new centres added
-    for ny, nx in new:
-        assert 0 <= ny < g and 0 <= nx < g
-        assert (ny, nx) not in existing_area  # new centres land outside the existing area
+
+def test_walk_distance_routes_around_green_barrier():
+    from isobenefit_qgis.grid import _walk_distance
+
+    g = 11
+    targets = np.zeros((g, g), bool)
+    targets[5, 0] = True
+    open_d = _walk_distance(targets, 100.0, 1e6)
+    full_wall = np.zeros((g, g), bool)
+    full_wall[:, 5] = True  # spans the full height — fully separates the far side
+    walled = _walk_distance(targets, 100.0, 1e6, blocked=full_wall)
+    assert np.isfinite(open_d[5, 9])  # reachable with no barrier
+    assert np.isinf(walled[5, 9])  # a full green wall can't be crossed
+    gap_wall = np.zeros((g, g), bool)
+    gap_wall[0:9, 5] = True  # leaves a gap at the bottom
+    around = _walk_distance(targets, 100.0, 1e6, blocked=gap_wall)
+    assert np.isfinite(around[5, 9])  # reachable by routing around the green
+    assert around[5, 9] > open_d[5, 9]  # but a longer walk than straight across
+
+
+def test_centres_do_not_bridge_open_gaps():
+    # Two built-up areas separated by OPEN land (not carved green) must not share a centre
+    # reaching across the gap — each gets its own, centred in its own contiguous area.
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[5:35, 4:16] = PLAN_BUILT  # left built-up area
+    plan[5:35, 24:36] = PLAN_BUILT  # right built-up area (open gap cols 16-23)
+    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.0)
+    xs = [int(x) for _, x in np.argwhere(out == PLAN_CENTRE)]
+    assert any(x < 16 for x in xs)  # left served
+    assert any(x >= 24 for x in xs)  # right served
+    assert not any(16 <= x < 24 for x in xs)  # nothing stranded in the open gap
 
 
 def test_optimise_never_prunes_existing_built():
