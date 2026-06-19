@@ -105,6 +105,17 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.detail_mode.setCurrentIndex(1)
         self.left_col.addWidget(self.detail_mode, 6, 1)
         self.ensemble_check.toggled.connect(self.detail_mode.setEnabled)
+        # recommended plan: optimise the simulation's grown centres (re-position, add where
+        # under-served, cull redundant) vs keep them exactly as the simulation grew them
+        self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
+        self.optimise_centres_check.setChecked(True)
+        self.optimise_centres_check.setToolTip(
+            "On: re-position the recommended plan's centres central to their development, add "
+            "centres where new development is under-served, and remove redundant ones.\n"
+            "Off: keep the centres exactly where the simulation grew them."
+        )
+        self.left_col.addWidget(self.optimise_centres_check, 7, 0, 1, 2)
+        self.ensemble_check.toggled.connect(self.optimise_centres_check.setEnabled)
 
         # right column container
         self.right_col = QtWidgets.QGridLayout(self)

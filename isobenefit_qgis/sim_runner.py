@@ -60,6 +60,7 @@ class IsobenefitTask(QgsTask):
         density_factors,
         random_seed,
         n_ensemble=1,
+        optimise_centres=True,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -86,6 +87,7 @@ class IsobenefitTask(QgsTask):
         self.density_factors = tuple(float(d) for d in density_factors)
         self.random_seed = int(random_seed)
         self.n_ensemble = int(n_ensemble)
+        self.optimise_centres = bool(optimise_centres)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -202,12 +204,12 @@ class IsobenefitTask(QgsTask):
                     self.setProgress(len(states) / n * 80.0)
                     self._log(f"ensemble: {len(states)}/{n} runs")
 
-                # likelihood (uncertainty) layers from all runs
-                p_built, p_green, p_centre = grid.class_probabilities(states)
+                # likelihood (uncertainty) layers from all runs (centres belong to the plan, not here)
+                p_built, p_green = grid.class_probabilities(states)
                 gis_io.write_probability_bands(
                     self.out_path,
-                    [p_built, p_green, p_centre],
-                    ["built likelihood", "green likelihood", "centre likelihood"],
+                    [p_built, p_green],
+                    ["built likelihood", "green likelihood"],
                     geotransform,
                     self.target_crs,
                 )
@@ -229,6 +231,7 @@ class IsobenefitTask(QgsTask):
                     # existing development is frozen (never pruned) and tagged distinctly
                     existing_built=(origin == 1),
                     existing_green=(origin == 0),
+                    optimise_centres=self.optimise_centres,
                 )
                 if plan is not None:
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
@@ -286,7 +289,7 @@ class IsobenefitTask(QgsTask):
             root = QgsProject.instance().layerTreeRoot()
             group = root.insertGroup(0, f"{self.out_file_name} likelihood")
             group.setExpanded(True)
-            for band, label in [(1, "built"), (2, "green"), (3, "centre")]:
+            for band, label in [(1, "built"), (2, "green")]:
                 lyr = QgsRasterLayer(self.out_path, f"{self.out_file_name} — {label} likelihood", "gdal")
                 if not lyr.isValid():
                     self._log(f"Output raster is not valid: {self.out_path}", Qgis.MessageLevel.Critical, notify=True)

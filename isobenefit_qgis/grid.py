@@ -199,10 +199,13 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
     if not new_built.any():
         return []
     new = [_nearest_built(new_built, int(y), int(x)) for y, x in seeds]
-    hy, hx = np.nonzero(built)
+    # Position each centre central to the NEW development it anchors: the Lloyd centroid is over
+    # NEW homes only, so adjacent existing fabric (which it still serves) doesn't drag it to the
+    # edge. Existing homes still count for the catchment + cull below.
+    hy, hx = np.nonzero(new_built)
     rr = r * r
 
-    def lloyd(centres):  # move each new centre to the centroid of the homes WITHIN A WALK of it
+    def lloyd(centres):  # move each new centre to the centroid of the NEW homes WITHIN A WALK of it
         if not centres:
             return centres
         sy = np.array([s[0] for s in fixed + centres])
@@ -226,6 +229,28 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
         return centres
 
     new = lloyd(new)
+
+    # Add centres where NEW development is still beyond a walk of any centre: coverage must not
+    # leave a real chunk of new homes unserved. Greedily place at the densest underserved spot
+    # (on new land), stopping once the largest remaining gap is too small to warrant a centre
+    # (same threshold as the cull below, so the two don't fight).
+    cov = np.zeros((rows, cols), dtype=bool)
+    for y, x in fixed + new:
+        y0, y1, x0, x1, d = window(y, x)
+        cov[y0:y1, x0:x1] |= d
+    while True:
+        underserved = new_built & ~cov
+        gain = np.where(new_built, _box_sum(underserved.astype(np.float64), r), -1.0)
+        if gain.max() <= 0.0:
+            break
+        y, x = divmod(int(np.argmax(gain)), cols)
+        y0, y1, x0, x1, d = window(y, x)
+        if int((underserved[y0:y1, x0:x1] & d).sum()) < cull_min_unique:
+            break  # the largest remaining gap is too small to warrant a centre
+        new.append((int(y), int(x)))
+        cov[y0:y1, x0:x1] |= d
+    new = lloyd(new)
+
     while new:
         # how many built cells each centre (fixed + new) covers, to find who uniquely serves few
         count = np.zeros((rows, cols), dtype=np.int32)
@@ -437,14 +462,16 @@ def optimise_plan(
     centre_cost_frac: float = 0.0,
     existing_built=None,
     ca_centres=None,
+    optimise_centres: bool = True,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
     From ``plan`` (the consensus prior), repeatedly place a compact park of side
     ``min_green_span`` at the spot serving the most currently-unserved homes (built ->
     green), stopping when the best park adds too few homes or the green budget is
-    spent; then re-place new centres centrally on the reduced fabric (existing centres
-    kept). The budget is population-aware when ``mean_density`` and ``max_density`` are
+    spent; then, when ``optimise_centres`` (the default), re-place new centres centrally
+    on the reduced fabric (existing centres kept) — otherwise the simulation's grown
+    centres are kept as-is. The budget is population-aware when ``mean_density`` and ``max_density`` are
     given (green funded by densification, never by lost housing); otherwise a flat
     ``max_green_frac``. Returns a new plan.
 
@@ -500,9 +527,10 @@ def optimise_plan(
         spent += carved_n
 
     # Centres: keep the existing ones; take the simulation's grown centres (``ca_centres`` — the
-    # original proximity seeding) and tidy them — re-position onto new land, central to what they
-    # serve, and cull redundant ones. With no ca_centres (direct calls) fall back to the same
-    # proximity seeding on the finished fabric.
+    # original proximity seeding). When ``optimise_centres`` (the default) tidy them — re-position
+    # onto new land, central to what they serve, add where development is under-served, and cull
+    # redundant ones; otherwise keep them exactly where the simulation grew them. With no
+    # ca_centres (direct calls) fall back to the same proximity seeding on the finished fabric.
     plan[plan == PLAN_CENTRE] = PLAN_BUILT
     built = plan == PLAN_BUILT
     new_built = built & ~frozen
@@ -518,7 +546,11 @@ def optimise_plan(
         seed_new = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in existing_set]
     for ey, ex in existing_on_built:
         plan[ey, ex] = PLAN_CENTRE
-    for y, x in _refine_centres(seed_new, existing_on_built, built, new_built, granularity_m, max_distance_m):
+    if optimise_centres:
+        new_centres = _refine_centres(seed_new, existing_on_built, built, new_built, granularity_m, max_distance_m)
+    else:  # keep the simulation's grown centres as-is (only those still on built land)
+        new_centres = [(y, x) for y, x in seed_new if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
+    for y, x in new_centres:
         plan[y, x] = PLAN_CENTRE
     return plan
 
@@ -552,13 +584,17 @@ def capacity_summary(built_before: int, built_after: int, mean_density: float, m
 
 
 def class_probabilities(states):
-    """Per-class likelihood surfaces from a list of final-state grids (0 green / 1
-    built / 2 centre). Returns ``(p_built, p_green, p_centre)`` float32 in ``[0, 1]``."""
+    """Built / green likelihood surfaces from a list of final-state grids (0 green / 1
+    built / 2 centre). Returns ``(p_built, p_green)`` float32 in ``[0, 1]``.
+
+    Centre likelihood is intentionally not emitted: the per-run centres are individual
+    points that land in different places each run, so averaging them yields a diffuse
+    smear rather than a meaningful likelihood. Centres belong to the recommended plan,
+    not the uncertainty layers."""
     arr = np.stack([np.asarray(s) for s in states])
     return (
         (arr == 1).mean(0).astype(np.float32),
         (arr == 0).mean(0).astype(np.float32),
-        (arr == 2).mean(0).astype(np.float32),
     )
 
 
@@ -604,6 +640,7 @@ def select_plan(
     max_eval=None,
     existing_built=None,
     existing_green=None,
+    optimise_centres=True,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
@@ -627,6 +664,7 @@ def select_plan(
             mean_density=mean_density, max_density=max_density,
             existing_centres=existing_centres, centre_cost_frac=centre_cost_frac,
             existing_built=existing_built, ca_centres=ca_centres,
+            optimise_centres=optimise_centres,
         )
         m = evaluate_plan(opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m)
         if best is None or m["access_cost"] < best["access_cost"]:

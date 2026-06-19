@@ -282,6 +282,7 @@ class Isobenefit:
             density_factors=density_factors,
             random_seed=random_seed,
             n_ensemble=n_ensemble,
+            optimise_centres=self.dlg.optimise_centres_check.isChecked(),
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)

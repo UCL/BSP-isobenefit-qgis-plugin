@@ -256,7 +256,45 @@ def test_refine_centres_keeps_separate_developments():
     built[5:25, 5:25] = True  # development A
     built[45:65, 45:65] = True  # development B, beyond a walk away
     out = _refine_centres([(15, 15), (55, 55)], [], built, built, 100.0, 800.0)
-    assert len(out) == 2  # each development keeps its own centre
+    # neither development is dropped — each is served by at least one centre
+    assert any(y < 35 and x < 35 for y, x in out)
+    assert any(y >= 35 and x >= 35 for y, x in out)
+    for y, x in out:
+        assert built[y, x]
+
+
+def test_refine_centres_adds_when_underserved():
+    # A development far larger than one catchment gets MORE centres than seeded, so it isn't
+    # left underserved.
+    from isobenefit_qgis.grid import _refine_centres, _walk_distance
+
+    g = 70
+    built = np.zeros((g, g), bool)
+    built[5:65, 5:65] = True  # 60x60 dev, far larger than one 800 m catchment
+    out = _refine_centres([(34, 34)], [], built, built, 100.0, 800.0)  # under-seeded: one centre
+    assert len(out) > 1  # additional centres added for the underserved areas
+    cmask = np.zeros((g, g), bool)
+    for y, x in out:
+        cmask[y, x] = True
+    assert np.isfinite(_walk_distance(cmask, 100.0, 800.0)[built]).mean() > 0.8  # most homes served
+
+
+def test_optimise_plan_centre_optimisation_optional():
+    # The centre optimisation is a toggle: off keeps the CA's grown centres exactly where they
+    # are; on re-positions them central to their development.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
+
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:30, 10:30] = PLAN_BUILT  # a 20x20 development (centroid ~ (19, 19))
+    edge = (10, 10)  # the simulation grew a centre in the corner
+
+    off = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[edge], optimise_centres=False)
+    assert {(int(y), int(x)) for y, x in np.argwhere(off == PLAN_CENTRE)} == {edge}  # kept as-is
+
+    on = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[edge], optimise_centres=True)
+    centres_on = {(int(y), int(x)) for y, x in np.argwhere(on == PLAN_CENTRE)}
+    assert edge not in centres_on  # re-positioned off the corner, toward the centre
 
 
 def test_optimise_plan_culls_tiny_ca_centre():
@@ -345,11 +383,10 @@ def test_true_area_centres_marked_on_plan():
 def test_class_probabilities():
     s1 = np.array([[1, 0], [2, 1]], np.int16)
     s2 = np.array([[1, 0], [0, 1]], np.int16)
-    pb, pg, pc = class_probabilities([s1, s2])
+    pb, pg = class_probabilities([s1, s2])  # centre likelihood intentionally not emitted
     assert pb.dtype == np.float32
     assert pb[0, 0] == 1.0  # built in both runs
     assert pg[0, 1] == 1.0  # green in both
-    assert pc[1, 0] == 0.5  # centre in one of the two
 
 
 def test_select_plan_on_demo(grid):
