@@ -1,24 +1,35 @@
 """QGIS-coupled street-network routing — true walking distances along the street graph.
 
-``grid.py`` stays pure: by default it measures a straight-ish grid walk. When a
-``NetworkRouter`` is injected (see ``grid.evaluate_plan``'s ``router`` argument), walking is
-measured *along the street network* instead — built from the OSM ``streets`` layer with QGIS's
-own network analysis (no extra dependency).
+The whole pipeline uses ONE distance model. By default that is the pure grid walk
+(``grid._walk_distance``), so ``grid.py`` stays QGIS-free and headlessly testable. When a streets
+layer is supplied, ``sim_runner`` injects a :class:`NetworkRouter` here and the SAME callable
+drives centre placement, green-carving and scoring — there is no grid-vs-network hybrid and no
+silent fallback (if the graph can't be built the run fails with a clear error).
 
-A router is a callable ``mask -> rows×cols metres`` (np.inf beyond ``max_distance_m``), the same
-shape ``grid._walk_distance`` returns, so it drops straight into the scoring.
+"Solve once, portal through" (the efficient model): the input street network is fixed, so the
+graph and each grid cell's on/off-ramp are precomputed ONCE and reused for every query and every
+run. A query is then one bounded multi-source Dijkstra:
 
-NOTE: this module touches the QGIS network-analysis API and the live street graph, so — like
-``osm_fetcher`` — it is exercised in QGIS, not by the headless test suite. ``make_router`` never
-raises: on any failure it logs and returns ``None`` so the simulation falls back to the grid walk.
+    effective walk(cell) = min( grid walk to the target,                       # local last-mile
+                                access(cell) + network distance to the target ) # portal across streets
+
+so a cell walks onto the network, traverses it, and walks off — whichever of the local grid walk
+or the network portal is shorter. Everything is bounded at the walk distance, so we never compute
+farther than we care about.
+
+NOTE: like ``osm_fetcher`` this touches the QGIS network-analysis API and is exercised in QGIS,
+not by the headless suite. ``make_router`` RAISES on failure (no silent fallback) — the caller
+turns that into a clear run error.
 """
 
 from __future__ import annotations
 
+import heapq
+import math
+
 import numpy as np
 from osgeo import gdal
 from qgis.analysis import (
-    QgsGraphAnalyzer,
     QgsGraphBuilder,
     QgsNetworkDistanceStrategy,
     QgsVectorLayerDirector,
@@ -33,80 +44,95 @@ from qgis.core import (
     QgsSpatialIndex,
 )
 
+from .grid import _walk_distance
+
 LOG_TAG = "Isobenefit"
 
 # Highway classes a pedestrian can walk. Motorway/trunk (and their links) are excluded — they are
-# barriers, so the graph simply has no edge along them and the walk routes around / can't cross
-# except where a walkable street bridges them. The 'highway' field is written by the OSM tool.
+# barriers, so the graph has no edge along them and the walk routes around / can't cross except
+# where a walkable street bridges them. The 'highway' field is written by the OSM tool.
 WALKABLE_HIGHWAY = frozenset(
     {
-        "footway",
-        "path",
-        "pedestrian",
-        "living_street",
-        "residential",
-        "service",
-        "unclassified",
-        "tertiary",
-        "tertiary_link",
-        "secondary",
-        "secondary_link",
-        "primary",
-        "primary_link",
-        "road",
-        "track",
-        "steps",
-        "cycleway",
-        "corridor",
-        "crossing",
+        "footway", "path", "pedestrian", "living_street", "residential", "service",
+        "unclassified", "tertiary", "tertiary_link", "secondary", "secondary_link",
+        "primary", "primary_link", "road", "track", "steps", "cycleway", "corridor", "crossing",
     }
 )
 
-# Cap on the number of distinct source vertices per routing query. Centres are few; transit stops
-# can be many — beyond this we sample (and log), to bound the per-query Dijkstra count.
-MAX_SOURCES = 256
+
+class RoutingError(RuntimeError):
+    """Raised when a street-network graph cannot be built (no silent fallback)."""
 
 
 def _log(message: str, level=Qgis.MessageLevel.Info) -> None:
     QgsMessageLog.logMessage(message, LOG_TAG, level)
 
 
-class NetworkRouter:
-    """Walking-distance router over a street graph. Call it with a bool target mask."""
+def _dijkstra(graph, sources: dict, max_cost: float) -> list:
+    """Bounded multi-source Dijkstra over a QgsGraph. ``sources`` maps vertex id -> initial cost
+    (the on-ramp access). Returns the cost to every vertex (``inf`` beyond ``max_cost``)."""
+    dist = [math.inf] * graph.vertexCount()
+    heap = []
+    for nid, cost in sources.items():
+        if cost < dist[nid]:
+            dist[nid] = cost
+            heapq.heappush(heap, (cost, nid))
+    while heap:
+        cost, u = heapq.heappop(heap)
+        if cost > dist[u]:
+            continue
+        vertex = graph.vertex(u)
+        for edge_id in vertex.outgoingEdges():
+            edge = graph.edge(edge_id)
+            nxt = cost + edge.cost(0)
+            if nxt > max_cost:
+                continue
+            w = edge.toVertex()
+            if nxt < dist[w]:
+                dist[w] = nxt
+                heapq.heappush(heap, (nxt, w))
+    return dist
 
-    def __init__(self, graph, cell_vertex, rows, cols, max_distance_m):
+
+class NetworkRouter:
+    """Effective walking-distance field along the street network. Call with a bool target mask."""
+
+    def __init__(self, graph, cell_node, cell_access, granularity_m, max_distance_m):
         self._graph = graph
-        self._cell_vertex = cell_vertex  # rows×cols int: nearest graph vertex per cell (-1 if none)
-        self.rows, self.cols = rows, cols
+        self._cell_node = cell_node  # rows×cols int: nearest graph vertex per cell (-1 if none in reach)
+        self._cell_access = cell_access  # rows×cols float: on/off-ramp metres to that vertex
+        self.granularity_m = float(granularity_m)
         self.max_distance_m = float(max_distance_m)
+        self.rows, self.cols = cell_node.shape
 
     def __call__(self, mask) -> np.ndarray:
-        field = np.full((self.rows, self.cols), np.inf)
         mask = np.asarray(mask, dtype=bool)
-        # source vertices = the (deduped) nearest graph vertices of the target cells
-        sources = sorted({int(self._cell_vertex[r, c]) for r, c in np.argwhere(mask)} - {-1})
-        if not sources:
-            return field
-        if len(sources) > MAX_SOURCES:  # bound the work; sampling under-counts a few, never over
-            step = len(sources) / MAX_SOURCES
-            sources = [sources[int(i * step)] for i in range(MAX_SOURCES)]
-            _log(f"routing: capped {len(sources)} of many target vertices (sampled).")
-        # nearest-source network cost to every vertex = element-wise min over per-source Dijkstras
-        best = None
-        n_vertices = self._graph.vertexCount()
-        for src in sources:
-            _tree, cost = QgsGraphAnalyzer.dijkstra(self._graph, src, 0)
-            arr = np.array(cost, dtype=float)
-            arr[arr < 0] = np.inf  # QGIS marks unreachable vertices with -1
-            best = arr if best is None else np.minimum(best, arr)
-        # map each cell to its nearest vertex's cost, then bound by the walk limit
-        flat_v = self._cell_vertex.reshape(-1)
-        valid = (flat_v >= 0) & (flat_v < n_vertices)
-        out = field.reshape(-1)
-        out[valid] = best[flat_v[valid]]
-        field = out.reshape(self.rows, self.cols)
-        field[field > self.max_distance_m] = np.inf
-        return field
+        # local last-mile: the plain grid walk to the targets (handles adjacency / off-network)
+        grid = _walk_distance(mask, self.granularity_m, self.max_distance_m)
+        # network portal: seed every target's nearest vertex with its on-ramp access, Dijkstra once
+        sources: dict = {}
+        ys, xs = np.nonzero(mask)
+        for y, x in zip(ys.tolist(), xs.tolist()):
+            node = int(self._cell_node[y, x])
+            if node < 0:
+                continue
+            access = float(self._cell_access[y, x])
+            if access < sources.get(node, math.inf):
+                sources[node] = access
+        if sources:
+            gnode = _dijkstra(self._graph, sources, self.max_distance_m)
+            node = self._cell_node  # rows×cols
+            portal = np.full((self.rows, self.cols), np.inf)
+            reachable = node >= 0
+            node_cost = np.array([gnode[i] if i >= 0 else math.inf for i in node.reshape(-1)])
+            portal_flat = node_cost + self._cell_access.reshape(-1)
+            portal = portal_flat.reshape(self.rows, self.cols)
+            portal[~reachable] = np.inf
+            effective = np.minimum(grid, portal)
+        else:
+            effective = grid
+        effective[effective > self.max_distance_m] = np.inf
+        return effective
 
 
 def _walkable_streets_director(streets_layer):
@@ -126,38 +152,42 @@ def _walkable_streets_director(streets_layer):
 
 
 def make_router(streets_layer, target_crs, geotransform, rows, cols, granularity_m, max_distance_m):
-    """Build a :class:`NetworkRouter` from a street layer, or ``None`` on any failure.
+    """Build a :class:`NetworkRouter` from a street layer (solve-once). Raises ``RoutingError`` on
+    failure — there is no silent fallback; the caller turns this into a clear run error.
 
-    Never raises: routing is an enhancement, so a missing/empty street layer or any
-    network-analysis error degrades gracefully to the straight grid walk.
+    ``target_crs`` must be projected (metres) so edge lengths and the on-ramp access are metric.
     """
-    if streets_layer is None:
-        return None
     try:
         director = _walkable_streets_director(streets_layer)
-        builder = QgsGraphBuilder(target_crs)  # target_crs must be projected (metres)
+        builder = QgsGraphBuilder(target_crs)  # otf reprojection on by default -> reprojects to target_crs
         director.makeGraph(builder, [])
         graph = builder.graph()
         n = graph.vertexCount()
         if n == 0:
-            _log("routing: street graph has no vertices — falling back to the grid walk.", Qgis.MessageLevel.Warning)
-            return None
-        # spatial index over graph vertices, to snap each grid cell to its nearest vertex
+            raise RoutingError("the street layer produced an empty walking graph (no walkable streets in range)")
+        # snap each grid cell to its nearest graph vertex (the on/off-ramp), with the access metres
         index = QgsSpatialIndex()
         for i in range(n):
             p = graph.vertex(i).point()
-            f = QgsFeature(i)
-            f.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(p.x(), p.y())))
-            index.addFeature(f)
-        cell_vertex = np.full((rows, cols), -1, dtype=np.int64)
+            feat = QgsFeature(i)
+            feat.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(p.x(), p.y())))
+            index.addFeature(feat)
+        cell_node = np.full((rows, cols), -1, dtype=np.int64)
+        cell_access = np.full((rows, cols), np.inf)
         for r in range(rows):
             for c in range(cols):
                 x, y = gdal.ApplyGeoTransform(geotransform, c + 0.5, r + 0.5)  # cell centre
-                nearest = index.nearestNeighbor(QgsPointXY(x, y), 1)
-                if nearest:
-                    cell_vertex[r, c] = nearest[0]
-        _log(f"routing: street graph built ({n} vertices); walking measured along the network.")
-        return NetworkRouter(graph, cell_vertex, rows, cols, max_distance_m)
-    except Exception as exc:  # noqa: BLE001 — routing is optional; never break the run
-        _log(f"routing: could not build the street graph ({exc}); using the grid walk.", Qgis.MessageLevel.Warning)
-        return None
+                hit = index.nearestNeighbor(QgsPointXY(x, y), 1)
+                if hit:
+                    nid = hit[0]
+                    cell_node[r, c] = nid
+                    vp = graph.vertex(nid).point()
+                    cell_access[r, c] = math.hypot(vp.x() - x, vp.y() - y)
+        # cells whose nearest vertex is itself beyond a walk have no usable on-ramp
+        cell_node[cell_access > max_distance_m] = -1
+        _log(f"routing: street graph solved once ({n} vertices); walking measured along the network.")
+        return NetworkRouter(graph, cell_node, cell_access, granularity_m, max_distance_m)
+    except RoutingError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — surface as a clear routing error, no silent fallback
+        raise RoutingError(f"could not build the street-network graph: {exc}") from exc

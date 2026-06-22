@@ -246,24 +246,23 @@ class IsobenefitTask(QgsTask):
                 self._log("Selecting and optimising the recommended plan…")
                 self.setProgress(90.0)
                 mean_density = sum(p * d for p, d in zip(self.prob_distribution, self.density_factors))
-                # Walking measured along the street network when a streets layer is supplied; any
-                # failure (or no layer) falls back to the straight grid walk inside select_plan.
+                # ONE distance model: with a streets layer, walking is measured along the network
+                # (built once here, reused for every run); without one, the open-grid walk. No silent
+                # fallback — if the graph can't be built, make_router raises and the run fails clearly.
                 router = None
                 if self.streets_layer is not None:
-                    try:
-                        from . import routing
+                    from . import routing
 
-                        router = routing.make_router(
-                            self.streets_layer,
-                            self.target_crs,
-                            geotransform,
-                            rows,
-                            cols,
-                            self.granularity_m,
-                            self.max_distance_m,
-                        )
-                    except Exception as exc:  # noqa: BLE001 — routing is optional
-                        self._log(f"Routing unavailable ({exc}); using straight-line walks.", Qgis.MessageLevel.Warning)
+                    router = routing.make_router(
+                        self.streets_layer,
+                        self.target_crs,
+                        geotransform,
+                        rows,
+                        cols,
+                        self.granularity_m,
+                        self.max_distance_m,
+                    )
+                    self._log("Walking distances measured along the street network.")
                 plan, metrics = grid.select_plan(
                     states,
                     self.granularity_m,

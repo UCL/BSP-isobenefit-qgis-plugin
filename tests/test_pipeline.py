@@ -359,6 +359,25 @@ def test_evaluate_plan_uses_injected_router():
     assert m["centre_coverage"] == 1.0  # 137 m < 800 m walk
 
 
+def test_optimise_plan_threads_one_distance_model_to_placement():
+    # The injected distance model drives centre PLACEMENT too, not only scoring — one metric
+    # throughout. With nothing reachable, no centre can justify itself, so none are placed.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
+
+    g = 30
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:20, 10:20] = PLAN_BUILT
+    calls = []
+
+    def router(mask):
+        calls.append(True)
+        return np.full((g, g), np.inf)  # nothing is within a walk of anything
+
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[(15, 15)], router=router)
+    assert calls  # the injected model was used inside the optimiser, not just the scorer
+    assert not (out == PLAN_CENTRE).any()  # unreachable -> no centre is warranted
+
+
 def test_optimise_plan_culls_tiny_ca_centre():
     # A CA centre feeding a 2-cell speck is culled; the one for the real development is kept.
     g = 40
