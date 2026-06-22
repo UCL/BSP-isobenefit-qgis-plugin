@@ -337,6 +337,28 @@ def test_optimise_plan_anchors_centre_at_station():
     assert (0, 0) not in {(int(y), int(x)) for y, x in np.argwhere(out2 == PLAN_CENTRE)}  # off built -> ignored
 
 
+def test_evaluate_plan_uses_injected_router():
+    # evaluate_plan routes via an injected callable (mask -> rows x cols metres) instead of the
+    # grid walk, so true network distances can drive the metrics. grid.py stays QGIS-free.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, evaluate_plan
+
+    g = 20
+    plan = np.zeros((g, g), np.uint8)
+    plan[5:15, 5:15] = PLAN_BUILT
+    plan[10, 10] = PLAN_CENTRE
+
+    calls = []
+
+    def router(mask):
+        calls.append(mask)
+        return np.full((g, g), 137.0)  # a distinctive constant the grid walk would never produce
+
+    m = evaluate_plan(plan, 50.0, 800.0, router=router)
+    assert calls  # the router was used in place of the grid walk
+    assert m["centre_access"] == 137.0 and m["green_access"] == 137.0  # straight from the router
+    assert m["centre_coverage"] == 1.0  # 137 m < 800 m walk
+
+
 def test_optimise_plan_culls_tiny_ca_centre():
     # A CA centre feeding a 2-cell speck is culled; the one for the real development is kept.
     g = 40

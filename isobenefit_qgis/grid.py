@@ -365,6 +365,7 @@ def evaluate_plan(
     max_distance_m: float,
     min_green_span_m: float | None = None,
     transit_stops: np.ndarray | None = None,
+    router=None,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
@@ -398,8 +399,14 @@ def evaluate_plan(
         green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
         green_mask = _keep_large_components(green_mask, green_min)
 
-    d_cent = _walk_distance(plan == PLAN_CENTRE, granularity_m, max_distance_m)[built]
-    d_green = _walk_distance(green_mask, granularity_m, max_distance_m)[built]
+    # Walking distances: a straight-ish grid walk by default, or true street-network distances
+    # when a ``router`` (a callable mask -> rows×cols metres field) is injected. The default keeps
+    # this function pure/headless; the network router lives in the QGIS-coupled isobenefit_qgis.routing.
+    def _dist(mask):
+        return router(mask) if router is not None else _walk_distance(mask, granularity_m, max_distance_m)
+
+    d_cent = _dist(plan == PLAN_CENTRE)[built]
+    d_green = _dist(green_mask)[built]
     near_cent = d_cent < math.inf
     near_green = d_green < math.inf
     served = near_cent & near_green
@@ -443,7 +450,7 @@ def evaluate_plan(
     if transit_stops is not None:
         stops = np.asarray(transit_stops, dtype=bool)
         if stops.any():
-            d_stop = _walk_distance(stops, granularity_m, max_distance_m)[built]
+            d_stop = _dist(stops)[built]
             near_stop = d_stop < math.inf
             metrics["transit_coverage"] = float(near_stop.mean())
             metrics["transit_access"] = float(np.where(near_stop, d_stop, penalty).mean())
@@ -679,6 +686,7 @@ def select_plan(
     optimise_centres=True,
     transit_stops=None,
     centre_anchors=None,
+    router=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
@@ -705,7 +713,12 @@ def select_plan(
             optimise_centres=optimise_centres, centre_anchors=centre_anchors,
         )
         m = evaluate_plan(
-            opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m, transit_stops=transit_stops
+            opt,
+            granularity_m,
+            max_distance_m,
+            min_green_span_m=min_green_span_m,
+            transit_stops=transit_stops,
+            router=router,
         )
         if best is None or m["access_cost"] < best["access_cost"]:
             best_plan, best = opt, m

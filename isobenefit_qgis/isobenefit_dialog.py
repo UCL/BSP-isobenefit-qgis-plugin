@@ -310,12 +310,22 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.stations_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
         self.stations_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.stations_layer_box, 19, 0, 1, 2)
+        # street network — line layer; when supplied, walking distances are measured along the
+        # network instead of straight across the grid
+        self.streets_layer_label = QtWidgets.QLabel("Street network — lines [optional, enables routing]", self)
+        self.inputs_outputs_block.addWidget(self.streets_layer_label, 20, 0, 1, 2)
+        self.streets_layer_box = QgsMapLayerComboBox(self)
+        self.streets_layer_box.setAllowEmptyLayer(True)
+        self.streets_layer_box.setCurrentIndex(0)  # type: ignore
+        self.streets_layer_box.setFilters(Qgis.LayerFilter.LineLayer)
+        self.streets_layer_box.setShowCrs(True)
+        self.inputs_outputs_block.addWidget(self.streets_layer_box, 21, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
             QtWidgets.QSpacerItem(
                 1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
             ),
-            20,
+            22,
             0,
             1,
             2,
