@@ -75,21 +75,12 @@ def burn_layer(arr, layer, target_crs, geotransform, burn_value):
     return out.astype(np.int16)
 
 
-def point_cells(layer, target_crs, geotransform, rows, cols, field=None, values=None):
-    """Reproject point features to the target CRS and return in-bounds (row, col).
-
-    If ``field``/``values`` are given, only points whose ``field`` attribute is in
-    ``values`` are returned (e.g. only rail/tram stops). A layer that lacks ``field``
-    matches nothing — so an attribute filter never silently falls back to all points.
-    """
+def point_cells(layer, target_crs, geotransform, rows, cols):
+    """Reproject point features to the target CRS and return in-bounds (row, col)."""
     inv = gdal.InvGeoTransform(geotransform)
-    if field is not None and layer.fields().indexFromName(field) < 0:
-        return []
     xform = QgsCoordinateTransform(layer.crs(), target_crs, QgsProject.instance())
     seeds = []
     for feat in layer.getFeatures():
-        if field is not None and feat[field] not in values:
-            continue
         geom = QgsGeometry(feat.geometry())
         if geom.isEmpty():
             continue

@@ -118,8 +118,8 @@ class OsmDialog(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
 
         intro = QtWidgets.QLabel(
-            "Download urban fabric, green space, centres, streets and transport stops "
-            "from OpenStreetMap. Define the area as a polygon (drawn or from a layer); "
+            "Download urban fabric, green space, centres, streets, railways and transport "
+            "stops/stations from OpenStreetMap. Define the area as a polygon (drawn or from a layer); "
             "results are trimmed to it. Layers are saved to a GeoPackage and added to "
             "the project — edit or swap them, then run the simulation separately.",
             self,

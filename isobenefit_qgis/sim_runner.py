@@ -26,7 +26,7 @@ from qgis.core import (
     QgsTemporalNavigationObject,
 )
 
-from . import gis_io, grid, osm_queries
+from . import gis_io, grid
 
 LOG_TAG = "Isobenefit"
 
@@ -47,6 +47,7 @@ class IsobenefitTask(QgsTask):
         unbuildable_layer,
         centre_seeds_layer,
         transit_stops_layer=None,
+        stations_layer=None,
         total_iters,
         granularity_m,
         max_distance_m,
@@ -75,6 +76,7 @@ class IsobenefitTask(QgsTask):
         self.unbuildable_layer = unbuildable_layer
         self.centre_seeds_layer = centre_seeds_layer
         self.transit_stops_layer = transit_stops_layer
+        self.stations_layer = stations_layer
         self.total_iters = int(total_iters)
         self.granularity_m = float(granularity_m)
         self.max_distance_m = float(max_distance_m)
@@ -156,27 +158,24 @@ class IsobenefitTask(QgsTask):
                     seeds = gis_io.point_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
                     self._log(f"Placed {len(seeds)} centre seed(s).")
 
-            # Public-transport stops → a bool mask (scored transit access). Significant stops
-            # (rail/tram, by the 'kind' field) also anchor a centre in the recommended plan.
-            transit_stops = None
-            station_anchors = []
+            # Public-transport access: ordinary stops and rail/tram stations are two layers
+            # (each edited/swapped on its own). The scored transit dimension uses BOTH — every
+            # stop is transit access — while only stations anchor a centre in the plan.
+            stop_cells = []
             if self.transit_stops_layer is not None:
                 stop_cells = gis_io.point_cells(self.transit_stops_layer, self.target_crs, geotransform, rows, cols)
+            station_anchors = []
+            if self.stations_layer is not None:
+                station_anchors = gis_io.point_cells(self.stations_layer, self.target_crs, geotransform, rows, cols)
+            transit_stops = None
+            all_stop_cells = stop_cells + station_anchors
+            if all_stop_cells:
                 transit_stops = np.zeros((rows, cols), dtype=bool)
-                for sr, sc in stop_cells:
+                for sr, sc in all_stop_cells:
                     transit_stops[sr, sc] = True
-                station_anchors = gis_io.point_cells(
-                    self.transit_stops_layer,
-                    self.target_crs,
-                    geotransform,
-                    rows,
-                    cols,
-                    field="kind",
-                    values=osm_queries.STATION_KINDS,
-                )
                 self._log(
-                    f"Placed {len(stop_cells)} public-transport stop(s)"
-                    + (f"; {len(station_anchors)} station(s) anchor a centre." if station_anchors else ".")
+                    f"Placed {len(stop_cells)} stop(s) + {len(station_anchors)} station(s)"
+                    + ("; stations anchor centres." if station_anchors else ".")
                 )
 
             self.per_block = self._per_block()

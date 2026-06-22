@@ -49,10 +49,18 @@ DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
     "streets": [
         ("way", '["highway"]'),
     ],
-    "pt": [
+    "railways": [
+        ("way", '["railway"~"^(rail|light_rail|subway|tram)$"]'),
+    ],
+    # Public transport split into two layers so each can be edited/swapped on its own:
+    # ordinary stops (bus etc.) and significant rail/tram stations (which anchor centres).
+    "stops": [
         ("node", '["highway"="bus_stop"]'),
+        ("node", '["public_transport"~"^(stop_position|platform)$"]'),
+    ],
+    "stations": [
         ("node", '["railway"~"^(station|halt|tram_stop)$"]'),
-        ("node", '["public_transport"~"^(stop_position|platform|station)$"]'),
+        ("node", '["public_transport"="station"]'),
     ],
     # Unbuildable land: water, airports/airfields, military, quarries/landfill.
     "unbuildable": [
@@ -77,7 +85,9 @@ DATASETS: dict[str, dict[str, str]] = {
     "green": {"label": "Green space", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "centres": {"label": "Centres", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "streets": {"label": "Street network", "osm_layer": "lines", "geom_type": "MultiLineString"},
-    "pt": {"label": "Public-transport stops", "osm_layer": "points", "geom_type": "Point"},
+    "railways": {"label": "Railways", "osm_layer": "lines", "geom_type": "MultiLineString"},
+    "stops": {"label": "Public-transport stops", "osm_layer": "points", "geom_type": "Point"},
+    "stations": {"label": "Rail / tram stations", "osm_layer": "points", "geom_type": "Point"},
     "unbuildable": {
         "label": "Unbuildable (water, airports, military)",
         "osm_layer": "multipolygons",
@@ -86,7 +96,16 @@ DATASETS: dict[str, dict[str, str]] = {
 }
 
 # Default display order (also the order datasets are fetched in).
-DATASET_ORDER: tuple[str, ...] = ("built", "green", "centres", "streets", "pt", "unbuildable")
+DATASET_ORDER: tuple[str, ...] = (
+    "built",
+    "green",
+    "centres",
+    "streets",
+    "railways",
+    "stops",
+    "stations",
+    "unbuildable",
+)
 
 # OSM tag keys we read to decide whether a feature matches a dataset. Any not present
 # as a native OSM-driver field (e.g. railway / public_transport on some layers) are
@@ -125,8 +144,9 @@ _POLYGON_FILTERS: dict[str, dict[str, set[str] | None]] = {
     },
 }
 
-_PT_RAILWAY = {"station", "halt", "tram_stop"}
-_PT_PUBLIC_TRANSPORT = {"stop_position", "platform", "station"}
+_STATION_RAILWAY = {"station", "halt", "tram_stop"}  # rail/tram stations — significant, anchor a centre
+_STOP_PUBLIC_TRANSPORT = {"stop_position", "platform"}  # ordinary stops (bus etc.)
+_RAILWAY_LINES = {"rail", "light_rail", "subway", "tram"}
 
 
 def bbox_to_overpass(xmin: float, ymin: float, xmax: float, ymax: float) -> tuple[float, float, float, float]:
@@ -173,42 +193,26 @@ def parse_hstore(other_tags: str | None) -> dict[str, str]:
     return {_unescape(k): _unescape(v) for k, v in _HSTORE_RE.findall(other_tags)}
 
 
-def point_is_pt_stop(tags: dict[str, str]) -> bool:
-    """Whether an OSM point's tags identify it as a public-transport stop."""
-    return (
-        tags.get("highway") == "bus_stop"
-        or tags.get("railway") in _PT_RAILWAY
-        or tags.get("public_transport") in _PT_PUBLIC_TRANSPORT
-    )
+def point_is_station(tags: dict[str, str]) -> bool:
+    """A significant rail/tram station (anchors a centre in the recommended plan)."""
+    return tags.get("railway") in _STATION_RAILWAY or tags.get("public_transport") == "station"
 
 
-# Stop "kind", written as a field on the PT layer so the recommended plan can treat
-# significant stops (rail/tram stations) differently from ordinary bus stops — only the
-# former anchor a centre.
-STATION_KINDS: frozenset[str] = frozenset({"rail", "tram"})
+def point_is_stop(tags: dict[str, str]) -> bool:
+    """An ordinary public-transport stop (bus stop, platform, stop position)."""
+    return tags.get("highway") == "bus_stop" or tags.get("public_transport") in _STOP_PUBLIC_TRANSPORT
 
 
-def pt_stop_kind(tags: dict[str, str]) -> str:
-    """Classify a public-transport stop as ``"rail"``, ``"tram"`` or ``"bus"``.
-
-    Rail/tram stations are the significant interchanges that anchor a centre; everything
-    else (bus stops, plain platforms/stop positions) is ``"bus"``.
-    """
-    if tags.get("railway") == "tram_stop":
-        return "tram"
-    if tags.get("railway") in {"station", "halt"} or tags.get("public_transport") == "station":
-        return "rail"
-    return "bus"
-
-
-# Extra string fields written per dataset (beyond geometry). Default: none.
-DATASET_FIELDS: dict[str, list[str]] = {"pt": ["kind"]}
+# Extra string fields written per dataset (beyond geometry). The street network carries its
+# highway class so the routing graph can tell walkable streets from motorway-class barriers.
+DATASET_FIELDS: dict[str, list[str]] = {"streets": ["highway"]}
 
 
 def feature_attributes(dataset: str, tags: dict[str, str]) -> dict[str, str]:
     """Attribute values to persist for a feature, keyed by field name (see DATASET_FIELDS)."""
-    if dataset == "pt":
-        return {"kind": pt_stop_kind(tags)}
+    if dataset == "streets":
+        highway = tags.get("highway")
+        return {"highway": highway} if highway else {}
     return {}
 
 
@@ -221,8 +225,12 @@ def feature_matches(dataset: str, tags: dict[str, str]) -> bool:
     """
     if dataset == "streets":
         return bool(tags.get("highway"))
-    if dataset == "pt":
-        return point_is_pt_stop(tags)
+    if dataset == "railways":
+        return tags.get("railway") in _RAILWAY_LINES
+    if dataset == "stations":
+        return point_is_station(tags)
+    if dataset == "stops":
+        return point_is_stop(tags)
     for key, values in _POLYGON_FILTERS[dataset].items():
         value = tags.get(key)
         if value is not None and (values is None or value in values):

@@ -18,14 +18,13 @@ from isobenefit_qgis.osm_queries import (
     DATASET_FIELDS,
     DATASET_ORDER,
     DATASETS,
-    STATION_KINDS,
     bbox_to_overpass,
     build_query,
     feature_attributes,
     feature_matches,
     parse_hstore,
-    point_is_pt_stop,
-    pt_stop_kind,
+    point_is_station,
+    point_is_stop,
 )
 
 
@@ -45,7 +44,9 @@ def test_build_query_embeds_bbox_format_and_tags():
 
 def test_build_query_per_dataset_selectors():
     assert "highway" in build_query("streets", 0, 0, 1, 1)
-    assert "bus_stop" in build_query("pt", 0, 0, 1, 1)
+    assert "bus_stop" in build_query("stops", 0, 0, 1, 1)
+    assert "station" in build_query("stations", 0, 0, 1, 1)
+    assert "railway" in build_query("railways", 0, 0, 1, 1)
     assert "retail" in build_query("centres", 0, 0, 1, 1)
     q = build_query("unbuildable", 0, 0, 1, 1)
     assert "natural" in q and "aeroway" in q and "military" in q  # water + airports + military
@@ -68,11 +69,17 @@ def test_parse_hstore_empty():
     assert parse_hstore("") == {}
 
 
-def test_point_is_pt_stop():
-    assert point_is_pt_stop({"highway": "bus_stop"})
-    assert point_is_pt_stop({"railway": "tram_stop"})
-    assert point_is_pt_stop({"public_transport": "platform"})
-    assert not point_is_pt_stop({"amenity": "cafe"})
+def test_point_is_station_and_stop():
+    # significant rail/tram stations (anchor a centre)
+    assert point_is_station({"railway": "station"})
+    assert point_is_station({"railway": "tram_stop"})
+    assert point_is_station({"public_transport": "station"})
+    assert not point_is_station({"highway": "bus_stop"})
+    # ordinary stops
+    assert point_is_stop({"highway": "bus_stop"})
+    assert point_is_stop({"public_transport": "platform"})
+    assert not point_is_stop({"railway": "station"})  # a station is not an ordinary stop
+    assert not point_is_stop({"amenity": "cafe"})
 
 
 def test_feature_matches_polygons():
@@ -93,22 +100,21 @@ def test_feature_matches_polygons():
 def test_feature_matches_streets_and_pt():
     assert feature_matches("streets", {"highway": "residential"})
     assert not feature_matches("streets", {"name": "x"})
-    assert feature_matches("pt", {"railway": "halt"})
+    assert feature_matches("stations", {"railway": "halt"})
+    assert feature_matches("stops", {"highway": "bus_stop"})
+    assert not feature_matches("stops", {"railway": "station"})  # stations are their own layer
+    assert feature_matches("railways", {"railway": "rail"})
+    assert not feature_matches("railways", {"railway": "tram_stop"})  # that's a station node, not a line
 
 
-def test_pt_stop_kind_and_attributes():
-    assert pt_stop_kind({"railway": "tram_stop"}) == "tram"
-    assert pt_stop_kind({"railway": "station"}) == "rail"
-    assert pt_stop_kind({"railway": "halt"}) == "rail"
-    assert pt_stop_kind({"public_transport": "station"}) == "rail"
-    assert pt_stop_kind({"highway": "bus_stop"}) == "bus"
-    assert pt_stop_kind({"public_transport": "platform"}) == "bus"
-    # rail/tram are the significant stops that anchor a centre; bus does not
-    assert "rail" in STATION_KINDS and "tram" in STATION_KINDS and "bus" not in STATION_KINDS
-    # only the pt dataset carries a persisted 'kind' field
-    assert feature_attributes("pt", {"railway": "station"}) == {"kind": "rail"}
-    assert feature_attributes("built", {"landuse": "residential"}) == {}
-    assert DATASET_FIELDS.get("pt") == ["kind"] and DATASET_FIELDS.get("built", []) == []
+def test_streets_carry_highway_class():
+    # the street network persists its highway class (for the routing graph); other datasets
+    # carry no extra fields
+    assert DATASET_FIELDS.get("streets") == ["highway"]
+    assert DATASET_FIELDS.get("built", []) == []
+    assert feature_attributes("streets", {"highway": "residential"}) == {"highway": "residential"}
+    assert feature_attributes("streets", {"name": "x"}) == {}  # untagged street -> no value
+    assert feature_attributes("stops", {"highway": "bus_stop"}) == {}
 
 
 def test_dataset_metadata_consistent():

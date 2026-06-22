@@ -300,12 +300,22 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.transit_stops_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
         self.transit_stops_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.transit_stops_layer_box, 17, 0, 1, 2)
+        # rail/tram stations — a separate point layer (edited/swapped on its own); the
+        # significant stops that also anchor a centre in the recommended plan
+        self.stations_layer_label = QtWidgets.QLabel("Rail / tram stations — points [optional]", self)
+        self.inputs_outputs_block.addWidget(self.stations_layer_label, 18, 0, 1, 2)
+        self.stations_layer_box = QgsMapLayerComboBox(self)
+        self.stations_layer_box.setAllowEmptyLayer(True)
+        self.stations_layer_box.setCurrentIndex(0)  # type: ignore
+        self.stations_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
+        self.stations_layer_box.setShowCrs(True)
+        self.inputs_outputs_block.addWidget(self.stations_layer_box, 19, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
             QtWidgets.QSpacerItem(
                 1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
             ),
-            18,
+            20,
             0,
             1,
             2,

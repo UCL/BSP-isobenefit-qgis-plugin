@@ -253,7 +253,7 @@ def write_geopackage_layer(
     """Create ``layer_name`` (of ``geom_type``) in an open GeoPackage and write ``features``.
 
     Each feature is ``(wkt, attrs)``; ``fields`` names the string attribute columns to
-    create (e.g. ``("kind",)`` for the PT layer), and each feature's ``attrs`` fills them.
+    create (e.g. ``("highway",)`` for the street network), and each feature's ``attrs`` fills them.
     Returns the number of features written. Geometries are forced to the layer's Multi type
     and null/invalid WKT is skipped.
     """
