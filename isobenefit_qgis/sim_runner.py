@@ -26,7 +26,7 @@ from qgis.core import (
     QgsTemporalNavigationObject,
 )
 
-from . import gis_io, grid
+from . import gis_io, grid, osm_queries
 
 LOG_TAG = "Isobenefit"
 
@@ -46,6 +46,7 @@ class IsobenefitTask(QgsTask):
         green_layer,
         unbuildable_layer,
         centre_seeds_layer,
+        transit_stops_layer=None,
         total_iters,
         granularity_m,
         max_distance_m,
@@ -73,6 +74,7 @@ class IsobenefitTask(QgsTask):
         self.green_layer = green_layer
         self.unbuildable_layer = unbuildable_layer
         self.centre_seeds_layer = centre_seeds_layer
+        self.transit_stops_layer = transit_stops_layer
         self.total_iters = int(total_iters)
         self.granularity_m = float(granularity_m)
         self.max_distance_m = float(max_distance_m)
@@ -154,6 +156,29 @@ class IsobenefitTask(QgsTask):
                     seeds = gis_io.point_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
                     self._log(f"Placed {len(seeds)} centre seed(s).")
 
+            # Public-transport stops → a bool mask (scored transit access). Significant stops
+            # (rail/tram, by the 'kind' field) also anchor a centre in the recommended plan.
+            transit_stops = None
+            station_anchors = []
+            if self.transit_stops_layer is not None:
+                stop_cells = gis_io.point_cells(self.transit_stops_layer, self.target_crs, geotransform, rows, cols)
+                transit_stops = np.zeros((rows, cols), dtype=bool)
+                for sr, sc in stop_cells:
+                    transit_stops[sr, sc] = True
+                station_anchors = gis_io.point_cells(
+                    self.transit_stops_layer,
+                    self.target_crs,
+                    geotransform,
+                    rows,
+                    cols,
+                    field="kind",
+                    values=osm_queries.STATION_KINDS,
+                )
+                self._log(
+                    f"Placed {len(stop_cells)} public-transport stop(s)"
+                    + (f"; {len(station_anchors)} station(s) anchor a centre." if station_anchors else ".")
+                )
+
             self.per_block = self._per_block()
             sim = isobenefit.Simulation(
                 state,
@@ -232,6 +257,8 @@ class IsobenefitTask(QgsTask):
                     existing_built=(origin == 1),
                     existing_green=(origin == 0),
                     optimise_centres=self.optimise_centres,
+                    transit_stops=transit_stops,
+                    centre_anchors=station_anchors,
                 )
                 if plan is not None:
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
@@ -241,6 +268,11 @@ class IsobenefitTask(QgsTask):
                         f"green and a centre (avg walk to a centre {metrics['centre_access']:.0f} m, "
                         f"to green {metrics['green_access']:.0f} m)."
                     )
+                    if "transit_coverage" in metrics:
+                        self._log(
+                            f"Transit: {metrics['transit_coverage']:.0%} of homes within a walk of a "
+                            f"public-transport stop (avg walk {metrics['transit_access']:.0f} m)."
+                        )
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
                     f"wrote likelihood + recommended plan: {self.out_path}"

@@ -182,6 +182,36 @@ def point_is_pt_stop(tags: dict[str, str]) -> bool:
     )
 
 
+# Stop "kind", written as a field on the PT layer so the recommended plan can treat
+# significant stops (rail/tram stations) differently from ordinary bus stops — only the
+# former anchor a centre.
+STATION_KINDS: frozenset[str] = frozenset({"rail", "tram"})
+
+
+def pt_stop_kind(tags: dict[str, str]) -> str:
+    """Classify a public-transport stop as ``"rail"``, ``"tram"`` or ``"bus"``.
+
+    Rail/tram stations are the significant interchanges that anchor a centre; everything
+    else (bus stops, plain platforms/stop positions) is ``"bus"``.
+    """
+    if tags.get("railway") == "tram_stop":
+        return "tram"
+    if tags.get("railway") in {"station", "halt"} or tags.get("public_transport") == "station":
+        return "rail"
+    return "bus"
+
+
+# Extra string fields written per dataset (beyond geometry). Default: none.
+DATASET_FIELDS: dict[str, list[str]] = {"pt": ["kind"]}
+
+
+def feature_attributes(dataset: str, tags: dict[str, str]) -> dict[str, str]:
+    """Attribute values to persist for a feature, keyed by field name (see DATASET_FIELDS)."""
+    if dataset == "pt":
+        return {"kind": pt_stop_kind(tags)}
+    return {}
+
+
 def feature_matches(dataset: str, tags: dict[str, str]) -> bool:
     """Whether a feature with merged ``tags`` belongs in ``dataset``.
 

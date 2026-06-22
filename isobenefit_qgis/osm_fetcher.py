@@ -176,8 +176,12 @@ def _clip(geom, aoi):
         return geom
 
 
-def read_osm_layer(xml_bytes: bytes, dataset: str, aoi_wkt: str | None = None) -> list[str]:
-    """Parse Overpass OSM-XML and return WKT for every feature matching ``dataset``.
+def read_osm_layer(xml_bytes: bytes, dataset: str, aoi_wkt: str | None = None) -> list[tuple[str, dict[str, str]]]:
+    """Parse Overpass OSM-XML and return ``(wkt, attrs)`` for every matching feature.
+
+    ``attrs`` carries the persisted fields for the dataset (see
+    ``osm_queries.feature_attributes`` / ``DATASET_FIELDS``) — e.g. the ``kind`` of a
+    public-transport stop; it is empty for datasets with no extra fields.
 
     Reads the single target layer of GDAL's ``OSM`` driver directly with interleaved
     reading OFF (the default, as ``ogr2ogr file.osm multipolygons`` does): a single-layer
@@ -197,7 +201,7 @@ def read_osm_layer(xml_bytes: bytes, dataset: str, aoi_wkt: str | None = None) -
     gdal.SetConfigOption("OGR_INTERLEAVED_READING", "NO")
     vsipath = f"/vsimem/overpass_{dataset}.osm"
     gdal.FileFromMemBuffer(vsipath, xml_bytes)
-    wkts: list[str] = []
+    features: list[tuple[str, dict[str, str]]] = []
     try:
         ds = gdal.OpenEx(vsipath, gdal.OF_VECTOR)
         if ds is None:
@@ -208,17 +212,18 @@ def read_osm_layer(xml_bytes: bytes, dataset: str, aoi_wkt: str | None = None) -
         layer.ResetReading()
         feat = layer.GetNextFeature()
         while feat is not None:
-            if osm_queries.feature_matches(dataset, _feature_tags(feat)):
+            tags = _feature_tags(feat)
+            if osm_queries.feature_matches(dataset, tags):
                 geom = feat.GetGeometryRef()
                 if geom is not None and not geom.IsEmpty():
                     kept = _clip(geom, aoi)
                     if kept is not None:
-                        wkts.append(kept.ExportToWkt())
+                        features.append((kept.ExportToWkt(), osm_queries.feature_attributes(dataset, tags)))
             feat = layer.GetNextFeature()
         ds = None
     finally:
         gdal.Unlink(vsipath)
-    return wkts
+    return features
 
 
 def _wgs84_srs() -> "osr.SpatialReference":
@@ -237,16 +242,27 @@ def _layer_label(key: str) -> str:
     return osm_queries.DATASETS[key]["label"]
 
 
-def write_geopackage_layer(gpkg_ds: "ogr.DataSource", layer_name: str, geom_type: str, wkts: list[str], srs) -> int:
-    """Create ``layer_name`` (of ``geom_type``) in an open GeoPackage and write ``wkts``.
+def write_geopackage_layer(
+    gpkg_ds: "ogr.DataSource",
+    layer_name: str,
+    geom_type: str,
+    features: list[tuple[str, dict[str, str]]],
+    srs,
+    fields: "tuple[str, ...] | list[str]" = (),
+) -> int:
+    """Create ``layer_name`` (of ``geom_type``) in an open GeoPackage and write ``features``.
 
-    Returns the number of features written. Geometries are forced to the layer's
-    Multi type and null/invalid WKT is skipped.
+    Each feature is ``(wkt, attrs)``; ``fields`` names the string attribute columns to
+    create (e.g. ``("kind",)`` for the PT layer), and each feature's ``attrs`` fills them.
+    Returns the number of features written. Geometries are forced to the layer's Multi type
+    and null/invalid WKT is skipped.
     """
     layer = gpkg_ds.CreateLayer(layer_name, srs, _OGR_GEOM[geom_type], options=["GEOMETRY_NAME=geom"])
+    for fname in fields:
+        layer.CreateField(ogr.FieldDefn(fname, ogr.OFTString))
     defn = layer.GetLayerDefn()
     count = 0
-    for wkt in wkts:
+    for wkt, attrs in features:
         geom = ogr.CreateGeometryFromWkt(wkt)
         if geom is None:
             continue
@@ -256,6 +272,9 @@ def write_geopackage_layer(gpkg_ds: "ogr.DataSource", layer_name: str, geom_type
             geom = ogr.ForceToMultiLineString(geom)
         feature = ogr.Feature(defn)
         feature.SetGeometry(geom)
+        for fname in fields:
+            if attrs.get(fname):
+                feature.SetField(fname, attrs[fname])
         layer.CreateFeature(feature)
         count += 1
     return count
@@ -330,13 +349,20 @@ class OsmFetchTask(QgsTask):
                 try:
                     ql = osm_queries.build_query(dataset, s, w, n, e)
                     xml = overpass_post(ql, self._feedback)
-                    wkts = read_osm_layer(xml, dataset, self.aoi_wkt)
+                    features = read_osm_layer(xml, dataset, self.aoi_wkt)
                 except Exception as exc:  # noqa: BLE001
                     if isinstance(exc, OsmError) and str(exc) == "cancelled":
                         return False
                     self._log(f"{label}: skipped ({exc}).", Qgis.MessageLevel.Warning, notify=True)
-                    wkts = []
-                count = write_geopackage_layer(gpkg_ds, dataset, osm_queries.DATASETS[dataset]["geom_type"], wkts, srs)
+                    features = []
+                count = write_geopackage_layer(
+                    gpkg_ds,
+                    dataset,
+                    osm_queries.DATASETS[dataset]["geom_type"],
+                    features,
+                    srs,
+                    osm_queries.DATASET_FIELDS.get(dataset, ()),
+                )
                 self.results.append((dataset, count))
                 self._log(f"{label}: {count} feature(s).")
                 self.setProgress((i + 1) / total * 100.0)
@@ -347,7 +373,7 @@ class OsmFetchTask(QgsTask):
             # extents polygon, and this keeps the downloaded inputs and the analysis area
             # in lockstep so the user can run straight away.
             if self.aoi_wkt:
-                write_geopackage_layer(gpkg_ds, EXTENTS_LAYER, "MultiPolygon", [self.aoi_wkt], srs)
+                write_geopackage_layer(gpkg_ds, EXTENTS_LAYER, "MultiPolygon", [(self.aoi_wkt, {})], srs)
                 self.results.append((EXTENTS_LAYER, 1))
                 self._log("Saved the area of interest as an extents layer.")
 

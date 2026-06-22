@@ -268,6 +268,7 @@ class Isobenefit:
             green_layer=self.dlg.green_layer_box.currentLayer(),
             unbuildable_layer=self.dlg.unbuildable_layer_box.currentLayer(),
             centre_seeds_layer=self.dlg.centre_seeds_layer_box.currentLayer(),
+            transit_stops_layer=self.dlg.transit_stops_layer_box.currentLayer(),
             total_iters=total_iters,
             granularity_m=granularity_m,
             max_distance_m=max_distance_m,

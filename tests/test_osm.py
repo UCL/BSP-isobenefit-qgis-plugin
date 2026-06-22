@@ -15,13 +15,17 @@ from __future__ import annotations
 import pytest
 
 from isobenefit_qgis.osm_queries import (
+    DATASET_FIELDS,
     DATASET_ORDER,
     DATASETS,
+    STATION_KINDS,
     bbox_to_overpass,
     build_query,
+    feature_attributes,
     feature_matches,
     parse_hstore,
     point_is_pt_stop,
+    pt_stop_kind,
 )
 
 
@@ -90,6 +94,21 @@ def test_feature_matches_streets_and_pt():
     assert feature_matches("streets", {"highway": "residential"})
     assert not feature_matches("streets", {"name": "x"})
     assert feature_matches("pt", {"railway": "halt"})
+
+
+def test_pt_stop_kind_and_attributes():
+    assert pt_stop_kind({"railway": "tram_stop"}) == "tram"
+    assert pt_stop_kind({"railway": "station"}) == "rail"
+    assert pt_stop_kind({"railway": "halt"}) == "rail"
+    assert pt_stop_kind({"public_transport": "station"}) == "rail"
+    assert pt_stop_kind({"highway": "bus_stop"}) == "bus"
+    assert pt_stop_kind({"public_transport": "platform"}) == "bus"
+    # rail/tram are the significant stops that anchor a centre; bus does not
+    assert "rail" in STATION_KINDS and "tram" in STATION_KINDS and "bus" not in STATION_KINDS
+    # only the pt dataset carries a persisted 'kind' field
+    assert feature_attributes("pt", {"railway": "station"}) == {"kind": "rail"}
+    assert feature_attributes("built", {"landuse": "residential"}) == {}
+    assert DATASET_FIELDS.get("pt") == ["kind"] and DATASET_FIELDS.get("built", []) == []
 
 
 def test_dataset_metadata_consistent():

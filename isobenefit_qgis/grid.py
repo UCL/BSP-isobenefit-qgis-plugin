@@ -360,7 +360,11 @@ def _walk_distance(
 
 
 def evaluate_plan(
-    plan: np.ndarray, granularity_m: float, max_distance_m: float, min_green_span_m: float | None = None
+    plan: np.ndarray,
+    granularity_m: float,
+    max_distance_m: float,
+    min_green_span_m: float | None = None,
+    transit_stops: np.ndarray | None = None,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
@@ -377,6 +381,12 @@ def evaluate_plan(
       ``green_access`` are its two halves — avg walk to a centre, and to green, separately;
     - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (reachable only);
     - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
+
+    If ``transit_stops`` (a bool mask of public-transport stop cells) is given, also reports
+    ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` — walkable access to a
+    stop, as a third dimension alongside centre and green. These are *reported only*: transit
+    does not yet feed ``access_cost`` (the run-selection metric), so it cannot distort which
+    plan is chosen until the dimension is validated.
     """
     built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
     n_built = int(built.sum())
@@ -412,7 +422,7 @@ def evaluate_plan(
     n_centres = int((plan == PLAN_CENTRE).sum())
     n_green = int(green_mask.sum())
 
-    return {
+    metrics = {
         "built_cells": n_built,
         "centre_coverage": float(near_cent.mean()),
         "green_coverage": float(near_green.mean()),
@@ -427,6 +437,19 @@ def evaluate_plan(
         "centre_efficiency": float(near_cent.sum()) / n_centres if n_centres else 0.0,  # homes served per centre
         "green_efficiency": float(near_green.sum()) / n_green if n_green else 0.0,  # homes served per green cell
     }
+
+    # transit access — a third dimension, REPORTED ONLY for now (not folded into access_cost,
+    # so it cannot distort run-selection until validated). See the transit-routing plan.
+    if transit_stops is not None:
+        stops = np.asarray(transit_stops, dtype=bool)
+        if stops.any():
+            d_stop = _walk_distance(stops, granularity_m, max_distance_m)[built]
+            near_stop = d_stop < math.inf
+            metrics["transit_coverage"] = float(near_stop.mean())
+            metrics["transit_access"] = float(np.where(near_stop, d_stop, penalty).mean())
+            metrics["transit_walk_mean"] = float(d_stop[near_stop].mean()) if near_stop.any() else math.inf
+
+    return metrics
 
 
 # --- hybrid optimiser: greedy coverage over the consensus prior ------------------
@@ -463,6 +486,7 @@ def optimise_plan(
     existing_built=None,
     ca_centres=None,
     optimise_centres: bool = True,
+    centre_anchors=None,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
@@ -539,15 +563,27 @@ def optimise_plan(
         for ey, ex in (existing_centres or [])
         if 0 <= ey < rows and 0 <= ex < cols and plan[ey, ex] == PLAN_BUILT
     ]
+    # Significant transit stops (rail/tram) on built land anchor a FIXED centre — kept like
+    # existing centres (never culled); the other centres optimise around them.
+    anchor_on_built = [
+        (int(ay), int(ax))
+        for ay, ax in (centre_anchors or [])
+        if 0 <= ay < rows and 0 <= ax < cols and plan[ay, ax] == PLAN_BUILT
+    ]
+    fixed_on_built = list(dict.fromkeys(existing_on_built + anchor_on_built))  # dedup, order-stable
+    exclude = {(int(ey), int(ex)) for ey, ex in (existing_centres or [])} | set(anchor_on_built)
     if ca_centres is None:
-        seed_new = _seed_centres_proximity(built, granularity_m, max_distance_m, existing_centres)
+        seed_new = [
+            s
+            for s in _seed_centres_proximity(built, granularity_m, max_distance_m, existing_centres)
+            if s not in exclude
+        ]
     else:
-        existing_set = {(int(ey), int(ex)) for ey, ex in (existing_centres or [])}
-        seed_new = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in existing_set]
-    for ey, ex in existing_on_built:
+        seed_new = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in exclude]
+    for ey, ex in fixed_on_built:
         plan[ey, ex] = PLAN_CENTRE
     if optimise_centres:
-        new_centres = _refine_centres(seed_new, existing_on_built, built, new_built, granularity_m, max_distance_m)
+        new_centres = _refine_centres(seed_new, fixed_on_built, built, new_built, granularity_m, max_distance_m)
     else:  # keep the simulation's grown centres as-is (only those still on built land)
         new_centres = [(y, x) for y, x in seed_new if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
     for y, x in new_centres:
@@ -641,6 +677,8 @@ def select_plan(
     existing_built=None,
     existing_green=None,
     optimise_centres=True,
+    transit_stops=None,
+    centre_anchors=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
@@ -664,9 +702,11 @@ def select_plan(
             mean_density=mean_density, max_density=max_density,
             existing_centres=existing_centres, centre_cost_frac=centre_cost_frac,
             existing_built=existing_built, ca_centres=ca_centres,
-            optimise_centres=optimise_centres,
+            optimise_centres=optimise_centres, centre_anchors=centre_anchors,
         )
-        m = evaluate_plan(opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m)
+        m = evaluate_plan(
+            opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m, transit_stops=transit_stops
+        )
         if best is None or m["access_cost"] < best["access_cost"]:
             best_plan, best = opt, m
     if best_plan is not None:

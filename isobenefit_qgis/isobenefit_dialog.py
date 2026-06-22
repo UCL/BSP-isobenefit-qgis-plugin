@@ -291,12 +291,21 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.centre_seeds_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer | Qgis.LayerFilter.PointLayer)
         self.centre_seeds_layer_box.setShowCrs(True)
         self.inputs_outputs_block.addWidget(self.centre_seeds_layer_box, 15, 0, 1, 2)
+        # public-transport stops — point layer; used for the plan's transit-access readout
+        self.transit_stops_layer_label = QtWidgets.QLabel("Public-transport stops — points [optional]", self)
+        self.inputs_outputs_block.addWidget(self.transit_stops_layer_label, 16, 0, 1, 2)
+        self.transit_stops_layer_box = QgsMapLayerComboBox(self)
+        self.transit_stops_layer_box.setAllowEmptyLayer(True)
+        self.transit_stops_layer_box.setCurrentIndex(0)  # type: ignore
+        self.transit_stops_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
+        self.transit_stops_layer_box.setShowCrs(True)
+        self.inputs_outputs_block.addWidget(self.transit_stops_layer_box, 17, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
             QtWidgets.QSpacerItem(
                 1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
             ),
-            16,
+            18,
             0,
             1,
             2,

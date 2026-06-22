@@ -297,6 +297,46 @@ def test_optimise_plan_centre_optimisation_optional():
     assert edge not in centres_on  # re-positioned off the corner, toward the centre
 
 
+def test_evaluate_plan_transit_coverage_reported():
+    # Transit access is reported when stops are given, and omitted otherwise; it does not touch
+    # the selection metric (access_cost).
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, evaluate_plan
+
+    g = 50
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:20, 10:20] = PLAN_BUILT
+    plan[14, 14] = PLAN_CENTRE
+
+    stops = np.zeros((g, g), bool)
+    stops[14, 14] = True  # one stop, central to the development
+    m = evaluate_plan(plan, 50.0, 800.0, transit_stops=stops)
+    assert m["transit_coverage"] == 1.0  # whole dev within an 800 m walk of the stop
+    assert m["transit_access"] < 800.0
+
+    far = np.zeros((g, g), bool)
+    far[48, 48] = True  # stop in the far corner, well beyond a walk of the development
+    assert evaluate_plan(plan, 50.0, 800.0, transit_stops=far)["transit_coverage"] == 0.0
+
+    assert "transit_coverage" not in evaluate_plan(plan, 50.0, 800.0)  # omitted with no stops
+
+
+def test_optimise_plan_anchors_centre_at_station():
+    # A significant transit stop on built land anchors a fixed centre, kept where it is; a stop
+    # off built land is ignored (a centre needs homes to serve).
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
+
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:30, 10:30] = PLAN_BUILT
+
+    anchor = (12, 12)  # a station near the development edge
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[], centre_anchors=[anchor])
+    assert anchor in {(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)}  # anchored + kept
+
+    out2 = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[], centre_anchors=[(0, 0)])
+    assert (0, 0) not in {(int(y), int(x)) for y, x in np.argwhere(out2 == PLAN_CENTRE)}  # off built -> ignored
+
+
 def test_optimise_plan_culls_tiny_ca_centre():
     # A CA centre feeding a 2-cell speck is culled; the one for the real development is kept.
     g = 40
