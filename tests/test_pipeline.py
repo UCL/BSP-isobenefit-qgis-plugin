@@ -408,6 +408,25 @@ def test_snap_cells_finds_nearest_node():
     assert cell_node[0, 0] == 0 and cell_access[0, 0] < 1.0
 
 
+def test_audit_centres_reports_served_and_flags_weak():
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, audit_centres
+
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[20:26, 20:26] = PLAN_BUILT  # a 6x6 = 36-cell development
+    plan[22, 22] = PLAN_CENTRE  # one well-placed centre
+    a = audit_centres(plan, 50.0, 800.0)
+    assert a["summary"]["n_centres"] == 1
+    assert a["centres"][0]["served"] == 36  # serves the whole development
+    assert 0 < a["centres"][0]["mean_dist_m"] < 800
+
+    plan[0, 0] = PLAN_CENTRE  # a lone speck far from the development — serves only itself
+    a2 = audit_centres(plan, 50.0, 800.0)
+    assert a2["summary"]["n_centres"] == 2
+    assert a2["centres"][0]["served"] == 1  # weakest-first ordering surfaces the dud
+    assert a2["summary"]["served_min"] == 1
+
+
 def test_optimise_plan_culls_tiny_ca_centre():
     # A CA centre feeding a 2-cell speck is culled; the one for the real development is kept.
     g = 40

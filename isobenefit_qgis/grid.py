@@ -454,6 +454,53 @@ def evaluate_plan(
     return metrics
 
 
+def audit_centres(plan, granularity_m, max_distance_m, router=None):
+    """Per-centre effectiveness audit, by the one distance model (the grid walk by default, the
+    network router when injected). For each centre, measures the two things that say whether it
+    earns its place: how many built cells it **serves** (within a walk), and the **mean walk** to
+    them (low = well-centred; few served = an ineffective centre on a thin/edge catchment).
+
+    Run after each plan so weak centres are visible and the cull threshold can be tuned to evidence
+    rather than by eye. Returns ``{"centres": [...weakest first...], "summary": {...}}``.
+    """
+    plan = np.asarray(plan)
+    if router is None:
+
+        def walk(mask):
+            return _walk_distance(mask, granularity_m, max_distance_m)
+    else:
+        walk = router
+
+    built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
+    records = []
+    for y, x in np.argwhere(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE))):
+        one = np.zeros(plan.shape, dtype=bool)
+        one[y, x] = True
+        d = walk(one)
+        served_mask = built & np.isfinite(d)
+        served = int(served_mask.sum())
+        records.append(
+            {
+                "row": int(y),
+                "col": int(x),
+                "served": served,  # built cells within a walk — the catchment it actually serves
+                "mean_dist_m": float(d[served_mask].mean()) if served else math.inf,  # avg walk to them
+                "existing": bool(plan[y, x] == PLAN_EXIST_CENTRE),
+            }
+        )
+    records.sort(key=lambda r: r["served"])  # weakest first, so the audit surfaces the dubious ones
+    served = np.array([r["served"] for r in records], dtype=float)
+    finite_means = [r["mean_dist_m"] for r in records if math.isfinite(r["mean_dist_m"])]
+    summary = {
+        "n_centres": len(records),
+        "served_min": int(served.min()) if len(served) else 0,
+        "served_median": int(np.median(served)) if len(served) else 0,
+        "served_max": int(served.max()) if len(served) else 0,
+        "mean_dist_median_m": float(np.median(finite_means)) if finite_means else math.inf,
+    }
+    return {"centres": records, "summary": summary}
+
+
 # --- hybrid optimiser: greedy coverage over the consensus prior ------------------
 #
 # The consensus plan (recommended_plan) is the CA's forecast; the evaluator shows

@@ -292,6 +292,22 @@ class IsobenefitTask(QgsTask):
                             f"Transit: {metrics['transit_coverage']:.0%} of homes within a walk of a "
                             f"public-transport stop (avg walk {metrics['transit_access']:.0f} m)."
                         )
+                if plan is not None:
+                    # Per-centre effectiveness audit, by the same distance model — surfaces weak
+                    # centres (thin catchment / off-centre) every run, so they're not just eyeballed.
+                    audit = grid.audit_centres(plan, self.granularity_m, self.max_distance_m, router=router)
+                    s = audit["summary"]
+                    self._log(
+                        f"Centre audit: {s['n_centres']} centres serve a median of {s['served_median']} built "
+                        f"cells each (min {s['served_min']}, max {s['served_max']}); median avg-walk-to-served "
+                        f"{s['mean_dist_median_m']:.0f} m."
+                    )
+                    weak = audit["centres"][:5]  # weakest first
+                    if weak:
+                        self._log(
+                            "Weakest centres (row, col, served, avg-walk m): "
+                            + "; ".join(f"({c['row']},{c['col']},{c['served']},{c['mean_dist_m']:.0f})" for c in weak)
+                        )
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
                     f"wrote likelihood + recommended plan: {self.out_path}"
