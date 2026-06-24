@@ -334,26 +334,26 @@ class IsobenefitDialog(QtWidgets.QDialog):
         )
         # projection
         self.crs_label = QtWidgets.QLabel("Coordinate reference system for simulation", self)
-        self.inputs_outputs_block.addWidget(self.crs_label, 17, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.crs_label, 23, 0, 1, 2)
         self.crs_selection = QgsProjectionSelectionWidget(self)
         # feedback for layers selection
         # crsChanged event fires immediately, so self.crs_feedback has to exist beforehand
         self.crs_feedback = QtWidgets.QLabel("Select a CRS", self)
         self.crs_feedback.setWordWrap(True)
-        self.inputs_outputs_block.addWidget(self.crs_feedback, 18, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.crs_feedback, 24, 0, 1, 2)
         self.crs_selection.crsChanged.connect(self.handle_crs)  # type: ignore (connect works)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.CurrentCrs, False)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.DefaultCrs, False)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.LayerCrs, True)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.ProjectCrs, True)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.RecentCrs, False)
-        self.inputs_outputs_block.addWidget(self.crs_selection, 19, 0, 1, 2)
+        self.inputs_outputs_block.addWidget(self.crs_selection, 25, 0, 1, 2)
         # spacer
         self.inputs_outputs_block.addItem(
             QtWidgets.QSpacerItem(
                 1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
             ),
-            20,
+            26,
             0,
             1,
             2,
