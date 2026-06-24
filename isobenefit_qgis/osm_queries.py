@@ -32,8 +32,14 @@ OVERPASS_TIMEOUT = 60
 # driver as ``multipolygons``; relations carry multipolygons too.
 DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
     "built": [
-        ("way", '["landuse"~"^(residential|commercial|retail|industrial)$"]'),
-        ("relation", '["landuse"~"^(residential|commercial|retail|industrial)$"]'),
+        ("way", '["landuse"~"^(residential|commercial|retail)$"]'),
+        ("relation", '["landuse"~"^(residential|commercial|retail)$"]'),
+    ],
+    # Industrial is its OWN category — not residential fabric (homes) and not a centre. Treated as
+    # existing non-residential land: no new housing grows on it (carved via unbuildable below).
+    "industrial": [
+        ("way", '["landuse"="industrial"]'),
+        ("relation", '["landuse"="industrial"]'),
     ],
     "green": [
         ("way", '["leisure"~"^(park|garden|recreation_ground|nature_reserve)$"]'),
@@ -63,7 +69,7 @@ DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
         ("node", '["railway"~"^(station|halt|tram_stop)$"]'),
         ("node", '["public_transport"="station"]'),
     ],
-    # Unbuildable land: water, airports/airfields, military, quarries/landfill.
+    # Unbuildable land: water, airports/airfields, military, quarries/landfill, industrial.
     "unbuildable": [
         ("way", '["natural"="water"]'),
         ("relation", '["natural"="water"]'),
@@ -71,8 +77,9 @@ DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
         ("relation", '["waterway"~"^(riverbank|dock)$"]'),
         ("way", '["aeroway"~"^(aerodrome|apron|terminal|runway|helipad)$"]'),
         ("relation", '["aeroway"~"^(aerodrome|apron|terminal|runway|helipad)$"]'),
-        ("way", '["landuse"~"^(military|quarry|landfill)$"]'),
-        ("relation", '["landuse"~"^(military|quarry|landfill)$"]'),
+        # industrial is no-build for new housing (also emitted as its own 'industrial' layer)
+        ("way", '["landuse"~"^(military|quarry|landfill|industrial)$"]'),
+        ("relation", '["landuse"~"^(military|quarry|landfill|industrial)$"]'),
         ("way", '["military"]'),
         ("relation", '["military"]'),
         # Linear barriers carved out of the buildable substrate too (motorways, railways, rivers):
@@ -87,15 +94,16 @@ DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
 # output geometry type (used for the GeoPackage layer). The dict key doubles as the
 # GeoPackage layer name.
 DATASETS: dict[str, dict[str, str]] = {
-    "built": {"label": "Built (urban fabric)", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
+    "built": {"label": "Built (residential fabric)", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "green": {"label": "Green space", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "centres": {"label": "Centres", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
+    "industrial": {"label": "Industrial land", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "streets": {"label": "Street network", "osm_layer": "lines", "geom_type": "MultiLineString"},
     "railways": {"label": "Railways", "osm_layer": "lines", "geom_type": "MultiLineString"},
     "stops": {"label": "Public-transport stops", "osm_layer": "points", "geom_type": "Point"},
     "stations": {"label": "Rail / tram stations", "osm_layer": "points", "geom_type": "Point"},
     "unbuildable": {
-        "label": "Unbuildable (water, airports, military)",
+        "label": "Unbuildable (water, airports, military, industrial)",
         "osm_layer": "multipolygons",
         "geom_type": "MultiPolygon",
     },
@@ -106,6 +114,7 @@ DATASET_ORDER: tuple[str, ...] = (
     "built",
     "green",
     "centres",
+    "industrial",
     "streets",
     "railways",
     "stops",
@@ -134,18 +143,19 @@ TAG_KEYS: frozenset[str] = frozenset(
 # Polygon datasets: a feature matches if ANY field → accepted-values holds. A value of
 # ``None`` means "any non-empty value for this key" (e.g. military=*).
 _POLYGON_FILTERS: dict[str, dict[str, set[str] | None]] = {
-    "built": {"landuse": {"residential", "commercial", "retail", "industrial"}},
+    "built": {"landuse": {"residential", "commercial", "retail"}},  # residential fabric (NOT industrial)
     "green": {
         "leisure": {"park", "garden", "recreation_ground", "nature_reserve"},
         "landuse": {"grass", "meadow", "forest", "recreation_ground", "village_green"},
         "natural": {"wood", "scrub", "grassland", "heath"},
     },
     "centres": {"landuse": {"retail", "commercial"}},
+    "industrial": {"landuse": {"industrial"}},
     "unbuildable": {
         "natural": {"water"},
         "waterway": {"riverbank", "dock"},
         "aeroway": {"aerodrome", "apron", "terminal", "runway", "helipad"},
-        "landuse": {"military", "quarry", "landfill"},
+        "landuse": {"military", "quarry", "landfill", "industrial"},  # industrial: no new housing
         "military": None,  # any military=* area
     },
 }

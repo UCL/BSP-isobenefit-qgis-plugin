@@ -109,6 +109,11 @@ def test_feature_matches_polygons():
     assert feature_matches("unbuildable", {"landuse": "military"})
     assert feature_matches("unbuildable", {"military": "danger_area"})  # any military=* value
     assert not feature_matches("unbuildable", {"landuse": "residential"})
+    # industrial is its own category — not residential built, and carved as unbuildable (no new housing)
+    assert not feature_matches("built", {"landuse": "industrial"})
+    assert feature_matches("industrial", {"landuse": "industrial"})
+    assert not feature_matches("industrial", {"landuse": "residential"})
+    assert feature_matches("unbuildable", {"landuse": "industrial"})
 
 
 def test_is_barrier_line_and_unbuildable_query():
