@@ -75,6 +75,11 @@ DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
         ("relation", '["landuse"~"^(military|quarry|landfill)$"]'),
         ("way", '["military"]'),
         ("relation", '["military"]'),
+        # Linear barriers carved out of the buildable substrate too (motorways, railways, rivers):
+        # fetched as lines and buffered to no-build corridors when read.
+        ("way", '["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link)$"]'),
+        ("way", '["railway"~"^(rail|light_rail|subway|tram)$"]'),
+        ("way", '["waterway"~"^(river|canal|stream)$"]'),
     ],
 }
 
@@ -148,6 +153,11 @@ _POLYGON_FILTERS: dict[str, dict[str, set[str] | None]] = {
 _STATION_RAILWAY = {"station", "halt", "tram_stop"}  # rail/tram stations — significant, anchor a centre
 _STOP_PUBLIC_TRANSPORT = {"stop_position", "platform"}  # ordinary stops (bus etc.)
 _RAILWAY_LINES = {"rail", "light_rail", "subway", "tram"}
+
+# Linear barriers carved out of the buildable substrate (never developed). Motorway-class roads,
+# railways and rivers/canals are fetched as lines and buffered into the unbuildable layer.
+_BARRIER_HIGHWAY = {"motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link"}
+_BARRIER_WATERWAY = {"river", "canal", "stream"}
 
 
 def bbox_to_overpass(xmin: float, ymin: float, xmax: float, ymax: float) -> tuple[float, float, float, float]:
@@ -225,6 +235,16 @@ def point_is_station(tags: dict[str, str]) -> bool:
 def point_is_stop(tags: dict[str, str]) -> bool:
     """An ordinary public-transport stop (bus stop, platform, stop position)."""
     return tags.get("highway") == "bus_stop" or tags.get("public_transport") in _STOP_PUBLIC_TRANSPORT
+
+
+def is_barrier_line(tags: dict[str, str]) -> bool:
+    """A linear barrier (motorway-class road, railway, or river/canal) — carved into the
+    unbuildable substrate as a no-build corridor so it is never developed."""
+    return (
+        tags.get("highway") in _BARRIER_HIGHWAY
+        or tags.get("railway") in _RAILWAY_LINES
+        or tags.get("waterway") in _BARRIER_WATERWAY
+    )
 
 
 # Extra string fields written per dataset (beyond geometry). The street network carries its

@@ -41,11 +41,13 @@ def _srs_from_crs(target_crs) -> "osr.SpatialReference":
     return srs
 
 
-def burn_layer(arr, layer, target_crs, geotransform, burn_value):
+def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=False):
     """Reproject ``layer`` to the target CRS and burn ``burn_value`` into ``arr``.
 
     Returns a new int16 array; the input is not mutated. Geometries are transformed
-    before rasterizing (the fix for the long-standing CRS bug).
+    before rasterizing (the fix for the long-standing CRS bug). With ``all_touched`` every cell the
+    geometry touches is burned (not just those whose centre it covers) — used for the unbuildable
+    carve so thin barrier corridors (motorways/railways/rivers) leave no gaps.
     """
     rows, cols = arr.shape
     srs = _srs_from_crs(target_crs)
@@ -70,7 +72,8 @@ def burn_layer(arr, layer, target_crs, geotransform, burn_value):
         ogr_feat.SetGeometry(og)
         ogr_layer.CreateFeature(ogr_feat)
 
-    gdal.RasterizeLayer(mem_rast, [1], ogr_layer, burn_values=[burn_value], options=["ALL_TOUCHED=FALSE"])
+    touched = "TRUE" if all_touched else "FALSE"
+    gdal.RasterizeLayer(mem_rast, [1], ogr_layer, burn_values=[burn_value], options=[f"ALL_TOUCHED={touched}"])
     out = mem_rast.GetRasterBand(1).ReadAsArray()
     return out.astype(np.int16)
 

@@ -23,6 +23,7 @@ from isobenefit_qgis.osm_queries import (
     build_query,
     feature_attributes,
     feature_matches,
+    is_barrier_line,
     parse_hstore,
     point_is_station,
     point_is_stop,
@@ -108,6 +109,20 @@ def test_feature_matches_polygons():
     assert feature_matches("unbuildable", {"landuse": "military"})
     assert feature_matches("unbuildable", {"military": "danger_area"})  # any military=* value
     assert not feature_matches("unbuildable", {"landuse": "residential"})
+
+
+def test_is_barrier_line_and_unbuildable_query():
+    # motorways, railways and rivers are carved into the unbuildable substrate (as line corridors)
+    assert is_barrier_line({"highway": "motorway"})
+    assert is_barrier_line({"highway": "trunk_link"})
+    assert is_barrier_line({"railway": "rail"})
+    assert is_barrier_line({"waterway": "river"})
+    assert not is_barrier_line({"highway": "residential"})  # an ordinary street is not a barrier
+    assert not is_barrier_line({"waterway": "riverbank"})  # a polygon, handled by the area filter
+    # the unbuildable query fetches those barrier lines, but the polygon filter ignores them
+    q = build_query("unbuildable", 0, 0, 1, 1)
+    assert "motorway" in q and "railway" in q and "river" in q
+    assert not feature_matches("unbuildable", {"highway": "motorway"})
 
 
 def test_feature_matches_streets_and_pt():

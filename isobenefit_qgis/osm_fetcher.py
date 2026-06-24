@@ -46,6 +46,11 @@ _OGR_GEOM = {
     "Point": ogr.wkbPoint,
 }
 
+# Linear barriers (motorways/railways/rivers) are buffered into thin no-build corridor polygons
+# before being merged into the unbuildable layer. ~15 m (in degrees, mid-latitude); the
+# simulation rasterises unbuildable with ALL_TOUCHED so the corridor reliably carves its cells.
+_BARRIER_BUFFER_DEG = 0.00015
+
 
 class OsmError(Exception):
     """Raised for Overpass / OSM-parsing failures, with a user-facing message."""
@@ -198,6 +203,11 @@ def read_osm_datasets(
     for dataset in datasets:
         by_layer.setdefault(osm_queries.DATASETS[dataset]["osm_layer"], []).append(dataset)
     result: dict[str, list[tuple[str, dict[str, str]]]] = {d: [] for d in datasets}
+    # Motorways/railways/rivers are carved into the unbuildable substrate as no-build corridors:
+    # read them from the lines layer (even if no line dataset was selected) and buffer to polygons.
+    want_barriers = "unbuildable" in result
+    if want_barriers and "lines" not in by_layer:
+        by_layer["lines"] = []
     vsipath = "/vsimem/overpass_combined.osm"
     gdal.FileFromMemBuffer(vsipath, xml_bytes)
     try:
@@ -213,14 +223,20 @@ def read_osm_datasets(
             while feat is not None:
                 tags = _feature_tags(feat)
                 matched = [d for d in dsets if osm_queries.feature_matches(d, tags)]
-                if matched:
+                barrier = layer_name == "lines" and want_barriers and osm_queries.is_barrier_line(tags)
+                if matched or barrier:
                     geom = feat.GetGeometryRef()
                     if geom is not None and not geom.IsEmpty():
                         kept = _clip(geom, aoi)
                         if kept is not None:
-                            wkt = kept.ExportToWkt()
-                            for d in matched:
-                                result[d].append((wkt, osm_queries.feature_attributes(d, tags)))
+                            if matched:
+                                wkt = kept.ExportToWkt()
+                                for d in matched:
+                                    result[d].append((wkt, osm_queries.feature_attributes(d, tags)))
+                            if barrier:  # buffer the line into a thin no-build corridor polygon
+                                corridor = kept.Buffer(_BARRIER_BUFFER_DEG)
+                                if corridor is not None and not corridor.IsEmpty():
+                                    result["unbuildable"].append((corridor.ExportToWkt(), {}))
                 feat = layer.GetNextFeature()
         ds = None
     finally:

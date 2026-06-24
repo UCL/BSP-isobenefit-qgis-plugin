@@ -146,8 +146,13 @@ class IsobenefitTask(QgsTask):
                 origin = gis_io.burn_layer(origin, self.green_layer, self.target_crs, geotransform, 0)
                 self._log("Burned existing green areas.")
             if self.unbuildable_layer is not None:
-                state = gis_io.burn_layer(state, self.unbuildable_layer, self.target_crs, geotransform, -1)
-                self._log("Burned unbuildable areas.")
+                # Carve unbuildable land (water, airports, military, quarries) AND the buffered
+                # motorway/railway/river barrier corridors from the OSM tool — these cells must
+                # never develop. all_touched so thin corridors leave no gaps. Done before the CA.
+                state = gis_io.burn_layer(
+                    state, self.unbuildable_layer, self.target_crs, geotransform, -1, all_touched=True
+                )
+                self._log("Carved unbuildable land + barrier corridors (motorways/railways/rivers).")
             density = np.zeros((rows, cols), dtype=np.float32)
             seeds = []
             if self.centre_seeds_layer is not None:
