@@ -31,6 +31,9 @@ OVERPASS_TIMEOUT = 60
 # build time. Closed ways tagged landuse/leisure/natural are emitted by GDAL's OSM
 # driver as ``multipolygons``; relations carry multipolygons too.
 DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
+    # Residential + mixed-use centres (commercial/retail) all count as homes — commercial/retail
+    # are treated as mixed-use (housing over the shops) AND separately as centres. Industrial is
+    # the only developed category NOT counted as residential (its own layer, carved no-build).
     "built": [
         ("way", '["landuse"~"^(residential|commercial|retail)$"]'),
         ("relation", '["landuse"~"^(residential|commercial|retail)$"]'),

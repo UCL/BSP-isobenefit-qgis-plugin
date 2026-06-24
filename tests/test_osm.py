@@ -98,6 +98,8 @@ def test_point_is_station_and_stop():
 
 def test_feature_matches_polygons():
     assert feature_matches("built", {"landuse": "residential"})
+    assert feature_matches("built", {"landuse": "commercial"})  # mixed-use: counts as homes too
+    assert feature_matches("built", {"landuse": "retail"})
     assert not feature_matches("built", {"landuse": "farmland"})
     assert feature_matches("green", {"leisure": "park"})
     assert feature_matches("green", {"natural": "wood"})
