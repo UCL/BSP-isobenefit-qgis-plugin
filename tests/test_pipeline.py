@@ -378,6 +378,36 @@ def test_optimise_plan_threads_one_distance_model_to_placement():
     assert not (out == PLAN_CENTRE).any()  # unreachable -> no centre is warranted
 
 
+def test_network_router_uses_graph_distance():
+    # A U-shaped graph: A-M1-M2-B, each leg 100 m, so A->B ALONG the network is 300 m even though
+    # the straight-line A-B is only 100 m. The router must report the network distance.
+    from isobenefit_qgis.routing import NetworkRouter
+
+    nodes = np.array([[0, 0], [0, 100], [100, 100], [100, 0]], float)  # A, M1, M2, B
+    adj = [[(1, 100.0)], [(0, 100.0), (2, 100.0)], [(1, 100.0), (3, 100.0)], [(2, 100.0)]]
+    cell_node = np.array([[0, 3], [-1, -1]])  # cell (0,0)->A, (0,1)->B, bottom row off-network
+    cell_access = np.array([[0.0, 0.0], [np.inf, np.inf]])
+
+    router = NetworkRouter(nodes, adj, cell_node, cell_access, 50.0, 1000.0)
+    field = router(np.array([[False, True], [False, False]]))  # target = cell (0,1) == node B
+    assert field[0, 1] == 0.0  # the target cell itself
+    assert field[0, 0] == 300.0  # A -> B is the 300 m network distance, not the 100 m straight line
+    assert not np.isfinite(field[1, 0])  # off-network cell is unreachable
+
+    bounded = NetworkRouter(nodes, adj, cell_node, cell_access, 50.0, 200.0)
+    field2 = bounded(np.array([[False, True], [False, False]]))
+    assert not np.isfinite(field2[0, 0])  # 300 m exceeds the 200 m walk limit -> bounded out
+
+
+def test_snap_cells_finds_nearest_node():
+    from isobenefit_qgis.routing import _snap_cells
+
+    nodes = np.array([[25.0, -25.0]])  # sits exactly at the centre of cell (0, 0)
+    gt = (0.0, 50.0, 0.0, 0.0, 0.0, -50.0)  # 50 m cells, north-up
+    cell_node, cell_access = _snap_cells(nodes, gt, 1, 1, 800.0)
+    assert cell_node[0, 0] == 0 and cell_access[0, 0] < 1.0
+
+
 def test_optimise_plan_culls_tiny_ca_centre():
     # A CA centre feeding a 2-cell speck is culled; the one for the real development is kept.
     g = 40
