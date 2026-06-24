@@ -19,6 +19,7 @@ from isobenefit_qgis.osm_queries import (
     DATASET_ORDER,
     DATASETS,
     bbox_to_overpass,
+    build_combined_query,
     build_query,
     feature_attributes,
     feature_matches,
@@ -55,6 +56,18 @@ def test_build_query_per_dataset_selectors():
 def test_build_query_unknown_dataset_raises():
     with pytest.raises(KeyError):
         build_query("nope", 0, 0, 1, 1)
+
+
+def test_build_combined_query_unions_datasets_and_dedupes():
+    q = build_combined_query(["built", "centres", "streets", "stations"], 51.0, -0.5, 52.0, 0.5)
+    assert "residential" in q  # built
+    assert "retail" in q  # centres
+    assert "highway" in q  # streets
+    assert "station" in q  # stations
+    assert "(51.0,-0.5,52.0,0.5)" in q  # one shared bbox on every selector
+    assert "(._;>;);" in q and q.strip().endswith("out body;")  # nodes-before-ways recursion
+    # selectors are de-duplicated: requesting a dataset twice doesn't repeat its selector
+    assert build_combined_query(["streets", "streets"], 0, 0, 1, 1).count('["highway"]') == 1
 
 
 def test_parse_hstore_basic_and_comma_value():

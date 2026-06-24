@@ -22,9 +22,10 @@ OVERPASS_ENDPOINTS: tuple[str, ...] = (
     "https://overpass.private.coffee/api/interpreter",
 )
 
-# Server-side query timeout (seconds), embedded in the Overpass-QL header. Kept modest
-# so an overloaded mirror gives up (and we fail over) rather than the client hanging.
-OVERPASS_TIMEOUT = 90
+# Server-side query timeout (seconds), embedded in the Overpass-QL header. Kept modest so an
+# overloaded mirror gives up (and we fail over) rather than the client hanging. We now send ONE
+# combined request per fetch (see build_combined_query), so this cap is paid at most once.
+OVERPASS_TIMEOUT = 60
 
 # Overpass-QL selectors per dataset: (element, tag-filter) pairs, bbox appended at
 # build time. Closed ways tagged landuse/leisure/natural are emitted by GDAL's OSM
@@ -174,6 +175,29 @@ def build_query(dataset: str, s: float, w: float, n: float, e: float) -> str:
         raise KeyError(f"unknown OSM dataset: {dataset!r}")
     bbox = f"({s},{w},{n},{e})"
     body = "\n".join(f"  {elem}{filt}{bbox};" for elem, filt in DATASET_SELECTORS[dataset])
+    return f"[out:xml][timeout:{OVERPASS_TIMEOUT}];\n(\n{body}\n);\n(._;>;);\nout body;\n"
+
+
+def build_combined_query(datasets, s: float, w: float, n: float, e: float) -> str:
+    """One Overpass-QL query covering ALL ``datasets`` over the bbox ``(s, w, n, e)``.
+
+    Public mirrors rate-limit / queue many small sequential requests, which can turn a small area
+    into minutes (a throttled dataset retries through repeated server-side timeouts). A single
+    request avoids that: every category comes back in one response and the reader splits it per
+    dataset by tag. Selectors are de-duplicated (e.g. ``built`` and ``centres`` share landuse
+    selectors). Same node-before-way ordering as :func:`build_query`.
+    """
+    selectors: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for dataset in datasets:
+        for sel in DATASET_SELECTORS.get(dataset, []):
+            if sel not in seen:
+                seen.add(sel)
+                selectors.append(sel)
+    if not selectors:
+        raise ValueError("no known datasets to query")
+    bbox = f"({s},{w},{n},{e})"
+    body = "\n".join(f"  {elem}{filt}{bbox};" for elem, filt in selectors)
     return f"[out:xml][timeout:{OVERPASS_TIMEOUT}];\n(\n{body}\n);\n(._;>;);\nout body;\n"
 
 

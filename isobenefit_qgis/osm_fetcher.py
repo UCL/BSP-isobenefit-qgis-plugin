@@ -176,54 +176,56 @@ def _clip(geom, aoi):
         return geom
 
 
-def read_osm_layer(xml_bytes: bytes, dataset: str, aoi_wkt: str | None = None) -> list[tuple[str, dict[str, str]]]:
-    """Parse Overpass OSM-XML and return ``(wkt, attrs)`` for every matching feature.
+def read_osm_datasets(
+    xml_bytes: bytes, datasets, aoi_wkt: str | None = None
+) -> "dict[str, list[tuple[str, dict[str, str]]]]":
+    """Parse the combined Overpass OSM-XML ONCE and split it into ``{dataset: [(wkt, attrs), …]}``.
 
-    ``attrs`` carries the persisted fields for the dataset (see
-    ``osm_queries.feature_attributes`` / ``DATASET_FIELDS``) — e.g. the ``kind`` of a
-    public-transport stop; it is empty for datasets with no extra fields.
+    Datasets are grouped by the GDAL-OSM-driver layer they read (``multipolygons`` / ``lines`` /
+    ``points``) so each layer is scanned a single time; a feature is routed to every dataset whose
+    tag filter it matches (``attrs`` carries the persisted fields per dataset — e.g. a stop's
+    ``kind`` or a street's ``highway``). Features are trimmed to ``aoi_wkt`` (EPSG:4326) when given.
 
-    Reads the single target layer of GDAL's ``OSM`` driver directly with interleaved
-    reading OFF (the default, as ``ogr2ogr file.osm multipolygons`` does): a single-layer
-    scan fully assembles that layer, including ``multipolygons`` built from closed ways
-    and relations. (Interleaved reading returns features in rounds and yields ``None`` at
-    each round boundary, so a naive loop stops early and silently drops every
-    multipolygon — which is why the polygon datasets came back empty.) Features are
-    trimmed to ``aoi_wkt`` (an EPSG:4326 polygon) when given.
+    Reads with interleaved reading OFF (a single-layer scan fully assembles ``multipolygons`` from
+    closed ways/relations; interleaved reading yields ``None`` at round boundaries and silently
+    drops polygons) and ``OSM_USE_CUSTOM_INDEXING=NO`` (tolerates non-increasing node ids). The
+    combined query emits nodes before ways, which GDAL's forward-pass assembly needs.
     """
-    want_layer = osm_queries.DATASETS[dataset]["osm_layer"]
     aoi = ogr.CreateGeometryFromWkt(aoi_wkt) if aoi_wkt else None
-    # The query emits nodes before ways (see osm_queries.build_query), which is what
-    # GDAL's forward-pass assembly needs. This flag is extra insurance: it drops the
-    # requirement that node ids be strictly increasing, so any residual ordering quirk
-    # still resolves rather than erroring out ("Non increasing node id").
     gdal.SetConfigOption("OSM_USE_CUSTOM_INDEXING", "NO")
     gdal.SetConfigOption("OGR_INTERLEAVED_READING", "NO")
-    vsipath = f"/vsimem/overpass_{dataset}.osm"
+    by_layer: dict[str, list[str]] = {}
+    for dataset in datasets:
+        by_layer.setdefault(osm_queries.DATASETS[dataset]["osm_layer"], []).append(dataset)
+    result: dict[str, list[tuple[str, dict[str, str]]]] = {d: [] for d in datasets}
+    vsipath = "/vsimem/overpass_combined.osm"
     gdal.FileFromMemBuffer(vsipath, xml_bytes)
-    features: list[tuple[str, dict[str, str]]] = []
     try:
         ds = gdal.OpenEx(vsipath, gdal.OF_VECTOR)
         if ds is None:
             raise OsmError("GDAL could not parse the Overpass response as OSM data")
-        layer = ds.GetLayerByName(want_layer)
-        if layer is None:
-            return []
-        layer.ResetReading()
-        feat = layer.GetNextFeature()
-        while feat is not None:
-            tags = _feature_tags(feat)
-            if osm_queries.feature_matches(dataset, tags):
-                geom = feat.GetGeometryRef()
-                if geom is not None and not geom.IsEmpty():
-                    kept = _clip(geom, aoi)
-                    if kept is not None:
-                        features.append((kept.ExportToWkt(), osm_queries.feature_attributes(dataset, tags)))
+        for layer_name, dsets in by_layer.items():
+            layer = ds.GetLayerByName(layer_name)
+            if layer is None:
+                continue
+            layer.ResetReading()
             feat = layer.GetNextFeature()
+            while feat is not None:
+                tags = _feature_tags(feat)
+                matched = [d for d in dsets if osm_queries.feature_matches(d, tags)]
+                if matched:
+                    geom = feat.GetGeometryRef()
+                    if geom is not None and not geom.IsEmpty():
+                        kept = _clip(geom, aoi)
+                        if kept is not None:
+                            wkt = kept.ExportToWkt()
+                            for d in matched:
+                                result[d].append((wkt, osm_queries.feature_attributes(d, tags)))
+                feat = layer.GetNextFeature()
         ds = None
     finally:
         gdal.Unlink(vsipath)
-    return features
+    return result
 
 
 def _wgs84_srs() -> "osr.SpatialReference":
@@ -337,37 +339,40 @@ class OsmFetchTask(QgsTask):
                 self.error_message = f"Could not create the output GeoPackage: {self.gpkg_path}"
                 return False
 
+            # ONE combined Overpass request for all datasets. Many small sequential requests get
+            # rate-limited / queued by the public mirrors (which turned a small area into minutes —
+            # a throttled dataset retrying through repeated server-side timeouts); a single request
+            # avoids that. The download happens once here; splitting it per dataset below is fast,
+            # local parsing + AOI clipping.
+            self._log(f"Downloading {len(self.datasets)} dataset(s) from OpenStreetMap in one request…")
+            try:
+                ql = osm_queries.build_combined_query(self.datasets, s, w, n, e)
+                xml = overpass_post(ql, self._feedback)
+                by_dataset = read_osm_datasets(xml, self.datasets, self.aoi_wkt)
+            except OsmError as exc:
+                if str(exc) == "cancelled":
+                    return False
+                self.error_message = f"OpenStreetMap download failed: {exc}"
+                return False
+            self.setProgress(80.0)
+
             total = len(self.datasets)
             for i, dataset in enumerate(self.datasets):
                 if self.isCanceled():
                     self._log("OSM fetch cancelled by user.", Qgis.MessageLevel.Warning)
                     return False
                 label = osm_queries.DATASETS[dataset]["label"]
-                self._log(f"Downloading {label}…")
-                # Isolate per-dataset failures: a single overloaded query shouldn't
-                # discard the datasets that already downloaded — write it empty and warn.
-                try:
-                    ql = osm_queries.build_query(dataset, s, w, n, e)
-                    xml = overpass_post(ql, self._feedback)
-                    features = read_osm_layer(xml, dataset, self.aoi_wkt)
-                except Exception as exc:  # noqa: BLE001
-                    if isinstance(exc, OsmError) and str(exc) == "cancelled":
-                        return False
-                    self._log(f"{label}: skipped ({exc}).", Qgis.MessageLevel.Warning, notify=True)
-                    features = []
                 count = write_geopackage_layer(
                     gpkg_ds,
                     dataset,
                     osm_queries.DATASETS[dataset]["geom_type"],
-                    features,
+                    by_dataset.get(dataset, []),
                     srs,
                     osm_queries.DATASET_FIELDS.get(dataset, ()),
                 )
                 self.results.append((dataset, count))
                 self._log(f"{label}: {count} feature(s).")
-                self.setProgress((i + 1) / total * 100.0)
-                if i + 1 < total:
-                    _interruptible_sleep(1.0, self._feedback)  # be polite between Overpass queries
+                self.setProgress(80.0 + (i + 1) / total * 20.0)
 
             # Retain the retrieval area as an extents layer — the simulation needs an
             # extents polygon, and this keeps the downloaded inputs and the analysis area
