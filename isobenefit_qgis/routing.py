@@ -70,6 +70,7 @@ class NetworkRouter:
         self.granularity_m = float(granularity_m)
         self.max_distance_m = float(max_distance_m)
         self.rows, self.cols = self._cell_node.shape
+        self._cache: dict = {}  # source node -> bounded distance-to-all-nodes; "solve once" per node
 
     def _dijkstra(self, source_nodes) -> np.ndarray:
         """Bounded multi-source Dijkstra from ``source_nodes`` (the targets' nodes, seeded at 0)."""
@@ -91,6 +92,15 @@ class NetworkRouter:
                     heapq.heappush(heap, (nc, v))
         return dist
 
+    def _single_source(self, node) -> np.ndarray:
+        """Bounded distances from one node to all nodes — computed once per node, then cached and
+        reused across the whole ensemble (this is the "solve once" the hot path relies on)."""
+        field = self._cache.get(node)
+        if field is None:
+            field = self._dijkstra((node,))
+            self._cache[node] = field
+        return field
+
     def __call__(self, mask) -> np.ndarray:
         mask = np.asarray(mask, dtype=bool)
         field = np.full((self.rows, self.cols), np.inf)
@@ -98,7 +108,13 @@ class NetworkRouter:
         source_nodes = {int(self._cell_node[r, c]) for r, c in np.argwhere(mask)} - {-1}
         if not source_nodes:
             return field
-        gnode = self._dijkstra(source_nodes)
+        # Single-source queries (a lone centre) dominate — they come from centre placement, run per
+        # centre per Lloyd iteration per run — so cache them: each node's paths are solved once and
+        # reused. Multi-source queries (green / all centres) are far fewer, so run them directly.
+        if len(source_nodes) == 1:
+            gnode = self._single_source(next(iter(source_nodes)))
+        else:
+            gnode = self._dijkstra(source_nodes)
         flat_node = self._cell_node.reshape(-1)
         valid = flat_node >= 0
         out = field.reshape(-1)

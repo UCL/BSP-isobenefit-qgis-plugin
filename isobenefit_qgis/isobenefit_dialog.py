@@ -99,11 +99,11 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.detail_label = QtWidgets.QLabel("Detail", self)
         self.left_col.addWidget(self.detail_label, 6, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.detail_mode = QtWidgets.QComboBox(self)
-        # Network routing optimises every run, so the ensemble is kept small (the runs are similar);
-        # a few is enough to surface a good layout.
-        self.detail_mode.addItem("Quick (5 runs)", 5)
-        self.detail_mode.addItem("Standard (10 runs)", 10)
-        self.detail_mode.addItem("Thorough (25 runs)", 25)
+        # Each run is optimised (the network graph is solved once and reused), so more runs cost
+        # more time but a moderate ensemble already surfaces a good layout.
+        self.detail_mode.addItem("Quick (10 runs)", 10)
+        self.detail_mode.addItem("Standard (50 runs)", 50)
+        self.detail_mode.addItem("Thorough (100 runs)", 100)
         self.detail_mode.setCurrentIndex(1)
         self.left_col.addWidget(self.detail_mode, 6, 1)
         self.ensemble_check.toggled.connect(self.detail_mode.setEnabled)

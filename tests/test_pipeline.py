@@ -399,6 +399,23 @@ def test_network_router_uses_graph_distance():
     assert not np.isfinite(field2[0, 0])  # 300 m exceeds the 200 m walk limit -> bounded out
 
 
+def test_network_router_caches_single_source():
+    # single-source queries (the hot path: one centre) are solved once per node and reused
+    from isobenefit_qgis.routing import NetworkRouter
+
+    nodes = np.array([[0, 0], [0, 100], [100, 100], [100, 0]], float)
+    adj = [[(1, 100.0)], [(0, 100.0), (2, 100.0)], [(1, 100.0), (3, 100.0)], [(2, 100.0)]]
+    cell_node = np.array([[0, 3], [-1, -1]])
+    cell_access = np.array([[0.0, 0.0], [np.inf, np.inf]])
+    router = NetworkRouter(nodes, adj, cell_node, cell_access, 50.0, 1000.0)
+
+    one = np.array([[True, False], [False, False]])  # single source = node 0
+    f1 = router(one)
+    assert 0 in router._cache  # node 0's distances were solved and cached
+    f2 = router(one)
+    assert np.array_equal(f1, f2)  # second call reuses the cache, same result
+
+
 def test_snap_cells_finds_nearest_node():
     from isobenefit_qgis.routing import _snap_cells
 
