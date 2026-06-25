@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import heapq
 import math
+from collections import deque
 
 import numpy as np
 
@@ -272,6 +273,101 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
     return new
 
 
+# New centres are grown into AREAS (not single cells) sized by the homes they serve — a town centre
+# spans many cells, a local centre a few. Mixed-use: the cells stay built/homes, just designated
+# centre as well. Existing/true-area centres come in pre-sized from the input.
+CENTRE_AREA_FRAC = 0.08  # centre cells per home in the catchment (~8% of served homes are centre)
+CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
+
+
+def _grow_blob(start, target, built, claimed):
+    """BFS outward from ``start`` over unclaimed built cells, up to ``target`` cells. Returns a set."""
+    rows, cols = built.shape
+    sy, sx = start
+    if not (0 <= sy < rows and 0 <= sx < cols) or not built[sy, sx] or start in claimed:
+        return set()
+    out = {start}
+    queue = deque([start])
+    while queue and len(out) < target:
+        y, x = queue.popleft()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                cell = (y + dy, x + dx)
+                if (
+                    0 <= cell[0] < rows
+                    and 0 <= cell[1] < cols
+                    and built[cell]
+                    and cell not in out
+                    and cell not in claimed
+                ):
+                    out.add(cell)
+                    queue.append(cell)
+                    if len(out) >= target:
+                        return out
+    return out
+
+
+def _grow_centres(points, fixed, built, walk, area_frac=CENTRE_AREA_FRAC, max_area=CENTRE_AREA_MAX):
+    """Grow each new centre POINT into a contiguous AREA on built land, sized by the homes it is the
+    nearest centre to (its Voronoi catchment within a walk) — like a real centre, bigger where it
+    serves more. Mixed-use: cells stay built/homes, just designated centre; existing/fixed centres
+    are left intact and never grown into. Returns the set of (row, col) centre cells.
+    """
+    points = [(int(y), int(x)) for y, x in points]
+    if not points:
+        return set()
+    built = np.asarray(built, dtype=bool)
+    rows, cols = built.shape
+
+    def onehot(cells):
+        m = np.zeros((rows, cols), dtype=bool)
+        for y, x in cells:
+            m[y, x] = True
+        return m
+
+    # size each centre by the homes it is the NEAREST centre to (no double counting across centres)
+    fixed_at_built = walk(onehot(fixed))[built] if fixed else np.full(int(built.sum()), np.inf)
+    stack = np.column_stack([fixed_at_built] + [walk(onehot([p]))[built] for p in points])
+    nearest = np.argmin(stack, axis=1)  # 0 = nearest fixed centre; 1.. = the new points
+    within = np.isfinite(stack.min(axis=1))
+    targets = [
+        max(1, min(int(max_area), round(area_frac * int(((nearest == 1 + j) & within).sum()))))
+        for j in range(len(points))
+    ]
+    claimed = {(int(y), int(x)) for y, x in fixed}  # never grow onto existing/fixed centres
+    grown: set = set()
+    for j in sorted(range(len(points)), key=lambda k: -targets[k]):  # biggest centres claim first
+        blob = _grow_blob(points[j], targets[j], built, claimed)
+        grown |= blob
+        claimed |= blob
+    return grown
+
+
+def _components(mask):
+    """8-connected components of a bool mask, as a list of (row, col) cell lists."""
+    mask = np.asarray(mask, dtype=bool)
+    rows, cols = mask.shape
+    seen = np.zeros((rows, cols), dtype=bool)
+    comps = []
+    for sy in range(rows):
+        for sx in range(cols):
+            if mask[sy, sx] and not seen[sy, sx]:
+                comp = []
+                queue = deque([(sy, sx)])
+                seen[sy, sx] = True
+                while queue:
+                    y, x = queue.popleft()
+                    comp.append((y, x))
+                    for dy in (-1, 0, 1):
+                        for dx in (-1, 0, 1):
+                            ny, nx = y + dy, x + dx
+                            if 0 <= ny < rows and 0 <= nx < cols and mask[ny, nx] and not seen[ny, nx]:
+                                seen[ny, nx] = True
+                                queue.append((ny, nx))
+                comps.append(comp)
+    return comps
+
+
 def recommended_plan(
     p_built,
     p_green,
@@ -463,10 +559,11 @@ def evaluate_plan(
 
 
 def audit_centres(plan, granularity_m, max_distance_m, router=None):
-    """Per-centre effectiveness audit, by the one distance model (the grid walk by default, the
-    network router when injected). For each centre, measures the two things that say whether it
-    earns its place: how many built cells it **serves** (within a walk), and the **mean walk** to
-    them (low = well-centred; few served = an ineffective centre on a thin/edge catchment).
+    """Per-centre-AREA effectiveness audit, by the one distance model (the grid walk by default, the
+    network router when injected). Centres are areas (existing true-area + grown new ones), so each
+    record is a connected component, with its ``cells`` (area), how many built cells it **serves**
+    (within a walk) and the **mean walk** to them (low = well-centred; few served = an ineffective
+    centre on a thin/edge catchment).
 
     Run after each plan so weak centres are visible and the cull threshold can be tuned to evidence
     rather than by eye. Returns ``{"centres": [...weakest first...], "summary": {...}}``.
@@ -481,19 +578,23 @@ def audit_centres(plan, granularity_m, max_distance_m, router=None):
 
     built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
     records = []
-    for y, x in np.argwhere(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE))):
+    # one record per centre AREA (connected component), not per cell — centres are areas now, so
+    # per-cell would massively over-count
+    for comp in _components(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE))):
         one = np.zeros(plan.shape, dtype=bool)
-        one[y, x] = True
-        d = walk(one)
+        for y, x in comp:
+            one[y, x] = True
+        d = walk(one)  # walk from the whole centre area to all cells
         served_mask = built & np.isfinite(d)
         served = int(served_mask.sum())
         records.append(
             {
-                "row": int(y),
-                "col": int(x),
-                "served": served,  # built cells within a walk — the catchment it actually serves
+                "row": int(round(sum(c[0] for c in comp) / len(comp))),
+                "col": int(round(sum(c[1] for c in comp) / len(comp))),
+                "cells": len(comp),  # the centre's area (a town centre spans many cells)
+                "served": served,  # built cells within a walk — the catchment it serves
                 "mean_dist_m": float(d[served_mask].mean()) if served else math.inf,  # avg walk to them
-                "existing": bool(plan[y, x] == PLAN_EXIST_CENTRE),
+                "existing": any(plan[y, x] == PLAN_EXIST_CENTRE for y, x in comp),
             }
         )
     records.sort(key=lambda r: r["served"])  # weakest first, so the audit surfaces the dubious ones
@@ -659,6 +760,8 @@ def optimise_plan(
         new_centres = _refine_centres(
             seed_new, fixed_on_built, built, new_built, granularity_m, max_distance_m, walk=walk
         )
+        # grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built)
+        new_centres = _grow_centres(new_centres, fixed_on_built, built, walk)
     else:  # keep the simulation's grown centres as-is (only those still on built land)
         new_centres = [(y, x) for y, x in seed_new if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
     for y, x in new_centres:

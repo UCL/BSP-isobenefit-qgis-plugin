@@ -444,6 +444,32 @@ def test_audit_centres_reports_served_and_flags_weak():
     assert a2["summary"]["served_min"] == 1
 
 
+def test_audit_centres_counts_areas_not_cells():
+    # a centre is an AREA — a contiguous block counts as one centre, not one-per-cell
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, audit_centres
+
+    g = 30
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:20, 10:20] = PLAN_BUILT
+    plan[13:16, 13:16] = PLAN_CENTRE  # a 3x3 = 9-cell centre area
+    a = audit_centres(plan, 50.0, 800.0)
+    assert a["summary"]["n_centres"] == 1  # one area, not nine cells
+    assert a["centres"][0]["cells"] == 9
+
+
+def test_optimise_plan_grows_centre_into_area():
+    # a new centre is grown into an AREA sized by the homes it serves, on the development, not a dot
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
+
+    g = 50
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:40, 10:40] = PLAN_BUILT  # a 30x30 = 900-cell development
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[(25, 25)])
+    centre_cells = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
+    assert len(centre_cells) > 1  # grew into an area, not a single cell
+    assert all(10 <= y < 40 and 10 <= x < 40 for y, x in centre_cells)  # stays on the development
+
+
 def test_optimise_plan_culls_tiny_ca_centre():
     # A CA centre feeding a 2-cell speck is culled; the one for the real development is kept.
     g = 40
