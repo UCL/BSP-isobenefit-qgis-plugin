@@ -104,15 +104,19 @@ class NetworkRouter:
     def __call__(self, mask) -> np.ndarray:
         mask = np.asarray(mask, dtype=bool)
         field = np.full((self.rows, self.cols), np.inf)
-        # the targets' nearest network nodes are the Dijkstra sources (the destination sits there)
-        source_nodes = {int(self._cell_node[r, c]) for r, c in np.argwhere(mask)} - {-1}
-        if not source_nodes:
+        # The targets' nearest network nodes are the Dijkstra sources. Extract them with VECTORISED
+        # numpy — a Python loop over the mask (e.g. all green cells = tens of thousands) was the
+        # single-core post-processing bottleneck.
+        target_nodes = self._cell_node[mask]
+        target_nodes = target_nodes[target_nodes >= 0]  # cells with a usable on-ramp
+        if target_nodes.size == 0:
             return field
-        # Single-source queries (a lone centre) dominate — they come from centre placement, run per
-        # centre per Lloyd iteration per run — so cache them: each node's paths are solved once and
-        # reused. Multi-source queries (green / all centres) are far fewer, so run them directly.
-        if len(source_nodes) == 1:
-            gnode = self._single_source(next(iter(source_nodes)))
+        source_nodes = np.unique(target_nodes)
+        # Single-source queries (a lone centre) dominate — from centre placement, run per centre per
+        # Lloyd iteration per run — so cache them: each node's paths are solved once and reused.
+        # Multi-source queries (green / all centres) are far fewer, so run them directly.
+        if source_nodes.size == 1:
+            gnode = self._single_source(int(source_nodes[0]))
         else:
             gnode = self._dijkstra(source_nodes)
         flat_node = self._cell_node.reshape(-1)

@@ -212,17 +212,24 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
 
     new = [_nearest_built(new_built, int(y), int(x)) for y, x in seeds]
 
+    # Distance/reach to the nearest FIXED (existing) centre, solved ONCE — fixed centres don't move,
+    # and true-area centres are many cells, so collapsing them into a single field (rather than one
+    # per cell) is what keeps this single-threaded post-processing affordable.
+    fixed_field = walk(onehot(fixed)) if fixed else np.full((rows, cols), np.inf)
+    fixed_col = fixed_field[new_built]
+    fixed_reach = np.isfinite(fixed_field)
+
     def lloyd(centres):  # re-position each new centre central to the NEW homes WITHIN A WALK of it
         if not centres:
             return centres
         for _ in range(8):
-            # walk distance from each centre (fixed centres compete) to every NEW home
-            stack = np.stack([walk(onehot([c]))[new_built] for c in fixed + centres], axis=1)
+            # column 0 = nearest fixed centre; columns 1.. = each new centre (single-source, cached)
+            stack = np.column_stack([fixed_col] + [walk(onehot([c]))[new_built] for c in centres])
             nearest = np.argmin(stack, axis=1)
             within = np.isfinite(stack.min(axis=1))  # homes beyond a walk of every centre pull no one
             moved = False
             for j in range(len(centres)):
-                members = (nearest == len(fixed) + j) & within
+                members = (nearest == 1 + j) & within
                 if not members.any():
                     continue
                 ny, nx = _nearest_built(new_built, round(hy[members].mean()), round(hx[members].mean()))
@@ -239,7 +246,7 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
     # underserved cluster (a box-sum) only proposes WHERE; whether a centre is warranted there is
     # confirmed by the one metric (how many underserved homes it actually reaches within a walk).
     while True:
-        underserved = new_built & ~reach(fixed + new)
+        underserved = new_built & ~(fixed_reach | reach(new))
         if not underserved.any():
             break
         gain = np.where(new_built, _box_sum(underserved.astype(np.float64), r), -1.0)
@@ -251,11 +258,12 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
         new.append((int(y), int(x)))
     new = lloyd(new)
 
-    # Cull a centre uniquely serving < cull_min_unique built cells (redundant / overly small).
+    # Cull a centre uniquely serving < cull_min_unique built cells (redundant / overly small). A new
+    # centre's unique coverage = cells it reaches that no OTHER new centre and no fixed centre does.
     while new:
-        masks = [reach([c]) for c in fixed + new]
-        count = np.sum(masks, axis=0)
-        unique = [int((built & masks[len(fixed) + j] & (count == 1)).sum()) for j in range(len(new))]
+        new_masks = [reach([c]) for c in new]
+        new_count = np.sum(new_masks, axis=0)
+        unique = [int((built & new_masks[j] & (new_count == 1) & ~fixed_reach).sum()) for j in range(len(new))]
         worst = min(range(len(new)), key=lambda j: unique[j])
         if unique[worst] >= cull_min_unique:
             break
