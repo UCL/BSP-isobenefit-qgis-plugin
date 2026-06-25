@@ -738,7 +738,7 @@ def optimise_plan(
         for comp in _components((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)):
             if len(comp) < centre_min_settlement and not any(frozen[y, x] for y, x in comp):
                 for y, x in comp:
-                    plan[y, x] = PLAN_NONE
+                    plan[y, x] = PLAN_GREEN  # the land reverts to nature, blending with its surroundings
 
     n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
     if n_built == 0:

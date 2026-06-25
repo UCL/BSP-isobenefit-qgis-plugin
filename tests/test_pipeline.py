@@ -706,9 +706,9 @@ def test_evaluate_plan_split_centre_green_walks():
 
 
 def test_optimise_plan_prunes_centreless_island():
-    # A stranded built speck (no centre, below the minimum settlement) is pruned to undeveloped land;
-    # the real development is kept. The cleanup is off-switchable via prune_islands.
-    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_NONE, optimise_plan
+    # A stranded built speck (no centre, below the minimum settlement) reverts to green (the land
+    # returns to nature); the real development is kept. The cleanup is off-switchable via prune_islands.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_GREEN, optimise_plan
 
     g = 60
     plan = np.zeros((g, g), np.uint8)
@@ -717,6 +717,6 @@ def test_optimise_plan_prunes_centreless_island():
     common = dict(max_green_frac=0.0, ca_centres=[(35, 25)], optimise_centres=True, centre_min_settlement=12)
     pruned = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=True, **common)
     kept = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=False, **common)
-    assert (pruned[3:6, 53:56] == PLAN_NONE).all()  # stranded speck returned to undeveloped land
+    assert (pruned[3:6, 53:56] == PLAN_GREEN).all()  # stranded speck reverted to green
     assert (kept[3:6, 53:56] == PLAN_BUILT).all()  # ...but only when cleanup is on
     assert (pruned[20:50, 10:40] == PLAN_BUILT).any()  # the real development is untouched
