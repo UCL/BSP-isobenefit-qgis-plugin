@@ -499,11 +499,18 @@ def audit_centres(plan, granularity_m, max_distance_m, router=None):
     records.sort(key=lambda r: r["served"])  # weakest first, so the audit surfaces the dubious ones
     served = np.array([r["served"] for r in records], dtype=float)
     finite_means = [r["mean_dist_m"] for r in records if math.isfinite(r["mean_dist_m"])]
+    # split existing (from the input centres layer) vs new (placed by the model) — so a suspicious
+    # centre can be traced to the data or to the optimiser
+    new_served = np.array([r["served"] for r in records if not r["existing"]], dtype=float)
     summary = {
         "n_centres": len(records),
+        "n_new": int((~np.array([r["existing"] for r in records])).sum()) if records else 0,
+        "n_existing": int(np.array([r["existing"] for r in records]).sum()) if records else 0,
         "served_min": int(served.min()) if len(served) else 0,
         "served_median": int(np.median(served)) if len(served) else 0,
         "served_max": int(served.max()) if len(served) else 0,
+        "new_served_min": int(new_served.min()) if len(new_served) else 0,
+        "new_served_median": int(np.median(new_served)) if len(new_served) else 0,
         "mean_dist_median_m": float(np.median(finite_means)) if finite_means else math.inf,
     }
     return {"centres": records, "summary": summary}

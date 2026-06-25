@@ -303,15 +303,18 @@ class IsobenefitTask(QgsTask):
                     audit = grid.audit_centres(plan, self.granularity_m, self.max_distance_m, router=router)
                     s = audit["summary"]
                     self._log(
-                        f"Centre audit: {s['n_centres']} centres serve a median of {s['served_median']} built "
-                        f"cells each (min {s['served_min']}, max {s['served_max']}); median avg-walk-to-served "
-                        f"{s['mean_dist_median_m']:.0f} m."
+                        f"Centre audit: {s['n_centres']} centres ({s['n_existing']} existing from input, "
+                        f"{s['n_new']} placed by the model) serve a median of {s['served_median']} built cells "
+                        f"each (min {s['served_min']}, max {s['served_max']}); "
+                        f"median avg-walk {s['mean_dist_median_m']:.0f} m."
                     )
-                    weak = audit["centres"][:5]  # weakest first
-                    if weak:
+                    weak_new = [c for c in audit["centres"] if not c["existing"]][:5]  # the model's own worst
+                    if weak_new:
                         self._log(
-                            "Weakest centres (row, col, served, avg-walk m): "
-                            + "; ".join(f"({c['row']},{c['col']},{c['served']},{c['mean_dist_m']:.0f})" for c in weak)
+                            f"Weakest NEW centres of {s['n_new']} (row, col, served, avg-walk m): "
+                            + "; ".join(
+                                f"({c['row']},{c['col']},{c['served']},{c['mean_dist_m']:.0f})" for c in weak_new
+                            )
                         )
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
