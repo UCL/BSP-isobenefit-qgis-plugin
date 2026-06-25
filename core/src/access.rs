@@ -135,6 +135,55 @@ pub fn agg_dijkstra_cont(
     targets
 }
 
+/// Like [`agg_dijkstra_cont`] but returns the distance (metres) from `(y0, x0)` to
+/// every cell reachable within `max_distance_m` traversing `path_state` cells;
+/// `f64::INFINITY` elsewhere. Uses the same bounded binary-heap Dijkstra; only the
+/// target aggregation is dropped (the raw `dist` array is returned instead).
+pub fn agg_dijkstra_dist(
+    state: &Array2<i16>,
+    y0: usize,
+    x0: usize,
+    path_state: &[i16],
+    opts: &DijkstraOpts,
+) -> Array2<f64> {
+    let (rows, cols) = state.dim();
+    let mut dist = Array2::<f64>::from_elem((rows, cols), f64::INFINITY);
+    dist[[y0, x0]] = 0.0;
+    let mut heap = BinaryHeap::new();
+    heap.push(HeapItem {
+        dist: 0.0,
+        y: y0,
+        x: x0,
+    });
+
+    while let Some(HeapItem { dist: d, y, x }) = heap.pop() {
+        // skip stale heap entries
+        if d > dist[[y, x]] {
+            continue;
+        }
+        for (ny, nx) in iter_nbs(rows, cols, y, x, opts.rook) {
+            let ystep = (ny as f64 - y as f64).abs();
+            let xstep = (nx as f64 - x as f64).abs();
+            let nd = d + ystep.hypot(xstep) * opts.granularity_m;
+            if nd > opts.max_distance_m {
+                continue;
+            }
+            if !path_state.contains(&state[[ny, nx]]) {
+                continue;
+            }
+            if nd < dist[[ny, nx]] {
+                dist[[ny, nx]] = nd;
+                heap.push(HeapItem {
+                    dist: nd,
+                    y: ny,
+                    x: nx,
+                });
+            }
+        }
+    }
+    dist
+}
+
 /// Builds the green-periphery (`green_itx`) and green-access (`green_acc`) arrays.
 ///
 /// `green_itx`: built/centre cells -> 1; their rook-adjacent green cells -> 2
@@ -217,6 +266,23 @@ mod tests {
         opts.break_first = true;
         let targets = agg_dijkstra_cont(&state, 0, 0, &[0, 2], &[2], &opts);
         assert!(targets.sum() >= 1);
+    }
+
+    #[test]
+    fn dist_increases_with_steps_and_is_inf_beyond_max() {
+        // 1x5 open green row; from index 0, granularity 1, max distance 3.
+        let state = Array2::<i16>::zeros((1, 5));
+        let opts = DijkstraOpts::new(3.0, 1.0);
+        let dist = agg_dijkstra_dist(&state, 0, 0, &[0], &opts);
+        assert_eq!(dist[[0, 0]], 0.0);
+        assert_eq!(dist[[0, 1]], 1.0);
+        assert_eq!(dist[[0, 2]], 2.0);
+        assert_eq!(dist[[0, 3]], 3.0);
+        // distance strictly increases with steps along the open grid
+        assert!(dist[[0, 1]] < dist[[0, 2]]);
+        assert!(dist[[0, 2]] < dist[[0, 3]]);
+        // index 4 is 4m away -> beyond max_distance -> infinite
+        assert!(dist[[0, 4]].is_infinite());
     }
 
     #[test]
