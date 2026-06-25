@@ -337,6 +337,20 @@ def test_optimise_plan_anchors_centre_at_station():
     assert (0, 0) not in {(int(y), int(x)) for y, x in np.argwhere(out2 == PLAN_CENTRE)}  # off built -> ignored
 
 
+def test_optimise_plan_grows_station_anchor():
+    # A station anchor seeds a real centre AREA (grown by its catchment), not a lone cell.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, _components, optimise_plan
+
+    g = 50
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:40, 10:40] = PLAN_BUILT  # 30x30 development around the station
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[], centre_anchors=[(15, 15)])
+    centres = {(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)}
+    assert (15, 15) in centres  # the station is a centre
+    comp = next(c for c in _components(out == PLAN_CENTRE) if (15, 15) in c)
+    assert len(comp) > 1  # ...and it grew into an area around the station, not a single cell
+
+
 def test_evaluate_plan_uses_injected_router():
     # evaluate_plan routes via an injected callable (mask -> rows x cols metres) instead of the
     # grid walk, so true network distances can drive the metrics. grid.py stays QGIS-free.

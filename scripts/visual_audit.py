@@ -153,16 +153,16 @@ def figure(name, suptitle, panels):
         ax.imshow(_rgb(panel.plan), interpolation="nearest")
         if panel.router is not None:
             _draw_network(ax, panel.router)
-        if panel.stations:
+        if panel.stations:  # hollow star so the centre that forms underneath stays visible
             ax.scatter([s[1] for s in panel.stations], [s[0] for s in panel.stations],
-                       marker="*", s=180, c=STATION_RGB, edgecolors="black", linewidths=0.7, zorder=6)
+                       marker="*", s=320, facecolors="none", edgecolors=STATION_RGB, linewidths=2.2, zorder=6)
         ax.set_title(f"{panel.label}\n{_caption(panel)}", fontsize=8.5)
         ax.set_xticks([])
         ax.set_yticks([])
     handles = [mpatches.Patch(color=np.array(COLORS[c]) / 255.0, label=lbl) for c, lbl in LEGEND]
     if any_station:
-        handles.append(Line2D([], [], marker="*", color="none", markerfacecolor=STATION_RGB,
-                              markeredgecolor="black", markersize=13, label="station"))
+        handles.append(Line2D([], [], marker="*", color="none", markerfacecolor="none",
+                              markeredgecolor=STATION_RGB, markeredgewidth=1.6, markersize=15, label="station"))
     if any_network:
         handles.append(Line2D([], [], color=NETWORK_RGB, lw=1.4, alpha=0.7, label="street network"))
     fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=8, frameon=False)
@@ -341,31 +341,36 @@ def s08_green_span():
 
 
 def s09_station_anchor():
+    # consolidated spacing + a larger area fraction (few, sizable centres) so the station's grown
+    # centre is clearly visible rather than lost among many small dispersed ones
     plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.0, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700)
+    common = dict(max_green_frac=0.0, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_area_frac=0.16)
     figure(
         "09_station_anchor",
-        "Station anchoring: no station (A) vs a rail/tram station pinning a centre at (32, 88) (B)",
+        "Station anchoring: no station (A) vs a rail/tram station seeding a (grown) centre at (40, 84) (B)",
         [
             P(_opt(plan, **common), "A — no station"),
-            P(_opt(plan, centre_anchors=[(32, 88)], **common), "B — station anchors a centre",
-              stations=[(32, 88)]),
+            P(_opt(plan, centre_anchors=[(40, 84)], **common), "B — station seeds a sizable centre",
+              stations=[(40, 84)]),
         ],
     )
 
 
 def s10_network_routing():
+    # two small blocks separated by a narrow gap; ONE centre can cover both only if the network links them
     plan = empty()
-    block(plan, 40, 80, 30, 56)  # left block
-    block(plan, 40, 80, 64, 90)  # right block (a gap; a barrier at col 60)
-    router = _lattice_router(G, G, step=3, barrier_col=60, bridge_rows=(0, 3))
-    common = dict(max_green_frac=0.0, ca_centres=[(60, 43)], optimise_centres=True)
+    block(plan, 55, 65, 54, 60)  # left block
+    block(plan, 55, 65, 64, 70)  # right block (gap at cols 60-64)
+    linked = _lattice_router(G, G, step=3, barrier_col=62, bridge_rows=(54, 57, 60, 63, 66))  # roads bridge the gap
+    split = _lattice_router(G, G, step=3, barrier_col=62, bridge_rows=())  # no road across the gap
+    common = dict(max_green_frac=0.0, ca_centres=[(60, 57)], optimise_centres=True)
     figure(
         "10_network_routing",
-        "Routing: open-grid serves both blocks from one centre (A) vs the network needs one per block (B)",
+        "Network linking vs separating the same clusters: a bridge serves both from one centre; severing needs two",
         [
-            P(_opt(plan, router=None, **common), "A — open-grid walk"),
-            P(_opt(plan, router=router, **common), "B — street-network walk", router=router),
+            P(_opt(plan, router=None, **common), "open-grid (no streets) — one centre"),
+            P(_opt(plan, router=linked, **common), "network LINKS them (road bridges the gap)", router=linked),
+            P(_opt(plan, router=split, **common), "network SEPARATES them (no crossing)", router=split),
         ],
     )
 

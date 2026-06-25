@@ -799,8 +799,11 @@ def optimise_plan(
             seed_new, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
             cull_min_unique=centre_min_settlement, walk=walk, spacing_m=centre_spacing_m,
         )
-        # grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built)
-        new_centres = _grow_centres(new_centres, fixed_on_built, built, walk, area_frac=centre_area_frac)
+        # Grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built).
+        # Station anchors grow too — a station should seed a real centre, not stay a lone cell — while
+        # existing/true-area centres come pre-sized from the input and are left intact (claimed, not grown).
+        grow_points = list(dict.fromkeys(new_centres + anchor_on_built))
+        new_centres = _grow_centres(grow_points, existing_on_built, built, walk, area_frac=centre_area_frac)
     else:  # keep the simulation's grown centres as-is (only those still on built land)
         new_centres = [(y, x) for y, x in seed_new if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
     for y, x in new_centres:
