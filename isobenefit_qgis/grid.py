@@ -722,6 +722,24 @@ def optimise_plan(
     else:
         walk = router
 
+    # Existing development is frozen: parks may be carved only from NEW (speculative) built land,
+    # never pruned, and the small-settlement cleanup never touches it.
+    frozen = np.zeros(plan.shape, dtype=bool)
+    if existing_built is not None:
+        frozen |= np.asarray(existing_built, dtype=bool)
+
+    # Cleanup FIRST — prune "failed satellites": an entirely-NEW built settlement (its own connected
+    # component) smaller than the minimum settlement size is a stranded speck, not viable development.
+    # Remove it up front so nothing is greened or centred on it, and so a dispersed CA run can't leave
+    # a lone centre on a 3-cell orphan (the catchment cull keeps such a centre because it can SEE many
+    # scattered homes within a walk; judging by SETTLEMENT SIZE is what actually removes the orphan).
+    # A small cluster contiguous with existing/frozen fabric is kept (it extends a real settlement).
+    if prune_islands and optimise_centres and centre_min_settlement > 1:
+        for comp in _components((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)):
+            if len(comp) < centre_min_settlement and not any(frozen[y, x] for y, x in comp):
+                for y, x in comp:
+                    plan[y, x] = PLAN_NONE
+
     n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
     if n_built == 0:
         return plan
@@ -731,12 +749,6 @@ def optimise_plan(
         budget_frac = max_green_frac
     green_budget = int(budget_frac * n_built)
     min_gain = max(1.0, 0.002 * n_built)  # stop once a park serves only a few stragglers
-
-    # Existing development is frozen: parks may be carved only from NEW (speculative)
-    # built land, never from what is already there.
-    frozen = np.zeros(plan.shape, dtype=bool)
-    if existing_built is not None:
-        frozen |= np.asarray(existing_built, dtype=bool)
 
     spent = 0
     while spent < green_budget:
@@ -808,22 +820,6 @@ def optimise_plan(
         new_centres = [(y, x) for y, x in seed_new if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
     for y, x in new_centres:
         plan[y, x] = PLAN_CENTRE
-
-    # Cleanup — prune "failed satellites": a NEW-built island smaller than the minimum settlement
-    # size that no centre reaches within a walk (too small to warrant its own centre and beyond reach
-    # of any other). Without this, a dispersed CA run leaves residential specks stranded on an island
-    # with no centre. Larger developments are never pruned (a real settlement gets a centre via the
-    # add step); existing/frozen fabric is never pruned.
-    if prune_islands and optimise_centres and centre_min_settlement > 1:
-        centre_field = walk(plan == PLAN_CENTRE)
-        new_built_mask = (plan == PLAN_BUILT) & ~frozen
-        for comp in _components(new_built_mask):
-            if len(comp) >= centre_min_settlement:
-                continue  # a viable settlement — kept (served, or it would have been given a centre)
-            if any(centre_field[y, x] <= centre_distance_m for y, x in comp):
-                continue  # within a walk of a centre — part of a wider catchment, kept
-            for y, x in comp:
-                plan[y, x] = PLAN_NONE  # a stranded speck — return it to undeveloped land
     return plan
 
 
