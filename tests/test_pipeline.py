@@ -617,3 +617,92 @@ def test_capacity_summary_flags_infeasible():
     s = capacity_summary(built_before=1000, built_after=500, mean_density=3800.0, max_density=6000.0)
     assert not s["feasible"]  # would need 7600 > 6000
     assert s["density_after"] == 7600.0
+
+
+def test_refine_centres_spacing_consolidated_vs_dispersed():
+    # The spacing dial sets how far apart centres sit. A big block with a tight spacing keeps many,
+    # close centres (dispersed); the default (= the walk) keeps the coverage-minimal few (consolidated).
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 80
+    built = np.zeros((g, g), bool)
+    built[10:70, 10:70] = True  # 60x60 block, far larger than one catchment
+    consolidated = _refine_centres([(40, 40)], [], built, built, 50.0, 800.0)  # spacing defaults to the walk
+    dispersed = _refine_centres([(40, 40)], [], built, built, 50.0, 800.0, spacing_m=300.0)
+    assert len(dispersed) > len(consolidated)  # tighter spacing -> more centres
+    for y, x in dispersed:
+        assert built[y, x]
+
+
+def test_optimise_plan_centre_spacing_disperses():
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, _components, optimise_plan
+
+    g = 80
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:70, 10:70] = PLAN_BUILT
+    common = dict(max_green_frac=0.0, ca_centres=[(40, 40)], optimise_centres=True)
+    cons = optimise_plan(plan, 50.0, 400.0, 800.0, centre_spacing_m=800.0, **common)
+    disp = optimise_plan(plan, 50.0, 400.0, 800.0, centre_spacing_m=300.0, **common)
+    # count centre AREAS (connected components), not cells, since centres are grown blobs
+    n_cons = len(_components(cons == PLAN_CENTRE))
+    n_disp = len(_components(disp == PLAN_CENTRE))
+    assert n_disp > n_cons
+
+
+def test_optimise_plan_centre_area_scales():
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
+
+    g = 60
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:50, 10:50] = PLAN_BUILT
+    common = dict(max_green_frac=0.0, ca_centres=[(30, 30)], optimise_centres=True, centre_spacing_m=700.0)
+    small = optimise_plan(plan, 50.0, 400.0, 800.0, centre_area_frac=0.02, **common)
+    large = optimise_plan(plan, 50.0, 400.0, 800.0, centre_area_frac=0.12, **common)
+    assert int((large == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # bigger area per home
+
+
+def test_optimise_plan_min_settlement_culls_satellite():
+    # A small detached satellite keeps its centre at a low minimum, loses it at a high one.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
+
+    g = 70
+    plan = np.zeros((g, g), np.uint8)
+    plan[20:60, 20:60] = PLAN_BUILT  # main town
+    plan[3:7, 3:7] = PLAN_BUILT  # 4x4 satellite, detached
+    common = dict(max_green_frac=0.0, ca_centres=[(40, 40), (5, 5)], optimise_centres=True)
+    kept = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=3, **common)
+    culled = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=40, **common)
+    sat = lambda out: any(y < 10 and x < 10 for y, x in np.argwhere(out == PLAN_CENTRE))  # noqa: E731
+    assert sat(kept)  # satellite (16 cells) keeps a centre when the minimum is small
+    assert not sat(culled)  # ...and loses it when the minimum (40) exceeds its catchment
+
+
+def test_evaluate_plan_split_centre_green_walks():
+    # A home just beyond a short centre walk is "unserved" by centre but served once the walk is long.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, evaluate_plan
+
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[20, 5:35] = PLAN_BUILT  # a row of homes
+    plan[20, 5] = PLAN_CENTRE  # one centre at the left end; far homes are ~1500 m away
+    plan[18, 5:35] = PLAN_GREEN  # green alongside so green coverage isn't the limiter
+    short = evaluate_plan(plan, 100.0, 2000.0, centre_distance_m=400.0)
+    long = evaluate_plan(plan, 100.0, 2000.0, centre_distance_m=1600.0)
+    assert long["centre_coverage"] > short["centre_coverage"]  # a longer centre walk reaches more homes
+
+
+def test_optimise_plan_prunes_centreless_island():
+    # A stranded built speck (no centre, below the minimum settlement) is pruned to undeveloped land;
+    # the real development is kept. The cleanup is off-switchable via prune_islands.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_NONE, optimise_plan
+
+    g = 60
+    plan = np.zeros((g, g), np.uint8)
+    plan[20:50, 10:40] = PLAN_BUILT  # main development (kept, gets a centre)
+    plan[3:6, 53:56] = PLAN_BUILT  # 3x3 stranded speck (9 cells), far from anything, no centre
+    common = dict(max_green_frac=0.0, ca_centres=[(35, 25)], optimise_centres=True, centre_min_settlement=12)
+    pruned = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=True, **common)
+    kept = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=False, **common)
+    assert (pruned[3:6, 53:56] == PLAN_NONE).all()  # stranded speck returned to undeveloped land
+    assert (kept[3:6, 53:56] == PLAN_BUILT).all()  # ...but only when cleanup is on
+    assert (pruned[20:50, 10:40] == PLAN_BUILT).any()  # the real development is untouched

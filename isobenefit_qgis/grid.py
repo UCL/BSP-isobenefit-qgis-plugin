@@ -178,18 +178,27 @@ def _seed_centres_proximity(built, granularity_m, max_distance_m, existing=None)
     return new
 
 
-def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3, walk=None):
+def _refine_centres(
+    seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3, walk=None, spacing_m=None
+):
     """Optimise seeded centres after the fact, measuring catchment by ``walk`` — ONE distance
     model used for every judgment here (the grid walk by default, or true street-network
     distances when a ``walk`` callable ``mask -> rows×cols metres`` is injected). Each new centre
     is re-positioned onto NEW land, central to the NEW homes it serves; ``fixed``/existing centres
     compete in the assignment; centres uniquely serving fewer than ``cull_min_unique`` built cells
     are culled (redundant, or feeding too small a catchment). Returns the optimised new ``(row, col)``.
+
+    ``spacing_m`` sets how far apart centres sit — their catchment scale. It defaults to the centre
+    walk (``max_distance_m``): the fewest centres that still keep everyone within a walk
+    (CONSOLIDATED — few, large centres). A smaller value places and keeps more, closer centres
+    (DISPERSED). It is bounded by the walk (you can't space centres further than a walk apart
+    without stranding homes), so the consolidated end is the coverage minimum.
     """
     built = np.asarray(built, dtype=bool)
     new_built = np.asarray(new_built, dtype=bool) & built
     rows, cols = built.shape
-    r = max(1, round(max_distance_m / granularity_m))
+    spacing = max_distance_m if spacing_m is None else min(float(spacing_m), max_distance_m)
+    r = max(1, round(spacing / granularity_m))
     if walk is None:
 
         def walk(mask):
@@ -206,10 +215,10 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
             m[y, x] = True
         return m
 
-    def reach(cells):  # built cells within a walk of any cell in `cells` (by the one metric)
+    def reach(cells):  # built cells within the centre SPACING of any cell in `cells` (by the one metric)
         if not cells:
             return np.zeros((rows, cols), dtype=bool)
-        return np.isfinite(walk(onehot(cells)))
+        return walk(onehot(cells)) <= spacing
 
     new = [_nearest_built(new_built, int(y), int(x)) for y, x in seeds]
 
@@ -218,7 +227,7 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
     # per cell) is what keeps this single-threaded post-processing affordable.
     fixed_field = walk(onehot(fixed)) if fixed else np.full((rows, cols), np.inf)
     fixed_col = fixed_field[new_built]
-    fixed_reach = np.isfinite(fixed_field)
+    fixed_reach = fixed_field <= spacing
 
     def lloyd(centres):  # re-position each new centre central to the NEW homes WITHIN A WALK of it
         if not centres:
@@ -227,7 +236,7 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
             # column 0 = nearest fixed centre; columns 1.. = each new centre (single-source, cached)
             stack = np.column_stack([fixed_col] + [walk(onehot([c]))[new_built] for c in centres])
             nearest = np.argmin(stack, axis=1)
-            within = np.isfinite(stack.min(axis=1))  # homes beyond a walk of every centre pull no one
+            within = stack.min(axis=1) <= spacing  # homes beyond the spacing of every centre pull no one
             moved = False
             for j in range(len(centres)):
                 members = (nearest == 1 + j) & within
@@ -467,6 +476,8 @@ def evaluate_plan(
     min_green_span_m: float | None = None,
     transit_stops: np.ndarray | None = None,
     router=None,
+    centre_distance_m: float | None = None,
+    green_distance_m: float | None = None,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
@@ -503,21 +514,27 @@ def evaluate_plan(
     # Walking distances: a straight-ish grid walk by default, or true street-network distances
     # when a ``router`` (a callable mask -> rows×cols metres field) is injected. The default keeps
     # this function pure/headless; the network router lives in the QGIS-coupled isobenefit_qgis.routing.
+    # Split walks: a home is near a centre within ``centre_distance_m`` and near green within
+    # ``green_distance_m`` (each defaults to the shared ``max_distance_m``). The distance field is
+    # bounded at the larger of the two; coverage compares against each amenity's own threshold.
+    centre_distance_m = max_distance_m if centre_distance_m is None else float(centre_distance_m)
+    green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
+    field_bound = max(centre_distance_m, green_distance_m)
+
     def _dist(mask):
-        return router(mask) if router is not None else _walk_distance(mask, granularity_m, max_distance_m)
+        return router(mask) if router is not None else _walk_distance(mask, granularity_m, field_bound)
 
     d_cent = _dist(plan == PLAN_CENTRE)[built]
     d_green = _dist(green_mask)[built]
-    near_cent = d_cent < math.inf
-    near_green = d_green < math.inf
+    near_cent = d_cent <= centre_distance_m
+    near_green = d_green <= green_distance_m
     served = near_cent & near_green
 
     # selection metric: average walk to amenities over EVERY home, with anyone who
     # can't reach within the limit counted at a penalty distance (so a plan can't
     # score well by abandoning the fringe). Lower is better.
-    penalty = 2.0 * max_distance_m
-    centre_access = float(np.where(near_cent, d_cent, penalty).mean())
-    green_access = float(np.where(near_green, d_green, penalty).mean())
+    centre_access = float(np.where(near_cent, d_cent, 2.0 * centre_distance_m).mean())
+    green_access = float(np.where(near_green, d_green, 2.0 * green_distance_m).mean())
     access_cost = 0.5 * (centre_access + green_access)
 
     rows, cols = plan.shape
@@ -552,9 +569,9 @@ def evaluate_plan(
         stops = np.asarray(transit_stops, dtype=bool)
         if stops.any():
             d_stop = _dist(stops)[built]
-            near_stop = d_stop < math.inf
+            near_stop = d_stop <= max_distance_m
             metrics["transit_coverage"] = float(near_stop.mean())
-            metrics["transit_access"] = float(np.where(near_stop, d_stop, penalty).mean())
+            metrics["transit_access"] = float(np.where(near_stop, d_stop, 2.0 * max_distance_m).mean())
             metrics["transit_walk_mean"] = float(d_stop[near_stop].mean()) if near_stop.any() else math.inf
 
     return metrics
@@ -655,6 +672,12 @@ def optimise_plan(
     optimise_centres: bool = True,
     centre_anchors=None,
     router=None,
+    centre_distance_m: float | None = None,
+    green_distance_m: float | None = None,
+    centre_spacing_m: float | None = None,
+    centre_area_frac: float = CENTRE_AREA_FRAC,
+    centre_min_settlement: int = 3,
+    prune_islands: bool = True,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
@@ -670,19 +693,32 @@ def optimise_plan(
     ``existing_built`` is a bool mask of cells that were already developed before the
     simulation. Those are **frozen**: the plan may green-over only NEW (speculative)
     built land, never prune what is already there.
+
+    Centre/green walks are split: ``centre_distance_m`` / ``green_distance_m`` (each defaulting to
+    ``max_distance_m``) are the walk thresholds for centre vs green coverage. ``centre_spacing_m``
+    sets centre consolidation (consolidated↔dispersed; see ``_refine_centres``); ``centre_area_frac``
+    scales how big each centre grows; ``centre_min_settlement`` is the minimum catchment a centre must
+    serve to survive the cull (failed dispersal seeds below it are removed).
     """
     plan = plan.copy()
     g = float(granularity_m)
+    # Split walks: centres and green each have their own walk threshold (both default to the shared
+    # max_distance). The distance FIELD is bounded at the larger of the two; each amenity's coverage
+    # is then judged against its own threshold.
+    centre_distance_m = max_distance_m if centre_distance_m is None else float(centre_distance_m)
+    green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
+    field_bound = max(centre_distance_m, green_distance_m)
     side = max(2, round(min_green_span_m / g))
     half = side // 2
-    walk_r = max(1, round(max_distance_m / g))
+    walk_r = max(1, round(green_distance_m / g))  # green-coverage window
     rows, cols = plan.shape
     # ONE distance model for the whole optimisation (carve + centres): the grid walk by default,
-    # or true street-network distances when a ``router`` (mask -> rows×cols metres) is injected.
+    # or true street-network distances when a ``router`` (mask -> rows×cols metres) is injected. The
+    # field is bounded at the larger walk; centre vs green coverage compare against their own threshold.
     if router is None:
 
         def walk(mask):
-            return _walk_distance(mask, g, max_distance_m)
+            return _walk_distance(mask, g, field_bound)
     else:
         walk = router
 
@@ -707,7 +743,7 @@ def optimise_plan(
         built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
         carvable = built & ~frozen  # only new built may be freed to green
         d_green = walk(plan == PLAN_GREEN)
-        unserved = built & ~np.isfinite(d_green)  # every home wants green access...
+        unserved = built & ~(d_green <= green_distance_m)  # every home wants green within the green walk...
         if not unserved.any():
             break
         # homes a park here would newly serve: unserved within a walk of the park
@@ -751,7 +787,7 @@ def optimise_plan(
     if ca_centres is None:
         seed_new = [
             s
-            for s in _seed_centres_proximity(built, granularity_m, max_distance_m, existing_centres)
+            for s in _seed_centres_proximity(built, granularity_m, centre_distance_m, existing_centres)
             if s not in exclude
         ]
     else:
@@ -760,14 +796,31 @@ def optimise_plan(
         plan[ey, ex] = PLAN_CENTRE
     if optimise_centres:
         new_centres = _refine_centres(
-            seed_new, fixed_on_built, built, new_built, granularity_m, max_distance_m, walk=walk
+            seed_new, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
+            cull_min_unique=centre_min_settlement, walk=walk, spacing_m=centre_spacing_m,
         )
         # grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built)
-        new_centres = _grow_centres(new_centres, fixed_on_built, built, walk)
+        new_centres = _grow_centres(new_centres, fixed_on_built, built, walk, area_frac=centre_area_frac)
     else:  # keep the simulation's grown centres as-is (only those still on built land)
         new_centres = [(y, x) for y, x in seed_new if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
     for y, x in new_centres:
         plan[y, x] = PLAN_CENTRE
+
+    # Cleanup — prune "failed satellites": a NEW-built island smaller than the minimum settlement
+    # size that no centre reaches within a walk (too small to warrant its own centre and beyond reach
+    # of any other). Without this, a dispersed CA run leaves residential specks stranded on an island
+    # with no centre. Larger developments are never pruned (a real settlement gets a centre via the
+    # add step); existing/frozen fabric is never pruned.
+    if prune_islands and optimise_centres and centre_min_settlement > 1:
+        centre_field = walk(plan == PLAN_CENTRE)
+        new_built_mask = (plan == PLAN_BUILT) & ~frozen
+        for comp in _components(new_built_mask):
+            if len(comp) >= centre_min_settlement:
+                continue  # a viable settlement — kept (served, or it would have been given a centre)
+            if any(centre_field[y, x] <= centre_distance_m for y, x in comp):
+                continue  # within a walk of a centre — part of a wider catchment, kept
+            for y, x in comp:
+                plan[y, x] = PLAN_NONE  # a stranded speck — return it to undeveloped land
     return plan
 
 
@@ -860,6 +913,12 @@ def select_plan(
     transit_stops=None,
     centre_anchors=None,
     router=None,
+    centre_distance_m=None,
+    green_distance_m=None,
+    centre_spacing_m=None,
+    centre_area_frac=CENTRE_AREA_FRAC,
+    centre_min_settlement=3,
+    prune_islands=True,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
@@ -885,6 +944,9 @@ def select_plan(
             existing_built=existing_built, ca_centres=ca_centres,
             optimise_centres=optimise_centres, centre_anchors=centre_anchors,
             router=router,
+            centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
+            centre_spacing_m=centre_spacing_m, centre_area_frac=centre_area_frac,
+            centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
         )
         m = evaluate_plan(
             opt,
@@ -893,6 +955,8 @@ def select_plan(
             min_green_span_m=min_green_span_m,
             transit_stops=transit_stops,
             router=router,
+            centre_distance_m=centre_distance_m,
+            green_distance_m=green_distance_m,
         )
         if best is None or m["access_cost"] < best["access_cost"]:
             best_plan, best = opt, m
