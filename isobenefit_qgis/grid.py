@@ -250,7 +250,9 @@ def _refine_centres(seeds, fixed, built, new_built, granularity_m, max_distance_
         underserved = new_built & ~(fixed_reach | reach(new))
         if not underserved.any():
             break
-        gain = np.where(new_built, _box_sum(underserved.astype(np.float64), r), -1.0)
+        # propose the new centre from WITHIN the underserved area (densest spot), not merely near it:
+        # under network routing a Euclidean-near cell may be unable to actually reach across a barrier
+        gain = np.where(underserved, _box_sum(underserved.astype(np.float64), r), -1.0)
         if gain.max() < cull_min_unique:
             break
         y, x = divmod(int(np.argmax(gain)), cols)
