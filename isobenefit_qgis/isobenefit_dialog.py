@@ -72,21 +72,27 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.left_col.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.grid_size_m = QtWidgets.QLineEdit("50", self)
         self.left_col.addWidget(self.grid_size_m, 1, 1)
-        # walking distance
-        self.walk_dist_label = QtWidgets.QLabel("Walkable distance (m)", self)
-        self.left_col.addWidget(self.walk_dist_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.walk_dist = QtWidgets.QLineEdit("800", self)
-        self.left_col.addWidget(self.walk_dist, 2, 1)
+        # centre walk: how far people will walk to a centre (recommended plan). The CA grows using the
+        # LARGER of the two walks; the plan then judges centre vs green coverage against their own walk.
+        self.centre_walk_label = QtWidgets.QLabel("Centre walk (m)", self)
+        self.left_col.addWidget(self.centre_walk_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.centre_walk_dist = QtWidgets.QLineEdit("800", self)
+        self.left_col.addWidget(self.centre_walk_dist, 2, 1)
+        # green walk: how far people will walk to a park (recommended plan)
+        self.green_walk_label = QtWidgets.QLabel("Green walk (m)", self)
+        self.left_col.addWidget(self.green_walk_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.green_walk_dist = QtWidgets.QLineEdit("800", self)
+        self.left_col.addWidget(self.green_walk_dist, 3, 1)
         # max population
         self.max_populat_label = QtWidgets.QLabel("Target population", self)
-        self.left_col.addWidget(self.max_populat_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.left_col.addWidget(self.max_populat_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.max_populat = QtWidgets.QLineEdit("100000", self)
-        self.left_col.addWidget(self.max_populat, 3, 1)
+        self.left_col.addWidget(self.max_populat, 4, 1)
         # min green km2
         self.min_green_span_label = QtWidgets.QLabel("Min green span (m)", self)
-        self.left_col.addWidget(self.min_green_span_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.left_col.addWidget(self.min_green_span_label, 5, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.min_green_span = QtWidgets.QLineEdit("800", self)
-        self.left_col.addWidget(self.min_green_span, 4, 1)
+        self.left_col.addWidget(self.min_green_span, 5, 1)
         # ensemble likelihood map (on) vs a single growth animation (off)
         self.ensemble_check = QtWidgets.QCheckBox("Development likelihood (blend many runs)", self)
         self.ensemble_check.setChecked(True)
@@ -94,10 +100,10 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "On: blend many simulations into a probability-of-development map.\n"
             "Off: a single growth animation over time."
         )
-        self.left_col.addWidget(self.ensemble_check, 5, 0, 1, 2)
+        self.left_col.addWidget(self.ensemble_check, 6, 0, 1, 2)
         # detail = how many simulations to blend (precision vs time; noise ~ 1/sqrt(runs))
         self.detail_label = QtWidgets.QLabel("Detail", self)
-        self.left_col.addWidget(self.detail_label, 6, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.left_col.addWidget(self.detail_label, 7, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.detail_mode = QtWidgets.QComboBox(self)
         # Each run is optimised (the network graph is solved once and reused), so more runs cost
         # more time but a moderate ensemble already surfaces a good layout.
@@ -105,7 +111,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.detail_mode.addItem("Standard (50 runs)", 50)
         self.detail_mode.addItem("Thorough (100 runs)", 100)
         self.detail_mode.setCurrentIndex(1)
-        self.left_col.addWidget(self.detail_mode, 6, 1)
+        self.left_col.addWidget(self.detail_mode, 7, 1)
         self.ensemble_check.toggled.connect(self.detail_mode.setEnabled)
         # recommended plan: optimise the simulation's grown centres (re-position, add where
         # under-served, cull redundant) vs keep them exactly as the simulation grew them
@@ -116,7 +122,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "centres where new development is under-served, and remove redundant ones.\n"
             "Off: keep the centres exactly where the simulation grew them."
         )
-        self.left_col.addWidget(self.optimise_centres_check, 7, 0, 1, 2)
+        self.left_col.addWidget(self.optimise_centres_check, 8, 0, 1, 2)
         self.ensemble_check.toggled.connect(self.optimise_centres_check.setEnabled)
 
         # right column container

@@ -227,7 +227,11 @@ class Isobenefit:
         try:
             total_iters = int(self.dlg.n_iterations.text())
             granularity_m = int(self.dlg.grid_size_m.text())
-            max_distance_m = int(self.dlg.walk_dist.text())
+            # Split walks: centres and green each have their own. The CA grows (and the routing graph
+            # is bounded) by the LARGER walk; the recommended plan judges each amenity against its own.
+            centre_distance_m = int(self.dlg.centre_walk_dist.text())
+            green_distance_m = int(self.dlg.green_walk_dist.text())
+            max_distance_m = max(centre_distance_m, green_distance_m)
             max_populat = int(self.dlg.max_populat.text())
             exist_built_density = int(self.dlg.built_density.text())
             min_green_span = int(self.dlg.min_green_span.text())
@@ -293,6 +297,8 @@ class Isobenefit:
             optimise_centres=self.dlg.optimise_centres_check.isChecked(),
             centre_spacing_m=centre_spacing_m,
             centre_min_settlement=centre_min_settlement,
+            centre_distance_m=centre_distance_m,
+            green_distance_m=green_distance_m,
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)
