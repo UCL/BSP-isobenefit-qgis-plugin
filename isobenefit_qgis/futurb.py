@@ -233,19 +233,24 @@ class Isobenefit:
             min_green_span = int(self.dlg.min_green_span.text())
             random_seed = int(self.dlg.random_seed.text())
             build_prob = float(self.dlg.build_prob.text())
-            cent_prob_nb = float(self.dlg.cent_prob_nb.text())
-            cent_prob_isol = float(self.dlg.cent_prob_isol.text())
-            pop_target_cent_threshold = float(self.dlg.pop_target_cent_threshold.text())
-            prob_distribution = (
-                float(self.dlg.high_density_prob.text()),
-                float(self.dlg.med_density_prob.text()),
-                float(self.dlg.low_density_prob.text()),
-            )
-            density_factors = (
-                float(self.dlg.high_density.text()),
-                float(self.dlg.med_density.text()),
-                float(self.dlg.low_density.text()),
-            )
+            # Dispersed-development selector -> the CA's isolated-seeding rate. Infill centrality and
+            # the centre-formation threshold are sensible internal defaults now (the recommended plan
+            # re-derives centres in post-processing, so these no longer need to be user-facing).
+            cent_prob_nb = 0.01
+            cent_prob_isol = float(self.dlg.dispersal_mode.currentData())
+            pop_target_cent_threshold = 0.8
+            # Density RANGE -> the engine's descending tiers. Uniform across min..max (equal weights),
+            # so the mean is the midpoint and the max is the densification ceiling.
+            min_density = float(self.dlg.min_density.text())
+            max_density = float(self.dlg.max_density.text())
+            mid_density = 0.5 * (min_density + max_density)
+            density_factors = (max_density, mid_density, min_density)
+            prob_distribution = (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)
+            # recommended-plan dials
+            centre_min_settlement = int(self.dlg.min_settlement.text())
+            centre_pattern_frac = float(self.dlg.centre_pattern_mode.currentData())
+            # consolidated (1.0) keeps the coverage-minimal spacing (= the walk); smaller disperses
+            centre_spacing_m = None if centre_pattern_frac >= 1.0 else centre_pattern_frac * max_distance_m
         except ValueError:
             QMessageBox.warning(
                 self.iface.mainWindow(),
@@ -286,6 +291,8 @@ class Isobenefit:
             random_seed=random_seed,
             n_ensemble=n_ensemble,
             optimise_centres=self.dlg.optimise_centres_check.isChecked(),
+            centre_spacing_m=centre_spacing_m,
+            centre_min_settlement=centre_min_settlement,
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)

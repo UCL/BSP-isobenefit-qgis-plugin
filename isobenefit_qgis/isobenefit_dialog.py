@@ -127,23 +127,45 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.right_col.addWidget(self.build_prob_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.build_prob = QtWidgets.QLineEdit("0.25", self)
         self.right_col.addWidget(self.build_prob, 0, 1)
-        # nb centrality prob
-        self.cent_prob_nb_label = QtWidgets.QLabel("Neighbouring prob", self)
-        self.right_col.addWidget(self.cent_prob_nb_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.cent_prob_nb = QtWidgets.QLineEdit("0.01", self)
-        self.right_col.addWidget(self.cent_prob_nb, 1, 1)
-        # isolated centrality prob
-        self.cent_prob_isol_label = QtWidgets.QLabel("Isolated centrality prob", self)
-        self.right_col.addWidget(self.cent_prob_isol_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.cent_prob_isol = QtWidgets.QLineEdit("0", self)
-        self.right_col.addWidget(self.cent_prob_isol, 2, 1)
-        # centrality permitted threshold
-        self.pop_target_cent_threshold_label = QtWidgets.QLabel("Pop threshold for centres", self)
-        self.right_col.addWidget(
-            self.pop_target_cent_threshold_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight
+        # dispersed development (CA isolated-seeding rate): Off keeps growth compact/contiguous; higher
+        # lets new settlements form away from the core (polycentric). Replaces the two opaque
+        # per-step centrality probabilities.
+        self.dispersal_label = QtWidgets.QLabel("Dispersed development", self)
+        self.right_col.addWidget(self.dispersal_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.dispersal_mode = QtWidgets.QComboBox(self)
+        self.dispersal_mode.addItem("Off (compact)", 0.0)
+        self.dispersal_mode.addItem("Low", 0.005)
+        self.dispersal_mode.addItem("Medium", 0.02)
+        self.dispersal_mode.addItem("High", 0.05)
+        self.dispersal_mode.setCurrentIndex(0)
+        self.dispersal_mode.setToolTip(
+            "How readily new settlements form away from existing development (satellite/leapfrog growth).\n"
+            "Off: one compact, contiguous town. Higher: increasingly polycentric."
         )
-        self.pop_target_cent_threshold = QtWidgets.QLineEdit("0.8", self)
-        self.right_col.addWidget(self.pop_target_cent_threshold, 3, 1)
+        self.right_col.addWidget(self.dispersal_mode, 1, 1)
+        # centre pattern (recommended plan): how far apart centres sit on the development
+        self.centre_pattern_label = QtWidgets.QLabel("Centre pattern", self)
+        self.right_col.addWidget(self.centre_pattern_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.centre_pattern_mode = QtWidgets.QComboBox(self)
+        self.centre_pattern_mode.addItem("Consolidated", 1.0)
+        self.centre_pattern_mode.addItem("Balanced", 0.7)
+        self.centre_pattern_mode.addItem("Dispersed", 0.45)
+        self.centre_pattern_mode.setCurrentIndex(0)
+        self.centre_pattern_mode.setToolTip(
+            "Consolidated: the fewest, largest centres that still keep everyone within a walk.\n"
+            "Dispersed: more, smaller, closer centres."
+        )
+        self.right_col.addWidget(self.centre_pattern_mode, 2, 1)
+        # minimum settlement size (cells): a detached new settlement smaller than this is a failed
+        # satellite and is pruned (its land reverts to green)
+        self.min_settlement_label = QtWidgets.QLabel("Min settlement (cells)", self)
+        self.right_col.addWidget(self.min_settlement_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.min_settlement = QtWidgets.QLineEdit("3", self)
+        self.min_settlement.setToolTip(
+            "A detached new settlement smaller than this many cells (with no centre) is pruned as a "
+            "failed satellite; its land reverts to green."
+        )
+        self.right_col.addWidget(self.min_settlement, 3, 1)
         # random seed
         self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
         self.right_col.addWidget(self.random_seed_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
@@ -163,41 +185,26 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
         self.dens_block = QtWidgets.QGridLayout(self)
         self.grid.addLayout(self.dens_block, 3, 0, 1, 2)
-        # low density
-        self.low_density_label = QtWidgets.QLabel("Low density (km2)", self)
-        self.dens_block.addWidget(self.low_density_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.low_density = QtWidgets.QLineEdit("1000", self)
-        self.low_density.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.low_density, 0, 1)
-        self.low_density_prob = QtWidgets.QLineEdit("0.2", self)
-        self.low_density_prob.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.low_density_prob, 0, 2)
-        # medium density
-        self.med_density_label = QtWidgets.QLabel("Medium density (km2)", self)
-        self.dens_block.addWidget(self.med_density_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.med_density = QtWidgets.QLineEdit("3000", self)
-        self.med_density.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.med_density, 1, 1)
-        self.med_density_prob = QtWidgets.QLineEdit("0.4", self)
-        self.med_density_prob.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.med_density_prob, 1, 2)
-        # high density
-        self.high_density_label = QtWidgets.QLabel("High density (km2)", self)
-        self.dens_block.addWidget(self.high_density_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.high_density = QtWidgets.QLineEdit("6000", self)
-        self.high_density.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.high_density, 2, 1)
-        self.high_density_prob = QtWidgets.QLineEdit("0.4", self)
-        self.high_density_prob.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.high_density_prob, 2, 2)
-        # built density
-        self.built_density_label = QtWidgets.QLabel("Built density (km2)", self)
-        self.dens_block.addWidget(self.built_density_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        # Density RANGE (people per km²): development is spread across min..max (replacing the old
+        # low/med/high tiers + probabilities). The mean funds the population-aware green budget; the
+        # max is the densification ceiling. Far simpler to read than a 3-bin distribution.
+        self.min_density_label = QtWidgets.QLabel("Min density (per km²)", self)
+        self.dens_block.addWidget(self.min_density_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.min_density = QtWidgets.QLineEdit("1500", self)
+        self.min_density.textChanged.connect(self.handle_densities)
+        self.dens_block.addWidget(self.min_density, 0, 1)
+        self.max_density_label = QtWidgets.QLabel("Max density (per km²)", self)
+        self.dens_block.addWidget(self.max_density_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.max_density = QtWidgets.QLineEdit("6000", self)
+        self.max_density.textChanged.connect(self.handle_densities)
+        self.dens_block.addWidget(self.max_density, 1, 1)
+        # existing built density (used to estimate how many people the existing fabric already holds)
+        self.built_density_label = QtWidgets.QLabel("Existing built density (per km²)", self)
+        self.dens_block.addWidget(self.built_density_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
         self.built_density = QtWidgets.QLineEdit("2000", self)
-        self.dens_block.addWidget(self.built_density, 3, 1, 1, 1)
-        # densities and related probabilities
-        self.density_text_feedback = QtWidgets.QLabel("Density probabilities must sum to 1", self)
-        self.dens_block.addWidget(self.density_text_feedback, 4, 0, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.dens_block.addWidget(self.built_density, 2, 1, 1, 1)
+        self.density_text_feedback = QtWidgets.QLabel("", self)
+        self.dens_block.addWidget(self.density_text_feedback, 3, 0, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
 
         # spacer
         self.grid.addItem(
@@ -394,29 +401,24 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(False)
 
     def handle_densities(self) -> None:
-        """ """
+        """Validate the density range. ``prob_sum`` is kept as the OK-enable flag used by
+        ``refresh_state`` (1 = valid): the model derives its tiers from min/max, so the only check
+        is that the max exceeds the min."""
         try:
-            high_prob = float(self.high_density_prob.text())
-            med_prob = float(self.med_density_prob.text())
-            low_prob = float(self.low_density_prob.text())
-            self.prob_sum = round(high_prob + med_prob + low_prob, 2)
-            if self.prob_sum != 1:
+            mn = float(self.min_density.text())
+            mx = float(self.max_density.text())
+            if mx <= mn:
+                self.prob_sum = None
                 self.reset_state()
-                self.density_text_feedback.setText("Density probabilities must sum to 1")
+                self.density_text_feedback.setText("Max density must be greater than min")
                 return
-            if int(self.high_density.text()) <= int(self.med_density.text()):
-                self.density_text_feedback.setText("High density must be greater than medium")
-                self.reset_state()
-                return
-            if int(self.med_density.text()) <= int(self.low_density.text()):
-                self.density_text_feedback.setText("Medium density must be greater than low")
-                self.reset_state()
-                return
+            self.prob_sum = 1
             self.refresh_state()
             self.density_text_feedback.setText("")
         except Exception:
+            self.prob_sum = None
             self.reset_state()
-            self.density_text_feedback.setText("Density probabilities must sum to 1")
+            self.density_text_feedback.setText("Enter valid min and max densities")
 
     def handle_output_path(self) -> None:
         """ """

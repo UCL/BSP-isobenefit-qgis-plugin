@@ -64,6 +64,8 @@ class IsobenefitTask(QgsTask):
         random_seed,
         n_ensemble=1,
         optimise_centres=True,
+        centre_spacing_m=None,
+        centre_min_settlement=3,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -94,6 +96,8 @@ class IsobenefitTask(QgsTask):
         self.random_seed = int(random_seed)
         self.n_ensemble = int(n_ensemble)
         self.optimise_centres = bool(optimise_centres)
+        self.centre_spacing_m = None if centre_spacing_m is None else float(centre_spacing_m)
+        self.centre_min_settlement = int(centre_min_settlement)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -283,6 +287,8 @@ class IsobenefitTask(QgsTask):
                     transit_stops=transit_stops,
                     centre_anchors=station_anchors,
                     router=router,
+                    centre_spacing_m=self.centre_spacing_m,
+                    centre_min_settlement=self.centre_min_settlement,
                 )
                 if plan is not None:
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
