@@ -569,9 +569,9 @@ class IsobenefitTask(QgsTask):
                 gis_io.apply_probability_style(lyr, band, gis_io.PROB_RAMPS[label])
                 QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                 group.addLayer(lyr)
-            # The raw CA plan (pre-processing) and each post-processed compactness option, inserted
-            # above the likelihood bands so the difference the post-processing makes is plain to see.
-            for path, label in [(self.pre_path, "raw plan (pre-processing)"), *self._plan_outputs]:
+            # existing -> raw (pre) -> post-processed options, inserted above the likelihood bands so the
+            # difference post-processing makes is plain. Reversed so the list ends existing-on-top.
+            for path, label in reversed(self._plan_outputs):
                 lyr = QgsRasterLayer(path, f"{self.out_file_name} — {label}", "gdal")
                 if lyr.isValid():
                     lyr.setCrs(self.target_crs)
@@ -579,8 +579,9 @@ class IsobenefitTask(QgsTask):
                     QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                     group.insertLayer(0, lyr)
             self._log(
-                f"Loaded likelihood, the raw (pre-processing) plan and {len(self._plan_outputs)} "
-                f"post-processed option(s) for '{self.out_file_name}' — compare and pick.",
+                f"Loaded likelihood + {len(self._plan_outputs)} plan layer(s) "
+                f"(existing, raw pre-processing, and the post-processing options) for "
+                f"'{self.out_file_name}' — compare and pick.",
                 notify=True,
             )
             return
