@@ -239,9 +239,42 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.button_box.rejected.connect(self.reject)
         main_layout.addWidget(self.button_box)
 
+    # OSM companion dataset key -> the simulation combo it should fill (industrial/railways have none)
+    _OSM_COMBO_MAP = {
+        "extents": "extents_layer_box",
+        "built": "built_layer_box",
+        "green": "green_layer_box",
+        "unbuildable": "unbuildable_layer_box",
+        "centres": "centre_seeds_layer_box",
+        "stops": "transit_stops_layer_box",
+        "stations": "stations_layer_box",
+        "streets": "streets_layer_box",
+    }
+
+    def _prepopulate_from_osm(self) -> None:
+        """If the OSM companion download has added layers (each tagged with the dataset key), pre-select
+        the matching layer in every combo so a run is ready straight away. Optional combos are filled
+        only when still empty (a deliberate selection is never overwritten); the extents combo is set
+        to the OSM extents layer whenever one is present (it also drives the CRS suggestion)."""
+        by_key: dict[str, QgsVectorLayer] = {}
+        for layer in QgsProject.instance().mapLayers().values():
+            key = layer.customProperty("isobenefit/osm_dataset")
+            if key:
+                by_key[str(key)] = layer
+        if not by_key:
+            return
+        for key, attr in self._OSM_COMBO_MAP.items():
+            layer = by_key.get(key)
+            combo = getattr(self, attr, None)
+            if layer is None or combo is None:
+                continue
+            if attr == "extents_layer_box" or combo.currentLayer() is None:
+                combo.setLayer(layer)
+
     def show(self) -> None:
         """Primes layers logic when opening dialog."""
-        # reset
+        # pre-fill the combos from any OSM companion download before validating
+        self._prepopulate_from_osm()
         self.handle_extents_layer()
         self.handle_densities()
         self.handle_output_path()

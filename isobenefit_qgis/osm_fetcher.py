@@ -430,6 +430,8 @@ class OsmFetchTask(QgsTask):
             if not layer.isValid():
                 self._log(f"Could not load OSM layer '{key}' from the GeoPackage.", Qgis.MessageLevel.Warning)
                 continue
+            # tag with the dataset key so the simulation dialog can pre-select it in the right combo
+            layer.setCustomProperty("isobenefit/osm_dataset", key)
             project.addMapLayer(layer, addToLegend=False)
             group.addLayer(layer)
             loaded += 1
