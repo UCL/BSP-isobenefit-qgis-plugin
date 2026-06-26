@@ -100,13 +100,12 @@ class IsobenefitDialog(QtWidgets.QDialog):
         sim.addRow("Build probability", self.build_prob)
         self.dispersal_mode = QtWidgets.QComboBox(self)
         self.dispersal_mode.addItem("Off (compact)", 0.0)
-        self.dispersal_mode.addItem("Low", 0.005)
-        self.dispersal_mode.addItem("Medium", 0.02)
-        self.dispersal_mode.addItem("High", 0.05)
-        self.dispersal_mode.setCurrentIndex(2)  # Medium by default
+        self.dispersal_mode.addItem("Moderate", 0.01)
+        self.dispersal_mode.addItem("Aggressive", 0.04)
+        self.dispersal_mode.setCurrentIndex(1)  # Moderate by default
         self.dispersal_mode.setToolTip(
             "How readily new settlements form away from existing development (satellite/leapfrog growth).\n"
-            "Off: one compact, contiguous town. Higher: increasingly polycentric."
+            "Off: one compact, contiguous town. Moderate/Aggressive: increasingly polycentric."
         )
         sim.addRow("Dispersed development", self.dispersal_mode)
         self.random_seed = QtWidgets.QLineEdit("42", self)

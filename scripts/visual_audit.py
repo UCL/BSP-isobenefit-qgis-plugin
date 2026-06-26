@@ -430,11 +430,11 @@ def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
 def _run_ca_track(isobenefit):
     figure(
         "13_dispersed_development",
-        "Dispersed development (CA isolated seeding): Off -> High lets new settlements form away from the core",
+        "Dispersed development (CA isolated seeding): Off -> Aggressive lets new settlements form away from the core",
         [
             P(_ca_plan(isobenefit, cent_prob_isol=0.0, build_prob=0.3, seed=1), "Off (compact, contiguous)"),
-            P(_ca_plan(isobenefit, cent_prob_isol=0.01, build_prob=0.3, seed=1), "Low"),
-            P(_ca_plan(isobenefit, cent_prob_isol=0.05, build_prob=0.3, seed=1), "Medium / High (satellites)"),
+            P(_ca_plan(isobenefit, cent_prob_isol=0.01, build_prob=0.3, seed=1), "Moderate"),
+            P(_ca_plan(isobenefit, cent_prob_isol=0.04, build_prob=0.3, seed=1), "Aggressive (satellites)"),
         ],
     )
     figure(
