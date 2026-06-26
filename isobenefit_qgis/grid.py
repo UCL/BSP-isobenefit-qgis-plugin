@@ -683,6 +683,7 @@ def optimise_plan(
     centre_area_frac: float = CENTRE_AREA_FRAC,
     centre_min_settlement: int = 3,
     prune_islands: bool = True,
+    carve_green: bool = False,
 ) -> np.ndarray:
     """Improve a plan's walkable green access by carving parks where access is worst.
 
@@ -755,8 +756,12 @@ def optimise_plan(
     green_budget = int(budget_frac * n_built)
     min_gain = max(1.0, 0.002 * n_built)  # stop once a park serves only a few stragglers
 
+    # The green carve is OFF by default: the CA already preserves a green network meeting min_green_span
+    # (its build rule won't crimp green corridors below the span), so the recommended plan keeps that
+    # green rather than re-carving consolidated parks. Turn carve_green on to force a consolidated park
+    # network (funded by densification) — a much bigger change from the raw plan.
     spent = 0
-    while spent < green_budget:
+    while carve_green and spent < green_budget:
         built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
         carvable = built & ~frozen  # only new built may be freed to green
         d_green = walk(plan == PLAN_GREEN)
@@ -924,6 +929,7 @@ def select_plan(
     centre_area_frac=CENTRE_AREA_FRAC,
     centre_min_settlement=3,
     prune_islands=True,
+    carve_green=False,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
@@ -954,6 +960,7 @@ def select_plan(
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=centre_spacing_m, centre_area_frac=centre_area_frac,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
+            carve_green=carve_green,
         )
         m = evaluate_plan(
             opt,
@@ -997,6 +1004,7 @@ def plan_variants(
     centre_area_frac=CENTRE_AREA_FRAC,
     centre_min_settlement=3,
     prune_islands=True,
+    carve_green=False,
 ):
     """Post-process one chosen CA run ``state`` at several centre-SPACING settings, so the user can
     compare compactness options and pick rather than choosing up front. ``spacings`` maps a label to a
@@ -1016,6 +1024,7 @@ def plan_variants(
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=spacing_m, centre_area_frac=centre_area_frac,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
+            carve_green=carve_green,
         )
         metrics = evaluate_plan(
             plan, granularity_m, max_distance_m, min_green_span_m=min_green_span_m, router=router,

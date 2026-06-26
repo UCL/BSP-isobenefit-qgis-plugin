@@ -535,7 +535,7 @@ def test_optimise_never_prunes_existing_built():
     plan = np.full((g, g), PLAN_BUILT, np.uint8)  # solid built, no green -> carve wants parks
     existing = np.zeros((g, g), bool)
     existing[0:20, :] = True  # the top half is existing built (frozen)
-    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.4, existing_built=existing)
+    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.4, existing_built=existing, carve_green=True)
     assert not ((out == PLAN_GREEN) & existing).any()  # not one existing cell pruned to green
     assert (out == PLAN_GREEN).any()  # but new (bottom) land was greened — carve still works
 
@@ -599,7 +599,7 @@ def test_optimise_plan_improves_green_access():
     before = evaluate_plan(plan, 100.0, 800.0)
     assert before["green_coverage"] == 0.0  # nothing green to reach
 
-    opt = optimise_plan(plan, 100.0, min_green_span_m=400.0, max_distance_m=800.0, max_green_frac=0.3)
+    opt = optimise_plan(plan, 100.0, min_green_span_m=400.0, max_distance_m=800.0, max_green_frac=0.3, carve_green=True)
     after = evaluate_plan(opt, 100.0, 800.0)
     assert opt.shape == plan.shape
     assert set(np.unique(opt)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
@@ -617,7 +617,7 @@ def test_optimise_plan_population_aware_never_overhouses():
     plan = np.full((g, g), PLAN_BUILT, np.uint8)
     plan[20, 20] = PLAN_CENTRE
     n0 = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
-    opt = optimise_plan(plan, 100.0, 400.0, 800.0, mean_density=3800.0, max_density=6000.0)
+    opt = optimise_plan(plan, 100.0, 400.0, 800.0, mean_density=3800.0, max_density=6000.0, carve_green=True)
     n1 = int(((opt == PLAN_BUILT) | (opt == PLAN_CENTRE)).sum())
     freed = n0 - n1
     assert 0 < freed <= round((1.0 - 3800.0 / 6000.0) * n0)  # within the densification headroom

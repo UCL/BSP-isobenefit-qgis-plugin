@@ -296,6 +296,7 @@ class Isobenefit:
             random_seed=random_seed,
             n_ensemble=n_ensemble,
             optimise_centres=self.dlg.optimise_centres_check.isChecked(),
+            carve_green=self.dlg.carve_green_check.isChecked(),
             centre_min_settlement=centre_min_settlement,
             centre_distance_m=centre_distance_m,
             green_distance_m=green_distance_m,

@@ -67,6 +67,7 @@ class IsobenefitTask(QgsTask):
         centre_min_settlement=3,
         centre_distance_m=None,
         green_distance_m=None,
+        carve_green=False,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -103,6 +104,7 @@ class IsobenefitTask(QgsTask):
         self.centre_min_settlement = int(centre_min_settlement)
         self.centre_distance_m = None if centre_distance_m is None else float(centre_distance_m)
         self.green_distance_m = None if green_distance_m is None else float(green_distance_m)
+        self.carve_green = bool(carve_green)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -414,6 +416,7 @@ class IsobenefitTask(QgsTask):
                     centre_min_settlement=self.centre_min_settlement,
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
+                    carve_green=self.carve_green,
                 )
                 self._plan_outputs = []  # (path, label) for finished() to load, in display order
                 report_stats = []  # (label, metrics, n_centres) for the run report
@@ -444,7 +447,7 @@ class IsobenefitTask(QgsTask):
                         existing_centres=seeds, existing_built=(origin == 1), existing_green=(origin == 0),
                         centre_anchors=station_anchors, router=router,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
-                        centre_min_settlement=self.centre_min_settlement,
+                        centre_min_settlement=self.centre_min_settlement, carve_green=self.carve_green,
                     )
                     for label in ("consolidated", "balanced", "dispersed"):
                         vplan, vm = variants[label]

@@ -303,7 +303,7 @@ def s05_centre_walk():
 
 def s06_green_provision():
     plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700)
+    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700, carve_green=True)
     figure(
         "06_green_provision",
         "Green provision (budget): how much built fabric is freed to parks (green area per population)",
@@ -316,7 +316,8 @@ def s06_green_provision():
 
 def s07_green_walk():
     plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.4, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700)
+    common = dict(max_green_frac=0.4, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700,
+                  carve_green=True)
     figure(
         "07_green_walk",
         "Green walk distance: a shorter walk to a park forces a denser, more distributed green network",
@@ -329,7 +330,8 @@ def s07_green_walk():
 
 def s08_green_span():
     plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.3, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700)
+    common = dict(max_green_frac=0.3, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700,
+                  carve_green=True)
     figure(
         "08_green_span",
         "Minimum park span: many small pocket parks (A) vs fewer larger parks (B)",
@@ -403,7 +405,8 @@ def s12_green_carve():
         "Green network: solid built with no parks (A) vs parks carved where access is worst + centres (B)",
         [
             P(plan.copy(), "A — before (no green network)"),
-            P(_opt(plan, max_green_frac=0.3, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700),
+            P(_opt(plan, max_green_frac=0.3, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700,
+                   carve_green=True),
               "B — after (green carved + centres)"),
         ],
     )

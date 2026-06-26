@@ -143,6 +143,14 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.min_green_span = QtWidgets.QLineEdit("400", self)
         self.min_green_span.setToolTip("A green patch must span at least this distance to count as a usable park.")
         pp.addRow("Min green span (m)", self.min_green_span)
+        self.carve_green_check = QtWidgets.QCheckBox("Carve consolidated parks", self)
+        self.carve_green_check.setChecked(False)
+        self.carve_green_check.setToolTip(
+            "Off (default): keep the simulation's own green network — it already preserves green to the "
+            "minimum span.\nOn: convert built land to consolidated parks, funded by densification, so "
+            "every home is near a large park. A much bigger change from the raw plan."
+        )
+        pp.addRow(self.carve_green_check)
 
         # --- Density ------------------------------------------------------------------
         dens = _group("Density (people per km²)")
