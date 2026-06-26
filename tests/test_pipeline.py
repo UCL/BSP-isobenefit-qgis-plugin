@@ -545,7 +545,7 @@ def test_select_plan_freezes_and_tags_existing():
     state = np.ones((g, g), np.int16)  # entirely built
     existing_built = np.zeros((g, g), bool)
     existing_built[0:20, :] = True  # top half already developed
-    plan, _m = select_plan(
+    plan, _m, _pre = select_plan(
         [state], 100.0, 400.0, 800.0, existing_centres=[(5, 5)], existing_built=existing_built
     )
     assert plan is not None
@@ -579,10 +579,11 @@ def test_class_probabilities():
 def test_select_plan_on_demo(grid):
     states = isobenefit.run_ensemble(_make(grid), 7, 6)
     md = sum(p * d for p, d in zip((0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0)))
-    plan, m = select_plan(
+    plan, m, pre = select_plan(
         states, GRAN, 400.0, 800.0, mean_density=md, max_density=6000.0, existing_centres=grid["seeds"]
     )
     assert plan.shape == (grid["rows"], grid["cols"])
+    assert pre is not None and pre.shape == plan.shape  # the raw (pre-processing) plan is returned too
     assert set(np.unique(plan)).issubset(
         {PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE}
     )
@@ -718,5 +719,5 @@ def test_optimise_plan_prunes_centreless_island():
     pruned = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=True, **common)
     kept = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=False, **common)
     assert (pruned[3:6, 53:56] == PLAN_GREEN).all()  # stranded speck reverted to green
-    assert (kept[3:6, 53:56] == PLAN_BUILT).all()  # ...but only when cleanup is on
+    assert not (kept[3:6, 53:56] == PLAN_GREEN).any()  # ...only when cleanup is on (off: speck kept/developed)
     assert (pruned[20:50, 10:40] == PLAN_BUILT).any()  # the real development is untouched

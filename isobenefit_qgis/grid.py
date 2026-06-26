@@ -289,6 +289,11 @@ def _refine_centres(
 # centre as well. Existing/true-area centres come in pre-sized from the input.
 CENTRE_AREA_FRAC = 0.08  # centre cells per home in the catchment (~8% of served homes are centre)
 CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
+# Redundancy floor for the centre cull/add — a centre that uniquely serves fewer than this many built
+# cells is dropped. This is the CENTRE catchment minimum, kept small and SEPARATE from the
+# minimum-SETTLEMENT size (which prunes failed-satellite clusters); conflating them made large
+# min-settlement values stop centres forming at all.
+CENTRE_CULL_MIN = 3
 
 
 def _grow_blob(start, target, built, claimed):
@@ -809,7 +814,7 @@ def optimise_plan(
     if optimise_centres:
         new_centres = _refine_centres(
             seed_new, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
-            cull_min_unique=centre_min_settlement, walk=walk, spacing_m=centre_spacing_m,
+            cull_min_unique=CENTRE_CULL_MIN, walk=walk, spacing_m=centre_spacing_m,
         )
         # Grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built).
         # Station anchors grow too — a station should seed a real centre, not stay a lone cell — while
@@ -924,14 +929,16 @@ def select_plan(
     only that many evenly-sampled runs (faster for very large ensembles; runs are
     similar). ``existing_built``/``existing_green`` (bool masks of already-developed land)
     are frozen — never pruned — and the chosen plan tags them with the existing-* codes.
-    Returns ``(best_plan, best_metrics)`` — ``(None, None)`` if ``states`` empty.
+    Returns ``(best_plan, best_metrics, pre_plan)`` — ``(None, None, None)`` if ``states`` empty.
+    ``pre_plan`` is the chosen run BEFORE post-processing (its raw CA development, grown centres and
+    qualifying green), so the pre/post pair can be compared.
     """
     states = list(states)
     if not states:
-        return None, None
+        return None, None, None
     if max_eval and len(states) > max_eval:  # optional cap for very large ensembles
         states = states[:: len(states) // max_eval][:max_eval]
-    best_plan, best = None, None
+    best_plan, best, best_state = None, None, None
     for st in states:
         st = np.asarray(st)
         ca_centres = [(int(y), int(x)) for y, x in np.argwhere(st == 2)]  # the CA's grown centres
@@ -958,7 +965,13 @@ def select_plan(
             green_distance_m=green_distance_m,
         )
         if best is None or m["access_cost"] < best["access_cost"]:
-            best_plan, best = opt, m
+            best_plan, best, best_state = opt, m, st
+    pre_plan = None
     if best_plan is not None:
         best_plan = _mark_existing(best_plan, existing_built=existing_built, existing_centres=existing_centres)
-    return best_plan, best
+        # the chosen run BEFORE post-processing — its raw CA development + grown centres + qualifying
+        # green — tagged with existing-* codes so it lines up with the post-processed plan
+        pre_plan = _state_to_plan(best_state, min_green_span_m, granularity_m, existing_green=existing_green)
+        pre_plan[np.asarray(best_state) == 2] = PLAN_CENTRE  # show the CA's own grown centres
+        pre_plan = _mark_existing(pre_plan, existing_built=existing_built, existing_centres=existing_centres)
+    return best_plan, best, pre_plan

@@ -53,6 +53,10 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.resize(580, 800)
 
         main_layout = QtWidgets.QVBoxLayout(self)
+        # Status line explaining why Run is disabled — created up front so any handler can update it.
+        self.run_status = QtWidgets.QLabel("", self)
+        self.run_status.setWordWrap(True)
+        self.run_status.setStyleSheet("color: #a00;")
         # Scrollable content — VERTICAL only. Horizontal scrolling is disabled and the form fields
         # grow to the viewport width, so wide combos elide instead of forcing a horizontal bar.
         self.scroll = QtWidgets.QScrollArea(self)
@@ -135,7 +139,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "smaller detached cluster with no centre is pruned as a failed satellite (reverts to green)."
         )
         gc.addRow("Min settlement area (ha)", self.min_settlement)
-        self.min_green_span = QtWidgets.QLineEdit("800", self)
+        self.min_green_span = QtWidgets.QLineEdit("400", self)
         self.min_green_span.setToolTip("A green patch must span at least this distance to count as a usable park.")
         gc.addRow("Min green span (m)", self.min_green_span)
         self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
@@ -230,7 +234,8 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
         content_layout.addStretch(1)
 
-        # --- buttons (pinned below the scroll area, always visible) --------------------
+        # --- status + buttons (pinned below the scroll area, always visible) -----------
+        main_layout.addWidget(self.run_status)
         self.button_box = QtWidgets.QDialogButtonBox(self)
         self.button_box.setStandardButtons(
             QtWidgets.QDialogButtonBox.StandardButton.Cancel | QtWidgets.QDialogButtonBox.StandardButton.Ok
@@ -285,18 +290,20 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(True)
 
     def refresh_state(self) -> None:
-        """ """
+        """Enable Run only when every requirement is met, and spell out what is still missing so a
+        greyed-out button is never a mystery."""
+        missing = []
         if self.extents_layer is None:
-            return
+            missing.append("an extents layer")
         if self.out_file_name is None:
-            return
-        if self.out_file_name is None:
-            return
+            missing.append("an output file (.tif)")
         if self.selected_crs is None:
-            return
+            missing.append("a projected CRS")
         if self.prob_sum != 1:
-            return
-        self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(False)
+            missing.append("valid min/max densities")
+        ok = not missing
+        self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(not ok)
+        self.run_status.setText("" if ok else "To enable Run, set " + ", ".join(missing) + ".")
 
     def handle_densities(self) -> None:
         """Validate the density range. ``prob_sum`` is kept as the OK-enable flag used by
@@ -369,14 +376,18 @@ class IsobenefitDialog(QtWidgets.QDialog):
         # success
         self.extents_layer_feedback.setText("")
         self.extents_layer = candidate_layer
-        # Steer to a LOCAL PROJECTED CRS: offer the layer's own CRS only if it is already projected,
-        # and default the selection to the appropriate local UTM zone (never geographic).
+        # Steer to a LOCAL PROJECTED CRS: if the layer is already projected use its own CRS, otherwise
+        # suggest the appropriate local UTM zone — never geographic. setCrs + an explicit sync make
+        # sure ``selected_crs`` is populated (so the Run button can enable without a manual CRS pick).
         layer_crs = candidate_layer.crs()
         if layer_crs.isValid() and not layer_crs.isGeographic():
+            chosen = layer_crs
             self.crs_selection.setLayerCrs(layer_crs)
-        utm = self._local_utm_crs(candidate_layer)
-        if utm is not None:
-            self.crs_selection.setCrs(utm)
+        else:
+            chosen = self._local_utm_crs(candidate_layer)
+        if chosen is not None and chosen.isValid():
+            self.crs_selection.setCrs(chosen)
+            self.handle_crs()  # sync selected_crs even if crsChanged didn't fire
         self.refresh_state()
 
     def _local_utm_crs(self, layer: QgsVectorLayer) -> QgsCoordinateReferenceSystem | None:

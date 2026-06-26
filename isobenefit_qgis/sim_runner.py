@@ -73,7 +73,8 @@ class IsobenefitTask(QgsTask):
         self.iface = iface
         self.out_file_name = out_file_name
         self.out_path = str(Path(out_dir_path) / f"{out_file_name}.tif")
-        self.plan_path = str(Path(out_dir_path) / f"{out_file_name}_plan.tif")
+        self.plan_path = str(Path(out_dir_path) / f"{out_file_name}_plan.tif")  # post-processed
+        self.pre_path = str(Path(out_dir_path) / f"{out_file_name}_pre.tif")  # raw CA, pre-processing
         self.target_crs = target_crs
         self.extents_layer = extents_layer
         self.built_layer = built_layer
@@ -311,7 +312,7 @@ class IsobenefitTask(QgsTask):
                         self.max_distance_m,
                     )
                     self._log("Walking distances measured along the street network.")
-                plan, metrics = grid.select_plan(
+                plan, metrics, pre_plan = grid.select_plan(
                     states,
                     self.granularity_m,
                     self.min_green_span,
@@ -331,6 +332,8 @@ class IsobenefitTask(QgsTask):
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
                 )
+                if pre_plan is not None:  # the chosen run BEFORE post-processing (raw CA), for comparison
+                    gis_io.write_plan_raster(self.pre_path, pre_plan, geotransform, self.target_crs)
                 if plan is not None:
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                 if metrics:
@@ -365,7 +368,7 @@ class IsobenefitTask(QgsTask):
                         )
                 self._log(
                     f"Ensemble finished in {time.time() - t_zero:.0f}s; "
-                    f"wrote likelihood + recommended plan: {self.out_path}"
+                    f"wrote likelihood + raw (pre) + recommended (post) plans: {self.out_path}"
                 )
                 return True
 
@@ -430,13 +433,24 @@ class IsobenefitTask(QgsTask):
                 gis_io.apply_probability_style(lyr, band, gis_io.PROB_RAMPS[label])
                 QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                 group.addLayer(lyr)
-            plan_layer = QgsRasterLayer(self.plan_path, f"{self.out_file_name} — recommended plan", "gdal")
+            # raw plan (pre-processing) then the recommended plan (post) — inserted top so the
+            # pre/post pair sits above the likelihood bands for easy before/after comparison
+            pre_layer = QgsRasterLayer(self.pre_path, f"{self.out_file_name} — raw plan (pre)", "gdal")
+            if pre_layer.isValid():
+                pre_layer.setCrs(self.target_crs)
+                gis_io.apply_plan_style(pre_layer)
+                QgsProject.instance().addMapLayer(pre_layer, addToLegend=False)
+                group.insertLayer(0, pre_layer)
+            plan_layer = QgsRasterLayer(self.plan_path, f"{self.out_file_name} — recommended plan (post)", "gdal")
             if plan_layer.isValid():
                 plan_layer.setCrs(self.target_crs)
                 gis_io.apply_plan_style(plan_layer)
                 QgsProject.instance().addMapLayer(plan_layer, addToLegend=False)
                 group.insertLayer(0, plan_layer)
-            self._log(f"Loaded likelihood + recommended plan for '{self.out_file_name}'.", notify=True)
+            self._log(
+                f"Loaded likelihood + raw (pre) and recommended (post) plans for '{self.out_file_name}'.",
+                notify=True,
+            )
             return
 
         layer = QgsRasterLayer(self.out_path, self.out_file_name, "gdal")
