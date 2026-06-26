@@ -129,7 +129,7 @@ class IsobenefitTask(QgsTask):
         audit — so there is a durable account of exactly what was done and how each option scored."""
         from datetime import datetime
 
-        dispersal = {0.0: "Off", 0.005: "Low", 0.02: "Medium", 0.05: "High"}.get(
+        dispersal = {0.0: "Off", 0.01: "Moderate", 0.04: "Aggressive"}.get(
             round(self.cent_prob_isol, 4), f"{self.cent_prob_isol:g}"
         )
         cwalk = self.centre_distance_m or self.max_distance_m
@@ -184,7 +184,7 @@ class IsobenefitTask(QgsTask):
             s = audit["summary"]
             lines += [
                 "",
-                "CENTRE AUDIT (balanced option)",
+                "CENTRE AUDIT (moderate option)",
                 "-" * 30,
                 f"  {s['n_centres']} centres ({s['n_existing']} existing, {s['n_new']} new); each serves a "
                 f"median of {s['served_median']} built cells (min {s['served_min']}, max {s['served_max']}).",
@@ -460,6 +460,14 @@ class IsobenefitTask(QgsTask):
                             f"{vm['centre_access']:.0f} m, green {vm['green_access']:.0f} m"
                         )
                     plan, metrics = variants["moderate"]  # headline metrics + audit use the moderate option
+                    if pre_plan is not None:  # surface the gentle cleanup (raw is kept un-cleaned to compare)
+                        removed = pre_m["built_cells"] - metrics["built_cells"]
+                        min_ha = self.centre_min_settlement * self.granularity_m**2 / 1.0e4
+                        self._log(
+                            f"Building cleanup reverted {removed:,} stranded built cell(s) to green "
+                            f"(detached new settlements smaller than {min_ha:.1f} ha); the raw plan is kept "
+                            f"un-cleaned so you can see exactly what the cleanup changed."
+                        )
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.plan_path, "recommended plan"))

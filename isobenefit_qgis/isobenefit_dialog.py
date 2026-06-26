@@ -129,14 +129,17 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.optimise_centres_check.setChecked(True)
         self.optimise_centres_check.setToolTip(
             "On: re-position centres central to their development, add centres where new development is "
-            "under-served, remove redundant ones, and save consolidated/balanced/dispersed options.\n"
+            "under-served, remove redundant ones, and save spread / moderately clustered / clustered "
+            "centre options.\n"
             "Off: keep the centres exactly where the simulation grew them (a single plan)."
         )
         pp.addRow(self.optimise_centres_check)
-        self.min_settlement = QtWidgets.QLineEdit("25", self)
+        self.min_settlement = QtWidgets.QLineEdit("2", self)
         self.min_settlement.setToolTip(
-            "Smallest viable new settlement, as an AREA in hectares (25 ha ≈ a 500×500 m block). A "
-            "smaller detached cluster with no centre is pruned as a failed satellite (reverts to green)."
+            "A gentle cleanup: a detached NEW cluster smaller than this AREA (in hectares; 2 ha ≈ a "
+            "140×140 m block) is treated as a stranded speck, not real development, and reverts to green. "
+            "Keep it small so only genuine specks go — real satellites should survive. The raw plan "
+            "(before this cleanup) is always saved too, so you can see exactly what was removed."
         )
         pp.addRow("Min settlement area (ha)", self.min_settlement)
         self.min_green_span = QtWidgets.QLineEdit("400", self)
