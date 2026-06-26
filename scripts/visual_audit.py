@@ -10,7 +10,7 @@ Two tracks:
 
   POST-PROCESS (pure grid.py — what optimise_plan/evaluate_plan enforce on a given development):
     01  centre optimisation        OFF (CA seeds) vs ON (re-centred + grown to areas)
-    02  centre clustering          spread -> moderate -> clustered (larger spacing clusters centres)
+    02  centre clustering          moderate (1.5x) vs tight (2.5x) — the two options the run saves
     03  centre area                small vs large (area grows with the catchment)
     04  minimum settlement size    low vs high (a failed satellite's centre is culled)
     05  centre walk distance       short vs long
@@ -247,15 +247,19 @@ def s01_centre_optimisation():
 
 
 def s02_centre_clustering():
+    # the two options the run actually saves (alongside the raw): moderate (1.5x walk) vs tight (2.5x walk),
+    # at the real default 400 m centre walk. Same buildings; only the centres differ. A larger spacing
+    # clusters harder (fewer, larger, more central). NB much larger multiples would saturate — once the
+    # town only needs N centres to be covered within the spacing, bigger spacings all give the same N.
+    cw = 400.0
     plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True)
+    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_distance_m=cw)
     figure(
         "02_centre_clustering",
-        "Centre clustering — same buildings, larger spacing clusters centres: fewer, larger, more central",
+        "Centre clustering options — same buildings, fewer & larger centres as spacing grows (coverage trades off)",
         [
-            P(_opt(plan, centre_spacing_m=800, **common), "spread (coverage-minimal, spacing = walk)"),
-            P(_opt(plan, centre_spacing_m=1200, **common), "moderately clustered (1.5x walk)"),
-            P(_opt(plan, centre_spacing_m=2000, **common), "clustered (2.5x walk)"),
+            P(_opt(plan, centre_spacing_m=1.5 * cw, **common), "moderately clustered (1.5x walk)", cdist=cw),
+            P(_opt(plan, centre_spacing_m=2.5 * cw, **common), "tightly clustered (2.5x walk)", cdist=cw),
         ],
     )
 

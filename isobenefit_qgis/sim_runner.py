@@ -391,11 +391,15 @@ class IsobenefitTask(QgsTask):
                     )
                     self._log("Walking distances measured along the street network.")
                 centre_walk = self.centre_distance_m or self.max_distance_m
-                # Three centre-clustering options (centre spacing in metres) that share the SAME built
-                # fabric and differ ONLY in where the centres sit — the user compares + picks one. A larger
-                # spacing clusters harder: fewer, larger, more central centres (some homes end up beyond a
-                # walk of one). The raw plan (before post-processing) is saved separately for comparison.
-                spacings = {"spread": None, "moderate": 1.5 * centre_walk, "clustered": 2.5 * centre_walk}
+                # TWO centre-clustering options (centre spacing in metres) that share the SAME built fabric
+                # and differ ONLY in where the centres sit — the user compares + picks one, against the raw
+                # plan saved separately. 1.5x = moderate, 2.5x = tight: a deliberately distinct pair that
+                # stays separated across town sizes (much larger multiples saturate — once a town only needs
+                # N centres to be covered within the spacing, bigger spacings all give the same N). A larger
+                # spacing clusters harder: fewer, larger, more central centres (coverage drops as some homes
+                # end up beyond a walk of one). NB the raw is already ~coverage density, so we don't also
+                # offer a near-1x "spread" option — it would just look like the raw.
+                spacings = {"moderate": 1.5 * centre_walk, "tight": 2.5 * centre_walk}
                 plan, metrics, pre_plan, best_state = grid.select_plan(
                     states,
                     self.granularity_m,
@@ -445,11 +449,10 @@ class IsobenefitTask(QgsTask):
                         centre_min_settlement=self.centre_min_settlement,
                     )
                     labels = {
-                        "spread": "spread centres",
                         "moderate": "moderately clustered centres",
-                        "clustered": "clustered centres",
+                        "tight": "tightly clustered centres",
                     }
-                    for key in ("spread", "moderate", "clustered"):
+                    for key in ("moderate", "tight"):
                         vplan, vm = variants[key]
                         vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}.tif"))
                         gis_io.write_plan_raster(vpath, vplan, geotransform, self.target_crs)
