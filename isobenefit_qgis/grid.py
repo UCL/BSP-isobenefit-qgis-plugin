@@ -145,6 +145,46 @@ def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
     return y, x
 
 
+def _interior_point(region: np.ndarray):
+    """The cell most INTERIOR to a bool region — the one farthest (8-connected) from any non-region
+    cell, i.e. its "pole of inaccessibility". It is always inside the region, and naturally lands in
+    the THICKEST contiguous part (a thin arm or a detached speck has a small interior distance), so a
+    centre placed here sits deep inside its built catchment rather than on an edge or across a gap —
+    which the plain centroid does NOT guarantee on an L-shape, a ring, or a multi-blob catchment.
+    Cropped to the region's bounding box (+1 margin of "outside") to stay cheap. Returns (row, col) or
+    None for an empty region; ties resolve to the first in row-major order (deterministic).
+    """
+    region = np.asarray(region, dtype=bool)
+    ys, xs = np.nonzero(region)
+    if len(ys) == 0:
+        return None
+    y0, x0 = int(ys.min()), int(xs.min())
+    sub = region[y0 : int(ys.max()) + 1, x0 : int(xs.max()) + 1]
+    cur = np.zeros((sub.shape[0] + 2, sub.shape[1] + 2), dtype=bool)
+    cur[1:-1, 1:-1] = sub  # 1-cell False border = "outside", so erosion shrinks inward correctly
+    # Chebyshev distance-to-edge by iterative 8-connected erosion: each pass peels one rim, and a cell's
+    # depth is how many passes it survives. The deepest surviving cell is the pole of inaccessibility.
+    dist = cur.astype(np.int32)
+    work = cur
+    while True:
+        nb = np.ones_like(work)  # nb[i,j] := AND of the 8 neighbours of (i,j) in `work`
+        nb[1:, :] &= work[:-1, :]
+        nb[:-1, :] &= work[1:, :]
+        nb[:, 1:] &= work[:, :-1]
+        nb[:, :-1] &= work[:, 1:]
+        nb[1:, 1:] &= work[:-1, :-1]
+        nb[:-1, :-1] &= work[1:, 1:]
+        nb[1:, :-1] &= work[:-1, 1:]
+        nb[:-1, 1:] &= work[1:, :-1]
+        work = work & nb  # survives erosion iff itself and all 8 neighbours were set
+        if not work.any():
+            break
+        dist += work
+    idx = int(np.argmax(dist))
+    py, px = divmod(idx, cur.shape[1])
+    return (y0 - 1 + py, x0 - 1 + px)
+
+
 def _disk(r: int) -> np.ndarray:
     yy, xx = np.ogrid[-r : r + 1, -r : r + 1]
     return (yy * yy + xx * xx) <= r * r  # circular walk catchment
@@ -230,9 +270,10 @@ def _refine_centres(
     fixed_col = fixed_field[new_built]
     fixed_reach = fixed_field <= spacing
 
-    def lloyd(centres):  # re-position each new centre central to the NEW homes WITHIN A WALK of it
+    def lloyd(centres):  # re-position each new centre to the INTERIOR of the NEW homes it serves
         if not centres:
             return centres
+        member_mask = np.zeros((rows, cols), dtype=bool)
         for _ in range(8):
             # column 0 = nearest fixed centre; columns 1.. = each new centre (single-source, cached)
             stack = np.column_stack([fixed_col] + [walk(onehot([c]))[new_built] for c in centres])
@@ -243,9 +284,19 @@ def _refine_centres(
                 members = (nearest == 1 + j) & within
                 if not members.any():
                     continue
-                ny, nx = _nearest_built(new_built, round(hy[members].mean()), round(hx[members].mean()))
-                if (ny, nx) != centres[j]:
-                    centres[j] = (ny, nx)
+                cy = int(round(hy[members].mean()))
+                cx = int(round(hx[members].mean()))
+                if 0 <= cy < rows and 0 <= cx < cols and new_built[cy, cx]:
+                    pt = (cy, cx)  # centroid is on built: keep it — even spread, so coverage holds
+                else:
+                    # the centroid fell OFF the development (a concave / ring / multi-blob catchment, where
+                    # _nearest_built would snap it onto an edge): place at the catchment's deepest INTERIOR
+                    # instead, so the centre lands on built and central to it rather than on a rim or in a gap
+                    member_mask.fill(False)
+                    member_mask[hy[members], hx[members]] = True
+                    pt = _interior_point(member_mask) or _nearest_built(new_built, cy, cx)
+                if pt != centres[j]:
+                    centres[j] = pt
                     moved = True
             if not moved:
                 break

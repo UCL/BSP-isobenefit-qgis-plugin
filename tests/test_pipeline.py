@@ -278,6 +278,37 @@ def test_refine_centres_adds_when_underserved():
     assert np.isfinite(_walk_distance(cmask, 100.0, 800.0)[built]).mean() > 0.8  # most homes served
 
 
+def test_interior_point():
+    from isobenefit_qgis.grid import _interior_point
+
+    assert _interior_point(np.zeros((5, 5), bool)) is None
+    sq = np.zeros((9, 9), bool)
+    sq[1:8, 1:8] = True
+    assert _interior_point(sq) == (4, 4)  # dead centre of a solid square
+    ll = np.zeros((9, 9), bool)  # an L-shape: the interior point must be ON the L, not in the notch
+    ll[1:8, 1:3] = True
+    ll[5:8, 1:8] = True
+    y, x = _interior_point(ll)
+    assert ll[y, x]
+
+
+def test_refine_centres_concave_catchment_centres_on_built_interior():
+    # A ring (hollow square) of built: the catchment centroid lands in the HOLE (off built), where the
+    # old centroid+nearest-built would snap the centre onto the inner RIM. The fix places it at the
+    # catchment's interior instead — on built, deep in the band, not on a rim or in the gap.
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 60
+    built = np.zeros((g, g), bool)
+    built[10:50, 10:50] = True
+    built[24:36, 24:36] = False  # hollow centre -> a ring; its centroid is in the hole
+    out = _refine_centres([(30, 30)], [], built, built, 100.0, 4000.0)  # one big catchment = the whole ring
+    assert out
+    for y, x in out:
+        assert built[y, x]  # on built
+        assert built[y - 1 : y + 2, x - 1 : x + 2].all()  # interior of the band, not snapped to the rim
+
+
 def test_optimise_plan_centre_optimisation_optional():
     # The centre optimisation is a toggle: off keeps the CA's grown centres exactly where they
     # are; on re-positions them central to their development.

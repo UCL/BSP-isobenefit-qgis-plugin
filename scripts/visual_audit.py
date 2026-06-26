@@ -14,6 +14,7 @@ Two tracks:
     03  centre area                small vs large (area grows with the catchment)
     04  minimum settlement size    low vs high (a failed satellite's centre is culled)
     05  centre walk distance       short vs long
+    06  centre centering           concave/irregular built: centre sits at the interior, not a rim/gap
     09  station anchoring          off vs on (a rail/tram stop pins a centre)
     10  network routing            open-grid vs street-network (a barrier to detour)
     11  frozen existing fabric     existing built/centres kept; new development added around them
@@ -305,6 +306,29 @@ def s05_centre_walk():
     )
 
 
+def s06_centre_centering():
+    # Irregular / concave developments, where a plain catchment CENTROID lands in a gap or on a rim:
+    # the centre is instead placed at the catchment's deepest INTERIOR, so it sits ON built and central
+    # to the development it anchors. (On a solid convex block the centroid is already central, so this
+    # only changes the awkward shapes — exactly the ones the CA's dispersed growth produces.)
+    ell = empty()
+    block(ell, 30, 92, 30, 50)  # vertical arm
+    block(ell, 72, 92, 30, 92)  # horizontal arm -> an L; the union's centroid sits off built, in the notch
+    ring = empty()
+    block(ring, 24, 96, 24, 96)  # a solid block...
+    block(ring, 46, 74, 46, 74, code=PLAN_NONE)  # ...hollowed out -> a ring; its centroid is in the hole
+    figure(
+        "06_centre_centering",
+        "Centre centering on concave built: placed at the catchment interior (on built), not in a gap or on a rim",
+        [
+            P(_opt(ell, ca_centres=[(82, 40)], optimise_centres=True, centre_distance_m=1200),
+              "L-shaped development (1200 m walk)", cdist=1200),
+            P(_opt(ring, ca_centres=[(60, 60)], optimise_centres=True, centre_distance_m=1200),
+              "ring (hollow centre, 1200 m walk)", cdist=1200),
+        ],
+    )
+
+
 def s09_station_anchor():
     # a larger area fraction (few, sizable centres) so the station's grown
     # centre is clearly visible rather than lost among many small spread-out ones
@@ -382,7 +406,7 @@ def s15_island_cleanup():
 
 POST_PROCESS = [
     s01_centre_optimisation, s02_centre_clustering, s03_centre_area, s04_min_settlement,
-    s05_centre_walk,
+    s05_centre_walk, s06_centre_centering,
     s09_station_anchor, s10_network_routing, s11_frozen_existing,
     s15_island_cleanup,
 ]
