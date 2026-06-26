@@ -391,10 +391,11 @@ class IsobenefitTask(QgsTask):
                     )
                     self._log("Walking distances measured along the street network.")
                 centre_walk = self.centre_distance_m or self.max_distance_m
-                # Two centre-CONSOLIDATION options (centre spacing in metres) the user compares + picks,
-                # alongside the original (as-grown) plan = three total. A larger spacing consolidates
-                # harder: fewer, larger, more central centres (some homes end up beyond a walk of one).
-                spacings = {"moderate": 1.5 * centre_walk, "aggressive": 2.5 * centre_walk}
+                # Three centre-clustering options (centre spacing in metres) that share the SAME built
+                # fabric and differ ONLY in where the centres sit — the user compares + picks one. A larger
+                # spacing clusters harder: fewer, larger, more central centres (some homes end up beyond a
+                # walk of one). The raw plan (before post-processing) is saved separately for comparison.
+                spacings = {"spread": None, "moderate": 1.5 * centre_walk, "clustered": 2.5 * centre_walk}
                 plan, metrics, pre_plan, best_state = grid.select_plan(
                     states,
                     self.granularity_m,
@@ -426,16 +427,16 @@ class IsobenefitTask(QgsTask):
                     existing_plan[state == -1] = grid.PLAN_NONE  # unbuildable stays empty, never green
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
-                if pre_plan is not None:  # the chosen run BEFORE post-processing (the original, as grown)
+                if pre_plan is not None:  # the chosen run BEFORE post-processing — saved for comparison
                     gis_io.write_plan_raster(self.pre_path, pre_plan, geotransform, self.target_crs)
-                    self._plan_outputs.append((self.pre_path, "original (as grown)"))
+                    self._plan_outputs.append((self.pre_path, "raw (before post-processing)"))
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
                         router=router, centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                     )
-                    report_stats.append(("original (as grown)", pre_m, self._count_centres(pre_plan)))
+                    report_stats.append(("raw (before post-processing)", pre_m, self._count_centres(pre_plan)))
                 if self.optimise_centres and best_state is not None:
-                    self._log("Post-processing the chosen run at each centre-consolidation option…")
+                    self._log("Post-processing the chosen run at each centre-clustering option…")
                     variants = grid.plan_variants(
                         best_state, self.granularity_m, self.min_green_span, self.max_distance_m, spacings,
                         existing_centres=seeds, existing_built=(origin == 1), existing_green=(origin == 0),
@@ -443,8 +444,12 @@ class IsobenefitTask(QgsTask):
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         centre_min_settlement=self.centre_min_settlement,
                     )
-                    labels = {"moderate": "moderate consolidation", "aggressive": "aggressive consolidation"}
-                    for key in ("moderate", "aggressive"):
+                    labels = {
+                        "spread": "spread centres",
+                        "moderate": "moderately clustered centres",
+                        "clustered": "clustered centres",
+                    }
+                    for key in ("spread", "moderate", "clustered"):
                         vplan, vm = variants[key]
                         vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}.tif"))
                         gis_io.write_plan_raster(vpath, vplan, geotransform, self.target_crs)

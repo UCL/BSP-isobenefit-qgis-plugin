@@ -3,14 +3,14 @@
 Runs the PURE pipeline (``isobenefit_qgis.grid`` + the pure parts of ``isobenefit_qgis.routing``)
 on a LARGE synthetic substrate and renders side-by-side panels, so every planning lever can be
 eyeballed and kept as an audit trail. The substrate is deliberately big (a 6 km square at 50 m
-cells) so the effect of fiddling a parameter — consolidated vs dispersed centres, short vs long
+cells) so the effect of fiddling a parameter — spread vs clustered centres, short vs long
 walks, more vs less green — is visible at a glance.
 
 Two tracks:
 
   POST-PROCESS (pure grid.py — what optimise_plan/evaluate_plan enforce on a given development):
     01  centre optimisation        OFF (CA seeds) vs ON (re-centred + grown to areas)
-    02  centre consolidation       original -> moderate -> aggressive (larger spacing clumps centres)
+    02  centre clustering          spread -> moderate -> clustered (larger spacing clusters centres)
     03  centre area                small vs large (area grows with the catchment)
     04  minimum settlement size    low vs high (a failed satellite's centre is culled)
     05  centre walk distance       short vs long
@@ -23,7 +23,7 @@ Two tracks:
   green = the simulation's green; there are no green-carve scenarios.)
 
   CA GROWTH (runs the isobenefit engine — what the cellular automaton itself does):
-    13  dispersed development      isolated-seeding Off / Low / Med / High (satellite formation)
+    13  dispersed development      isolated-seeding Off / Moderate / Aggressive (satellite formation)
     14  build probability          slow vs fast growth
 
 Run (post-process track only — pure numpy, no engine/QGIS needed):
@@ -246,16 +246,16 @@ def s01_centre_optimisation():
     )
 
 
-def s02_centre_consolidation():
+def s02_centre_clustering():
     plan = block(empty(), *TOWN)
     common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True)
     figure(
-        "02_centre_consolidation",
-        "Centre consolidation — a larger spacing clumps centres: fewer, larger, more central (some homes farther)",
+        "02_centre_clustering",
+        "Centre clustering — same buildings, larger spacing clusters centres: fewer, larger, more central",
         [
-            P(_opt(plan, centre_spacing_m=800, **common), "original (coverage-minimal, spacing = walk)"),
-            P(_opt(plan, centre_spacing_m=1200, **common), "moderate consolidation (1.5x walk)"),
-            P(_opt(plan, centre_spacing_m=2000, **common), "aggressive consolidation (2.5x walk)"),
+            P(_opt(plan, centre_spacing_m=800, **common), "spread (coverage-minimal, spacing = walk)"),
+            P(_opt(plan, centre_spacing_m=1200, **common), "moderately clustered (1.5x walk)"),
+            P(_opt(plan, centre_spacing_m=2000, **common), "clustered (2.5x walk)"),
         ],
     )
 
@@ -302,8 +302,8 @@ def s05_centre_walk():
 
 
 def s09_station_anchor():
-    # consolidated spacing + a larger area fraction (few, sizable centres) so the station's grown
-    # centre is clearly visible rather than lost among many small dispersed ones
+    # a larger area fraction (few, sizable centres) so the station's grown
+    # centre is clearly visible rather than lost among many small spread-out ones
     plan = block(empty(), *TOWN)
     common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_area_frac=0.16)
     figure(
@@ -377,7 +377,7 @@ def s15_island_cleanup():
 
 
 POST_PROCESS = [
-    s01_centre_optimisation, s02_centre_consolidation, s03_centre_area, s04_min_settlement,
+    s01_centre_optimisation, s02_centre_clustering, s03_centre_area, s04_min_settlement,
     s05_centre_walk,
     s09_station_anchor, s10_network_routing, s11_frozen_existing,
     s15_island_cleanup,
