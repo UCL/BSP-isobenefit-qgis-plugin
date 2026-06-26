@@ -454,13 +454,16 @@ class IsobenefitTask(QgsTask):
                     }
                     for key in ("moderate", "tight"):
                         vplan, vm = variants[key]
+                        ncent = self._count_centres(vplan)
                         vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}.tif"))
                         gis_io.write_plan_raster(vpath, vplan, geotransform, self.target_crs)
-                        self._plan_outputs.append((vpath, labels[key]))
-                        report_stats.append((labels[key], vm, self._count_centres(vplan)))
+                        # put the centre COUNT in the layer name so the difference between the options is
+                        # obvious in the QGIS layer panel itself, not only by eyeballing the map
+                        self._plan_outputs.append((vpath, f"{labels[key]} ({ncent} centres)"))
+                        report_stats.append((labels[key], vm, ncent))
                         self._log(  # per-option metrics so the choice is informed, not just visual
-                            f"  {labels[key]}: {vm['served_coverage']:.0%} served, centre walk "
-                            f"{vm['centre_access']:.0f} m, green {vm['green_access']:.0f} m"
+                            f"  {labels[key]}: {ncent} centres, {vm['served_coverage']:.0%} served, "
+                            f"centre walk {vm['centre_access']:.0f} m, green {vm['green_access']:.0f} m"
                         )
                     plan, metrics = variants["moderate"]  # headline metrics + audit use the moderate option
                     if pre_plan is not None:  # surface the gentle cleanup (raw is kept un-cleaned to compare)

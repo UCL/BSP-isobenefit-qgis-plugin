@@ -15,6 +15,7 @@ Two tracks:
     04  minimum settlement size    low vs high (a failed satellite's centre is culled)
     05  centre walk distance       short vs long
     06  centre centering           concave/irregular built: centre sits at the interior, not a rim/gap
+    07  clustering on dispersed    moderate vs tight on scattered blobs (small blobs can't cluster)
     09  station anchoring          off vs on (a rail/tram stop pins a centre)
     10  network routing            open-grid vs street-network (a barrier to detour)
     11  frozen existing fabric     existing built/centres kept; new development added around them
@@ -329,6 +330,36 @@ def s06_centre_centering():
     )
 
 
+def s07_clustering_on_dispersed():
+    # The clustering options on a FRAGMENTED development (scattered blobs of different sizes — what
+    # dispersed CA growth actually produces), at the real 400 m walk. Clustering only thins centres
+    # WITHIN a blob big enough to hold several; a small blob keeps its one centre at either setting
+    # (nothing to cluster there). This is why moderate vs tight differ a lot on a big contiguous town
+    # but barely on a finely-dispersed one. Centres still sit at each blob's interior, on built.
+    plan = empty()
+    seeds = []
+    for r, c, h, w in [
+        (16, 16, 40, 40),  # large blob (holds several centres)
+        (20, 78, 30, 34),  # large blob
+        (74, 24, 28, 46),  # large blob
+        (86, 86, 18, 20),  # medium
+        (58, 60, 12, 12),  # small (one centre regardless)
+        (40, 52, 10, 10),  # small
+        (102, 64, 12, 24),  # medium strip
+    ]:
+        block(plan, r, r + h, c, c + w)
+        seeds.append((r + h // 2, c + w // 2))
+    common = dict(ca_centres=seeds, optimise_centres=True, centre_distance_m=400)
+    figure(
+        "07_clustering_on_dispersed",
+        "Clustering on a fragmented development: thins centres only within blobs big enough to hold several",
+        [
+            P(_opt(plan, centre_spacing_m=1.5 * 400, **common), "moderately clustered (1.5x walk)", cdist=400),
+            P(_opt(plan, centre_spacing_m=2.5 * 400, **common), "tightly clustered (2.5x walk)", cdist=400),
+        ],
+    )
+
+
 def s09_station_anchor():
     # a larger area fraction (few, sizable centres) so the station's grown
     # centre is clearly visible rather than lost among many small spread-out ones
@@ -406,7 +437,7 @@ def s15_island_cleanup():
 
 POST_PROCESS = [
     s01_centre_optimisation, s02_centre_clustering, s03_centre_area, s04_min_settlement,
-    s05_centre_walk, s06_centre_centering,
+    s05_centre_walk, s06_centre_centering, s07_clustering_on_dispersed,
     s09_station_anchor, s10_network_routing, s11_frozen_existing,
     s15_island_cleanup,
 ]
