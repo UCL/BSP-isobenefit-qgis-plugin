@@ -282,11 +282,17 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
     def reset_state(self) -> None:
         """ """
+        if not hasattr(self, "button_box"):  # a widget signal can fire before __init__ builds the buttons
+            return
         self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(True)
 
     def refresh_state(self) -> None:
         """Enable Run only when every requirement is met, and spell out what is still missing so a
         greyed-out button is never a mystery."""
+        # The CRS widget emits crsChanged mid-__init__ (see note at its creation), which reaches here
+        # before the buttons exist. Skip until the dialog is fully built — show() re-validates anyway.
+        if not hasattr(self, "button_box"):
+            return
         missing = []
         if self.extents_layer is None:
             missing.append("an extents layer")
