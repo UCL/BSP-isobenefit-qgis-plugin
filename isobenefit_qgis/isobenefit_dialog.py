@@ -39,82 +39,99 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.setupUi()
 
     def setupUi(self):
-        """ """
+        """Grouped form layout: each section is a QGroupBox with a QFormLayout (label/field rows that
+        fit the width, so there is no horizontal scrollbar); the OK/Cancel buttons stay pinned below
+        the scroll area so they are always reachable."""
         self.setObjectName("IsobenefitDialog")
         self.setWindowTitle("Isobenefit Urbanism")
-        # main layout
+        self.resize(580, 800)
+
         main_layout = QtWidgets.QVBoxLayout(self)
-        self.resize(550, 700)
-        # scroll
+        # Scrollable content — VERTICAL only. Horizontal scrolling is disabled and the form fields
+        # grow to the viewport width, so wide combos elide instead of forcing a horizontal bar.
         self.scroll = QtWidgets.QScrollArea(self)
         self.scroll.setWidgetResizable(True)
-        # add to main layout
+        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
         main_layout.addWidget(self.scroll)
-        # wrap grid layout inside a generic widget (scroll doesn't accept grid layout directly)
         self.content = QtWidgets.QWidget()
         self.scroll.setWidget(self.content)
-        # grid layout
-        self.grid = QtWidgets.QGridLayout(self.content)
-        # heading
-        self.model_mode_label = QtWidgets.QLabel("Simulator parameters", self)
-        self.grid.addWidget(self.model_mode_label, 0, 0, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        content_layout = QtWidgets.QVBoxLayout(self.content)
+        content_layout.setSpacing(10)
 
-        # left column container
-        self.left_col = QtWidgets.QGridLayout(self)
-        self.grid.addLayout(self.left_col, 1, 0)
-        # iterations
-        self.n_iterations_label = QtWidgets.QLabel("Max iterations", self)
-        self.left_col.addWidget(self.n_iterations_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        def _group(title: str) -> QtWidgets.QFormLayout:
+            box = QtWidgets.QGroupBox(title, self)
+            form = QtWidgets.QFormLayout(box)
+            form.setLabelAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+            form.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
+            content_layout.addWidget(box)
+            return form
+
+        def _layer_combo(layer_filter) -> QgsMapLayerComboBox:
+            box = QgsMapLayerComboBox(self)
+            box.setAllowEmptyLayer(True)
+            box.setCurrentIndex(0)  # type: ignore
+            box.setFilters(layer_filter)
+            box.setShowCrs(True)
+            box.setMinimumWidth(160)
+            return box
+
+        # --- Simulation ---------------------------------------------------------------
+        sim = _group("Simulation")
         self.n_iterations = QtWidgets.QLineEdit("100", self)
-        self.left_col.addWidget(self.n_iterations, 0, 1)
-        # grid size
-        self.grid_size_m_label = QtWidgets.QLabel("Grid size in metres", self)
-        self.left_col.addWidget(self.grid_size_m_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.n_iterations.setToolTip("Max growth steps; a run stops early once it hits the target population.")
+        sim.addRow("Max iterations", self.n_iterations)
         self.grid_size_m = QtWidgets.QLineEdit("50", self)
-        self.left_col.addWidget(self.grid_size_m, 1, 1)
-        # centre walk: how far people will walk to a centre (recommended plan). The CA grows using the
-        # LARGER of the two walks; the plan then judges centre vs green coverage against their own walk.
-        self.centre_walk_label = QtWidgets.QLabel("Centre walk (m)", self)
-        self.left_col.addWidget(self.centre_walk_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.centre_walk_dist = QtWidgets.QLineEdit("800", self)
-        self.left_col.addWidget(self.centre_walk_dist, 2, 1)
-        # green walk: how far people will walk to a park (recommended plan)
-        self.green_walk_label = QtWidgets.QLabel("Green walk (m)", self)
-        self.left_col.addWidget(self.green_walk_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.green_walk_dist = QtWidgets.QLineEdit("800", self)
-        self.left_col.addWidget(self.green_walk_dist, 3, 1)
-        # max population
-        self.max_populat_label = QtWidgets.QLabel("Target population", self)
-        self.left_col.addWidget(self.max_populat_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        sim.addRow("Grid size (m)", self.grid_size_m)
         self.max_populat = QtWidgets.QLineEdit("100000", self)
-        self.left_col.addWidget(self.max_populat, 4, 1)
-        # min green km2
-        self.min_green_span_label = QtWidgets.QLabel("Min green span (m)", self)
-        self.left_col.addWidget(self.min_green_span_label, 5, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        sim.addRow("Target population", self.max_populat)
+        self.build_prob = QtWidgets.QLineEdit("0.25", self)
+        self.build_prob.setToolTip("Per-step probability that an eligible cell develops (the growth rate).")
+        sim.addRow("Build probability", self.build_prob)
+        self.random_seed = QtWidgets.QLineEdit("42", self)
+        sim.addRow("Random seed", self.random_seed)
+
+        # --- Walkable access ----------------------------------------------------------
+        acc = _group("Walkable access")
+        self.centre_walk_dist = QtWidgets.QLineEdit("800", self)
+        self.centre_walk_dist.setToolTip("How far people walk to a centre (the CA grows by the larger walk).")
+        acc.addRow("Centre walk (m)", self.centre_walk_dist)
+        self.green_walk_dist = QtWidgets.QLineEdit("800", self)
+        self.green_walk_dist.setToolTip("How far people will walk to a park.")
+        acc.addRow("Green walk (m)", self.green_walk_dist)
         self.min_green_span = QtWidgets.QLineEdit("800", self)
-        self.left_col.addWidget(self.min_green_span, 5, 1)
-        # ensemble likelihood map (on) vs a single growth animation (off)
-        self.ensemble_check = QtWidgets.QCheckBox("Development likelihood (blend many runs)", self)
-        self.ensemble_check.setChecked(True)
-        self.ensemble_check.setToolTip(
-            "On: blend many simulations into a probability-of-development map.\n"
-            "Off: a single growth animation over time."
+        self.min_green_span.setToolTip("A green patch must span at least this distance to count as a usable park.")
+        acc.addRow("Min green span (m)", self.min_green_span)
+
+        # --- Growth & centres ---------------------------------------------------------
+        gc = _group("Growth && centres")
+        self.dispersal_mode = QtWidgets.QComboBox(self)
+        self.dispersal_mode.addItem("Off (compact)", 0.0)
+        self.dispersal_mode.addItem("Low", 0.005)
+        self.dispersal_mode.addItem("Medium", 0.02)
+        self.dispersal_mode.addItem("High", 0.05)
+        self.dispersal_mode.setCurrentIndex(2)  # Medium by default
+        self.dispersal_mode.setToolTip(
+            "How readily new settlements form away from existing development (satellite/leapfrog growth).\n"
+            "Off: one compact, contiguous town. Higher: increasingly polycentric."
         )
-        self.left_col.addWidget(self.ensemble_check, 6, 0, 1, 2)
-        # detail = how many simulations to blend (precision vs time; noise ~ 1/sqrt(runs))
-        self.detail_label = QtWidgets.QLabel("Detail", self)
-        self.left_col.addWidget(self.detail_label, 7, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.detail_mode = QtWidgets.QComboBox(self)
-        # Each run is optimised (the network graph is solved once and reused), so more runs cost
-        # more time but a moderate ensemble already surfaces a good layout.
-        self.detail_mode.addItem("Quick (10 runs)", 10)
-        self.detail_mode.addItem("Standard (50 runs)", 50)
-        self.detail_mode.addItem("Thorough (100 runs)", 100)
-        self.detail_mode.setCurrentIndex(1)
-        self.left_col.addWidget(self.detail_mode, 7, 1)
-        self.ensemble_check.toggled.connect(self.detail_mode.setEnabled)
-        # recommended plan: optimise the simulation's grown centres (re-position, add where
-        # under-served, cull redundant) vs keep them exactly as the simulation grew them
+        gc.addRow("Dispersed development", self.dispersal_mode)
+        self.centre_pattern_mode = QtWidgets.QComboBox(self)
+        self.centre_pattern_mode.addItem("Consolidated", 1.0)
+        self.centre_pattern_mode.addItem("Balanced", 0.7)
+        self.centre_pattern_mode.addItem("Dispersed", 0.45)
+        self.centre_pattern_mode.setCurrentIndex(1)  # Balanced by default
+        self.centre_pattern_mode.setToolTip(
+            "Consolidated: the fewest, largest centres that still keep everyone within a walk.\n"
+            "Dispersed: more, smaller, closer centres."
+        )
+        gc.addRow("Centre pattern", self.centre_pattern_mode)
+        self.min_settlement = QtWidgets.QLineEdit("3", self)
+        self.min_settlement.setToolTip(
+            "A detached new settlement smaller than this many cells (with no centre) is pruned as a "
+            "failed satellite; its land reverts to green."
+        )
+        gc.addRow("Min settlement (cells)", self.min_settlement)
         self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
         self.optimise_centres_check.setChecked(True)
         self.optimise_centres_check.setToolTip(
@@ -122,263 +139,99 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "centres where new development is under-served, and remove redundant ones.\n"
             "Off: keep the centres exactly where the simulation grew them."
         )
-        self.left_col.addWidget(self.optimise_centres_check, 8, 0, 1, 2)
-        self.ensemble_check.toggled.connect(self.optimise_centres_check.setEnabled)
+        gc.addRow(self.optimise_centres_check)
 
-        # right column container
-        self.right_col = QtWidgets.QGridLayout(self)
-        self.grid.addLayout(self.right_col, 1, 1)
-        # build prob
-        self.build_prob_label = QtWidgets.QLabel("Build probability", self)
-        self.right_col.addWidget(self.build_prob_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.build_prob = QtWidgets.QLineEdit("0.25", self)
-        self.right_col.addWidget(self.build_prob, 0, 1)
-        # dispersed development (CA isolated-seeding rate): Off keeps growth compact/contiguous; higher
-        # lets new settlements form away from the core (polycentric). Replaces the two opaque
-        # per-step centrality probabilities.
-        self.dispersal_label = QtWidgets.QLabel("Dispersed development", self)
-        self.right_col.addWidget(self.dispersal_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.dispersal_mode = QtWidgets.QComboBox(self)
-        self.dispersal_mode.addItem("Off (compact)", 0.0)
-        self.dispersal_mode.addItem("Low", 0.005)
-        self.dispersal_mode.addItem("Medium", 0.02)
-        self.dispersal_mode.addItem("High", 0.05)
-        self.dispersal_mode.setCurrentIndex(0)
-        self.dispersal_mode.setToolTip(
-            "How readily new settlements form away from existing development (satellite/leapfrog growth).\n"
-            "Off: one compact, contiguous town. Higher: increasingly polycentric."
-        )
-        self.right_col.addWidget(self.dispersal_mode, 1, 1)
-        # centre pattern (recommended plan): how far apart centres sit on the development
-        self.centre_pattern_label = QtWidgets.QLabel("Centre pattern", self)
-        self.right_col.addWidget(self.centre_pattern_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.centre_pattern_mode = QtWidgets.QComboBox(self)
-        self.centre_pattern_mode.addItem("Consolidated", 1.0)
-        self.centre_pattern_mode.addItem("Balanced", 0.7)
-        self.centre_pattern_mode.addItem("Dispersed", 0.45)
-        self.centre_pattern_mode.setCurrentIndex(0)
-        self.centre_pattern_mode.setToolTip(
-            "Consolidated: the fewest, largest centres that still keep everyone within a walk.\n"
-            "Dispersed: more, smaller, closer centres."
-        )
-        self.right_col.addWidget(self.centre_pattern_mode, 2, 1)
-        # minimum settlement size (cells): a detached new settlement smaller than this is a failed
-        # satellite and is pruned (its land reverts to green)
-        self.min_settlement_label = QtWidgets.QLabel("Min settlement (cells)", self)
-        self.right_col.addWidget(self.min_settlement_label, 3, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.min_settlement = QtWidgets.QLineEdit("3", self)
-        self.min_settlement.setToolTip(
-            "A detached new settlement smaller than this many cells (with no centre) is pruned as a "
-            "failed satellite; its land reverts to green."
-        )
-        self.right_col.addWidget(self.min_settlement, 3, 1)
-        # random seed
-        self.random_seed_label = QtWidgets.QLabel("Random Seed", self)
-        self.right_col.addWidget(self.random_seed_label, 4, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
-        self.random_seed = QtWidgets.QLineEdit("42", self)
-        self.right_col.addWidget(self.random_seed, 4, 1)
-
-        # spacer
-        self.grid.addItem(
-            QtWidgets.QSpacerItem(
-                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
-            ),
-            2,
-            0,
-            1,
-            2,
-        )
-
-        self.dens_block = QtWidgets.QGridLayout(self)
-        self.grid.addLayout(self.dens_block, 3, 0, 1, 2)
-        # Density RANGE (people per km²): development is spread across min..max (replacing the old
-        # low/med/high tiers + probabilities). The mean funds the population-aware green budget; the
-        # max is the densification ceiling. Far simpler to read than a 3-bin distribution.
-        self.min_density_label = QtWidgets.QLabel("Min density (per km²)", self)
-        self.dens_block.addWidget(self.min_density_label, 0, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        # --- Density ------------------------------------------------------------------
+        dens = _group("Density (people per km²)")
         self.min_density = QtWidgets.QLineEdit("1500", self)
         self.min_density.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.min_density, 0, 1)
-        self.max_density_label = QtWidgets.QLabel("Max density (per km²)", self)
-        self.dens_block.addWidget(self.max_density_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.min_density.setToolTip("Density at a catchment edge (spread across min..max, denser near centres).")
+        dens.addRow("Min density", self.min_density)
         self.max_density = QtWidgets.QLineEdit("6000", self)
         self.max_density.textChanged.connect(self.handle_densities)
-        self.dens_block.addWidget(self.max_density, 1, 1)
-        # existing built density (used to estimate how many people the existing fabric already holds)
-        self.built_density_label = QtWidgets.QLabel("Existing built density (per km²)", self)
-        self.dens_block.addWidget(self.built_density_label, 2, 0, alignment=QtCore.Qt.AlignmentFlag.AlignRight)
+        self.max_density.setToolTip("Density near a centre and the densification ceiling for the green budget.")
+        dens.addRow("Max density", self.max_density)
         self.built_density = QtWidgets.QLineEdit("2000", self)
-        self.dens_block.addWidget(self.built_density, 2, 1, 1, 1)
+        self.built_density.setToolTip("Assumed density of the existing built fabric (people it already holds).")
+        dens.addRow("Existing built density", self.built_density)
         self.density_text_feedback = QtWidgets.QLabel("", self)
-        self.dens_block.addWidget(self.density_text_feedback, 3, 0, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.density_text_feedback.setWordWrap(True)
+        dens.addRow(self.density_text_feedback)
 
-        # spacer
-        self.grid.addItem(
-            QtWidgets.QSpacerItem(
-                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
-            ),
-            4,
-            0,
-            1,
-            2,
+        # --- Output -------------------------------------------------------------------
+        out = _group("Output")
+        self.ensemble_check = QtWidgets.QCheckBox("Development likelihood (blend many runs)", self)
+        self.ensemble_check.setChecked(True)
+        self.ensemble_check.setToolTip(
+            "On: blend many simulations into a probability-of-development map.\n"
+            "Off: a single growth animation over time."
         )
-
-        # files and inputs
-        self.inputs_outputs_block = QtWidgets.QGridLayout(self)
-        self.grid.addLayout(self.inputs_outputs_block, 5, 0, 1, 2)
-        # file output
-        self.file_output_label = QtWidgets.QLabel("File output path", self)
-        self.inputs_outputs_block.addWidget(self.file_output_label, 0, 0, 1, 2)
+        out.addRow(self.ensemble_check)
+        self.detail_mode = QtWidgets.QComboBox(self)
+        self.detail_mode.addItem("Quick (10 runs)", 10)
+        self.detail_mode.addItem("Standard (50 runs)", 50)
+        self.detail_mode.addItem("Thorough (100 runs)", 100)
+        self.detail_mode.setCurrentIndex(1)
+        out.addRow("Detail", self.detail_mode)
+        self.ensemble_check.toggled.connect(self.detail_mode.setEnabled)
+        self.ensemble_check.toggled.connect(self.optimise_centres_check.setEnabled)
         self.file_output = QgsFileWidget(self)
         self.file_output.setStorageMode(QgsFileWidget.StorageMode.SaveFile)
         self.file_output.fileChanged.connect(self.handle_output_path)  # type: ignore (connect works)
-        self.inputs_outputs_block.addWidget(self.file_output, 1, 0, 1, 2)
-        # feedback for file path
+        out.addRow("Output file (.tif)", self.file_output)
         self.file_path_feedback = QtWidgets.QLabel("Select an output file path", self)
         self.file_path_feedback.setWordWrap(True)
-        self.inputs_outputs_block.addWidget(self.file_path_feedback, 2, 0, 1, 2)
-        # spacer
-        self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(
-                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
-            ),
-            3,
-            0,
-            1,
-            2,
-        )
-        # extents
-        self.extents_layer_label = QtWidgets.QLabel("Input layer indicating extents for simulation", self)
-        self.inputs_outputs_block.addWidget(self.extents_layer_label, 4, 0, 1, 2)
-        self.extents_layer_box = QgsMapLayerComboBox(self)
-        self.extents_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
-        self.extents_layer_box.setShowCrs(True)
-        self.extents_layer_box.layerChanged.connect(self.handle_extents_layer)  # type: ignore (connect works)
-        self.inputs_outputs_block.addWidget(self.extents_layer_box, 5, 0, 1, 2)
-        # feedback for layers selection
-        self.extents_layer_feedback = QtWidgets.QLabel("Select an extents layer", self)
-        self.extents_layer_feedback.setWordWrap(True)
-        self.inputs_outputs_block.addWidget(self.extents_layer_feedback, 6, 0, 1, 2)
-        # spacer
-        self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(
-                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
-            ),
-            7,
-            0,
-            1,
-            2,
-        )
-        # existing built areas
-        self.built_layer_label = QtWidgets.QLabel("Extents for existing urban areas [optional]", self)
-        self.inputs_outputs_block.addWidget(self.built_layer_label, 8, 0, 1, 2)
-        self.built_layer_box = QgsMapLayerComboBox(self)
-        self.built_layer_box.setAllowEmptyLayer(True)
-        self.built_layer_box.setCurrentIndex(0)  # type: ignore
-        self.built_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
-        self.built_layer_box.setShowCrs(True)
-        self.inputs_outputs_block.addWidget(self.built_layer_box, 9, 0, 1, 2)
-
-        # green areas
-        self.green_layer_label = QtWidgets.QLabel("Extents for existing green areas [optional]", self)
-        self.inputs_outputs_block.addWidget(self.green_layer_label, 10, 0, 1, 2)
-        self.green_layer_box = QgsMapLayerComboBox(self)
-        self.green_layer_box.setAllowEmptyLayer(True)
-        self.green_layer_box.setCurrentIndex(0)  # type: ignore
-        self.green_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
-        self.green_layer_box.setShowCrs(True)
-        self.inputs_outputs_block.addWidget(self.green_layer_box, 11, 0, 1, 2)
-        # unbuildable areas
-        self.unbuildable_layer_label = QtWidgets.QLabel("Extents for unbuildable areas [optional]", self)
-        self.inputs_outputs_block.addWidget(self.unbuildable_layer_label, 12, 0, 1, 2)
-        self.unbuildable_layer_box = QgsMapLayerComboBox(self)
-        self.unbuildable_layer_box.setAllowEmptyLayer(True)
-        self.unbuildable_layer_box.setCurrentIndex(0)  # type: ignore
-        self.unbuildable_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
-        self.unbuildable_layer_box.setShowCrs(True)
-        self.inputs_outputs_block.addWidget(self.unbuildable_layer_box, 13, 0, 1, 2)
-        # centres — polygon areas (true-area centres) or point seeds
-        self.centre_seeds_layer_label = QtWidgets.QLabel("Urban centres — areas or point seeds [optional]", self)
-        self.inputs_outputs_block.addWidget(self.centre_seeds_layer_label, 14, 0, 1, 2)
-        self.centre_seeds_layer_box = QgsMapLayerComboBox(self)
-        self.centre_seeds_layer_box.setAllowEmptyLayer(True)
-        self.centre_seeds_layer_box.setCurrentIndex(0)  # type: ignore
-        self.centre_seeds_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer | Qgis.LayerFilter.PointLayer)
-        self.centre_seeds_layer_box.setShowCrs(True)
-        self.inputs_outputs_block.addWidget(self.centre_seeds_layer_box, 15, 0, 1, 2)
-        # public-transport stops — point layer; used for the plan's transit-access readout
-        self.transit_stops_layer_label = QtWidgets.QLabel("Public-transport stops — points [optional]", self)
-        self.inputs_outputs_block.addWidget(self.transit_stops_layer_label, 16, 0, 1, 2)
-        self.transit_stops_layer_box = QgsMapLayerComboBox(self)
-        self.transit_stops_layer_box.setAllowEmptyLayer(True)
-        self.transit_stops_layer_box.setCurrentIndex(0)  # type: ignore
-        self.transit_stops_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
-        self.transit_stops_layer_box.setShowCrs(True)
-        self.inputs_outputs_block.addWidget(self.transit_stops_layer_box, 17, 0, 1, 2)
-        # rail/tram stations — a separate point layer (edited/swapped on its own); the
-        # significant stops that also anchor a centre in the recommended plan
-        self.stations_layer_label = QtWidgets.QLabel("Rail / tram stations — points [optional]", self)
-        self.inputs_outputs_block.addWidget(self.stations_layer_label, 18, 0, 1, 2)
-        self.stations_layer_box = QgsMapLayerComboBox(self)
-        self.stations_layer_box.setAllowEmptyLayer(True)
-        self.stations_layer_box.setCurrentIndex(0)  # type: ignore
-        self.stations_layer_box.setFilters(Qgis.LayerFilter.PointLayer)
-        self.stations_layer_box.setShowCrs(True)
-        self.inputs_outputs_block.addWidget(self.stations_layer_box, 19, 0, 1, 2)
-        # street network — line layer; when supplied, walking distances are measured along the
-        # network instead of straight across the grid
-        self.streets_layer_label = QtWidgets.QLabel("Street network — lines [optional, enables routing]", self)
-        self.inputs_outputs_block.addWidget(self.streets_layer_label, 20, 0, 1, 2)
-        self.streets_layer_box = QgsMapLayerComboBox(self)
-        self.streets_layer_box.setAllowEmptyLayer(True)
-        self.streets_layer_box.setCurrentIndex(0)  # type: ignore
-        self.streets_layer_box.setFilters(Qgis.LayerFilter.LineLayer)
-        self.streets_layer_box.setShowCrs(True)
-        self.inputs_outputs_block.addWidget(self.streets_layer_box, 21, 0, 1, 2)
-        # spacer
-        self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(
-                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
-            ),
-            22,
-            0,
-            1,
-            2,
-        )
-        # projection
-        self.crs_label = QtWidgets.QLabel("Coordinate reference system for simulation", self)
-        self.inputs_outputs_block.addWidget(self.crs_label, 23, 0, 1, 2)
+        out.addRow(self.file_path_feedback)
         self.crs_selection = QgsProjectionSelectionWidget(self)
-        # feedback for layers selection
-        # crsChanged event fires immediately, so self.crs_feedback has to exist beforehand
+        # crsChanged fires immediately, so crs_feedback must exist beforehand
         self.crs_feedback = QtWidgets.QLabel("Select a CRS", self)
         self.crs_feedback.setWordWrap(True)
-        self.inputs_outputs_block.addWidget(self.crs_feedback, 24, 0, 1, 2)
         self.crs_selection.crsChanged.connect(self.handle_crs)  # type: ignore (connect works)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.CurrentCrs, False)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.DefaultCrs, False)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.LayerCrs, True)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.ProjectCrs, True)
         self.crs_selection.setOptionVisible(QgsProjectionSelectionWidget.CrsOption.RecentCrs, False)
-        self.inputs_outputs_block.addWidget(self.crs_selection, 25, 0, 1, 2)
-        # spacer
-        self.inputs_outputs_block.addItem(
-            QtWidgets.QSpacerItem(
-                1, 20, hPolicy=QtWidgets.QSizePolicy.Policy.Expanding, vPolicy=QtWidgets.QSizePolicy.Policy.Fixed
-            ),
-            26,
-            0,
-            1,
-            2,
-        )
-        # Cancel / OK buttons
+        out.addRow("CRS", self.crs_selection)
+        out.addRow(self.crs_feedback)
+
+        # --- Input layers -------------------------------------------------------------
+        inp = _group("Input layers")
+        self.extents_layer_box = QgsMapLayerComboBox(self)
+        self.extents_layer_box.setFilters(Qgis.LayerFilter.PolygonLayer)
+        self.extents_layer_box.setShowCrs(True)
+        self.extents_layer_box.setMinimumWidth(160)
+        self.extents_layer_box.layerChanged.connect(self.handle_extents_layer)  # type: ignore (connect works)
+        inp.addRow("Extents (required)", self.extents_layer_box)
+        self.extents_layer_feedback = QtWidgets.QLabel("Select an extents layer", self)
+        self.extents_layer_feedback.setWordWrap(True)
+        inp.addRow(self.extents_layer_feedback)
+        self.built_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
+        inp.addRow("Existing urban [opt]", self.built_layer_box)
+        self.green_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
+        inp.addRow("Existing green [opt]", self.green_layer_box)
+        self.unbuildable_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
+        inp.addRow("Unbuildable [opt]", self.unbuildable_layer_box)
+        self.centre_seeds_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer | Qgis.LayerFilter.PointLayer)
+        inp.addRow("Urban centres [opt]", self.centre_seeds_layer_box)
+        self.transit_stops_layer_box = _layer_combo(Qgis.LayerFilter.PointLayer)
+        inp.addRow("PT stops [opt]", self.transit_stops_layer_box)
+        self.stations_layer_box = _layer_combo(Qgis.LayerFilter.PointLayer)
+        inp.addRow("Rail / tram stations [opt]", self.stations_layer_box)
+        self.streets_layer_box = _layer_combo(Qgis.LayerFilter.LineLayer)
+        self.streets_layer_box.setToolTip("Walking is measured along this street network (enables routing).")
+        inp.addRow("Street network [opt]", self.streets_layer_box)
+
+        content_layout.addStretch(1)
+
+        # --- buttons (pinned below the scroll area, always visible) --------------------
         self.button_box = QtWidgets.QDialogButtonBox(self)
-        self.grid.addWidget(self.button_box, 6, 0, 1, 2)
         self.button_box.setStandardButtons(
             QtWidgets.QDialogButtonBox.StandardButton.Cancel | QtWidgets.QDialogButtonBox.StandardButton.Ok
         )
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
+        main_layout.addWidget(self.button_box)
 
     def show(self) -> None:
         """Primes layers logic when opening dialog."""

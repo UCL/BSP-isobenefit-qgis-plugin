@@ -117,6 +117,40 @@ class IsobenefitTask(QgsTask):
         block = self.granularity_m**2 / 1.0e6
         return tuple(d * block for d in self.density_factors)
 
+    def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds) -> None:
+        """Step ONE representative run to the population target and log how many iterations it took,
+        so the user sees that typically only ~N steps run before the target of M is met (well under
+        the max) — or a clear warning if the cap is hit first. The engine COPIES its inputs (the
+        binding takes read-only arrays), so this throwaway run does not disturb the ensemble; it is a
+        good proxy because runs with the same parameters reach the target at a similar point."""
+        sample = isobenefit.Simulation(
+            state, origin, density, seeds,
+            self.granularity_m, self.max_distance_m, self.max_populat, self.min_green_span,
+            self.build_prob, self.cent_prob_nb, self.cent_prob_isol, self.pop_target_cent_threshold,
+            self.prob_distribution, self.density_factors, self.exist_built_density,
+            self.total_iters, self.random_seed,
+        )
+        iters = 0
+        while sample.current_iter < self.total_iters and sample.pop_target_ratio < 1.0:
+            if self.isCanceled():
+                return
+            sample.step()
+            iters += 1
+        if sample.pop_target_ratio >= 1.0:
+            self._log(
+                f"A representative run reached the target population of {int(self.max_populat)} after "
+                f"{iters} iterations (of the {self.total_iters} max) — the other runs stop similarly.",
+                Qgis.MessageLevel.Info,
+            )
+        else:
+            self._log(
+                f"A representative run hit the {self.total_iters}-iteration cap at only "
+                f"{sample.pop_target_ratio:.0%} of the target population "
+                f"({int(sample.population)} of {int(self.max_populat)}) — raise max iterations or the "
+                f"build probability to reach it.",
+                Qgis.MessageLevel.Warning,
+            )
+
     def run(self) -> bool:
         t_zero = time.time()
         try:
@@ -230,6 +264,7 @@ class IsobenefitTask(QgsTask):
                 n = self.n_ensemble
                 batch = max(1, cores)  # ~one run per core keeps all cores busy
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
+                self._log_iterations_to_target(isobenefit, state, origin, density, seeds)
                 # Collect each run's final layout (not just the blended average): the
                 # likelihood layers come from all runs, and the recommended plan is the
                 # best single run, optimised. Batched for progress + cancellation.
@@ -349,8 +384,18 @@ class IsobenefitTask(QgsTask):
                     f"(population {int(sim.population)})"
                 )
                 if sim.pop_target_ratio >= 1.0:
-                    self._log("Population target reached — stopping early.", Qgis.MessageLevel.Success)
+                    self._log(
+                        f"Reached the target population of {int(self.max_populat)} after {i + 1} "
+                        f"iterations (of the {self.total_iters} max) — stopping early.",
+                        Qgis.MessageLevel.Success,
+                    )
                     break
+            else:  # loop ran to the cap without reaching the target
+                self._log(
+                    f"Ran all {self.total_iters} iterations and reached {sim.pop_target_ratio:.0%} of the "
+                    f"target population ({int(sim.population)} of {int(self.max_populat)}).",
+                    Qgis.MessageLevel.Warning,
+                )
 
             self._log(f"Writing {len(self.frames)} steps to a single temporal raster: {self.out_path}")
             gis_io.write_temporal_class_raster(self.out_path, self.frames, geotransform, self.target_crs)
