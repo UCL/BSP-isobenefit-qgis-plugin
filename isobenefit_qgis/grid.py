@@ -935,7 +935,7 @@ def select_plan(
     """
     states = list(states)
     if not states:
-        return None, None, None
+        return None, None, None, None
     if max_eval and len(states) > max_eval:  # optional cap for very large ensembles
         states = states[:: len(states) // max_eval][:max_eval]
     best_plan, best, best_state = None, None, None
@@ -974,4 +974,54 @@ def select_plan(
         pre_plan = _state_to_plan(best_state, min_green_span_m, granularity_m, existing_green=existing_green)
         pre_plan[np.asarray(best_state) == 2] = PLAN_CENTRE  # show the CA's own grown centres
         pre_plan = _mark_existing(pre_plan, existing_built=existing_built, existing_centres=existing_centres)
-    return best_plan, best, pre_plan
+    return best_plan, best, pre_plan, best_state
+
+
+def plan_variants(
+    state,
+    granularity_m,
+    min_green_span_m,
+    max_distance_m,
+    spacings,
+    *,
+    mean_density=None,
+    max_density=None,
+    existing_centres=None,
+    existing_built=None,
+    existing_green=None,
+    centre_anchors=None,
+    router=None,
+    centre_distance_m=None,
+    green_distance_m=None,
+    centre_area_frac=CENTRE_AREA_FRAC,
+    centre_min_settlement=3,
+    prune_islands=True,
+):
+    """Post-process one chosen CA run ``state`` at several centre-SPACING settings, so the user can
+    compare compactness options and pick rather than choosing up front. ``spacings`` maps a label to a
+    centre spacing in metres (``None`` = consolidated / coverage-minimal). Returns ``{label: (plan,
+    metrics)}``; each plan is fully optimised (green carve + centre placement at that spacing) and
+    tagged with the existing-* codes."""
+    state = np.asarray(state)
+    ca_centres = [(int(y), int(x)) for y, x in np.argwhere(state == 2)]
+    base = _state_to_plan(state, min_green_span_m, granularity_m, existing_green=existing_green)
+    out: dict = {}
+    for label, spacing_m in spacings.items():
+        plan = optimise_plan(
+            base, granularity_m, min_green_span_m, max_distance_m,
+            mean_density=mean_density, max_density=max_density,
+            existing_centres=existing_centres, existing_built=existing_built, ca_centres=ca_centres,
+            optimise_centres=True, centre_anchors=centre_anchors, router=router,
+            centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
+            centre_spacing_m=spacing_m, centre_area_frac=centre_area_frac,
+            centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
+        )
+        metrics = evaluate_plan(
+            plan, granularity_m, max_distance_m, min_green_span_m=min_green_span_m, router=router,
+            centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
+        )
+        out[label] = (
+            _mark_existing(plan, existing_built=existing_built, existing_centres=existing_centres),
+            metrics,
+        )
+    return out

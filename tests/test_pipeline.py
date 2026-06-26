@@ -545,7 +545,7 @@ def test_select_plan_freezes_and_tags_existing():
     state = np.ones((g, g), np.int16)  # entirely built
     existing_built = np.zeros((g, g), bool)
     existing_built[0:20, :] = True  # top half already developed
-    plan, _m, _pre = select_plan(
+    plan, _m, _pre, _st = select_plan(
         [state], 100.0, 400.0, 800.0, existing_centres=[(5, 5)], existing_built=existing_built
     )
     assert plan is not None
@@ -579,11 +579,12 @@ def test_class_probabilities():
 def test_select_plan_on_demo(grid):
     states = isobenefit.run_ensemble(_make(grid), 7, 6)
     md = sum(p * d for p, d in zip((0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0)))
-    plan, m, pre = select_plan(
+    plan, m, pre, st = select_plan(
         states, GRAN, 400.0, 800.0, mean_density=md, max_density=6000.0, existing_centres=grid["seeds"]
     )
     assert plan.shape == (grid["rows"], grid["cols"])
     assert pre is not None and pre.shape == plan.shape  # the raw (pre-processing) plan is returned too
+    assert st is not None and st.shape == plan.shape  # the chosen run's state, for compactness variants
     assert set(np.unique(plan)).issubset(
         {PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE}
     )
@@ -721,3 +722,22 @@ def test_optimise_plan_prunes_centreless_island():
     assert (pruned[3:6, 53:56] == PLAN_GREEN).all()  # stranded speck reverted to green
     assert not (kept[3:6, 53:56] == PLAN_GREEN).any()  # ...only when cleanup is on (off: speck kept/developed)
     assert (pruned[20:50, 10:40] == PLAN_BUILT).any()  # the real development is untouched
+
+
+def test_plan_variants_compactness_options():
+    # plan_variants post-processes ONE run at several centre spacings so the user can compare/pick;
+    # a tighter spacing yields more, closer centre areas than the consolidated default.
+    from isobenefit_qgis.grid import PLAN_CENTRE, _components, plan_variants
+
+    g = 80
+    state = np.zeros((g, g), np.int16)
+    state[10:70, 10:70] = 1  # a big built block (larger than one catchment)
+    state[40, 40] = 2  # one CA-grown centre
+    out = plan_variants(state, 50.0, 400.0, 800.0, {"consolidated": None, "dispersed": 300.0})
+    assert set(out) == {"consolidated", "dispersed"}
+    cons_plan, cons_m = out["consolidated"]
+    disp_plan, _disp_m = out["dispersed"]
+    assert "served_coverage" in cons_m  # each option carries its own metrics
+    n_cons = len(_components(cons_plan == PLAN_CENTRE))
+    n_disp = len(_components(disp_plan == PLAN_CENTRE))
+    assert n_disp > n_cons  # dispersed places more, closer centres

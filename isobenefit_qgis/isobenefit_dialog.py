@@ -98,6 +98,17 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.build_prob = QtWidgets.QLineEdit("0.25", self)
         self.build_prob.setToolTip("Per-step probability that an eligible cell develops (the growth rate).")
         sim.addRow("Build probability", self.build_prob)
+        self.dispersal_mode = QtWidgets.QComboBox(self)
+        self.dispersal_mode.addItem("Off (compact)", 0.0)
+        self.dispersal_mode.addItem("Low", 0.005)
+        self.dispersal_mode.addItem("Medium", 0.02)
+        self.dispersal_mode.addItem("High", 0.05)
+        self.dispersal_mode.setCurrentIndex(2)  # Medium by default
+        self.dispersal_mode.setToolTip(
+            "How readily new settlements form away from existing development (satellite/leapfrog growth).\n"
+            "Off: one compact, contiguous town. Higher: increasingly polycentric."
+        )
+        sim.addRow("Dispersed development", self.dispersal_mode)
         self.random_seed = QtWidgets.QLineEdit("42", self)
         sim.addRow("Random seed", self.random_seed)
 
@@ -110,46 +121,28 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.green_walk_dist.setToolTip("How far people will walk to a park.")
         acc.addRow("Green walk (m)", self.green_walk_dist)
 
-        # --- Growth & centres ---------------------------------------------------------
-        gc = _group("Growth && centres")
-        self.dispersal_mode = QtWidgets.QComboBox(self)
-        self.dispersal_mode.addItem("Off (compact)", 0.0)
-        self.dispersal_mode.addItem("Low", 0.005)
-        self.dispersal_mode.addItem("Medium", 0.02)
-        self.dispersal_mode.addItem("High", 0.05)
-        self.dispersal_mode.setCurrentIndex(2)  # Medium by default
-        self.dispersal_mode.setToolTip(
-            "How readily new settlements form away from existing development (satellite/leapfrog growth).\n"
-            "Off: one compact, contiguous town. Higher: increasingly polycentric."
+        # --- Post-processing ----------------------------------------------------------
+        # Turns the raw CA result into a recommended plan. With it on, the plugin saves the existing
+        # fabric, the raw (pre-processing) plan and consolidated/balanced/dispersed options, so the
+        # effect of post-processing — and the compactness choice — is visible: pick from the outputs.
+        pp = _group("Post-processing")
+        self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
+        self.optimise_centres_check.setChecked(True)
+        self.optimise_centres_check.setToolTip(
+            "On: re-position centres central to their development, add centres where new development is "
+            "under-served, remove redundant ones, and save consolidated/balanced/dispersed options.\n"
+            "Off: keep the centres exactly where the simulation grew them (a single plan)."
         )
-        gc.addRow("Dispersed development", self.dispersal_mode)
-        self.centre_pattern_mode = QtWidgets.QComboBox(self)
-        self.centre_pattern_mode.addItem("Consolidated", 1.0)
-        self.centre_pattern_mode.addItem("Balanced", 0.7)
-        self.centre_pattern_mode.addItem("Dispersed", 0.45)
-        self.centre_pattern_mode.setCurrentIndex(1)  # Balanced by default
-        self.centre_pattern_mode.setToolTip(
-            "Consolidated: the fewest, largest centres that still keep everyone within a walk.\n"
-            "Dispersed: more, smaller, closer centres."
-        )
-        gc.addRow("Centre pattern", self.centre_pattern_mode)
+        pp.addRow(self.optimise_centres_check)
         self.min_settlement = QtWidgets.QLineEdit("25", self)
         self.min_settlement.setToolTip(
             "Smallest viable new settlement, as an AREA in hectares (25 ha ≈ a 500×500 m block). A "
             "smaller detached cluster with no centre is pruned as a failed satellite (reverts to green)."
         )
-        gc.addRow("Min settlement area (ha)", self.min_settlement)
+        pp.addRow("Min settlement area (ha)", self.min_settlement)
         self.min_green_span = QtWidgets.QLineEdit("400", self)
         self.min_green_span.setToolTip("A green patch must span at least this distance to count as a usable park.")
-        gc.addRow("Min green span (m)", self.min_green_span)
-        self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
-        self.optimise_centres_check.setChecked(True)
-        self.optimise_centres_check.setToolTip(
-            "On: re-position the recommended plan's centres central to their development, add "
-            "centres where new development is under-served, and remove redundant ones.\n"
-            "Off: keep the centres exactly where the simulation grew them."
-        )
-        gc.addRow(self.optimise_centres_check)
+        pp.addRow("Min green span (m)", self.min_green_span)
 
         # --- Density ------------------------------------------------------------------
         dens = _group("Density (people per km²)")

@@ -254,9 +254,8 @@ class Isobenefit:
             # cell count the model prunes/culls by: ha -> m² (×10 000) / cell area (grid²).
             min_settlement_ha = float(self.dlg.min_settlement.text())
             centre_min_settlement = max(1, round(min_settlement_ha * 10000.0 / (granularity_m**2)))
-            centre_pattern_frac = float(self.dlg.centre_pattern_mode.currentData())
-            # consolidated (1.0) keeps the coverage-minimal spacing (= the walk); smaller disperses
-            centre_spacing_m = None if centre_pattern_frac >= 1.0 else centre_pattern_frac * max_distance_m
+            # compactness is no longer chosen here: the run saves consolidated/balanced/dispersed
+            # options (and the existing + pre-processing plans) for the user to compare and pick.
         except ValueError:
             QMessageBox.warning(
                 self.iface.mainWindow(),
@@ -297,7 +296,6 @@ class Isobenefit:
             random_seed=random_seed,
             n_ensemble=n_ensemble,
             optimise_centres=self.dlg.optimise_centres_check.isChecked(),
-            centre_spacing_m=centre_spacing_m,
             centre_min_settlement=centre_min_settlement,
             centre_distance_m=centre_distance_m,
             green_distance_m=green_distance_m,
