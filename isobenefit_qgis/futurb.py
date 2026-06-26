@@ -250,8 +250,10 @@ class Isobenefit:
             mid_density = 0.5 * (min_density + max_density)
             density_factors = (max_density, mid_density, min_density)
             prob_distribution = (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)
-            # recommended-plan dials
-            centre_min_settlement = int(self.dlg.min_settlement.text())
+            # recommended-plan dials. Min settlement is entered as an AREA in hectares; convert to the
+            # cell count the model prunes/culls by: ha -> m² (×10 000) / cell area (grid²).
+            min_settlement_ha = float(self.dlg.min_settlement.text())
+            centre_min_settlement = max(1, round(min_settlement_ha * 10000.0 / (granularity_m**2)))
             centre_pattern_frac = float(self.dlg.centre_pattern_mode.currentData())
             # consolidated (1.0) keeps the coverage-minimal spacing (= the walk); smaller disperses
             centre_spacing_m = None if centre_pattern_frac >= 1.0 else centre_pattern_frac * max_distance_m

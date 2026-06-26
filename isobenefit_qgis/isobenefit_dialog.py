@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from qgis.core import Qgis, QgsCoordinateReferenceSystem, QgsVectorLayer
+from qgis.core import (
+    Qgis,
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsProject,
+    QgsVectorLayer,
+)
 from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
 
@@ -93,15 +99,12 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
         # --- Walkable access ----------------------------------------------------------
         acc = _group("Walkable access")
-        self.centre_walk_dist = QtWidgets.QLineEdit("800", self)
+        self.centre_walk_dist = QtWidgets.QLineEdit("400", self)
         self.centre_walk_dist.setToolTip("How far people walk to a centre (the CA grows by the larger walk).")
         acc.addRow("Centre walk (m)", self.centre_walk_dist)
-        self.green_walk_dist = QtWidgets.QLineEdit("800", self)
+        self.green_walk_dist = QtWidgets.QLineEdit("400", self)
         self.green_walk_dist.setToolTip("How far people will walk to a park.")
         acc.addRow("Green walk (m)", self.green_walk_dist)
-        self.min_green_span = QtWidgets.QLineEdit("800", self)
-        self.min_green_span.setToolTip("A green patch must span at least this distance to count as a usable park.")
-        acc.addRow("Min green span (m)", self.min_green_span)
 
         # --- Growth & centres ---------------------------------------------------------
         gc = _group("Growth && centres")
@@ -126,12 +129,15 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "Dispersed: more, smaller, closer centres."
         )
         gc.addRow("Centre pattern", self.centre_pattern_mode)
-        self.min_settlement = QtWidgets.QLineEdit("3", self)
+        self.min_settlement = QtWidgets.QLineEdit("25", self)
         self.min_settlement.setToolTip(
-            "A detached new settlement smaller than this many cells (with no centre) is pruned as a "
-            "failed satellite; its land reverts to green."
+            "Smallest viable new settlement, as an AREA in hectares (25 ha ≈ a 500×500 m block). A "
+            "smaller detached cluster with no centre is pruned as a failed satellite (reverts to green)."
         )
-        gc.addRow("Min settlement (cells)", self.min_settlement)
+        gc.addRow("Min settlement area (ha)", self.min_settlement)
+        self.min_green_span = QtWidgets.QLineEdit("800", self)
+        self.min_green_span.setToolTip("A green patch must span at least this distance to count as a usable park.")
+        gc.addRow("Min green span (m)", self.min_green_span)
         self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
         self.optimise_centres_check.setChecked(True)
         self.optimise_centres_check.setToolTip(
@@ -330,14 +336,36 @@ class IsobenefitDialog(QtWidgets.QDialog):
         # success
         self.extents_layer_feedback.setText("")
         self.extents_layer = candidate_layer
-        self.crs_selection.setLayerCrs(self.extents_layer.crs())
+        # Steer to a LOCAL PROJECTED CRS: offer the layer's own CRS only if it is already projected,
+        # and default the selection to the appropriate local UTM zone (never geographic).
+        layer_crs = candidate_layer.crs()
+        if layer_crs.isValid() and not layer_crs.isGeographic():
+            self.crs_selection.setLayerCrs(layer_crs)
+        utm = self._local_utm_crs(candidate_layer)
+        if utm is not None:
+            self.crs_selection.setCrs(utm)
         self.refresh_state()
 
+    def _local_utm_crs(self, layer: QgsVectorLayer) -> QgsCoordinateReferenceSystem | None:
+        """The appropriate local UTM CRS for a layer's extent, so the default is always a sensible
+        local PROJECTED CRS (never geographic). Returns None if it can't be derived."""
+        try:
+            wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
+            xform = QgsCoordinateTransform(layer.crs(), wgs84, QgsProject.instance())
+            centre = xform.transform(layer.extent().center())
+            lon, lat = centre.x(), centre.y()
+            zone = int((lon + 180.0) / 6.0) % 60 + 1
+            epsg = (32600 if lat >= 0 else 32700) + zone  # WGS84 / UTM north or south
+            crs = QgsCoordinateReferenceSystem.fromEpsgId(epsg)
+            return crs if crs.isValid() else None
+        except Exception:  # noqa: BLE001 — CRS suggestion is best-effort; fall back to the picker
+            return None
+
     def handle_crs(self) -> None:
-        """ """
-        # set project CRS as an option if projected
-        if self.crs_selection.crs().isGeographic():
-            self.crs_feedback.setText("Please select a projected CRS")
+        """Only LOCAL PROJECTED CRSs are accepted — geographic (lat/lon) CRSs are rejected so the
+        simulation always runs in metres."""
+        if not self.crs_selection.crs().isValid() or self.crs_selection.crs().isGeographic():
+            self.crs_feedback.setText("Select a local projected CRS (e.g. the UTM zone) — not a geographic one")
             self.selected_crs = None
         else:
             self.crs_feedback.setText("")
