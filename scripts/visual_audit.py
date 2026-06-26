@@ -10,7 +10,7 @@ Two tracks:
 
   POST-PROCESS (pure grid.py — what optimise_plan/evaluate_plan enforce on a given development):
     01  centre optimisation        OFF (CA seeds) vs ON (re-centred + grown to areas)
-    02  centre spacing             consolidated -> balanced -> dispersed   (the disperse/compact dial)
+    02  centre consolidation       original -> moderate -> aggressive (larger spacing clumps centres)
     03  centre area                small vs large (area grows with the catchment)
     04  minimum settlement size    low vs high (a failed satellite's centre is culled)
     05  centre walk distance       short vs long
@@ -246,16 +246,16 @@ def s01_centre_optimisation():
     )
 
 
-def s02_centre_spacing():
+def s02_centre_consolidation():
     plan = block(empty(), *TOWN)
     common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True)
     figure(
-        "02_centre_spacing",
-        "Centre spacing — the consolidated <-> dispersed dial (smaller spacing = more, closer centres)",
+        "02_centre_consolidation",
+        "Centre consolidation — a larger spacing clumps centres: fewer, larger, more central (some homes farther)",
         [
-            P(_opt(plan, centre_spacing_m=800, **common), "consolidated (spacing 800 m)"),
-            P(_opt(plan, centre_spacing_m=500, **common), "balanced (spacing 500 m)"),
-            P(_opt(plan, centre_spacing_m=300, **common), "dispersed (spacing 300 m)"),
+            P(_opt(plan, centre_spacing_m=800, **common), "original (coverage-minimal, spacing = walk)"),
+            P(_opt(plan, centre_spacing_m=1200, **common), "moderate consolidation (1.5x walk)"),
+            P(_opt(plan, centre_spacing_m=2000, **common), "aggressive consolidation (2.5x walk)"),
         ],
     )
 
@@ -377,7 +377,7 @@ def s15_island_cleanup():
 
 
 POST_PROCESS = [
-    s01_centre_optimisation, s02_centre_spacing, s03_centre_area, s04_min_settlement,
+    s01_centre_optimisation, s02_centre_consolidation, s03_centre_area, s04_min_settlement,
     s05_centre_walk,
     s09_station_anchor, s10_network_routing, s11_frozen_existing,
     s15_island_cleanup,

@@ -188,21 +188,22 @@ def _refine_centres(
     compete in the assignment; centres uniquely serving fewer than ``cull_min_unique`` built cells
     are culled (redundant, or feeding too small a catchment). Returns the optimised new ``(row, col)``.
 
-    ``spacing_m`` sets how far apart centres sit — their catchment scale. It defaults to the centre
-    walk (``max_distance_m``): the fewest centres that still keep everyone within a walk
-    (CONSOLIDATED — few, large centres). A smaller value places and keeps more, closer centres
-    (DISPERSED). It is bounded by the walk (you can't space centres further than a walk apart
-    without stranding homes), so the consolidated end is the coverage minimum.
+    ``spacing_m`` sets how far apart centres sit — their catchment scale (defaults to the walk,
+    ``max_distance_m`` = the coverage-minimal arrangement). A LARGER spacing CONSOLIDATES — fewer,
+    larger, more central centres, accepting that some homes end up beyond a single walk of one; a
+    smaller spacing disperses (more, closer centres). It may exceed the walk (the ``walk`` field is
+    bounded to reach it), which is how aggressive consolidation actually clumps centres together.
     """
     built = np.asarray(built, dtype=bool)
     new_built = np.asarray(new_built, dtype=bool) & built
     rows, cols = built.shape
-    spacing = max_distance_m if spacing_m is None else min(float(spacing_m), max_distance_m)
+    spacing = max_distance_m if spacing_m is None else float(spacing_m)
     r = max(1, round(spacing / granularity_m))
     if walk is None:
+        bound = max(max_distance_m, spacing)  # the field must reach the spacing (which may exceed the walk)
 
         def walk(mask):
-            return _walk_distance(mask, granularity_m, max_distance_m)
+            return _walk_distance(mask, granularity_m, bound)
 
     fixed = [(int(y), int(x)) for y, x in (fixed or [])]
     if not new_built.any():
@@ -687,11 +688,11 @@ def optimise_plan(
     plan = plan.copy()
     g = float(granularity_m)
     # Split walks: centres and green each have their own walk threshold (both default to the shared
-    # max_distance). The distance FIELD is bounded at the larger of the two; centre coverage is judged
-    # against centre_distance_m.
+    # max_distance). The distance FIELD is bounded at the larger of the walks AND the centre spacing
+    # (consolidation may place centres more than a walk apart, so the field must reach that far).
     centre_distance_m = max_distance_m if centre_distance_m is None else float(centre_distance_m)
     green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
-    field_bound = max(centre_distance_m, green_distance_m)
+    field_bound = max(centre_distance_m, green_distance_m, float(centre_spacing_m or 0.0))
     rows, cols = plan.shape
     # ONE distance model: the grid walk by default, or true street-network distances when a ``router``
     # (mask -> rows×cols metres) is injected. The field is bounded at the larger walk.

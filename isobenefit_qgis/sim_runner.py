@@ -391,9 +391,10 @@ class IsobenefitTask(QgsTask):
                     )
                     self._log("Walking distances measured along the street network.")
                 centre_walk = self.centre_distance_m or self.max_distance_m
-                # compactness options the user compares + picks visually (centre spacing in metres;
-                # None = consolidated / coverage-minimal). Generated for the ONE chosen run.
-                spacings = {"consolidated": None, "balanced": 0.7 * centre_walk, "dispersed": 0.45 * centre_walk}
+                # Two centre-CONSOLIDATION options (centre spacing in metres) the user compares + picks,
+                # alongside the original (as-grown) plan = three total. A larger spacing consolidates
+                # harder: fewer, larger, more central centres (some homes end up beyond a walk of one).
+                spacings = {"moderate": 1.5 * centre_walk, "aggressive": 2.5 * centre_walk}
                 plan, metrics, pre_plan, best_state = grid.select_plan(
                     states,
                     self.granularity_m,
@@ -407,7 +408,7 @@ class IsobenefitTask(QgsTask):
                     transit_stops=transit_stops,
                     centre_anchors=station_anchors,
                     router=router,
-                    centre_spacing_m=(spacings["balanced"] if self.optimise_centres else None),
+                    centre_spacing_m=(spacings["moderate"] if self.optimise_centres else None),
                     centre_min_settlement=self.centre_min_settlement,
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
@@ -425,16 +426,16 @@ class IsobenefitTask(QgsTask):
                     existing_plan[state == -1] = grid.PLAN_NONE  # unbuildable stays empty, never green
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
-                if pre_plan is not None:  # the chosen run BEFORE post-processing (raw CA), for comparison
+                if pre_plan is not None:  # the chosen run BEFORE post-processing (the original, as grown)
                     gis_io.write_plan_raster(self.pre_path, pre_plan, geotransform, self.target_crs)
-                    self._plan_outputs.append((self.pre_path, "raw plan (pre-processing)"))
+                    self._plan_outputs.append((self.pre_path, "original (as grown)"))
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
                         router=router, centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                     )
-                    report_stats.append(("raw (pre-processing)", pre_m, self._count_centres(pre_plan)))
+                    report_stats.append(("original (as grown)", pre_m, self._count_centres(pre_plan)))
                 if self.optimise_centres and best_state is not None:
-                    self._log("Post-processing the chosen run at each compactness option…")
+                    self._log("Post-processing the chosen run at each centre-consolidation option…")
                     variants = grid.plan_variants(
                         best_state, self.granularity_m, self.min_green_span, self.max_distance_m, spacings,
                         existing_centres=seeds, existing_built=(origin == 1), existing_green=(origin == 0),
@@ -442,17 +443,18 @@ class IsobenefitTask(QgsTask):
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         centre_min_settlement=self.centre_min_settlement,
                     )
-                    for label in ("consolidated", "balanced", "dispersed"):
-                        vplan, vm = variants[label]
-                        vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{label}.tif"))
+                    labels = {"moderate": "moderate consolidation", "aggressive": "aggressive consolidation"}
+                    for key in ("moderate", "aggressive"):
+                        vplan, vm = variants[key]
+                        vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}.tif"))
                         gis_io.write_plan_raster(vpath, vplan, geotransform, self.target_crs)
-                        self._plan_outputs.append((vpath, f"{label} centres"))
-                        report_stats.append((label, vm, self._count_centres(vplan)))
+                        self._plan_outputs.append((vpath, labels[key]))
+                        report_stats.append((labels[key], vm, self._count_centres(vplan)))
                         self._log(  # per-option metrics so the choice is informed, not just visual
-                            f"  {label}: {vm['served_coverage']:.0%} served, centre walk "
+                            f"  {labels[key]}: {vm['served_coverage']:.0%} served, centre walk "
                             f"{vm['centre_access']:.0f} m, green {vm['green_access']:.0f} m"
                         )
-                    plan, metrics = variants["balanced"]  # headline metrics + audit use the middle option
+                    plan, metrics = variants["moderate"]  # headline metrics + audit use the moderate option
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.plan_path, "recommended plan"))

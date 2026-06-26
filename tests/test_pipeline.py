@@ -593,6 +593,20 @@ def test_select_plan_on_demo(grid):
 
 
 
+def test_refine_centres_spacing_consolidates_beyond_walk():
+    # A spacing LARGER than the walk genuinely consolidates: fewer, larger centres than the
+    # coverage-minimal default. (This is the fix — the spacing used to be capped at the walk.)
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 100
+    built = np.zeros((g, g), bool)
+    built[15:85, 15:85] = True  # a big block, far larger than one catchment
+    coverage_min = _refine_centres([(50, 50)], [], built, built, 50.0, 400.0)  # spacing defaults to the walk
+    consolidated = _refine_centres([(50, 50)], [], built, built, 50.0, 400.0, spacing_m=1000.0)  # 2.5x the walk
+    assert len(consolidated) < len(coverage_min)  # spacing > walk -> fewer, clumped centres
+    assert consolidated  # ...but still at least one
+
+
 def test_refine_centres_spacing_consolidated_vs_dispersed():
     # The spacing dial sets how far apart centres sit. A big block with a tight spacing keeps many,
     # close centres (dispersed); the default (= the walk) keeps the coverage-minimal few (consolidated).
