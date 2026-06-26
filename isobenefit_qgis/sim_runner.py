@@ -75,6 +75,7 @@ class IsobenefitTask(QgsTask):
         self.plan_path = str(Path(out_dir_path) / f"{out_file_name}_plan.tif")  # post-processed
         self.pre_path = str(Path(out_dir_path) / f"{out_file_name}_pre.tif")  # raw CA, pre-processing
         self.existing_path = str(Path(out_dir_path) / f"{out_file_name}_existing.tif")  # pre-simulation fabric
+        self.report_path = str(Path(out_dir_path) / f"{out_file_name}_report.txt")  # human-readable run record
         self.target_crs = target_crs
         self.extents_layer = extents_layer
         self.built_layer = built_layer
@@ -118,12 +119,90 @@ class IsobenefitTask(QgsTask):
         block = self.granularity_m**2 / 1.0e6
         return tuple(d * block for d in self.density_factors)
 
-    def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds) -> None:
+    @staticmethod
+    def _count_centres(plan) -> int:
+        """Number of centre AREAS (connected components) in a plan — new and existing."""
+        return len(grid._components((plan == grid.PLAN_CENTRE) | (plan == grid.PLAN_EXIST_CENTRE)))
+
+    def _compose_report(self, report_stats, audit, rows, cols, start_pop, iter_summary, elapsed) -> str:
+        """A plain-text record of the run — parameters, run summary, per-plan statistics and the centre
+        audit — so there is a durable account of exactly what was done and how each option scored."""
+        from datetime import datetime
+
+        dispersal = {0.0: "Off", 0.005: "Low", 0.02: "Medium", 0.05: "High"}.get(
+            round(self.cent_prob_isol, 4), f"{self.cent_prob_isol:g}"
+        )
+        cwalk = self.centre_distance_m or self.max_distance_m
+        gwalk = self.green_distance_m or self.max_distance_m
+        min_ha = self.centre_min_settlement * self.granularity_m**2 / 1.0e4
+        km = self.granularity_m / 1000.0
+        dens = f"{min(self.density_factors):,.0f}-{max(self.density_factors):,.0f} /km²"
+        lines = [
+            "Isobenefit Urbanism — simulation report",
+            "=" * 42,
+            f"Output:    {self.out_file_name}",
+            f"Generated: {datetime.now():%Y-%m-%d %H:%M}",
+            f"CRS:       {self.target_crs.authid()}",
+            "",
+            "PARAMETERS",
+            "-" * 10,
+            f"  Grid size             : {self.granularity_m:.0f} m",
+            f"  Max iterations        : {self.total_iters}",
+            f"  Target population     : {self.max_populat:,.0f}",
+            f"  Build probability     : {self.build_prob:g}",
+            f"  Dispersed development : {dispersal}",
+            f"  Centre walk           : {cwalk:.0f} m",
+            f"  Green walk            : {gwalk:.0f} m",
+            f"  Min green span        : {self.min_green_span:.0f} m",
+            f"  Density               : {dens} (existing built {self.exist_built_density:,.0f})",
+            f"  Min settlement        : {min_ha:.0f} ha ({self.centre_min_settlement} cells)",
+            f"  Optimise centres      : {'on' if self.optimise_centres else 'off'}",
+            f"  Ensemble              : {self.n_ensemble} run(s)",
+            "",
+            "RUN",
+            "-" * 3,
+            f"  Grid: {cols} × {rows} cells ({cols * km:.1f} × {rows * km:.1f} km)",
+            f"  Starting population: {start_pop:,.0f} ({start_pop / self.max_populat:.0%} of target)",
+        ]
+        if iter_summary:
+            lines.append(f"  {iter_summary}")
+        lines.append(f"  Elapsed: {elapsed:.0f} s")
+        lines += ["", "STATISTICS (per plan — homes within a walk of an amenity)", "-" * 40]
+        for label, m, ncent in report_stats:
+            lines.append(
+                f"  {label}: served {m.get('served_coverage', 0):.0%}, "
+                f"centre walk {m.get('centre_access', 0):.0f} m, green walk {m.get('green_access', 0):.0f} m, "
+                f"{ncent} centres, {m.get('built_cells', 0):,} built cells"
+            )
+        if report_stats and "transit_coverage" in report_stats[-1][1]:
+            tm = report_stats[-1][1]
+            lines.append(
+                f"  transit: {tm['transit_coverage']:.0%} within a walk of a stop "
+                f"(avg {tm['transit_access']:.0f} m) [reported only]"
+            )
+        if audit:
+            s = audit["summary"]
+            lines += [
+                "",
+                "CENTRE AUDIT (balanced option)",
+                "-" * 30,
+                f"  {s['n_centres']} centres ({s['n_existing']} existing, {s['n_new']} new); each serves a "
+                f"median of {s['served_median']} built cells (min {s['served_min']}, max {s['served_max']}).",
+            ]
+        lines += ["", "FILES", "-" * 5, f"  {Path(self.out_path).name}  — development likelihood (built, green)"]
+        for path, label in self._plan_outputs:
+            lines.append(f"  {Path(path).name}  — {label}")
+        lines.append(f"  {Path(self.report_path).name}  — this report")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds) -> str:
         """Step ONE representative run to the population target and log how many iterations it took,
         so the user sees that typically only ~N steps run before the target of M is met (well under
-        the max) — or a clear warning if the cap is hit first. The engine COPIES its inputs (the
-        binding takes read-only arrays), so this throwaway run does not disturb the ensemble; it is a
-        good proxy because runs with the same parameters reach the target at a similar point."""
+        the max) — or a clear warning if the cap is hit first. Returns the summary line (for the
+        report). The engine COPIES its inputs (the binding takes read-only arrays), so this throwaway
+        run does not disturb the ensemble; it is a good proxy because runs with the same parameters
+        reach the target at a similar point."""
         sample = isobenefit.Simulation(
             state, origin, density, seeds,
             self.granularity_m, self.max_distance_m, self.max_populat, self.min_green_span,
@@ -134,23 +213,23 @@ class IsobenefitTask(QgsTask):
         iters = 0
         while sample.current_iter < self.total_iters and sample.pop_target_ratio < 1.0:
             if self.isCanceled():
-                return
+                return ""
             sample.step()
             iters += 1
         if sample.pop_target_ratio >= 1.0:
-            self._log(
-                f"A representative run reached the target population of {int(self.max_populat)} after "
-                f"{iters} iterations (of the {self.total_iters} max) — the other runs stop similarly.",
-                Qgis.MessageLevel.Info,
+            summary = (
+                f"A representative run reached the target population of {int(self.max_populat):,} after "
+                f"{iters} iterations (of the {self.total_iters} max)."
             )
+            self._log(summary + " The other runs stop similarly.", Qgis.MessageLevel.Info)
         else:
-            self._log(
+            summary = (
                 f"A representative run hit the {self.total_iters}-iteration cap at only "
                 f"{sample.pop_target_ratio:.0%} of the target population "
-                f"({int(sample.population)} of {int(self.max_populat)}) — raise max iterations or the "
-                f"build probability to reach it.",
-                Qgis.MessageLevel.Warning,
+                f"({int(sample.population):,} of {int(self.max_populat):,})."
             )
+            self._log(summary + " Raise max iterations or build probability.", Qgis.MessageLevel.Warning)
+        return summary
 
     def run(self) -> bool:
         t_zero = time.time()
@@ -265,7 +344,7 @@ class IsobenefitTask(QgsTask):
                 n = self.n_ensemble
                 batch = max(1, cores)  # ~one run per core keeps all cores busy
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
-                self._log_iterations_to_target(isobenefit, state, origin, density, seeds)
+                iter_summary = self._log_iterations_to_target(isobenefit, state, origin, density, seeds)
                 # Collect each run's final layout (not just the blended average): the
                 # likelihood layers come from all runs, and the recommended plan is the
                 # best single run, optimised. Batched for progress + cancellation.
@@ -337,6 +416,7 @@ class IsobenefitTask(QgsTask):
                     green_distance_m=self.green_distance_m,
                 )
                 self._plan_outputs = []  # (path, label) for finished() to load, in display order
+                report_stats = []  # (label, metrics, n_centres) for the run report
                 # existing fabric (before any simulation) so the existing -> raw -> options chain is visible
                 if (origin == 0).any() or (origin == 1).any():
                     existing_plan = np.full((rows, cols), grid.PLAN_NONE, dtype=np.uint8)
@@ -350,6 +430,11 @@ class IsobenefitTask(QgsTask):
                 if pre_plan is not None:  # the chosen run BEFORE post-processing (raw CA), for comparison
                     gis_io.write_plan_raster(self.pre_path, pre_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.pre_path, "raw plan (pre-processing)"))
+                    pre_m = grid.evaluate_plan(
+                        pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
+                        router=router, centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
+                    )
+                    report_stats.append(("raw (pre-processing)", pre_m, self._count_centres(pre_plan)))
                 if self.optimise_centres and best_state is not None:
                     self._log("Post-processing the chosen run at each compactness option…")
                     variants = grid.plan_variants(
@@ -365,6 +450,7 @@ class IsobenefitTask(QgsTask):
                         vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{label}.tif"))
                         gis_io.write_plan_raster(vpath, vplan, geotransform, self.target_crs)
                         self._plan_outputs.append((vpath, f"{label} centres"))
+                        report_stats.append((label, vm, self._count_centres(vplan)))
                         self._log(  # per-option metrics so the choice is informed, not just visual
                             f"  {label}: {vm['served_coverage']:.0%} served, centre walk "
                             f"{vm['centre_access']:.0f} m, green {vm['green_access']:.0f} m"
@@ -373,6 +459,8 @@ class IsobenefitTask(QgsTask):
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.plan_path, "recommended plan"))
+                    if metrics:
+                        report_stats.append(("recommended", metrics, self._count_centres(plan)))
                 if metrics:
                     self._log(
                         f"Recommended plan: {metrics['served_coverage']:.0%} of homes within a walk of both "
@@ -384,6 +472,7 @@ class IsobenefitTask(QgsTask):
                             f"Transit: {metrics['transit_coverage']:.0%} of homes within a walk of a "
                             f"public-transport stop (avg walk {metrics['transit_access']:.0f} m)."
                         )
+                audit = None
                 if plan is not None:
                     # Per-centre effectiveness audit, by the same distance model — surfaces weak
                     # centres (thin catchment / off-centre) every run, so they're not just eyeballed.
@@ -403,9 +492,19 @@ class IsobenefitTask(QgsTask):
                                 f"({c['row']},{c['col']},{c['served']},{c['mean_dist_m']:.0f})" for c in weak_new
                             )
                         )
+                # durable run record (best-effort — never fail the run over the report)
+                try:
+                    report = self._compose_report(
+                        report_stats, audit, rows, cols, int(sim.population), iter_summary, time.time() - t_zero
+                    )
+                    with open(self.report_path, "w", encoding="utf-8") as fh:
+                        fh.write(report)
+                    self._log(f"Wrote run report: {Path(self.report_path).name}")
+                except Exception as exc:  # noqa: BLE001 — the report is a nicety, not worth failing for
+                    self._log(f"Could not write the run report: {exc}", Qgis.MessageLevel.Warning)
                 self._log(
-                    f"Ensemble finished in {time.time() - t_zero:.0f}s; "
-                    f"wrote likelihood + raw (pre) + recommended (post) plans: {self.out_path}"
+                    f"Ensemble finished in {time.time() - t_zero:.0f}s; wrote likelihood, "
+                    f"{len(self._plan_outputs)} plan(s) and a report: {self.out_path}"
                 )
                 return True
 
