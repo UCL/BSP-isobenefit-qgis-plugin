@@ -2,8 +2,7 @@
 
 A plain-language account of how the plugin turns a stochastic urban-growth simulation
 into a single prescriptive "recommended plan", what the numbers say, and an honest
-read on whether the approach is sound. All figures are from the Cambourne demo,
-reproducible via `uv run python scripts/benchmark_plans.py`.
+read on whether the approach is sound.
 
 ## TL;DR
 

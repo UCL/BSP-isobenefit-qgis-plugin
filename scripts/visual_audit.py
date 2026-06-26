@@ -14,13 +14,13 @@ Two tracks:
     03  centre area                small vs large (area grows with the catchment)
     04  minimum settlement size    low vs high (a failed satellite's centre is culled)
     05  centre walk distance       short vs long
-    06  green provision (budget)   low vs high
-    07  green walk distance        short vs long
-    08  green minimum park span    small vs large
     09  station anchoring          off vs on (a rail/tram stop pins a centre)
     10  network routing            open-grid vs street-network (a barrier to detour)
     11  frozen existing fabric     existing built/centres kept; new development added around them
-    12  green network              before vs after (parks carved where access is worst)
+    15  failed-satellite cleanup   stranded specks pruned to green
+
+  (Green is the CA's own preserved network now — there is no post-process green carve — so the plan's
+  green = the simulation's green; there are no green-carve scenarios.)
 
   CA GROWTH (runs the isobenefit engine — what the cellular automaton itself does):
     13  dispersed development      isolated-seeding Off / Low / Med / High (satellite formation)
@@ -235,7 +235,7 @@ def _opt(plan, **kw):
 def s01_centre_optimisation():
     plan = block(empty(), *TOWN)
     seeds = [(28, 28), (28, 92), (92, 28), (92, 92)]  # CA centres planted at the corners (off-centre)
-    common = dict(max_green_frac=0.0, ca_centres=seeds)
+    common = dict(ca_centres=seeds)
     figure(
         "01_centre_optimisation",
         "Centre optimisation: CA corner seeds (A) vs re-centred + grown to areas (B)",
@@ -248,7 +248,7 @@ def s01_centre_optimisation():
 
 def s02_centre_spacing():
     plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.0, ca_centres=[TOWN_CENTRE], optimise_centres=True)
+    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True)
     figure(
         "02_centre_spacing",
         "Centre spacing — the consolidated <-> dispersed dial (smaller spacing = more, closer centres)",
@@ -262,7 +262,7 @@ def s02_centre_spacing():
 
 def s03_centre_area():
     plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.0, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=600)
+    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=600)
     figure(
         "03_centre_area",
         "Centre area: each centre grows with the population it serves (area per home)",
@@ -277,7 +277,7 @@ def s04_min_settlement():
     # a big town plus a small detached satellite; a CA centre is seeded on each
     plan = block(empty(), *TOWN)
     block(plan, 8, 14, 8, 14)  # 6x6 satellite, far from the town
-    common = dict(max_green_frac=0.0, ca_centres=[TOWN_CENTRE, (11, 11)], optimise_centres=True)
+    common = dict(ca_centres=[TOWN_CENTRE, (11, 11)], optimise_centres=True)
     figure(
         "04_min_settlement",
         "Minimum settlement size: a small satellite keeps its centre (A) or is too small and loses it (B)",
@@ -290,7 +290,7 @@ def s04_min_settlement():
 
 def s05_centre_walk():
     plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.0, ca_centres=[TOWN_CENTRE], optimise_centres=True)
+    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True)
     figure(
         "05_centre_walk",
         "Centre walk distance: a shorter walk needs more centres to keep everyone covered",
@@ -301,52 +301,11 @@ def s05_centre_walk():
     )
 
 
-def s06_green_provision():
-    plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700, carve_green=True)
-    figure(
-        "06_green_provision",
-        "Green provision (budget): how much built fabric is freed to parks (green area per population)",
-        [
-            P(_opt(plan, max_green_frac=0.08, **common), "low provision (8%)"),
-            P(_opt(plan, max_green_frac=0.35, **common), "high provision (35%)"),
-        ],
-    )
-
-
-def s07_green_walk():
-    plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.4, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700,
-                  carve_green=True)
-    figure(
-        "07_green_walk",
-        "Green walk distance: a shorter walk to a park forces a denser, more distributed green network",
-        [
-            P(_opt(plan, green_distance_m=300, **common), "short walk (300 m)", gdist=300),
-            P(_opt(plan, green_distance_m=900, **common), "long walk (900 m)", gdist=900),
-        ],
-    )
-
-
-def s08_green_span():
-    plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.3, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700,
-                  carve_green=True)
-    figure(
-        "08_green_span",
-        "Minimum park span: many small pocket parks (A) vs fewer larger parks (B)",
-        [
-            P(optimise_plan(plan.copy(), GRAN, 150, MAX_DIST, **common), "A — small parks (150 m span)"),
-            P(optimise_plan(plan.copy(), GRAN, 650, MAX_DIST, **common), "B — large parks (650 m span)"),
-        ],
-    )
-
-
 def s09_station_anchor():
     # consolidated spacing + a larger area fraction (few, sizable centres) so the station's grown
     # centre is clearly visible rather than lost among many small dispersed ones
     plan = block(empty(), *TOWN)
-    common = dict(max_green_frac=0.0, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_area_frac=0.16)
+    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_area_frac=0.16)
     figure(
         "09_station_anchor",
         "Station anchoring: no station (A) vs a rail/tram station seeding a (grown) centre at (40, 84) (B)",
@@ -365,7 +324,7 @@ def s10_network_routing():
     block(plan, 55, 65, 64, 70)  # right block (gap at cols 60-64)
     linked = _lattice_router(G, G, step=3, barrier_col=62, bridge_rows=(54, 57, 60, 63, 66))  # roads bridge the gap
     split = _lattice_router(G, G, step=3, barrier_col=62, bridge_rows=())  # no road across the gap
-    common = dict(max_green_frac=0.0, ca_centres=[(60, 57)], optimise_centres=True)
+    common = dict(ca_centres=[(60, 57)], optimise_centres=True)
     figure(
         "10_network_routing",
         "Network linking vs separating the same clusters: a bridge serves both from one centre; severing needs two",
@@ -387,7 +346,7 @@ def s11_frozen_existing():
     existing_centres = [(60, 38)]
     plan[60, 38] = PLAN_CENTRE
     opt = _opt(
-        plan, max_green_frac=0.25, existing_built=existing_built, existing_centres=existing_centres,
+        plan, existing_built=existing_built, existing_centres=existing_centres,
         ca_centres=[(60, 77)], optimise_centres=True, centre_spacing_m=700,
     )
     opt = grid._mark_existing(opt, existing_built=existing_built, existing_centres=existing_centres)
@@ -398,20 +357,6 @@ def s11_frozen_existing():
     )
 
 
-def s12_green_carve():
-    plan = block(empty(), *TOWN)  # solid built, no green access
-    figure(
-        "12_green_carve",
-        "Green network: solid built with no parks (A) vs parks carved where access is worst + centres (B)",
-        [
-            P(plan.copy(), "A — before (no green network)"),
-            P(_opt(plan, max_green_frac=0.3, ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=700,
-                   carve_green=True),
-              "B — after (green carved + centres)"),
-        ],
-    )
-
-
 def s15_island_cleanup():
     # a main town + a viable satellite (each with a CA centre) + two stranded specks with no centre
     plan = empty()
@@ -419,7 +364,7 @@ def s15_island_cleanup():
     block(plan, 18, 30, 82, 96)  # viable satellite (12x14 = 168 cells)
     block(plan, 8, 11, 8, 11)  # stranded speck A (3x3 = 9 cells, no centre)
     block(plan, 96, 98, 30, 33)  # stranded speck B (2x3 = 6 cells, no centre)
-    common = dict(max_green_frac=0.0, ca_centres=[(56, 42), (24, 89)], optimise_centres=True,
+    common = dict(ca_centres=[(56, 42), (24, 89)], optimise_centres=True,
                   centre_min_settlement=12)
     figure(
         "15_island_cleanup",
@@ -433,8 +378,8 @@ def s15_island_cleanup():
 
 POST_PROCESS = [
     s01_centre_optimisation, s02_centre_spacing, s03_centre_area, s04_min_settlement,
-    s05_centre_walk, s06_green_provision, s07_green_walk, s08_green_span,
-    s09_station_anchor, s10_network_routing, s11_frozen_existing, s12_green_carve,
+    s05_centre_walk,
+    s09_station_anchor, s10_network_routing, s11_frozen_existing,
     s15_island_cleanup,
 ]
 
@@ -478,7 +423,7 @@ def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
     base = grid._state_to_plan(st, MIN_GREEN_SPAN, GRAN)
     # min settlement size 8: stranded specks are pruned and tiny hamlets don't keep their own centre,
     # so a dispersed run yields only viable settlements (each with a centre), not residential islands.
-    return optimise_plan(base, GRAN, MIN_GREEN_SPAN, MAX_DIST, max_green_frac=0.2,
+    return optimise_plan(base, GRAN, MIN_GREEN_SPAN, MAX_DIST,
                          ca_centres=ca, optimise_centres=True, centre_min_settlement=8)
 
 

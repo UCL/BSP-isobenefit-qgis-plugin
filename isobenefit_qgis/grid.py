@@ -641,24 +641,12 @@ def audit_centres(plan, granularity_m, max_distance_m, router=None):
     return {"centres": records, "summary": summary}
 
 
-# --- hybrid optimiser: greedy coverage over the consensus prior ------------------
+# --- recommended-plan post-processing -------------------------------------------
 #
-# The consensus plan (recommended_plan) is the CA's forecast; the evaluator shows
-# its weak spot is usually green access. This polishes that prior toward the
-# objective: greedily carve a green network into the built fabric at the spots where
-# the worst-served homes are, until coverage stops improving meaningfully or the
-# green budget is spent, then re-place centres on the fabric.
-#
-# Population-aware budget (the "constant inhabitants" principle of Isobenefit
-# urbanism): green is paid for by DENSIFYING the remaining built fabric, never by
-# deleting homes. If the current fabric houses its population at ``mean_density`` and
-# can be densified up to ``max_density``, then a fraction ``1 - mean_density/max_density``
-# of built cells can be freed to green while still housing everyone — that is the
-# budget. With no densities given it falls back to a flat ``max_green_frac``.
-#
-# Park placement uses a fast box-sum coverage proxy; the actual coverage that decides
-# the loop is recomputed each step by real walk-distance, so this is a deterministic
-# greedy heuristic (no global-optimality claim) whose reported coverage is honest.
+# Turns a single CA run into a recommended plan: prune failed-satellite specks, then re-place the
+# centres (re-centre on their development, add where under-served, cull redundant, grow to area). The
+# CA's own green network is kept as-is — the CA already preserves green to the minimum span during
+# growth, so the plan does NOT re-carve parks.
 
 
 def optimise_plan(
@@ -666,9 +654,6 @@ def optimise_plan(
     granularity_m: float,
     min_green_span_m: float,
     max_distance_m: float,
-    mean_density: float | None = None,
-    max_density: float | None = None,
-    max_green_frac: float = 0.2,
     max_centres: int = 200,
     existing_centres=None,
     centre_cost_frac: float = 0.0,
@@ -683,44 +668,33 @@ def optimise_plan(
     centre_area_frac: float = CENTRE_AREA_FRAC,
     centre_min_settlement: int = 3,
     prune_islands: bool = True,
-    carve_green: bool = False,
 ) -> np.ndarray:
-    """Improve a plan's walkable green access by carving parks where access is worst.
+    """Post-process a single CA run's plan into the recommended plan: prune failed-satellite specks,
+    then (when ``optimise_centres``, the default) re-place the centres central to their development,
+    add centres where new development is under-served, cull redundant ones and grow each to an area —
+    otherwise keep the simulation's grown centres as-is. The CA's green network is kept as-is. Returns
+    a new plan.
 
-    From ``plan`` (the consensus prior), repeatedly place a compact park of side
-    ``min_green_span`` at the spot serving the most currently-unserved homes (built ->
-    green), stopping when the best park adds too few homes or the green budget is
-    spent; then, when ``optimise_centres`` (the default), re-place new centres centrally
-    on the reduced fabric (existing centres kept) — otherwise the simulation's grown
-    centres are kept as-is. The budget is population-aware when ``mean_density`` and ``max_density`` are
-    given (green funded by densification, never by lost housing); otherwise a flat
-    ``max_green_frac``. Returns a new plan.
-
-    ``existing_built`` is a bool mask of cells that were already developed before the
-    simulation. Those are **frozen**: the plan may green-over only NEW (speculative)
-    built land, never prune what is already there.
+    ``existing_built`` is a bool mask of cells already developed before the simulation; those are
+    **frozen** (never pruned) and tagged distinctly downstream.
 
     Centre/green walks are split: ``centre_distance_m`` / ``green_distance_m`` (each defaulting to
     ``max_distance_m``) are the walk thresholds for centre vs green coverage. ``centre_spacing_m``
     sets centre consolidation (consolidated↔dispersed; see ``_refine_centres``); ``centre_area_frac``
-    scales how big each centre grows; ``centre_min_settlement`` is the minimum catchment a centre must
-    serve to survive the cull (failed dispersal seeds below it are removed).
+    scales how big each centre grows; ``centre_min_settlement`` is the minimum settlement size below
+    which a detached new cluster is pruned.
     """
     plan = plan.copy()
     g = float(granularity_m)
     # Split walks: centres and green each have their own walk threshold (both default to the shared
-    # max_distance). The distance FIELD is bounded at the larger of the two; each amenity's coverage
-    # is then judged against its own threshold.
+    # max_distance). The distance FIELD is bounded at the larger of the two; centre coverage is judged
+    # against centre_distance_m.
     centre_distance_m = max_distance_m if centre_distance_m is None else float(centre_distance_m)
     green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
     field_bound = max(centre_distance_m, green_distance_m)
-    side = max(2, round(min_green_span_m / g))
-    half = side // 2
-    walk_r = max(1, round(green_distance_m / g))  # green-coverage window
     rows, cols = plan.shape
-    # ONE distance model for the whole optimisation (carve + centres): the grid walk by default,
-    # or true street-network distances when a ``router`` (mask -> rows×cols metres) is injected. The
-    # field is bounded at the larger walk; centre vs green coverage compare against their own threshold.
+    # ONE distance model: the grid walk by default, or true street-network distances when a ``router``
+    # (mask -> rows×cols metres) is injected. The field is bounded at the larger walk.
     if router is None:
 
         def walk(mask):
@@ -728,8 +702,7 @@ def optimise_plan(
     else:
         walk = router
 
-    # Existing development is frozen: parks may be carved only from NEW (speculative) built land,
-    # never pruned, and the small-settlement cleanup never touches it.
+    # Existing development is frozen: never pruned, and the small-settlement cleanup never touches it.
     frozen = np.zeros(plan.shape, dtype=bool)
     if existing_built is not None:
         frozen |= np.asarray(existing_built, dtype=bool)
@@ -749,40 +722,6 @@ def optimise_plan(
     n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
     if n_built == 0:
         return plan
-    if mean_density and max_density and max_density > 0:
-        budget_frac = max(0.0, 1.0 - mean_density / max_density)
-    else:
-        budget_frac = max_green_frac
-    green_budget = int(budget_frac * n_built)
-    min_gain = max(1.0, 0.002 * n_built)  # stop once a park serves only a few stragglers
-
-    # The green carve is OFF by default: the CA already preserves a green network meeting min_green_span
-    # (its build rule won't crimp green corridors below the span), so the recommended plan keeps that
-    # green rather than re-carving consolidated parks. Turn carve_green on to force a consolidated park
-    # network (funded by densification) — a much bigger change from the raw plan.
-    spent = 0
-    while carve_green and spent < green_budget:
-        built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
-        carvable = built & ~frozen  # only new built may be freed to green
-        d_green = walk(plan == PLAN_GREEN)
-        unserved = built & ~(d_green <= green_distance_m)  # every home wants green within the green walk...
-        if not unserved.any():
-            break
-        # homes a park here would newly serve: unserved within a walk of the park
-        gain = _box_sum(unserved.astype(np.float64), walk_r + half)
-        gain = np.where(carvable, gain, -1.0)  # ...but a park may only be carved from new land
-        if gain.max() < min_gain:  # diminishing returns — don't over-green for stragglers
-            break
-        cy, cx = divmod(int(np.argmax(gain)), cols)
-        y0, y1 = max(0, cy - half), min(rows, cy + half + 1)
-        x0, x1 = max(0, cx - half), min(cols, cx + half + 1)
-        block = plan[y0:y1, x0:x1]
-        carved = carvable[y0:y1, x0:x1]  # leave any existing built within the footprint intact
-        carved_n = int(carved.sum())
-        if carved_n == 0 or spent + carved_n > green_budget:  # never overshoot the budget
-            break
-        block[carved] = PLAN_GREEN
-        spent += carved_n
 
     # Centres: keep the existing ones; take the simulation's grown centres (``ca_centres`` — the
     # original proximity seeding). When ``optimise_centres`` (the default) tidy them — re-position
@@ -831,27 +770,6 @@ def optimise_plan(
     for y, x in new_centres:
         plan[y, x] = PLAN_CENTRE
     return plan
-
-
-def capacity_summary(built_before: int, built_after: int, mean_density: float, max_density: float) -> dict:
-    """Population accounting for an optimised plan (constant-inhabitants check).
-
-    The plan held its population (``built_before * mean_density``) while freeing some
-    built cells to green; the remaining cells must absorb everyone by densifying.
-    Returns the population held, the density before and the density now required, the
-    max permitted, and whether that is feasible (required <= max).
-    """
-    population = built_before * mean_density
-    density_after = population / built_after if built_after else math.inf
-    return {
-        "population": population,
-        "built_before": built_before,
-        "built_after": built_after,
-        "density_before": mean_density,
-        "density_after": density_after,
-        "max_density": max_density,
-        "feasible": density_after <= max_density + 1e-9,
-    }
 
 
 # --- selecting the recommended plan from an ensemble of single runs --------------
@@ -912,8 +830,6 @@ def select_plan(
     granularity_m,
     min_green_span_m,
     max_distance_m,
-    mean_density=None,
-    max_density=None,
     existing_centres=None,
     centre_cost_frac=0.0,
     max_eval=None,
@@ -929,7 +845,6 @@ def select_plan(
     centre_area_frac=CENTRE_AREA_FRAC,
     centre_min_settlement=3,
     prune_islands=True,
-    carve_green=False,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
@@ -952,7 +867,6 @@ def select_plan(
         opt = optimise_plan(
             _state_to_plan(st, min_green_span_m, granularity_m, existing_green=existing_green),
             granularity_m, min_green_span_m, max_distance_m,
-            mean_density=mean_density, max_density=max_density,
             existing_centres=existing_centres, centre_cost_frac=centre_cost_frac,
             existing_built=existing_built, ca_centres=ca_centres,
             optimise_centres=optimise_centres, centre_anchors=centre_anchors,
@@ -960,7 +874,6 @@ def select_plan(
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=centre_spacing_m, centre_area_frac=centre_area_frac,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
-            carve_green=carve_green,
         )
         m = evaluate_plan(
             opt,
@@ -992,8 +905,6 @@ def plan_variants(
     max_distance_m,
     spacings,
     *,
-    mean_density=None,
-    max_density=None,
     existing_centres=None,
     existing_built=None,
     existing_green=None,
@@ -1004,13 +915,12 @@ def plan_variants(
     centre_area_frac=CENTRE_AREA_FRAC,
     centre_min_settlement=3,
     prune_islands=True,
-    carve_green=False,
 ):
     """Post-process one chosen CA run ``state`` at several centre-SPACING settings, so the user can
     compare compactness options and pick rather than choosing up front. ``spacings`` maps a label to a
     centre spacing in metres (``None`` = consolidated / coverage-minimal). Returns ``{label: (plan,
-    metrics)}``; each plan is fully optimised (green carve + centre placement at that spacing) and
-    tagged with the existing-* codes."""
+    metrics)}``; each plan is fully optimised (centre placement at that spacing) and tagged with the
+    existing-* codes."""
     state = np.asarray(state)
     ca_centres = [(int(y), int(x)) for y, x in np.argwhere(state == 2)]
     base = _state_to_plan(state, min_green_span_m, granularity_m, existing_green=existing_green)
@@ -1018,13 +928,11 @@ def plan_variants(
     for label, spacing_m in spacings.items():
         plan = optimise_plan(
             base, granularity_m, min_green_span_m, max_distance_m,
-            mean_density=mean_density, max_density=max_density,
             existing_centres=existing_centres, existing_built=existing_built, ca_centres=ca_centres,
             optimise_centres=True, centre_anchors=centre_anchors, router=router,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=spacing_m, centre_area_frac=centre_area_frac,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
-            carve_green=carve_green,
         )
         metrics = evaluate_plan(
             plan, granularity_m, max_distance_m, min_green_span_m=min_green_span_m, router=router,

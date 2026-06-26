@@ -32,7 +32,6 @@ from isobenefit_qgis.grid import (
     PLAN_GREEN,
     PLAN_NONE,
     align_bounds,
-    capacity_summary,
     class_probabilities,
     classify,
     evaluate_plan,
@@ -289,10 +288,10 @@ def test_optimise_plan_centre_optimisation_optional():
     plan[10:30, 10:30] = PLAN_BUILT  # a 20x20 development (centroid ~ (19, 19))
     edge = (10, 10)  # the simulation grew a centre in the corner
 
-    off = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[edge], optimise_centres=False)
+    off = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], optimise_centres=False)
     assert {(int(y), int(x)) for y, x in np.argwhere(off == PLAN_CENTRE)} == {edge}  # kept as-is
 
-    on = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[edge], optimise_centres=True)
+    on = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], optimise_centres=True)
     centres_on = {(int(y), int(x)) for y, x in np.argwhere(on == PLAN_CENTRE)}
     assert edge not in centres_on  # re-positioned off the corner, toward the centre
 
@@ -330,10 +329,10 @@ def test_optimise_plan_anchors_centre_at_station():
     plan[10:30, 10:30] = PLAN_BUILT
 
     anchor = (12, 12)  # a station near the development edge
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[], centre_anchors=[anchor])
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[], centre_anchors=[anchor])
     assert anchor in {(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)}  # anchored + kept
 
-    out2 = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[], centre_anchors=[(0, 0)])
+    out2 = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[], centre_anchors=[(0, 0)])
     assert (0, 0) not in {(int(y), int(x)) for y, x in np.argwhere(out2 == PLAN_CENTRE)}  # off built -> ignored
 
 
@@ -344,7 +343,7 @@ def test_optimise_plan_grows_station_anchor():
     g = 50
     plan = np.zeros((g, g), np.uint8)
     plan[10:40, 10:40] = PLAN_BUILT  # 30x30 development around the station
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[], centre_anchors=[(15, 15)])
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[], centre_anchors=[(15, 15)])
     centres = {(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)}
     assert (15, 15) in centres  # the station is a centre
     comp = next(c for c in _components(out == PLAN_CENTRE) if (15, 15) in c)
@@ -387,7 +386,7 @@ def test_optimise_plan_threads_one_distance_model_to_placement():
         calls.append(True)
         return np.full((g, g), np.inf)  # nothing is within a walk of anything
 
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[(15, 15)], router=router)
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(15, 15)], router=router)
     assert calls  # the injected model was used inside the optimiser, not just the scorer
     assert not (out == PLAN_CENTRE).any()  # unreachable -> no centre is warranted
 
@@ -478,7 +477,7 @@ def test_optimise_plan_grows_centre_into_area():
     g = 50
     plan = np.zeros((g, g), np.uint8)
     plan[10:40, 10:40] = PLAN_BUILT  # a 30x30 = 900-cell development
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[(25, 25)])
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(25, 25)])
     centre_cells = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
     assert len(centre_cells) > 1  # grew into an area, not a single cell
     assert all(10 <= y < 40 and 10 <= x < 40 for y, x in centre_cells)  # stays on the development
@@ -490,7 +489,7 @@ def test_optimise_plan_culls_tiny_ca_centre():
     plan = np.zeros((g, g), np.uint8)
     plan[10:30, 10:30] = PLAN_BUILT  # real development
     plan[2, 36:38] = PLAN_BUILT  # an isolated 2-cell speck
-    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.0, ca_centres=[(20, 20), (2, 36)])
+    out = optimise_plan(plan, 100.0, 400.0, 800.0, ca_centres=[(20, 20), (2, 36)])
     cs = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
     assert any(10 <= y < 30 and 10 <= x < 30 for y, x in cs)  # real development keeps a centre
     assert not any(y < 5 and x >= 35 for y, x in cs)  # the 2-cell speck's centre is culled
@@ -522,7 +521,7 @@ def test_centres_do_not_bridge_open_gaps():
     plan = np.zeros((g, g), np.uint8)
     plan[5:35, 4:16] = PLAN_BUILT  # left built-up area
     plan[5:35, 24:36] = PLAN_BUILT  # right built-up area (open gap cols 16-23)
-    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.0)
+    out = optimise_plan(plan, 100.0, 400.0, 800.0)
     xs = [int(x) for _, x in np.argwhere(out == PLAN_CENTRE)]
     assert any(x < 16 for x in xs)  # left served
     assert any(x >= 24 for x in xs)  # right served
@@ -530,14 +529,17 @@ def test_centres_do_not_bridge_open_gaps():
 
 
 def test_optimise_never_prunes_existing_built():
-    # The green-carve may free NEW built to parks, but must never touch existing built.
+    # The failed-satellite prune removes only NEW detached specks — a small EXISTING cluster is frozen.
     g = 40
-    plan = np.full((g, g), PLAN_BUILT, np.uint8)  # solid built, no green -> carve wants parks
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:30, 10:30] = PLAN_BUILT  # main development
+    plan[3:5, 3:5] = PLAN_BUILT  # a tiny 2x2 cluster...
     existing = np.zeros((g, g), bool)
-    existing[0:20, :] = True  # the top half is existing built (frozen)
-    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.4, existing_built=existing, carve_green=True)
-    assert not ((out == PLAN_GREEN) & existing).any()  # not one existing cell pruned to green
-    assert (out == PLAN_GREEN).any()  # but new (bottom) land was greened — carve still works
+    existing[3:5, 3:5] = True  # ...that is EXISTING (frozen), so the prune must leave it
+    out = optimise_plan(
+        plan, 50.0, 400.0, 800.0, existing_built=existing, ca_centres=[(20, 20)], centre_min_settlement=12
+    )
+    assert (out[3:5, 3:5] != PLAN_GREEN).all()  # the existing cluster is not pruned to green
 
 
 def test_select_plan_freezes_and_tags_existing():
@@ -561,7 +563,7 @@ def test_true_area_centres_marked_on_plan():
     plan = np.zeros((g, g), np.uint8)
     plan[5:35, 5:35] = PLAN_BUILT  # built block
     centre_cells = [(r, c) for r in range(10, 16) for c in range(10, 16)]  # 6x6 centre area
-    out = optimise_plan(plan, 100.0, 400.0, 800.0, max_green_frac=0.0, existing_centres=centre_cells)
+    out = optimise_plan(plan, 100.0, 400.0, 800.0, existing_centres=centre_cells)
     assert set(np.unique(out)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
     for r, c in centre_cells:
         assert out[r, c] == PLAN_CENTRE  # every covered, built cell is a centre cell
@@ -578,10 +580,7 @@ def test_class_probabilities():
 
 def test_select_plan_on_demo(grid):
     states = isobenefit.run_ensemble(_make(grid), 7, 6)
-    md = sum(p * d for p, d in zip((0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0)))
-    plan, m, pre, st = select_plan(
-        states, GRAN, 400.0, 800.0, mean_density=md, max_density=6000.0, existing_centres=grid["seeds"]
-    )
+    plan, m, pre, st = select_plan(states, GRAN, 400.0, 800.0, existing_centres=grid["seeds"])
     assert plan.shape == (grid["rows"], grid["cols"])
     assert pre is not None and pre.shape == plan.shape  # the raw (pre-processing) plan is returned too
     assert st is not None and st.shape == plan.shape  # the chosen run's state, for compactness variants
@@ -592,47 +591,6 @@ def test_select_plan_on_demo(grid):
     assert 0.0 <= m["served_coverage"] <= 1.0 and m["access_cost"] > 0.0
 
 
-def test_optimise_plan_improves_green_access():
-    g = 40
-    plan = np.full((g, g), PLAN_BUILT, np.uint8)  # all built, no green
-    plan[20, 20] = PLAN_CENTRE
-    before = evaluate_plan(plan, 100.0, 800.0)
-    assert before["green_coverage"] == 0.0  # nothing green to reach
-
-    opt = optimise_plan(plan, 100.0, min_green_span_m=400.0, max_distance_m=800.0, max_green_frac=0.3, carve_green=True)
-    after = evaluate_plan(opt, 100.0, 800.0)
-    assert opt.shape == plan.shape
-    assert set(np.unique(opt)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
-    assert after["green_coverage"] > before["green_coverage"]
-    assert after["served_coverage"] > before["served_coverage"]
-    assert (opt == PLAN_CENTRE).any()  # centres re-placed on the reduced fabric
-    # green spent stays within budget (strict, no overshoot)
-    n_built0 = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
-    assert int((opt == PLAN_GREEN).sum()) <= 0.3 * n_built0
-
-
-def test_optimise_plan_population_aware_never_overhouses():
-    # all-built grid; mean density 3800, max 6000 -> may free up to 1-3800/6000 = 36.7%
-    g = 40
-    plan = np.full((g, g), PLAN_BUILT, np.uint8)
-    plan[20, 20] = PLAN_CENTRE
-    n0 = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
-    opt = optimise_plan(plan, 100.0, 400.0, 800.0, mean_density=3800.0, max_density=6000.0, carve_green=True)
-    n1 = int(((opt == PLAN_BUILT) | (opt == PLAN_CENTRE)).sum())
-    freed = n0 - n1
-    assert 0 < freed <= round((1.0 - 3800.0 / 6000.0) * n0)  # within the densification headroom
-    # the population is genuinely re-housed by densifying the rest, not deleted
-    summary = capacity_summary(n0, n1, 3800.0, 6000.0)
-    assert summary["feasible"]
-    assert summary["density_after"] <= 6000.0
-    assert summary["population"] == n0 * 3800.0
-
-
-def test_capacity_summary_flags_infeasible():
-    # freeing too much (no densities given -> flat 20% on a tiny grid) should still re-house
-    s = capacity_summary(built_before=1000, built_after=500, mean_density=3800.0, max_density=6000.0)
-    assert not s["feasible"]  # would need 7600 > 6000
-    assert s["density_after"] == 7600.0
 
 
 def test_refine_centres_spacing_consolidated_vs_dispersed():
@@ -656,7 +614,7 @@ def test_optimise_plan_centre_spacing_disperses():
     g = 80
     plan = np.zeros((g, g), np.uint8)
     plan[10:70, 10:70] = PLAN_BUILT
-    common = dict(max_green_frac=0.0, ca_centres=[(40, 40)], optimise_centres=True)
+    common = dict(ca_centres=[(40, 40)], optimise_centres=True)
     cons = optimise_plan(plan, 50.0, 400.0, 800.0, centre_spacing_m=800.0, **common)
     disp = optimise_plan(plan, 50.0, 400.0, 800.0, centre_spacing_m=300.0, **common)
     # count centre AREAS (connected components), not cells, since centres are grown blobs
@@ -671,7 +629,7 @@ def test_optimise_plan_centre_area_scales():
     g = 60
     plan = np.zeros((g, g), np.uint8)
     plan[10:50, 10:50] = PLAN_BUILT
-    common = dict(max_green_frac=0.0, ca_centres=[(30, 30)], optimise_centres=True, centre_spacing_m=700.0)
+    common = dict(ca_centres=[(30, 30)], optimise_centres=True, centre_spacing_m=700.0)
     small = optimise_plan(plan, 50.0, 400.0, 800.0, centre_area_frac=0.02, **common)
     large = optimise_plan(plan, 50.0, 400.0, 800.0, centre_area_frac=0.12, **common)
     assert int((large == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # bigger area per home
@@ -685,7 +643,7 @@ def test_optimise_plan_min_settlement_culls_satellite():
     plan = np.zeros((g, g), np.uint8)
     plan[20:60, 20:60] = PLAN_BUILT  # main town
     plan[3:7, 3:7] = PLAN_BUILT  # 4x4 satellite, detached
-    common = dict(max_green_frac=0.0, ca_centres=[(40, 40), (5, 5)], optimise_centres=True)
+    common = dict(ca_centres=[(40, 40), (5, 5)], optimise_centres=True)
     kept = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=3, **common)
     culled = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=40, **common)
     sat = lambda out: any(y < 10 and x < 10 for y, x in np.argwhere(out == PLAN_CENTRE))  # noqa: E731
@@ -716,7 +674,7 @@ def test_optimise_plan_prunes_centreless_island():
     plan = np.zeros((g, g), np.uint8)
     plan[20:50, 10:40] = PLAN_BUILT  # main development (kept, gets a centre)
     plan[3:6, 53:56] = PLAN_BUILT  # 3x3 stranded speck (9 cells), far from anything, no centre
-    common = dict(max_green_frac=0.0, ca_centres=[(35, 25)], optimise_centres=True, centre_min_settlement=12)
+    common = dict(ca_centres=[(35, 25)], optimise_centres=True, centre_min_settlement=12)
     pruned = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=True, **common)
     kept = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=False, **common)
     assert (pruned[3:6, 53:56] == PLAN_GREEN).all()  # stranded speck reverted to green

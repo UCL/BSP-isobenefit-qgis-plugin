@@ -67,7 +67,6 @@ class IsobenefitTask(QgsTask):
         centre_min_settlement=3,
         centre_distance_m=None,
         green_distance_m=None,
-        carve_green=False,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -104,7 +103,6 @@ class IsobenefitTask(QgsTask):
         self.centre_min_settlement = int(centre_min_settlement)
         self.centre_distance_m = None if centre_distance_m is None else float(centre_distance_m)
         self.green_distance_m = None if green_distance_m is None else float(green_distance_m)
-        self.carve_green = bool(carve_green)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -375,7 +373,6 @@ class IsobenefitTask(QgsTask):
                 # centres; existing centre seeds kept. Picked by shortest average walk.
                 self._log("Selecting and optimising the recommended plan…")
                 self.setProgress(90.0)
-                mean_density = sum(p * d for p, d in zip(self.prob_distribution, self.density_factors))
                 # ONE distance model: with a streets layer, walking is measured along the network
                 # (built once here, reused for every run); without one, the open-grid walk. No silent
                 # fallback — if the graph can't be built, make_router raises and the run fails clearly.
@@ -402,8 +399,6 @@ class IsobenefitTask(QgsTask):
                     self.granularity_m,
                     self.min_green_span,
                     self.max_distance_m,
-                    mean_density=mean_density,
-                    max_density=max(self.density_factors),
                     existing_centres=seeds,
                     # existing development is frozen (never pruned) and tagged distinctly
                     existing_built=(origin == 1),
@@ -416,7 +411,6 @@ class IsobenefitTask(QgsTask):
                     centre_min_settlement=self.centre_min_settlement,
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
-                    carve_green=self.carve_green,
                 )
                 self._plan_outputs = []  # (path, label) for finished() to load, in display order
                 report_stats = []  # (label, metrics, n_centres) for the run report
@@ -443,11 +437,10 @@ class IsobenefitTask(QgsTask):
                     self._log("Post-processing the chosen run at each compactness option…")
                     variants = grid.plan_variants(
                         best_state, self.granularity_m, self.min_green_span, self.max_distance_m, spacings,
-                        mean_density=mean_density, max_density=max(self.density_factors),
                         existing_centres=seeds, existing_built=(origin == 1), existing_green=(origin == 0),
                         centre_anchors=station_anchors, router=router,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
-                        centre_min_settlement=self.centre_min_settlement, carve_green=self.carve_green,
+                        centre_min_settlement=self.centre_min_settlement,
                     )
                     for label in ("consolidated", "balanced", "dispersed"):
                         vplan, vm = variants[label]
