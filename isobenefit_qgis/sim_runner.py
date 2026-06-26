@@ -129,7 +129,7 @@ class IsobenefitTask(QgsTask):
         audit — so there is a durable account of exactly what was done and how each option scored."""
         from datetime import datetime
 
-        dispersal = {0.0: "Off", 0.01: "Moderate", 0.04: "Aggressive"}.get(
+        dispersal = {0.0: "Off", 0.0001: "Moderate", 0.04: "Aggressive"}.get(
             round(self.cent_prob_isol, 4), f"{self.cent_prob_isol:g}"
         )
         cwalk = self.centre_distance_m or self.max_distance_m

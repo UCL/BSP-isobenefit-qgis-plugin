@@ -100,7 +100,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         sim.addRow("Build probability", self.build_prob)
         self.dispersal_mode = QtWidgets.QComboBox(self)
         self.dispersal_mode.addItem("Off (compact)", 0.0)
-        self.dispersal_mode.addItem("Moderate", 0.01)
+        self.dispersal_mode.addItem("Moderate", 0.0001)
         self.dispersal_mode.addItem("Aggressive", 0.04)
         self.dispersal_mode.setCurrentIndex(1)  # Moderate by default
         self.dispersal_mode.setToolTip(
