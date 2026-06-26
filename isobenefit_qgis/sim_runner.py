@@ -425,6 +425,7 @@ class IsobenefitTask(QgsTask):
                     for sy, sx in seeds:
                         if 0 <= sy < rows and 0 <= sx < cols:
                             existing_plan[sy, sx] = grid.PLAN_EXIST_CENTRE
+                    existing_plan[state == -1] = grid.PLAN_NONE  # unbuildable stays empty, never green
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
                 if pre_plan is not None:  # the chosen run BEFORE post-processing (raw CA), for comparison

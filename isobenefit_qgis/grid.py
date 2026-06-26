@@ -882,6 +882,7 @@ def _state_to_plan(state, min_green_span_m, granularity_m, existing_green=None) 
     plan[_keep_large_components(state == 0, green_min)] = PLAN_GREEN
     if existing_green is not None:
         plan[np.asarray(existing_green, dtype=bool)] = PLAN_GREEN  # never drop existing green
+    plan[state == -1] = PLAN_NONE  # unbuildable (rivers / roads / etc.) is never developed OR green
     return plan
 
 
