@@ -2,264 +2,263 @@
 import BaseLayout from '../layouts/BaseLayout.astro'
 import { Image } from 'astro:assets'
 
-import img_urban_areas from '~/assets/urban_areas.png'
-import img_green_areas from '~/assets/green_areas.png'
-import img_centralities from '~/assets/centralities.png'
-import img_unbuildable_areas from '~/assets/unbuildable_areas.png'
+import img_urban from '~/assets/urban_areas.png'
+import img_green from '~/assets/green_areas.png'
+import img_centres from '~/assets/centralities.png'
+import img_unbuildable from '~/assets/unbuildable_areas.png'
 
-import prob_plugin_gui_crop from '~/assets/plugin_gui_crop.png'
-import prob_0_1_0_0 from '~/assets/prob_0-1_0-0.png'
-import prob_0_1_0_8 from '~/assets/prob_0-1_0-8.png'
-import prob_0_1_0_8_mu from '~/assets/prob_0-1_0-8_mu.png'
-import prob_0_1_0_8_400 from '~/assets/prob_0-1_0-8_400.png'
+const base = import.meta.env.BASE_URL
+const dg = (name: string) => `${base}images/${name}.svg`
 ---
 
 <BaseLayout>
-  <h1>Isobenefit Urbanism QGIS Plugin</h1>
-  <h6>Applying Isobenefit Urbanism to real-world datasets with QGIS</h6>
-  <h2>Concept</h2>
+  <h1>Isobenefit Urbanism — QGIS Plugin</h1>
+  <h6>Brainstorming walkable, nature-rich urban growth on real-world data</h6>
+
   <section>
     <p>
-      The Isobenefit Urbanism QGIS plugin is a tool for brainstorming walkable urban development
-      against real-world datasets. The algorithm is based on walkable access to centralities (shops,
-      services) and green spaces.
+      The <strong>Isobenefit Urbanism</strong> plugin for QGIS simulates how a place could grow so that
+      everyone keeps walkable access to <strong>both</strong> local centres (shops, services) <strong>and</strong>
+      green space — then distils that simulation into a concrete <strong>recommended plan</strong> you can
+      discuss with planners. It runs on your own GIS layers. It is an exploratory, conversational tool used
+      alongside local knowledge, not a prescription.
     </p>
+    <nav class="toc">
+      <a href="#concept">Concept</a>
+      <a href="#install">Install</a>
+      <a href="#inputs">Inputs</a>
+      <a href="#simulation">The simulation</a>
+      <a href="#plan">From runs to a plan</a>
+      <a href="#postprocessing">Post-processing</a>
+      <a href="#outputs">Outputs</a>
+      <a href="#demonstration">Demonstration</a>
+      <a href="#parameters">Parameters</a>
+      <a href="#credits">Credits</a>
+    </nav>
   </section>
-  <h2>Sources</h2>
+
+  <h2 id="concept">Concept &amp; rationale</h2>
   <section>
     <p>
-      The Isobenefit Urbanism QGIS plugin is an adaptation of the <a
-        href="https://github.com/UCL/BSP-isobenefit-original">Isobenefit Cities</a
-      > codebase to work with QGIS. The work is based on the <a
-        href="https://lucadacci.wixsite.com/dacci/isobenefit-urbanism-morphogenesis"
-        >Isobenefit Urbanism</a
-      > concept by Luca D'Acci, with the original <a
-        href="https://github.com/mitochevole/isobenefit-cities"
-      >
-        Python code</a
-      > developed by Michele Voto.
+      <a href="https://lucadacci.wixsite.com/dacci/isobenefit-urbanism-morphogenesis">Isobenefit Urbanism</a>
+      (Luca D'Acci) describes a city whose benefits — nearness to centres and to nature — are spread
+      <em>evenly</em>: quality of life shouldn't depend on which corner of town you live in. It steers between
+      the two failure modes of growth: <strong>sprawl</strong>, which strands people far from centres and
+      paves over nature, and <strong>overcrowding</strong>, which squeezes nature out.
     </p>
     <p>
-      The project is an initiative of the Future Urban Growth Lab at UCL Bartlett Planning, with the
-      team presently consisting of Tommaso Gabrieli, Luca D'Acci, Heeseo Kwon (Rain), Stephen
-      Marshall, Valentina Marin Maureira, and Gareth Simons.
+      The plugin turns that principle into a <strong>cellular-automaton</strong> simulation: a grid of land
+      cells grows step by step under rules that keep new development on foot of a centre and protect green
+      corridors. Because the rules are stochastic, no single run is "the" answer — so the plugin runs many and
+      reports both the <strong>uncertainty</strong> (where development is robust vs contingent) and one
+      coherent <strong>recommended plan</strong>.
     </p>
+  </section>
+
+  <h2 id="install">Install the plugin</h2>
+  <section>
+    <ol>
+      <li>
+        In QGIS (3.x or 4.x): <em>Plugins → Manage and Install Plugins → Settings →</em> tick
+        <em>"Show also experimental plugins"</em>, then search for <strong>isobenefit</strong> and install it.
+      </li>
+      <li>
+        On first run it checks for the <code>isobenefit</code> simulation engine and, if missing, offers to
+        install it into the QGIS Python environment (needs internet). <strong>Restart QGIS</strong> afterwards.
+      </li>
+    </ol>
     <p>
-      The code developed as part of this project is open source and can be found in the <a
-        href="https://github.com/UCL/BSP-isobenefit-qgis-plugin">BSP-isobenefit-qgis-plugin</a
-      > Github repository. The code for this webpage can be found in the <a
-        href="https://github.com/UCL/BSP-isobenefit-urbanism">BSP-isobenefit-urbanism</a
-      > repo. These resposotires are developed and maintained by Gareth Simons.
+      If automatic install is blocked, run it yourself with the QGIS Python:
+    </p>
+    <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.9,&lt;0.10"</code></pre>
+    <p>
+      <strong>Why two pieces?</strong> The plugin itself is thin (UI + GIS I/O). The heavy compute is a
+      separate Rust engine published to PyPI as the <code>isobenefit</code> package — kept apart because the
+      QGIS plugin repository doesn't permit shipping compiled binaries. Source for both:
+      <a href="https://github.com/UCL/BSP-isobenefit-qgis-plugin">BSP-isobenefit-qgis-plugin</a>.
     </p>
   </section>
-  <h2>Example</h2>
-  <section class="flex flex-col items-center justify-center p-4">
-    <iframe
-      title="vimeo-player"
-      src="https://player.vimeo.com/video/806844587?h=7f385a19b3&dnt=1"
-      width="640"
-      height="360"
-      class=""
-      allowfullscreen></iframe>
-    <blockquote>
-      This example is strictly hypothetical for the purpose of demonstrating how this plugin works.
-      In real-world usage the plugin is used as part of an exploratory dialogue under the
-      supervision of local planners.
-    </blockquote>
-  </section>
-  <h2>How it works</h2>
+
+  <h2 id="inputs">Inputs</h2>
   <section>
     <p>
-      Isobenefit Cities is based on a Cellular Automata: A grid of cells represents the current
-      state of land-development for a given geographic extent. An algorithm explores the grid and
-      applies a set of rules to determine when a cell's state can be changed. This procedure is
-      repeated a specified number of times, resulting in a series of time-steps representing how
-      development might unfold for a given dataset and set of input parameters.
-    </p>
-    <h3>How built areas are expanded</h3>
-    <p>
-      The following series of images details (in a simplified form) how the algorithm determines
-      whether or not an undeveloped parcel of land can be developed.
-    </p>
-    <figure>
-      <img src="images/step_0.svg" alt="" width="1000" />
-      <figcaption>
-        Step 0: Check that the total population remains below the target population count. If the
-        population target has been satisfied, then terminate the algorithm. Otherwise, proceed to
-        visit all cells in Step 1.
-      </figcaption>
-    </figure>
-    <figure>
-      <img src="images/step_1a.svg" alt="" width="1000" />
-      <figcaption>
-        Step 1 - case (A): If a candidate location is an existing built location, then bail.
-      </figcaption>
-    </figure>
-    <figure>
-      <img src="images/step_1b.svg" alt="" width="1000" />
-      <figcaption>
-        Step 1 - case (B): If a candidate location is not on the periphery of a built area, then
-        bail.
-      </figcaption>
-    </figure>
-    <figure>
-      <img src="images/step_1c.svg" alt="" width="1000" />
-      <figcaption>
-        Step 1 - case (C): If a candidate location is on the periphery of a built area, then proceed
-        to step 2.
-      </figcaption>
-    </figure>
-    <figure>
-      <img src="images/step_2.svg" alt="" width="1000" />
-      <figcaption>
-        Step 2: Is the candidate location within the maximum walking threshold parameter from the
-        closest urban centrality? If so, proceed.
-      </figcaption>
-    </figure>
-    <figure>
-      <img src="images/step_3.svg" alt="" width="1000" />
-      <figcaption>
-        Step 3: Would the candidate location reduce an existing green span to less than the
-        specified threshold? If so, bail.
-      </figcaption>
-    </figure>
-    <figure>
-      <img src="images/step_4.svg" alt="" width="1000" />
-      <figcaption>
-        Step 4: The candidate location can now be marked as built. The algorithm can then proceed to
-        the next cell for consideration.
-      </figcaption>
-    </figure>
-    <h3>How centralities are seeded</h3>
-    <p>
-      New centralities can be seeded in one of two scenarios. In both cases, a probability parameter
-      is used to control how readily these scenarios would lead to the seeding of a new centrality.
-    </p>
-    <figure>
-      <img src="images/centres_1.svg" alt="" width="1000" />
-      <figcaption>
-        Situation 1: If a candidate location exceeds the threshold distance to the nearest
-        centrality, then a new "Neighbouring Centrality" may be seeded.
-      </figcaption>
-    </figure>
-    <figure>
-      <img src="images/centres_2.svg" alt="" width="1000" />
-      <figcaption>
-        Situation 2: If a candidate location is not on the periphery of a built area, then a new
-        "Isolated Centrality" can be added.
-      </figcaption>
-    </figure>
-  </section>
-  <h2>Application to real-world datasets</h2>
-  <section>
-    <p>
-      When applying the Cellular Automata algorithm to real world datasets, it becomes possible to
-      take existing spatial constraints into account. The plugin consequently takes the following
-      forms of layers as inputs:
+      Only a polygon <strong>extents</strong> layer and a projected <strong>CRS</strong> are required. Everything
+      else is optional context that constrains the simulation:
     </p>
     <ul>
-      <li>extents available for development</li>
-      <li>existing built areas</li>
-      <li>green areas (to be preserved)</li>
-      <li>urban centralities (e.g. shops, services)</li>
-      <li>land deemed unbuildable</li>
+      <li>existing built areas, green space (preserved), and unbuildable land (rivers, steep ground)</li>
+      <li>urban centres — as polygon areas or point seeds</li>
+      <li>public-transport stops, rail / tram stations, and a street network</li>
     </ul>
-    <div class="paired-images">
-      <figure class="img-container">
-        <Image src={img_urban_areas} alt="" quality="max" width="400" height="300" />
-        <figcaption>Existing built areas</figcaption>
-      </figure>
-      <figure class="img-container">
-        <Image src={img_green_areas} alt="" quality="max" width="400" height="300" />
-        <figcaption>Existing green areas</figcaption>
-      </figure>
-      <figure class="img-container">
-        <Image src={img_centralities} alt="" quality="max" width="400" height="300" />
-        <figcaption>Existing & seeded centralities</figcaption>
-      </figure>
-      <figure class="img-container">
-        <Image src={img_unbuildable_areas} alt="" quality="max" width="400" height="300" />
-        <figcaption>Unbuildable extents</figcaption>
-      </figure>
+    <div class="img-row">
+      <figure><Image src={img_urban} alt="" quality="max" width="380" /><figcaption>Existing built areas</figcaption></figure>
+      <figure><Image src={img_green} alt="" quality="max" width="380" /><figcaption>Existing green areas</figcaption></figure>
+      <figure><Image src={img_centres} alt="" quality="max" width="380" /><figcaption>Urban centres</figcaption></figure>
+      <figure><Image src={img_unbuildable} alt="" quality="max" width="380" /><figcaption>Unbuildable land</figcaption></figure>
     </div>
     <p>
-      The plugin window provides an interface for configuring the simulation parameters and for
-      specifying the layers against which the Cellular Automata will run. These parameters include
-      options for controlling the density levels of new development and the manner in which new
-      centralities should be added.
+      No layers prepared? The companion <strong>Extract from OpenStreetMap</strong> tool downloads built, green,
+      centre, street and public-transport layers for an area of interest and drops them straight into the
+      project, ready to edit and run.
     </p>
-    <div class="paired-images">
-      <figure class="img-container">
-        <Image src={prob_plugin_gui_crop} alt="" quality="max" width="600" />
-        <figcaption>Parameter configuration options in the plugin interface</figcaption>
-      </figure>
-    </div>
   </section>
-  <h2>Example Scenarios</h2>
-  <section>
-    <p>The plugin allows for experimentation with different scenarios and configuration options.</p>
-  </section>
-  <h3>Scenario 1</h3>
+
+  <h2 id="simulation">The simulation</h2>
   <section>
     <p>
-      This scenario shows the impact of the <i>"pop threshold for centres"</i> parameter. The left scenario
-      sets this parameter to <i>0</i>, with the implication that no new centralities are added,
-      whereas the right scenario sets this parameter to <i>0.8</i>, therefore allowing new centres
-      to be added while the total population remains below <i>80%</i> of the target population count.
+      Each step, the cellular automaton visits the land grid and decides whether an undeveloped cell may be
+      built. The rules, in order:
     </p>
-    <div class="paired-images">
-      <figure class="img-container">
-        <Image src={prob_0_1_0_0} alt="" quality="high" width="600" />
-        <figcaption>population threshold for centres: <i>0.0</i></figcaption>
-      </figure>
-      <figure class="img-container">
-        <Image src={prob_0_1_0_8} alt="" quality="high" width="600" />
-        <figcaption>population threshold for centres: <i>0.8</i></figcaption>
-      </figure>
+    <figure><img class="diagram" src={dg('step_0')} alt="Step 0: population target" /><figcaption>Stop once the target population is reached; otherwise keep growing.</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_1c')} alt="Step 1: periphery" /><figcaption>Only empty cells on the <em>periphery</em> of existing built land are candidates (already-built and far-flung cells are skipped).</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within a <em>centre walk</em> of a centrality — so new homes stay near a centre.</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>Building must not shrink a green corridor below the <em>minimum green span</em> — protecting access to nature.</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes the cell is built; its density is set by distance to the nearest centre (denser closer in).</figcaption></figure>
+    <h3>Where new centres come from</h3>
+    <p>
+      As development spreads beyond a walk of any centre, the simulation can seed a new one. How readily it does
+      so — and whether settlements leapfrog away from the core — is the <strong>Dispersed development</strong>
+      dial (Off / Moderate / Aggressive).
+    </p>
+    <div class="diagram-pair">
+      <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre seeds where built land outgrows a walk of any centre.</figcaption></figure>
+      <figure><img class="diagram" src={dg('centres_isolated')} alt="" /><figcaption>An <em>isolated</em> centre lets a satellite settlement leapfrog away from the core.</figcaption></figure>
     </div>
+    <p>
+      Two further dials shape growth: <strong>build probability</strong> (the per-step growth rate — lower is
+      tighter and more compact, higher is faster and looser) and the <strong>density range</strong> (min–max),
+      which the engine spreads as a gradient that densifies toward centres.
+    </p>
   </section>
-  <h3>Scenario 2</h3>
-  <section>
-    <p>This scenario shows the impact of changing the unbuildable extents layer.</p>
-    <div class="paired-images">
-      <figure class="img-container">
-        <Image src={prob_0_1_0_8} alt="" quality="high" width="600" />
-      </figure>
-      <figure class="img-container">
-        <Image src={prob_0_1_0_8_mu} alt="" quality="high" width="600" />
-      </figure>
-    </div>
-  </section>
-  <h3>Scenario 3</h3>
+
+  <h2 id="plan">From many runs to one plan</h2>
   <section>
     <p>
-      This scenario shows the impact of the <i>"Walkable Distance"</i> parameter. The left scenario sets
-      this parameter to <i>400m</i> whereas the right scenarioo uses <i>800m</i>. As a result, the
-      left-hand scenario spaces centralities closer to each other and prompts narrower bands of
-      development so that green space remains within nearer proximity.
+      A single run is just one plausible future; a different random seed gives a different — but equally valid —
+      layout. So the plugin runs an <strong>ensemble</strong> and does two distinct things with it.
     </p>
-    <div class="paired-images">
-      <figure class="img-container">
-        <Image src={prob_0_1_0_8_400} alt="" quality="high" width="600" />
-        <figcaption><i>400m</i> walkable distance</figcaption>
-      </figure>
-      <figure class="img-container">
-        <Image src={prob_0_1_0_8} alt="" quality="high" width="600" />
-        <figcaption><i>800m</i> walkable distance</figcaption>
-      </figure>
+    <div class="diagram-pair">
+      <figure><img class="diagram" src={dg('plan_ensemble')} alt="" /><figcaption>Average the runs into <em>likelihood</em> layers: an uncertainty map of where development is robust vs contingent.</figcaption></figure>
+      <figure><img class="diagram" src={dg('plan_select')} alt="" /><figcaption>A probability surface isn't a buildable plan — so also pick the single best run (shortest average walk to amenities).</figcaption></figure>
     </div>
   </section>
-  <footer>@copyright 2023 UCL Bartlett School of Planning</footer>
+
+  <h2 id="postprocessing">Post-processing the chosen run</h2>
+  <section>
+    <p>
+      The chosen run is tidied into the recommended plan. Post-processing deliberately changes <strong>only the
+      centres</strong> (plus a gentle building cleanup) — the buildings come from the simulation.
+    </p>
+    <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption><strong>Cleanup:</strong> tiny stranded settlements below the minimum size revert to green. It's gentle, and the raw plan is saved too, so the change stays visible.</figcaption></figure>
+    <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption><strong>Centre placement:</strong> each centre is moved to the <em>interior</em> of its contiguous built area — on built land and central to it, never on an edge or in a gap.</figcaption></figure>
+    <p>
+      Finally, centres are offered at two <strong>clustering</strong> strengths — the same buildings, but fewer
+      and larger centres as you cluster harder (coverage trades off). You compare the options and pick; see the
+      <a href="#demonstrators">demonstrators</a> below.
+    </p>
+  </section>
+
+  <h2 id="outputs">Outputs</h2>
+  <section>
+    <p>An ensemble run writes a small, self-explaining set of layers:</p>
+    <ul>
+      <li><strong>existing development</strong> — the baseline, before the simulation</li>
+      <li><strong>raw (before post-processing)</strong> — the chosen run as grown, kept for comparison</li>
+      <li><strong>moderately / tightly clustered centres</strong> — the two recommended-plan options to choose between</li>
+      <li><strong>development likelihood</strong> (built, green) — the ensemble uncertainty map</li>
+      <li><strong><code>_report.txt</code></strong> — a record of the parameters and per-option statistics</li>
+    </ul>
+    <figure>
+      <img class="demo" src={dg('demo_recommended_plan')} alt="A recommended plan" />
+      <figcaption>A recommended plan from a real run: an existing core (brown) keeps its centre, new growth (grey) clusters into settlements, each centred, within a green matrix.</figcaption>
+    </figure>
+  </section>
+
+  <h2 id="demonstration">Visual demonstration</h2>
+  <section>
+    <p>
+      Each figure below is a <strong>real pipeline run</strong>, rendered in the plan's own visual language at
+      high resolution — so they show what each control actually does, not a hand-drawn impression.
+    </p>
+
+    <h3>Dispersed development</h3>
+    <p>
+      From one compact town to scattered satellites. Even <em>Moderate</em> keeps a dominant core; only
+      <em>Aggressive</em> loses any single centre of gravity.
+    </p>
+    <div class="demo-row">
+      <figure><img class="demo" src={dg('demo_dispersal_off')} alt="" /><figcaption><strong>Off</strong> — one compact, contiguous town</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_dispersal_moderate')} alt="" /><figcaption><strong>Moderate</strong> — a dominant town with satellites</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_dispersal_aggressive')} alt="" /><figcaption><strong>Aggressive</strong> — many satellites, no single core</figcaption></figure>
+    </div>
+
+    <h3>Build probability</h3>
+    <p>The per-step growth rate: over the same number of steps, faster growth reaches much further.</p>
+    <div class="demo-row">
+      <figure><img class="demo" src={dg('demo_buildprob_slow')} alt="" /><figcaption><strong>Slow (0.08)</strong> — a small, tight town</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_buildprob_fast')} alt="" /><figcaption><strong>Fast (0.6)</strong> — far more grown in the same time</figcaption></figure>
+    </div>
+
+    <h3>Centre clustering</h3>
+    <p>The same buildings, two centre arrangements — clustering harder gives fewer, larger, more central centres.</p>
+    <div class="demo-row">
+      <figure><img class="demo" src={dg('demo_clustering_moderate')} alt="" /><figcaption><strong>Moderately clustered</strong> — more, smaller centres</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_clustering_tight')} alt="" /><figcaption><strong>Tightly clustered</strong> — fewer, larger centres</figcaption></figure>
+    </div>
+  </section>
+
+  <h2 id="parameters">Parameters</h2>
+  <section>
+    <p>The run dialog groups the controls:</p>
+    <ul>
+      <li><strong>Simulation</strong> — max iterations, grid size, target population, build probability, Dispersed development, random seed</li>
+      <li><strong>Walkable access</strong> — centre walk and green walk (each its own threshold)</li>
+      <li><strong>Post-processing</strong> — optimise centre placement, minimum settlement area, minimum green span</li>
+      <li><strong>Density</strong> — min, max, and existing-built density</li>
+      <li><strong>Output &amp; input layers</strong> — the output path, CRS, and the layers above</li>
+    </ul>
+  </section>
+
+  <h2 id="credits">Credits &amp; sources</h2>
+  <section>
+    <p>
+      Based on the <a href="https://lucadacci.wixsite.com/dacci/isobenefit-urbanism-morphogenesis">Isobenefit
+      Urbanism</a> concept by Luca D'Acci, with original
+      <a href="https://github.com/mitochevole/isobenefit-cities">Python code</a> by Michele Voto. Developed as
+      part of the Future Urban Growth project at <strong>UCL Bartlett School of Planning</strong> (Tommaso
+      Gabrieli, Luca D'Acci, Heeseo Kwon, Stephen Marshall, Valentina Marin Maureira, Gareth Simons). Code:
+      <a href="https://github.com/UCL/BSP-isobenefit-qgis-plugin">BSP-isobenefit-qgis-plugin</a>.
+    </p>
+  </section>
+
+  <footer>© 2026 UCL Bartlett School of Planning</footer>
 
   <style>
-    .img-container {
-      @apply p-1;
+    .toc {
+      @apply my-3 flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium;
     }
-    .paired-images {
-      @apply flex justify-center;
+    .toc a {
+      @apply no-underline;
     }
     section {
-      @apply border-t-1 border-theme;
+      @apply border-t-1 border-theme pb-2;
+    }
+    ol {
+      @apply ml-4 list-decimal;
+    }
+    ol li {
+      @apply my-2 text-sm font-light;
+    }
+    .diagram {
+      @apply w-full max-w-4xl;
+    }
+    .demo {
+      @apply w-full max-w-md;
+    }
+    .img-row,
+    .demo-row,
+    .diagram-pair {
+      @apply flex flex-wrap items-start justify-center gap-4;
     }
     footer {
       @apply mt-8 flex justify-center border-t-1 border-theme p-2 text-xs font-light italic;
