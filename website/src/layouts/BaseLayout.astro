@@ -1,5 +1,7 @@
 ---
 import '../styles/tailwind.css'
+
+const base = import.meta.env.BASE_URL
 ---
 
 <html lang="en-GB">
@@ -11,12 +13,7 @@ import '../styles/tailwind.css'
     <title>Isobenefit Urbanism QGIS Plugin</title>
     <meta set:html name="description" content="Isobenefit Urbanism plugin for QGIS" />
     <meta set:html name="keywords" content="" />
-    <!-- favicons -->
-    <link rel="icon" href="/favicon.ico" />
-    <link rel="icon" href="/favicons/favicon.ico" />
-    <link rel="icon" href="/favicons/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/favicons/apple-touch-icon.png" />
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.gstatic.com" />
     <link
       rel="stylesheet"

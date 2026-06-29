@@ -64,7 +64,7 @@
   }
 
   :not(pre) > code {
-    @apply rounded bg-dark-grey px-1 font-mono text-xs font-medium text-dark-grey;
+    @apply rounded bg-dark-grey px-1 font-mono text-xs font-medium text-lighter-grey;
   }
 
   pre {
@@ -91,7 +91,7 @@
     @apply m-1 table-auto justify-self-center text-sm;
 
     & th {
-      @apply border-l-1 border-r-1 border-mid-grey bg-dark-grey px-3 py-2 font-semibold;
+      @apply border-l-1 border-r-1 border-mid-grey bg-dark-grey px-3 py-2 font-semibold text-lighter-grey;
     }
 
     & td {

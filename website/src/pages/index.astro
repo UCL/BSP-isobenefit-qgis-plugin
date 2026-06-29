@@ -1,11 +1,5 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro'
-import { Image } from 'astro:assets'
-
-import img_urban from '~/assets/urban_areas.png'
-import img_green from '~/assets/green_areas.png'
-import img_centres from '~/assets/centralities.png'
-import img_unbuildable from '~/assets/unbuildable_areas.png'
 
 const base = import.meta.env.BASE_URL
 const dg = (name: string) => `${base}images/${name}.svg`
@@ -26,7 +20,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <nav class="toc">
       <a href="#concept">Concept</a>
       <a href="#install">Install</a>
-      <a href="#inputs">Inputs</a>
+      <a href="#inputs">Data</a>
       <a href="#simulation">The simulation</a>
       <a href="#plan">From runs to a plan</a>
       <a href="#postprocessing">Post-processing</a>
@@ -79,27 +73,27 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
   </section>
 
-  <h2 id="inputs">Inputs</h2>
+  <h2 id="inputs">Download the data</h2>
   <section>
     <p>
-      Only a polygon <strong>extents</strong> layer and a projected <strong>CRS</strong> are required. Everything
-      else is optional context that constrains the simulation:
+      The plugin runs on ordinary GIS layers — and a companion <strong>Extract from OpenStreetMap</strong> tool
+      downloads them for any area of interest, so there are no manual data-preparation steps. Only an
+      <em>extents</em> polygon and a projected CRS are strictly required; the rest is optional context that
+      constrains the simulation. Each is a vector form — a polygon, line or point layer:
     </p>
-    <ul>
-      <li>existing built areas, green space (preserved), and unbuildable land (rivers, steep ground)</li>
-      <li>urban centres — as polygon areas or point seeds</li>
-      <li>public-transport stops, rail / tram stations, and a street network</li>
-    </ul>
-    <div class="img-row">
-      <figure><Image src={img_urban} alt="" quality="max" width="380" /><figcaption>Existing built areas</figcaption></figure>
-      <figure><Image src={img_green} alt="" quality="max" width="380" /><figcaption>Existing green areas</figcaption></figure>
-      <figure><Image src={img_centres} alt="" quality="max" width="380" /><figcaption>Urban centres</figcaption></figure>
-      <figure><Image src={img_unbuildable} alt="" quality="max" width="380" /><figcaption>Unbuildable land</figcaption></figure>
+    <div class="layer-grid">
+      <figure><img class="layer" src={dg('input_extents')} alt="" /><figcaption>Extents — area available for development</figcaption></figure>
+      <figure><img class="layer" src={dg('input_built')} alt="" /><figcaption>Existing built fabric</figcaption></figure>
+      <figure><img class="layer" src={dg('input_green')} alt="" /><figcaption>Green space (preserved)</figcaption></figure>
+      <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land &amp; water</figcaption></figure>
+      <figure><img class="layer" src={dg('input_centres')} alt="" /><figcaption>Urban centres</figcaption></figure>
+      <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops</figcaption></figure>
+      <figure><img class="layer" src={dg('input_stations')} alt="" /><figcaption>Rail / tram stations</figcaption></figure>
+      <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>Street network</figcaption></figure>
     </div>
     <p>
-      No layers prepared? The companion <strong>Extract from OpenStreetMap</strong> tool downloads built, green,
-      centre, street and public-transport layers for an area of interest and drops them straight into the
-      project, ready to edit and run.
+      These vector layers are the <em>geography</em>; the simulation then unfolds across them as a grid of cells
+      — shown as dots throughout the rest of this page — so data and simulation always read as separate.
     </p>
   </section>
 
@@ -255,10 +249,15 @@ const dg = (name: string) => `${base}images/${name}.svg`
     .demo {
       @apply w-full max-w-md;
     }
-    .img-row,
     .demo-row,
     .diagram-pair {
       @apply flex flex-wrap items-start justify-center gap-4;
+    }
+    .layer-grid {
+      @apply grid grid-cols-2 gap-3 sm:grid-cols-4;
+    }
+    .layer {
+      @apply w-full;
     }
     footer {
       @apply mt-8 flex justify-center border-t-1 border-theme p-2 text-xs font-light italic;

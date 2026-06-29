@@ -481,8 +481,124 @@ def d_plan_cleanup():
     write("plan_cleanup", scene)
 
 
+# ---- input-data catalogue: SVG diagrams of every OSM-downloadable layer form -----------------
+WATER, LANDBASE, STREET = "#5b86b3", "#dcdcdc", "#9a9a9a"
+
+
+def _ring(x, y, color, rad=11.0):
+    return (f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad}" fill="white" stroke="{color}" stroke-width="3.5"/>'
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad * 0.28:.1f}" fill="{color}"/>')
+
+
+def _star(x, y, rad, color):
+    pts = []
+    for i in range(10):
+        ang = -math.pi / 2 + i * math.pi / 5
+        rr = rad if i % 2 == 0 else rad * 0.42
+        pts.append(f"{x + rr * math.cos(ang):.1f},{y + rr * math.sin(ang):.1f}")
+    return f'<polygon points="{" ".join(pts)}" fill="white" stroke="{color}" stroke-width="2.6"/>'
+
+
+def _blob(cols, rows, disks):
+    return [(c, r) for r in range(rows) for c in range(cols)
+            if any((c - dx) ** 2 + (r - dy) ** 2 <= rad * rad for dx, dy, rad in disks)]
+
+
+def _blobpath(x, y, r, phase=0.0, n=46):
+    """A smooth, deterministic organic polygon outline (a GIS-style vector area)."""
+    pts = []
+    for i in range(n):
+        t = 2 * math.pi * i / n
+        rr = r * (1 + 0.17 * math.sin(3 * t + phase) + 0.09 * math.sin(6 * t + phase * 1.7))
+        pts.append(f"{x + rr * math.cos(t):.1f},{y + rr * math.sin(t):.1f}")
+    return "M " + " L ".join(pts) + " Z"
+
+
+def _areas(cx, cy, P, blobs, fill, stroke):
+    return "".join(
+        f'<path d="{_blobpath(cx(c), cy(r), rad * P, ph)}" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
+        for (c, r, rad, ph) in blobs)
+
+
+def layer_panel(name, title, feature):
+    """One small panel: a faint land tile + this layer as VECTOR geometry (filled polygons / lines /
+    point markers) — deliberately NOT the dot grid, so downloaded data stays visually distinct from the
+    simulation's cells when the two are shown together."""
+    cols, rows, P, x0, y0 = 11, 8, 46, 34, 64
+    cw, ch = cols * P + 68, rows * P + 96
+
+    def cx(c):
+        return x0 + c * P + P / 2
+
+    def cy(r):
+        return y0 + r * P + P / 2
+
+    tx, ty = cx(0) - P * 0.5, cy(0) - P * 0.5
+    out = [f'<rect width="{cw}" height="{ch}" fill="white"/>',
+           f'<text x="34" y="44" fill="{RED}" font-weight="800" font-size="22">{esc(title)}</text>',
+           f'<rect x="{tx:.1f}" y="{ty:.1f}" width="{(cx(10) + P * 0.5) - tx:.1f}" '
+           f'height="{(cy(7) + P * 0.5) - ty:.1f}" rx="14" fill="#eef1ee"/>',
+           feature(cx, cy, P)]
+    doc = (f'<?xml version="1.0" encoding="UTF-8"?>'
+           f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
+           f'{"".join(out)}</svg>')
+    with open(os.path.join(OUT, f"{name}.svg"), "w", encoding="utf-8") as fh:
+        fh.write(doc)
+    print(f"wrote {name}.svg")
+
+
+def input_layers():
+    BUILT_AREA, GREEN_AREA, WATER_AREA, CENTRE_AREA = "#7a7a7a", "#3f8f47", "#6f9fcf", "#d94652"
+
+    def extents(cx, cy, P):
+        x1, y1 = cx(0) - P * 0.35, cy(0) - P * 0.35
+        return (f'<rect x="{x1:.1f}" y="{y1:.1f}" width="{(cx(10) + P * 0.35) - x1:.1f}" '
+                f'height="{(cy(7) + P * 0.35) - y1:.1f}" rx="14" fill="none" stroke="{RED}" '
+                f'stroke-width="3.5" stroke-dasharray="9 6"/>')
+
+    def built(cx, cy, P):
+        return _areas(cx, cy, P, [(4, 4, 2.4, 0.4), (7.5, 4.5, 1.9, 2.1), (5.5, 6, 1.5, 4.0)], BUILT_AREA, "#555555")
+
+    def green(cx, cy, P):
+        return _areas(cx, cy, P, [(2.6, 2.2, 1.9, 1.0), (8, 5.5, 2.3, 3.2), (4.4, 6, 1.5, 5.0)], GREEN_AREA, "#2f7d33")
+
+    def water(cx, cy, P):
+        pts = [(cx(0.4 + 1.05 * r), cy(r)) for r in range(8)]
+        d = "M " + " L ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+        return (f'<path d="{d}" fill="none" stroke="{WATER_AREA}" stroke-width="{P * 0.6:.1f}" '
+                f'stroke-linecap="round" stroke-linejoin="round"/>')
+
+    def centres(cx, cy, P):
+        return _areas(cx, cy, P, [(3.5, 3, 0.95, 0.5), (7.5, 5, 0.8, 2.0)], CENTRE_AREA, "#a82d38")
+
+    def pt(cx, cy, P):
+        s = P * 0.42
+        return "".join(
+            f'<rect x="{cx(c) - s / 2:.1f}" y="{cy(r) - s / 2:.1f}" width="{s:.1f}" height="{s:.1f}" rx="3" fill="{BLUE}"/>'
+            for c, r in [(2, 2), (5, 4), (8, 2), (4, 6), (9, 6)])
+
+    def stations(cx, cy, P):
+        return "".join(_star(cx(c), cy(r), P * 0.46, BLUE) for c, r in [(4, 3), (8, 5)])
+
+    def streets(cx, cy, P):
+        ls = [f'<line x1="{cx(0):.1f}" y1="{cy(r):.1f}" x2="{cx(10):.1f}" y2="{cy(r):.1f}" '
+              f'stroke="{STREET}" stroke-width="2.6"/>' for r in (1, 4, 6)]
+        ls += [f'<line x1="{cx(c):.1f}" y1="{cy(0):.1f}" x2="{cx(c):.1f}" y2="{cy(7):.1f}" '
+               f'stroke="{STREET}" stroke-width="2.6"/>' for c in (2, 5, 8)]
+        return "".join(ls)
+
+    for nm, title, feat in [
+        ("input_extents", "Extents", extents), ("input_built", "Existing built", built),
+        ("input_green", "Green space", green), ("input_unbuildable", "Unbuildable / water", water),
+        ("input_centres", "Urban centres", centres), ("input_pt", "Public-transport stops", pt),
+        ("input_stations", "Rail / tram stations", stations), ("input_streets", "Street network", streets),
+    ]:
+        layer_panel(nm, title, feat)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
+    input_layers()
     for fn in (d_step0, d_step1a, d_step1b, d_step1c, d_step2, d_step3, d_step4,
                d_centres_neighbouring, d_centres_isolated,
                d_plan_ensemble, d_plan_select, d_plan_cleanup, d_plan_centring,
