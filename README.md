@@ -4,6 +4,8 @@ QGIS plugin for Isobenefit Urbanism — a tool for brainstorming walkable urban
 development against real-world datasets, based on walkable access to centralities
 (shops, services) and green spaces.
 
+📖 **Documentation & overview website:** <https://ucl.github.io/BSP-isobenefit-qgis-plugin/>
+
 ## Repository layout
 
 This repository contains two deliverables:
@@ -35,16 +37,23 @@ If the automatic install is blocked (e.g. a locked-down environment), the dialog
 shows the exact command to run yourself, which is simply:
 
 ```bash
-<qgis-python> -m pip install "isobenefit>=0.1,<0.2"
+<qgis-python> -m pip install "isobenefit>=0.9,<0.10"
 ```
 
 ## Usage
 
-Open the plugin, choose an output `.tif` path, a polygon **extents** layer, a
-projected **CRS**, and optionally layers for existing built areas, green areas,
-unbuildable areas and centre seeds. Set the parameters and run. Each iteration is
-written as a categorical GeoTIFF and loaded as a temporal animation; press play in
-the Temporal Controller. A demo project is provided in
+Open the plugin and choose an output `.tif` path, a polygon **extents** layer, and a
+projected **CRS**. Optionally add layers for existing built areas, green space,
+unbuildable land, urban centres, public-transport stops, rail/tram stations, and a
+street network. No layers prepared? The companion **Extract from OpenStreetMap** tool
+downloads them for an area of interest.
+
+Set the parameters and run. A single run is written iteration-by-iteration as a
+categorical GeoTIFF and loaded as a temporal animation (press play in the Temporal
+Controller). An **ensemble** of runs instead produces development-likelihood layers
+plus one **recommended plan**, saved as a few options to compare — the existing
+fabric, the raw (as-grown) plan, and moderately- vs tightly-clustered centre
+arrangements — alongside a `_report.txt` summarising the run. A demo project is in
 [`demo_layers/`](demo_layers/) (`cambourne.qgz`).
 
 ## Development
@@ -70,14 +79,16 @@ count — see [`core/README.md`](core/README.md).
 
 Lint with `ruff check isobenefit_qgis`.
 
-For live development, link the plugin folder into your QGIS profile, e.g. on macOS:
+For live development, link the plugin folder into your QGIS profile. The profile
+directory is named for your QGIS major version (`QGIS4` for QGIS 4.x, `QGIS3` for
+QGIS 3.x). On macOS:
 
 ```bash
-ln -s "$(pwd)/isobenefit_qgis" "$HOME/Library/Application Support/QGIS/QGIS3/profiles/default/python/plugins/"
+ln -s "$(pwd)/isobenefit_qgis" "$HOME/Library/Application Support/QGIS/QGIS4/profiles/default/python/plugins/"
 ```
 
 On Windows, copy/paste the `isobenefit_qgis` folder into
-`%APPDATA%/QGIS/QGIS3/profiles/default/python/plugins`. Restart QGIS after linking.
+`%APPDATA%/QGIS/QGIS4/profiles/default/python/plugins`. Restart QGIS after linking.
 
 ### CI
 
@@ -106,9 +117,13 @@ Future Urban Growth project at the Bartlett School of Planning.
 
 ## Website
 
-An overview of this plugin is at
-[BSP-isobenefit-urbanism](https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism)
-([repo](https://github.com/UCL/BSP-isobenefit-urbanism)).
+A full overview — the concept, the workflow and its outputs, installation, and the
+parameters — is published from [`website/`](website/) in this repo:
+
+**<https://ucl.github.io/BSP-isobenefit-qgis-plugin/>**
+
+(The previous standalone `BSP-isobenefit-urbanism` repo is deprecated; the site now
+lives here and deploys via [`.github/workflows/website.yml`](.github/workflows/website.yml).)
 
 ## References
 
