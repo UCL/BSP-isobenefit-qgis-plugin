@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-lighter-grey text-darker-grey;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    /* flex is for links inserted before headings */
+    @apply flex items-center py-1 font-headings text-mid-grey;
+  }
+
+  h1 {
+    @apply pt-12 pt-8 pb-4 text-4xl font-light;
+  }
+
+  h2 {
+    @apply pt-6 pb-2 text-3xl font-light;
+  }
+
+  h3 {
+    @apply pt-4 text-2xl font-normal;
+  }
+
+  h4 {
+    @apply text-xl font-medium;
+  }
+
+  h5 {
+    @apply text-lg font-medium;
+  }
+
+  h6 {
+    @apply text-base font-light;
+  }
+
+  ul {
+    @apply pl-2 font-light;
+
+    & li {
+      @apply my-2 ml-2 text-sm font-light;
+
+      list-style-type: disc;
+    }
+  }
+
+  p {
+    @apply my-2 text-sm font-light;
+  }
+
+  img {
+    @apply pt-6 pb-3;
+  }
+
+  :not(pre) > code {
+    @apply rounded bg-dark-grey px-1 font-mono text-xs font-medium text-dark-grey;
+  }
+
+  pre {
+    @apply my-4 overflow-x-auto whitespace-pre-wrap rounded border border-darker-grey p-2;
+
+    & code {
+      @apply text-sm font-normal tracking-tight;
+    }
+  }
+
+  a {
+    @apply text-theme;
+
+    & code {
+      @apply text-theme;
+    }
+  }
+
+  p > a {
+    @apply font-medium;
+  }
+
+  table {
+    @apply m-1 table-auto justify-self-center text-sm;
+
+    & th {
+      @apply border-l-1 border-r-1 border-mid-grey bg-dark-grey px-3 py-2 font-semibold;
+    }
+
+    & td {
+      @apply border-t-1 border-l-1 border-r-1 border-mid-grey px-2 py-1 font-normal;
+    }
+
+    & tr {
+      @apply p-0.5;
+    }
+
+    & tr td:first-child,
+    & tr th:first-child {
+      @apply border-l-0;
+    }
+
+    & tr td:last-child,
+    & tr th:last-child {
+      @apply border-r-0;
+    }
+  }
+
+  @media only screen and (max-width: 820px) {
+    body {
+      @apply text-sm;
+    }
+
+    h1 {
+      @apply pt-8 pb-2 text-2xl font-light;
+    }
+
+    h2,
+    h3 {
+      @apply pt-6 pb-1 font-medium;
+    }
+
+    h2 {
+      @apply text-xl;
+    }
+
+    h3 {
+      @apply text-lg;
+    }
+
+    h4 {
+      @apply text-base;
+    }
+
+    h5 {
+      @apply text-sm;
+    }
+
+    h6 {
+      @apply text-sm;
+    }
+
+    ul,
+    li {
+      @apply ml-2 text-sm;
+    }
+
+    p {
+      @apply text-base;
+    }
+
+    code {
+      @apply text-xxs;
+    }
+
+    pre {
+      @apply text-xxs;
+    }
+
+    th {
+      @apply py-1;
+    }
+
+    td {
+    }
+  }
+}
+
+figure {
+  @apply flex flex-col items-center justify-center;
+}
+
+figcaption {
+  @apply max-w-lg text-center text-sm font-medium;
+}
+
+.heading-icon {
+  @apply mr-2;
+
+  & path {
+    fill: #d33130;
+  }
+}
+
+blockquote {
+  @apply my-2 rounded border border-mid-grey bg-light-grey p-2 text-sm;
+
+  & p {
+    @apply text-sm font-medium;
+  }
+}

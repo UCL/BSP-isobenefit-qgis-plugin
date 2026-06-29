@@ -1,0 +1,268 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import { Image } from 'astro:assets'
+
+import img_urban_areas from '~/assets/urban_areas.png'
+import img_green_areas from '~/assets/green_areas.png'
+import img_centralities from '~/assets/centralities.png'
+import img_unbuildable_areas from '~/assets/unbuildable_areas.png'
+
+import prob_plugin_gui_crop from '~/assets/plugin_gui_crop.png'
+import prob_0_1_0_0 from '~/assets/prob_0-1_0-0.png'
+import prob_0_1_0_8 from '~/assets/prob_0-1_0-8.png'
+import prob_0_1_0_8_mu from '~/assets/prob_0-1_0-8_mu.png'
+import prob_0_1_0_8_400 from '~/assets/prob_0-1_0-8_400.png'
+---
+
+<BaseLayout>
+  <h1>Isobenefit Urbanism QGIS Plugin</h1>
+  <h6>Applying Isobenefit Urbanism to real-world datasets with QGIS</h6>
+  <h2>Concept</h2>
+  <section>
+    <p>
+      The Isobenefit Urbanism QGIS plugin is a tool for brainstorming walkable urban development
+      against real-world datasets. The algorithm is based on walkable access to centralities (shops,
+      services) and green spaces.
+    </p>
+  </section>
+  <h2>Sources</h2>
+  <section>
+    <p>
+      The Isobenefit Urbanism QGIS plugin is an adaptation of the <a
+        href="https://github.com/UCL/BSP-isobenefit-original">Isobenefit Cities</a
+      > codebase to work with QGIS. The work is based on the <a
+        href="https://lucadacci.wixsite.com/dacci/isobenefit-urbanism-morphogenesis"
+        >Isobenefit Urbanism</a
+      > concept by Luca D'Acci, with the original <a
+        href="https://github.com/mitochevole/isobenefit-cities"
+      >
+        Python code</a
+      > developed by Michele Voto.
+    </p>
+    <p>
+      The project is an initiative of the Future Urban Growth Lab at UCL Bartlett Planning, with the
+      team presently consisting of Tommaso Gabrieli, Luca D'Acci, Heeseo Kwon (Rain), Stephen
+      Marshall, Valentina Marin Maureira, and Gareth Simons.
+    </p>
+    <p>
+      The code developed as part of this project is open source and can be found in the <a
+        href="https://github.com/UCL/BSP-isobenefit-qgis-plugin">BSP-isobenefit-qgis-plugin</a
+      > Github repository. The code for this webpage can be found in the <a
+        href="https://github.com/UCL/BSP-isobenefit-urbanism">BSP-isobenefit-urbanism</a
+      > repo. These resposotires are developed and maintained by Gareth Simons.
+    </p>
+  </section>
+  <h2>Example</h2>
+  <section class="flex flex-col items-center justify-center p-4">
+    <iframe
+      title="vimeo-player"
+      src="https://player.vimeo.com/video/806844587?h=7f385a19b3&dnt=1"
+      width="640"
+      height="360"
+      class=""
+      allowfullscreen></iframe>
+    <blockquote>
+      This example is strictly hypothetical for the purpose of demonstrating how this plugin works.
+      In real-world usage the plugin is used as part of an exploratory dialogue under the
+      supervision of local planners.
+    </blockquote>
+  </section>
+  <h2>How it works</h2>
+  <section>
+    <p>
+      Isobenefit Cities is based on a Cellular Automata: A grid of cells represents the current
+      state of land-development for a given geographic extent. An algorithm explores the grid and
+      applies a set of rules to determine when a cell's state can be changed. This procedure is
+      repeated a specified number of times, resulting in a series of time-steps representing how
+      development might unfold for a given dataset and set of input parameters.
+    </p>
+    <h3>How built areas are expanded</h3>
+    <p>
+      The following series of images details (in a simplified form) how the algorithm determines
+      whether or not an undeveloped parcel of land can be developed.
+    </p>
+    <figure>
+      <img src="images/step_0.svg" alt="" width="1000" />
+      <figcaption>
+        Step 0: Check that the total population remains below the target population count. If the
+        population target has been satisfied, then terminate the algorithm. Otherwise, proceed to
+        visit all cells in Step 1.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="images/step_1a.svg" alt="" width="1000" />
+      <figcaption>
+        Step 1 - case (A): If a candidate location is an existing built location, then bail.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="images/step_1b.svg" alt="" width="1000" />
+      <figcaption>
+        Step 1 - case (B): If a candidate location is not on the periphery of a built area, then
+        bail.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="images/step_1c.svg" alt="" width="1000" />
+      <figcaption>
+        Step 1 - case (C): If a candidate location is on the periphery of a built area, then proceed
+        to step 2.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="images/step_2.svg" alt="" width="1000" />
+      <figcaption>
+        Step 2: Is the candidate location within the maximum walking threshold parameter from the
+        closest urban centrality? If so, proceed.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="images/step_3.svg" alt="" width="1000" />
+      <figcaption>
+        Step 3: Would the candidate location reduce an existing green span to less than the
+        specified threshold? If so, bail.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="images/step_4.svg" alt="" width="1000" />
+      <figcaption>
+        Step 4: The candidate location can now be marked as built. The algorithm can then proceed to
+        the next cell for consideration.
+      </figcaption>
+    </figure>
+    <h3>How centralities are seeded</h3>
+    <p>
+      New centralities can be seeded in one of two scenarios. In both cases, a probability parameter
+      is used to control how readily these scenarios would lead to the seeding of a new centrality.
+    </p>
+    <figure>
+      <img src="images/centres_1.svg" alt="" width="1000" />
+      <figcaption>
+        Situation 1: If a candidate location exceeds the threshold distance to the nearest
+        centrality, then a new "Neighbouring Centrality" may be seeded.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="images/centres_2.svg" alt="" width="1000" />
+      <figcaption>
+        Situation 2: If a candidate location is not on the periphery of a built area, then a new
+        "Isolated Centrality" can be added.
+      </figcaption>
+    </figure>
+  </section>
+  <h2>Application to real-world datasets</h2>
+  <section>
+    <p>
+      When applying the Cellular Automata algorithm to real world datasets, it becomes possible to
+      take existing spatial constraints into account. The plugin consequently takes the following
+      forms of layers as inputs:
+    </p>
+    <ul>
+      <li>extents available for development</li>
+      <li>existing built areas</li>
+      <li>green areas (to be preserved)</li>
+      <li>urban centralities (e.g. shops, services)</li>
+      <li>land deemed unbuildable</li>
+    </ul>
+    <div class="paired-images">
+      <figure class="img-container">
+        <Image src={img_urban_areas} alt="" quality="max" width="400" height="300" />
+        <figcaption>Existing built areas</figcaption>
+      </figure>
+      <figure class="img-container">
+        <Image src={img_green_areas} alt="" quality="max" width="400" height="300" />
+        <figcaption>Existing green areas</figcaption>
+      </figure>
+      <figure class="img-container">
+        <Image src={img_centralities} alt="" quality="max" width="400" height="300" />
+        <figcaption>Existing & seeded centralities</figcaption>
+      </figure>
+      <figure class="img-container">
+        <Image src={img_unbuildable_areas} alt="" quality="max" width="400" height="300" />
+        <figcaption>Unbuildable extents</figcaption>
+      </figure>
+    </div>
+    <p>
+      The plugin window provides an interface for configuring the simulation parameters and for
+      specifying the layers against which the Cellular Automata will run. These parameters include
+      options for controlling the density levels of new development and the manner in which new
+      centralities should be added.
+    </p>
+    <div class="paired-images">
+      <figure class="img-container">
+        <Image src={prob_plugin_gui_crop} alt="" quality="max" width="600" />
+        <figcaption>Parameter configuration options in the plugin interface</figcaption>
+      </figure>
+    </div>
+  </section>
+  <h2>Example Scenarios</h2>
+  <section>
+    <p>The plugin allows for experimentation with different scenarios and configuration options.</p>
+  </section>
+  <h3>Scenario 1</h3>
+  <section>
+    <p>
+      This scenario shows the impact of the <i>"pop threshold for centres"</i> parameter. The left scenario
+      sets this parameter to <i>0</i>, with the implication that no new centralities are added,
+      whereas the right scenario sets this parameter to <i>0.8</i>, therefore allowing new centres
+      to be added while the total population remains below <i>80%</i> of the target population count.
+    </p>
+    <div class="paired-images">
+      <figure class="img-container">
+        <Image src={prob_0_1_0_0} alt="" quality="high" width="600" />
+        <figcaption>population threshold for centres: <i>0.0</i></figcaption>
+      </figure>
+      <figure class="img-container">
+        <Image src={prob_0_1_0_8} alt="" quality="high" width="600" />
+        <figcaption>population threshold for centres: <i>0.8</i></figcaption>
+      </figure>
+    </div>
+  </section>
+  <h3>Scenario 2</h3>
+  <section>
+    <p>This scenario shows the impact of changing the unbuildable extents layer.</p>
+    <div class="paired-images">
+      <figure class="img-container">
+        <Image src={prob_0_1_0_8} alt="" quality="high" width="600" />
+      </figure>
+      <figure class="img-container">
+        <Image src={prob_0_1_0_8_mu} alt="" quality="high" width="600" />
+      </figure>
+    </div>
+  </section>
+  <h3>Scenario 3</h3>
+  <section>
+    <p>
+      This scenario shows the impact of the <i>"Walkable Distance"</i> parameter. The left scenario sets
+      this parameter to <i>400m</i> whereas the right scenarioo uses <i>800m</i>. As a result, the
+      left-hand scenario spaces centralities closer to each other and prompts narrower bands of
+      development so that green space remains within nearer proximity.
+    </p>
+    <div class="paired-images">
+      <figure class="img-container">
+        <Image src={prob_0_1_0_8_400} alt="" quality="high" width="600" />
+        <figcaption><i>400m</i> walkable distance</figcaption>
+      </figure>
+      <figure class="img-container">
+        <Image src={prob_0_1_0_8} alt="" quality="high" width="600" />
+        <figcaption><i>800m</i> walkable distance</figcaption>
+      </figure>
+    </div>
+  </section>
+  <footer>@copyright 2023 UCL Bartlett School of Planning</footer>
+
+  <style>
+    .img-container {
+      @apply p-1;
+    }
+    .paired-images {
+      @apply flex justify-center;
+    }
+    section {
+      @apply border-t-1 border-theme;
+    }
+    footer {
+      @apply mt-8 flex justify-center border-t-1 border-theme p-2 text-xs font-light italic;
+    }
+  </style>
+</BaseLayout>
