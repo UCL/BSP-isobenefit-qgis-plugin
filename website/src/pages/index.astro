@@ -104,15 +104,25 @@ const dg = (name: string) => `${base}images/${name}.svg`
       built. The rules, in order:
     </p>
     <figure><img class="diagram" src={dg('step_0')} alt="Step 0: population target" /><figcaption>Stop once the target population is reached; otherwise keep growing.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_1c')} alt="Step 1: periphery" /><figcaption>Only empty cells on the <em>periphery</em> of existing built land are candidates (already-built and far-flung cells are skipped).</figcaption></figure>
+    <p>Step 1 — a cell is a candidate only if it is empty <em>and</em> on the periphery of built land:</p>
+    <figure><img class="diagram" src={dg('step_1a')} alt="" /><figcaption>An already-built cell — nothing to do, skip.</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_1b')} alt="" /><figcaption>An empty cell not touching built land — not on the periphery, skip.</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_1c')} alt="" /><figcaption>An empty cell touching built land — on the periphery, so a candidate → continue.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within a <em>centre walk</em> of a centrality — so new homes stay near a centre.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>Building must not shrink a green corridor below the <em>minimum green span</em> — protecting access to nature.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes the cell is built; its density is set by distance to the nearest centre (denser closer in).</figcaption></figure>
+    <p>
+      Two distinct green thresholds are at play. The <em>green span</em> above is a <strong>build rule</strong> —
+      a minimum corridor width the simulation won't crimp. The separate <em>green walk</em> — how far a home may
+      be from usable green — is a <strong>walkable-access target</strong> scored on the finished plan, alongside
+      the centre walk.
+    </p>
     <h3>Where new centres come from</h3>
     <p>
-      As development spreads beyond a walk of any centre, the simulation can seed a new one. How readily it does
-      so — and whether settlements leapfrog away from the core — is the <strong>Dispersed development</strong>
-      dial (Off / Moderate / Aggressive).
+      As built land outgrows a walk of any centre, the simulation seeds a new <em>neighbouring</em> centre — so a
+      single town can keep growing outward. The <strong>Dispersed development</strong> dial (Off / Moderate /
+      Aggressive) is a separate control: it sets only how readily development <em>leapfrogs</em> away from the
+      core to start satellite settlements.
     </p>
     <div class="diagram-pair">
       <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre seeds where built land outgrows a walk of any centre.</figcaption></figure>
@@ -148,7 +158,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       Finally, centres are offered at two <strong>clustering</strong> strengths — the same buildings, but fewer
       and larger centres as you cluster harder (coverage trades off). You compare the options and pick; see the
-      <a href="#demonstrators">demonstrators</a> below.
+      <a href="#demonstration">visual demonstration</a> below.
     </p>
   </section>
 
@@ -203,14 +213,28 @@ const dg = (name: string) => `${base}images/${name}.svg`
 
   <h2 id="parameters">Parameters</h2>
   <section>
-    <p>The run dialog groups the controls:</p>
-    <ul>
-      <li><strong>Simulation</strong> — max iterations, grid size, target population, build probability, Dispersed development, random seed</li>
-      <li><strong>Walkable access</strong> — centre walk and green walk (each its own threshold)</li>
-      <li><strong>Post-processing</strong> — optimise centre placement, minimum settlement area, minimum green span</li>
-      <li><strong>Density</strong> — min, max, and existing-built density</li>
-      <li><strong>Output &amp; input layers</strong> — the output path, CRS, and the layers above</li>
-    </ul>
+    <p>
+      The run dialog groups the controls into <strong>Simulation</strong>, <strong>Walkable access</strong>,
+      <strong>Post-processing</strong>, <strong>Density</strong> and <strong>Output &amp; input layers</strong>.
+      The key controls, with their defaults:
+    </p>
+    <div class="flex justify-center overflow-x-auto">
+      <table>
+        <tr><th>Parameter</th><th>Default</th><th>What it does</th></tr>
+        <tr><td>Grid size</td><td>50 m</td><td>Cell size of the simulation grid</td></tr>
+        <tr><td>Max iterations</td><td>100</td><td>Cap on growth steps</td></tr>
+        <tr><td>Target population</td><td>100,000</td><td>Growth stops once reached</td></tr>
+        <tr><td>Build probability</td><td>0.25</td><td>Per-step growth rate (tighter ↔ faster)</td></tr>
+        <tr><td>Dispersed development</td><td>Moderate</td><td>Leapfrog rate — Off / Moderate / Aggressive</td></tr>
+        <tr><td>Centre walk</td><td>400 m</td><td>How near a home must be to a centre</td></tr>
+        <tr><td>Green walk</td><td>400 m</td><td>How near a home must be to green (scored on the plan)</td></tr>
+        <tr><td>Min settlement area</td><td>2 ha</td><td>Smaller stranded new clusters revert to green</td></tr>
+        <tr><td>Min green span</td><td>400 m</td><td>Minimum green-corridor width (a build rule)</td></tr>
+        <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Gradient, densest near centres</td></tr>
+        <tr><td>Existing-built density</td><td>2000 /km²</td><td>Assumed density of existing fabric</td></tr>
+        <tr><td>Detail (ensemble)</td><td>Standard — 50 runs</td><td>How many runs to blend / choose from</td></tr>
+      </table>
+    </div>
   </section>
 
   <h2 id="credits">Credits &amp; sources</h2>

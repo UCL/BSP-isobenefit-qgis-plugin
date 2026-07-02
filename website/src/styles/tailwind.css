@@ -8,7 +8,7 @@
   }
 
   body {
-    @apply bg-lighter-grey text-darker-grey;
+    @apply bg-lighter-grey font-defaults text-darker-grey;
   }
 
   h1,

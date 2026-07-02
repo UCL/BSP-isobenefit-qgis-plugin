@@ -376,20 +376,6 @@ class IsobenefitTask(QgsTask):
                 # ONE distance model: with a streets layer, walking is measured along the network
                 # (built once here, reused for every run); without one, the open-grid walk. No silent
                 # fallback — if the graph can't be built, make_router raises and the run fails clearly.
-                router = None
-                if self.streets_layer is not None:
-                    from . import routing
-
-                    router = routing.make_router(
-                        self.streets_layer,
-                        self.target_crs,
-                        geotransform,
-                        rows,
-                        cols,
-                        self.granularity_m,
-                        self.max_distance_m,
-                    )
-                    self._log("Walking distances measured along the street network.")
                 centre_walk = self.centre_distance_m or self.max_distance_m
                 # TWO centre-clustering options (centre spacing in metres) that share the SAME built fabric
                 # and differ ONLY in where the centres sit — the user compares + picks one, against the raw
@@ -400,6 +386,19 @@ class IsobenefitTask(QgsTask):
                 # end up beyond a walk of one). NB the raw is already ~coverage density, so we don't also
                 # offer a near-1x "spread" option — it would just look like the raw.
                 spacings = {"moderate": 1.5 * centre_walk, "tight": 2.5 * centre_walk}
+                router = None
+                if self.streets_layer is not None:
+                    from . import routing
+
+                    # Bound the network field at the LARGEST distance anything downstream measures — the
+                    # clustering spacing can exceed a walk, and a router capped at max_distance_m would
+                    # silently collapse the clustering options back into each other (finding: router + spacing).
+                    router_bound = max(self.max_distance_m, max(spacings.values()))
+                    router = routing.make_router(
+                        self.streets_layer, self.target_crs, geotransform, rows, cols,
+                        self.granularity_m, router_bound,
+                    )
+                    self._log("Walking distances measured along the street network.")
                 plan, metrics, pre_plan, best_state = grid.select_plan(
                     states,
                     self.granularity_m,
@@ -462,8 +461,8 @@ class IsobenefitTask(QgsTask):
                         self._plan_outputs.append((vpath, f"{labels[key]} ({ncent} centres)"))
                         report_stats.append((labels[key], vm, ncent))
                         self._log(  # per-option metrics so the choice is informed, not just visual
-                            f"  {labels[key]}: {ncent} centres, {vm['served_coverage']:.0%} served, "
-                            f"centre walk {vm['centre_access']:.0f} m, green {vm['green_access']:.0f} m"
+                            f"  {labels[key]}: {ncent} centres, {vm.get('served_coverage', 0):.0%} served, "
+                            f"centre walk {vm.get('centre_access', 0):.0f} m, green {vm.get('green_access', 0):.0f} m"
                         )
                     plan, metrics = variants["moderate"]  # headline metrics + audit use the moderate option
                     if pre_plan is not None:  # surface the gentle cleanup (raw is kept un-cleaned to compare)
@@ -481,9 +480,9 @@ class IsobenefitTask(QgsTask):
                         report_stats.append(("recommended", metrics, self._count_centres(plan)))
                 if metrics:
                     self._log(
-                        f"Recommended plan: {metrics['served_coverage']:.0%} of homes within a walk of both "
-                        f"green and a centre (avg walk to a centre {metrics['centre_access']:.0f} m, "
-                        f"to green {metrics['green_access']:.0f} m)."
+                        f"Recommended plan: {metrics.get('served_coverage', 0):.0%} of homes within a walk of "
+                        f"both green and a centre (avg walk to a centre {metrics.get('centre_access', 0):.0f} m, "
+                        f"to green {metrics.get('green_access', 0):.0f} m)."
                     )
                     if "transit_coverage" in metrics:
                         self._log(

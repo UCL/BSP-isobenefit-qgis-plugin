@@ -254,8 +254,8 @@ class Isobenefit:
             # cell count the model prunes/culls by: ha -> m² (×10 000) / cell area (grid²).
             min_settlement_ha = float(self.dlg.min_settlement.text())
             centre_min_settlement = max(1, round(min_settlement_ha * 10000.0 / (granularity_m**2)))
-            # centre clustering is no longer chosen here: the run saves spread/moderate/clustered
-            # centre options (and the existing + raw pre-processing plans) for the user to compare and pick.
+            # centre clustering is no longer chosen here: the run saves two options (moderately and
+            # tightly clustered centres) plus the existing + raw pre-processing plans, to compare and pick.
         except ValueError:
             QMessageBox.warning(
                 self.iface.mainWindow(),

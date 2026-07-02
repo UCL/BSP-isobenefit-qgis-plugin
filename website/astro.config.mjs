@@ -1,6 +1,4 @@
-import mdx from '@astrojs/mdx'
 import sitemap from '@astrojs/sitemap'
-import vue from '@astrojs/vue'
 import { defineConfig } from 'astro/config'
 
 // https://astro.build/config
@@ -13,5 +11,5 @@ export default defineConfig({
   base: '/BSP-isobenefit-qgis-plugin',
   trailingSlash: 'always',
   prefetch: true,
-  integrations: [vue(), sitemap(), mdx()],
+  integrations: [sitemap()],
 })

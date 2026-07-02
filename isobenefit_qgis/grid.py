@@ -558,7 +558,10 @@ def evaluate_plan(
     does not yet feed ``access_cost`` (the run-selection metric), so it cannot distort which
     plan is chosen until the dimension is validated.
     """
-    built = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
+    # Count existing fabric too, so scoring is the same whether the plan is still raw or has been
+    # tagged with the existing-* codes (otherwise a marked pre_plan silently drops existing built/centres
+    # and its metrics — and the raw-vs-option built-cell delta — come out inconsistent).
+    built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
     n_built = int(built.sum())
     if n_built == 0:
         return {"built_cells": 0}
@@ -581,7 +584,7 @@ def evaluate_plan(
     def _dist(mask):
         return router(mask) if router is not None else _walk_distance(mask, granularity_m, field_bound)
 
-    d_cent = _dist(plan == PLAN_CENTRE)[built]
+    d_cent = _dist(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE)))[built]
     d_green = _dist(green_mask)[built]
     near_cent = d_cent <= centre_distance_m
     near_green = d_green <= green_distance_m
@@ -903,7 +906,7 @@ def select_plan(
     only that many evenly-sampled runs (faster for very large ensembles; runs are
     similar). ``existing_built``/``existing_green`` (bool masks of already-developed land)
     are frozen — never pruned — and the chosen plan tags them with the existing-* codes.
-    Returns ``(best_plan, best_metrics, pre_plan)`` — ``(None, None, None)`` if ``states`` empty.
+    Returns ``(best_plan, best_metrics, pre_plan, best_state)`` — ``(None, None, None, None)`` if empty.
     ``pre_plan`` is the chosen run BEFORE post-processing (its raw CA development, grown centres and
     qualifying green), so the pre/post pair can be compared.
     """

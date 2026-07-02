@@ -17,7 +17,7 @@ import os
 # demonstrators: developed = grey, nature = forest green, centre/accent = brand red, candidate = blue;
 # existing fabric gets its own muted shades so "already there" reads apart from "newly recommended".
 RED, GREEN, BLUE, BUILT = "#D32333", "#2f7d33", "#1f6fbf", "#3a3a3a"
-EXIST_BUILT, EXIST_CENTRE, UNBUILD = "#7d6240", "#962858", "#c4c4c4"
+EXIST_BUILT, EXIST_CENTRE = "#7d6240", "#962858"
 W, H = 1360, 720
 X0, Y0, STEP = 92, 46, 50  # grid origin (col 1 / row 1 centre) + cell pitch
 COLS, ROWS = 16, 12
@@ -197,7 +197,7 @@ def d_step2():
     scene = grid_lines() + axes() + cells(town) + centre(5, 6) + centre(12, 8)
     scene += dist_line(8, 5, 5, 6, "316 m") + reticle(8, 5) + cand_label(8, 5, "5, 8")
     p, ey = panel(
-        ["100 m grid cells", "600 m centre walk", "400 m green walk"],
+        ["100 m grid cells", "600 m centre walk", "400 m green span"],
         "Step 2 — centre access",
         [
             ("Candidate at row 5, col 8.", RED, 700),
@@ -249,70 +249,7 @@ def d_plan_centring():
     write("plan_centring", scene)
 
 
-def plan_demonstrator():
-    """A worked recommended-plan map in the unified dot-grid language: nature (green) + new built (grey)
-    + existing built (brown) + new/existing centres (rings). This is the audit material 'worked into'
-    the website style — a clean demonstrator rather than a raw matplotlib panel."""
-    Wc, Hc, P, x0, y0 = 30, 20, 30, 50, 78
-    cw, ch = 1000, 782
-    grid = [["g"] * Wc for _ in range(Hc)]  # default: nature
-    new_disks = [(9, 8, 4.2), (15, 6.5, 4.6), (20, 10, 4.2), (13, 13, 4.3), (22, 14.5, 3.6), (7, 13, 3.2), (24, 8.5, 3.0)]
-    for r in range(Hc):
-        for c in range(Wc):
-            if any((c - dx) ** 2 + (r - dy) ** 2 <= rad * rad for dx, dy, rad in new_disks):
-                grid[r][c] = "#"  # new built
-    for r in range(Hc):
-        for c in range(Wc):
-            if (c - 14) ** 2 + (r - 9) ** 2 <= 9.0:
-                grid[r][c] = "E"  # existing core
-
-    def px(c):
-        return x0 + c * P + P / 2
-
-    def py(r):
-        return y0 + r * P + P / 2
-
-    def ring(x, y, color, rad=12.5):
-        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad}" fill="white" stroke="{color}" stroke-width="3.5"/><circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}"/>'
-
-    out = [f'<rect width="{cw}" height="{ch}" fill="white"/>']
-    out.append(f'<text x="{x0}" y="48" fill="{RED}" font-weight="800" font-size="25">Recommended plan — a worked example</text>')
-    for r in range(Hc):
-        for c in range(Wc):
-            s, x, y = grid[r][c], px(c), py(r)
-            if s == "g":
-                out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6" fill="{GREEN}"/>')
-            elif s == "#":
-                out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="12" fill="{BUILT}"/>')
-            elif s == "E":
-                out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="12" fill="{EXIST_BUILT}"/>')
-    for c, r in [(14, 9)]:  # existing centre
-        out.append(ring(px(c), py(r), EXIST_CENTRE))
-    for c, r in [(9, 8), (20, 10), (13, 13), (22, 14)]:  # new centres (at built interiors)
-        out.append(ring(px(c), py(r), RED))
-    # legend strip
-    ly = y0 + Hc * P + 40
-    lx = x0
-    items = [("nature", GREEN, "g"), ("new built", BUILT, "b"), ("existing built", EXIST_BUILT, "b"),
-             ("new centre", RED, "r"), ("existing centre", EXIST_CENTRE, "r")]
-    for label, color, kind in items:
-        if kind == "r":
-            out.append(ring(lx + 10, ly - 5, color, 9))
-        else:
-            out.append(f'<circle cx="{lx + 10}" cy="{ly - 5}" r="{6 if kind == "g" else 11}" fill="{color}"/>')
-        out.append(f'<text x="{lx + 28}" y="{ly}" fill="{BUILT}" font-size="16">{label}</text>')
-        lx += 50 + len(label) * 9
-    doc = (
-        f'<?xml version="1.0" encoding="UTF-8"?>'
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
-        f'{"".join(out)}</svg>'
-    )
-    with open(os.path.join(OUT, "plan_demonstrator.svg"), "w", encoding="utf-8") as fh:
-        fh.write(doc)
-    print(f"wrote {os.path.join(OUT, 'plan_demonstrator.svg')}")
-
-
-PARAMS = ["100 m grid cells", "600 m centre walk", "400 m green walk"]
+PARAMS = ["100 m grid cells", "600 m centre walk", "400 m green span"]
 CENTRES = ((5, 6), (12, 8))
 
 
@@ -482,12 +419,7 @@ def d_plan_cleanup():
 
 
 # ---- input-data catalogue: SVG diagrams of every OSM-downloadable layer form -----------------
-WATER, LANDBASE, STREET = "#5b86b3", "#dcdcdc", "#9a9a9a"
-
-
-def _ring(x, y, color, rad=11.0):
-    return (f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad}" fill="white" stroke="{color}" stroke-width="3.5"/>'
-            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{rad * 0.28:.1f}" fill="{color}"/>')
+STREET = "#9a9a9a"
 
 
 def _star(x, y, rad, color):
@@ -497,11 +429,6 @@ def _star(x, y, rad, color):
         rr = rad if i % 2 == 0 else rad * 0.42
         pts.append(f"{x + rr * math.cos(ang):.1f},{y + rr * math.sin(ang):.1f}")
     return f'<polygon points="{" ".join(pts)}" fill="white" stroke="{color}" stroke-width="2.6"/>'
-
-
-def _blob(cols, rows, disks):
-    return [(c, r) for r in range(rows) for c in range(cols)
-            if any((c - dx) ** 2 + (r - dy) ** 2 <= rad * rad for dx, dy, rad in disks)]
 
 
 def _blobpath(x, y, r, phase=0.0, n=46):
@@ -544,7 +471,7 @@ def layer_panel(name, title, feature):
            f'{"".join(out)}</svg>')
     with open(os.path.join(OUT, f"{name}.svg"), "w", encoding="utf-8") as fh:
         fh.write(doc)
-    print(f"wrote {name}.svg")
+    print(f"wrote {os.path.join(OUT, name)}.svg")
 
 
 def input_layers():
@@ -601,8 +528,7 @@ def main():
     input_layers()
     for fn in (d_step0, d_step1a, d_step1b, d_step1c, d_step2, d_step3, d_step4,
                d_centres_neighbouring, d_centres_isolated,
-               d_plan_ensemble, d_plan_select, d_plan_cleanup, d_plan_centring,
-               plan_demonstrator):
+               d_plan_ensemble, d_plan_select, d_plan_cleanup, d_plan_centring):
         fn()
     print("done")
 

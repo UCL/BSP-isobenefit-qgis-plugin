@@ -122,15 +122,15 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
         # --- Post-processing ----------------------------------------------------------
         # Turns the raw CA result into a recommended plan. With it on, the plugin saves the existing
-        # fabric, the raw (pre-processing) plan and consolidated/balanced/dispersed options, so the
-        # effect of post-processing — and the compactness choice — is visible: pick from the outputs.
+        # fabric, the raw (pre-processing) plan and two clustering options (moderately / tightly
+        # clustered centres), so the effect of post-processing is visible: pick from the outputs.
         pp = _group("Post-processing")
         self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
         self.optimise_centres_check.setChecked(True)
         self.optimise_centres_check.setToolTip(
             "On: re-position centres central to their development, add centres where new development is "
-            "under-served, remove redundant ones, and save spread / moderately clustered / clustered "
-            "centre options.\n"
+            "under-served, remove redundant ones, and save two options — moderately clustered and "
+            "tightly clustered centres.\n"
             "Off: keep the centres exactly where the simulation grew them (a single plan)."
         )
         pp.addRow(self.optimise_centres_check)
