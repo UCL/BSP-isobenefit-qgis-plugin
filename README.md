@@ -37,7 +37,7 @@ If the automatic install is blocked (e.g. a locked-down environment), the dialog
 shows the exact command to run yourself, which is simply:
 
 ```bash
-<qgis-python> -m pip install "isobenefit>=0.9,<0.10"
+<qgis-python> -m pip install "isobenefit>=0.10,<0.11"
 ```
 
 ## Usage

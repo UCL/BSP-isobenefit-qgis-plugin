@@ -72,7 +72,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       If automatic install is blocked, run it yourself with the QGIS Python:
     </p>
-    <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.9,&lt;0.10"</code></pre>
+    <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.10,&lt;0.11"</code></pre>
     <p>
       <strong>Why two pieces?</strong> The plugin itself is thin (UI + GIS I/O). The heavy compute is a
       separate Rust engine published to PyPI as the <code>isobenefit</code> package — kept apart because the
@@ -118,7 +118,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <figure><img class="diagram" src={dg('step_1c')} alt="" /><figcaption>An empty cell touching built land — on the periphery, so a candidate → continue.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within a <em>centre walk</em> of a centrality — so new homes stay near a centre.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>Building must not shrink a green corridor below the <em>minimum green span</em> — protecting access to nature.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes the cell is built, and it is assigned a density drawn from the configured range (min–max).</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes the cell is built; its density is set by walking distance to the nearest centre — denser closer in, within the configured range.</figcaption></figure>
     <p>
       Two distinct green thresholds are at play. The <em>green span</em> above is a <strong>build rule</strong> —
       a minimum corridor width the simulation won't crimp. The separate <em>green walk</em> — how far a home may
@@ -139,8 +139,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       Two further dials shape growth: <strong>build probability</strong> (the per-step growth rate — lower is
       tighter and more compact, higher is faster and looser) and the <strong>density range</strong> (min–max),
-      from which each built block's density is drawn — so the population target is met at a realistic mix of
-      densities rather than one uniform figure.
+      which the engine spreads as a gradient toward centres — the closer a block is to a centre, the denser
+      it is, with the mean holding at the range's midpoint so the population target stays honest.
     </p>
   </section>
 
@@ -240,7 +240,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <tr><td>Green walk</td><td>400 m</td><td>How near a home must be to green (scored on the plan)</td></tr>
         <tr><td>Min settlement area</td><td>2 ha</td><td>Smaller stranded new clusters revert to green</td></tr>
         <tr><td>Min green span</td><td>400 m</td><td>Minimum green-corridor width (a build rule)</td></tr>
-        <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Range each block's density is drawn from</td></tr>
+        <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Gradient toward centres (denser closer in)</td></tr>
         <tr><td>Existing-built density</td><td>2000 /km²</td><td>Assumed density of existing fabric</td></tr>
         <tr><td>Detail (ensemble)</td><td>Standard — 50 runs</td><td>How many runs to blend / choose from</td></tr>
       </table>
