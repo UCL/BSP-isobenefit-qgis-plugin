@@ -5,10 +5,10 @@
 //! All GIS concerns (rasterization, CRS, IO) live in the QGIS plugin; this
 //! module only sees numpy-shaped integer/float grids.
 
-use crate::access::{agg_dijkstra_cont, prepare_green_arrs, DijkstraOpts};
-use crate::density::{random_density, rng_for, splitmix64};
+use crate::access::{agg_dijkstra_cont, agg_dijkstra_dist, prepare_green_arrs, DijkstraOpts};
+use crate::density::{rng_for, splitmix64};
 use crate::neighbours::{count_cont_nbs, green_spans, iter_nbs};
-use ndarray::Array2;
+use ndarray::{Array2, Zip};
 use rayon::prelude::*;
 
 /// Scalar simulation parameters (densities already converted to per-block).
@@ -168,6 +168,9 @@ pub struct Simulation {
     pub green_itx: Array2<i16>,
     pub green_acc: Array2<i32>,
     pub cent_acc: Array2<i32>,
+    /// Minimum walking distance (metres) from each cell to any centre; `INFINITY`
+    /// where no centre is within `max_distance_m`. Drives the density gradient.
+    pub cent_dist: Array2<f64>,
     pub params: Params,
     pub total_iters: usize,
     pub current_iter: usize,
@@ -199,8 +202,9 @@ impl Simulation {
                 density[[y, x]] = exist_built_per_block;
             }
         }
-        // seed centres and aggregate their accessibility
+        // seed centres and aggregate their accessibility + minimum distance field
         let mut cent_acc = Array2::<i32>::zeros(dim);
+        let mut cent_dist = Array2::<f64>::from_elem(dim, f64::INFINITY);
         let cent_opts = DijkstraOpts::new(params.max_distance_m, params.granularity_m);
         for &(r, c) in centre_seeds {
             if r >= dim.0 || c >= dim.1 {
@@ -210,6 +214,12 @@ impl Simulation {
             origin[[r, c]] = 2;
             cent_acc =
                 cent_acc + agg_dijkstra_cont(&state, r, c, &[0, 1, 2], &[0, 1, 2], &cent_opts);
+            let d = agg_dijkstra_dist(&state, r, c, &[0, 1, 2], &cent_opts);
+            Zip::from(&mut cent_dist).and(&d).for_each(|c, &v| {
+                if v < *c {
+                    *c = v;
+                }
+            });
         }
         let (green_itx, green_acc) =
             prepare_green_arrs(&state, params.max_distance_m, params.granularity_m);
@@ -221,6 +231,7 @@ impl Simulation {
             green_itx,
             green_acc,
             cent_acc,
+            cent_dist,
             params,
             total_iters,
             current_iter: 0,
@@ -230,20 +241,30 @@ impl Simulation {
     }
 
     fn assign_density(&mut self, rng: &mut rand_chacha::ChaCha8Rng, y: usize, x: usize) {
-        self.density[[y, x]] = random_density(
-            rng,
-            self.params.prob_distribution,
-            self.params.high_per_block,
-            self.params.med_per_block,
-            self.params.low_per_block,
-        ) as f32;
+        use rand::Rng;
+        let _: f64 = rng.gen(); // keep the RNG stream in lockstep with prior behaviour
+                                // density falls with distance to the nearest centre: dense near a centre
+                                // (t -> 0 => high), sparse at the walk edge (t -> 1 => low). A built cell
+                                // always has a finite cent_dist (it grew within a centre's footprint).
+        let t = (self.cent_dist[[y, x]] / self.params.max_distance_m).clamp(0.0, 1.0);
+        let dens = self.params.high_per_block * (1.0 - t) + self.params.low_per_block * t;
+        self.density[[y, x]] = dens as f32;
     }
 
     fn plant_centre(&mut self, y: usize, x: usize) {
         self.state[[y, x]] = 2;
         let opts = DijkstraOpts::new(self.params.max_distance_m, self.params.granularity_m);
-        let inc = agg_dijkstra_cont(&self.state, y, x, &[0, 1, 2], &[0, 1, 2], &opts);
+        // one distance field gives both the access footprint (finite == reachable
+        // within a walk, matching the old path==target==[0,1,2] agg) and the
+        // minimum-distance update for the gradient.
+        let d = agg_dijkstra_dist(&self.state, y, x, &[0, 1, 2], &opts);
+        let inc = d.mapv(|v| if v.is_finite() { 1 } else { 0 });
         self.cent_acc = &self.cent_acc + &inc;
+        Zip::from(&mut self.cent_dist).and(&d).for_each(|c, &v| {
+            if v < *c {
+                *c = v;
+            }
+        });
     }
 
     /// Runs a single iteration. RNG is seeded from `(master_seed, current_iter)`
@@ -577,6 +598,47 @@ mod tests {
             .unwrap();
         let single = pool.install(|| ensemble_probability(&template, 2024, 6));
         assert_eq!(prob, single);
+    }
+
+    #[test]
+    fn density_falls_with_distance_to_centre() {
+        // grow from a single centre, then compare the density of a built cell near
+        // the centre against one near the walk edge (both must be finite-distance).
+        let mut sim = seeded_sim(40, 5);
+        let (cy, cx) = (20usize, 20usize); // the seeded centre
+        sim.run();
+        let max = sim.params.max_distance_m;
+        let mut near: Option<(f64, f64)> = None; // (dist, density)
+        let mut far: Option<(f64, f64)> = None;
+        for ((y, x), &s) in sim.state.indexed_iter() {
+            if s != 1 {
+                continue; // built (non-centre) cells only
+            }
+            let d = sim.cent_dist[[y, x]];
+            if !d.is_finite() {
+                continue;
+            }
+            let dens = sim.density[[y, x]] as f64;
+            // nearest built cell to the centre
+            if near.map_or(true, |(nd, _)| d < nd) {
+                near = Some((d, dens));
+            }
+            // farthest built cell still within a walk of the centre
+            if d > 0.0 && d <= max && far.map_or(true, |(fd, _)| d > fd) {
+                far = Some((d, dens));
+            }
+            let _ = (cy, cx);
+        }
+        let (near_d, near_dens) = near.expect("a built cell near the centre");
+        let (far_d, far_dens) = far.expect("a built cell near the walk edge");
+        assert!(
+            near_d < far_d,
+            "near {near_d} should be closer than far {far_d}"
+        );
+        assert!(
+            near_dens >= far_dens,
+            "density near centre ({near_dens}) should be >= density at edge ({far_dens})"
+        );
     }
 
     #[test]
