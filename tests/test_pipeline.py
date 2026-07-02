@@ -744,3 +744,83 @@ def test_plan_variants_compactness_options():
     n_cons = len(_components(cons_plan == PLAN_CENTRE))
     n_disp = len(_components(disp_plan == PLAN_CENTRE))
     assert n_disp > n_cons  # dispersed places more, closer centres
+
+
+def test_evaluate_plan_marked_unmarked_equivalence():
+    # evaluate_plan must score a plan identically whether existing development is tagged with the
+    # EXIST_* codes or folded into the plain codes — sim_runner compares a marked pre_plan against
+    # unmarked variants, so any basis-dependence corrupts the raw-vs-processed accounting.
+    rng = np.random.default_rng(42)
+    g = 30
+    marked = np.zeros((g, g), np.uint8)
+    marked[2:12, 2:12] = PLAN_BUILT
+    marked[6, 6] = PLAN_CENTRE
+    marked[15:28, 4:20] = PLAN_EXIST_BUILT
+    marked[20, 10] = PLAN_EXIST_CENTRE
+    marked[2:8, 20:28] = PLAN_GREEN
+    for y, x in rng.integers(0, g, size=(30, 2)):  # scattered existing specks
+        if marked[y, x] == PLAN_NONE:
+            marked[y, x] = PLAN_EXIST_BUILT
+    unmarked = marked.copy()
+    unmarked[unmarked == PLAN_EXIST_BUILT] = PLAN_BUILT
+    unmarked[unmarked == PLAN_EXIST_CENTRE] = PLAN_CENTRE
+    m1 = evaluate_plan(marked, 100.0, 400.0, min_green_span_m=200.0)
+    m2 = evaluate_plan(unmarked, 100.0, 400.0, min_green_span_m=200.0)
+    for key in ("built_cells", "served_coverage", "centre_coverage", "green_coverage",
+                "unserved_fraction", "access_cost", "compactness",
+                "centre_efficiency", "green_efficiency"):
+        assert m1[key] == m2[key], f"{key}: marked={m1[key]} unmarked={m2[key]}"
+
+
+def test_select_plan_cleanup_accounting_non_negative():
+    # The "cleaned up N cells" figure is pre_plan built minus optimised built; the marked pre_plan
+    # includes existing development, so the two evaluations must share a basis or the count goes
+    # negative (the pre-fix symptom).
+    g = 30
+    state = np.zeros((g, g), np.int16)
+    state[2:12, 2:12] = 1
+    state[6, 6] = 2
+    state[25, 25] = 1  # lone speck -> pruned by the cleanup
+    exist = np.zeros((g, g), bool)
+    exist[15:20, 4:9] = True
+    state[15:20, 4:9] = 1
+    _best, best_m, pre_plan, _st = select_plan([state], 100.0, 200.0, 400.0, existing_built=exist)
+    pre_m = evaluate_plan(pre_plan, 100.0, 400.0, min_green_span_m=200.0)
+    removed = pre_m["built_cells"] - best_m["built_cells"]
+    assert removed >= 0
+    assert removed >= 1  # the speck really was cleaned up
+
+
+def test_plan_variants_router_bound_must_cover_spacing():
+    # Under a street router, centre clustering only works if the router's bound reaches the centre
+    # SPACING (2.5x walk for "tight"), not just the walk — sim_runner passes
+    # max(max_distance, max(spacings)). A walk-bounded router clips every spacing decision and the
+    # options collapse toward walk-spacing (tight was observed placing MORE centres than moderate).
+    from isobenefit_qgis.grid import _components, plan_variants
+    from isobenefit_qgis.routing import NetworkRouter
+
+    granularity, walk = 100.0, 400.0
+    rows, cols = 3, 80  # an 8 km built strip along a chain-graph street
+    nodes = np.array([(c * granularity + granularity / 2, 0.0) for c in range(cols)])
+    adj = [[] for _ in range(cols)]
+    for c in range(cols - 1):
+        adj[c].append((c + 1, granularity))
+        adj[c + 1].append((c, granularity))
+    cell_node = np.tile(np.arange(cols), (rows, 1))
+    cell_access = np.zeros((rows, cols))
+    state = np.ones((rows, cols), np.int16)
+    state[1, 5] = state[1, 40] = state[1, 75] = 2  # a few CA-grown centres
+    spacings = {"moderate": 1.5 * walk, "tight": 2.5 * walk}
+
+    def centre_counts(bound):
+        router = NetworkRouter(nodes, adj, cell_node, cell_access, granularity, bound)
+        out = plan_variants(state, granularity, 200.0, walk, spacings, router=router)
+        return {
+            label: len(_components(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE))))
+            for label, (plan, _m) in out.items()
+        }
+
+    good = centre_counts(max(walk, max(spacings.values())))  # what sim_runner passes
+    assert good["tight"] < good["moderate"]  # clustering harder -> strictly fewer centres
+    clipped = centre_counts(walk)  # the pre-fix bound: spacing decisions clipped at the walk
+    assert not (clipped["tight"] < clipped["moderate"])  # collapse fingerprint the fix removes

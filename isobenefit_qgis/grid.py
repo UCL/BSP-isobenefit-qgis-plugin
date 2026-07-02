@@ -603,8 +603,10 @@ def evaluate_plan(
         a = built[: rows - dy, : cols - dx] & built[dy:, dx:]
         adj += 2 * int(a.sum())  # each shared edge counts for both cells
 
-    # supply-side efficiency: how well-used each centre / unit of green is
-    n_centres = int((plan == PLAN_CENTRE).sum())
+    # supply-side efficiency: how well-used each centre / unit of green is. Existing centres
+    # count too — the numerator (homes near ANY centre) does, and no metric may depend on
+    # whether the plan is tagged with the EXIST_* codes.
+    n_centres = int(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE)).sum())
     n_green = int(green_mask.sum())
 
     metrics = {

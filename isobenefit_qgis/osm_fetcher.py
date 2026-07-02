@@ -346,15 +346,6 @@ class OsmFetchTask(QgsTask):
                 f"AOI clip = {'on' if self.aoi_wkt else 'off'}."
             )
             srs = _wgs84_srs()
-            # Start a fresh GeoPackage so a re-fetch fully replaces the previous one.
-            gpkg_drv = ogr.GetDriverByName("GPKG")
-            if gdal.VSIStatL(self.gpkg_path) is not None:
-                gpkg_drv.DeleteDataSource(self.gpkg_path)
-            gpkg_ds = gpkg_drv.CreateDataSource(self.gpkg_path)
-            if gpkg_ds is None:
-                self.error_message = f"Could not create the output GeoPackage: {self.gpkg_path}"
-                return False
-
             # ONE combined Overpass request for all datasets. Many small sequential requests get
             # rate-limited / queued by the public mirrors (which turned a small area into minutes —
             # a throttled dataset retrying through repeated server-side timeouts); a single request
@@ -371,6 +362,17 @@ class OsmFetchTask(QgsTask):
                 self.error_message = f"OpenStreetMap download failed: {exc}"
                 return False
             self.setProgress(80.0)
+
+            # Only now that the download + parse have succeeded, start a fresh GeoPackage so a
+            # re-fetch fully replaces the previous one. (Deleting it before the download meant a
+            # failed fetch destroyed the existing data and invalidated any project layers on it.)
+            gpkg_drv = ogr.GetDriverByName("GPKG")
+            if gdal.VSIStatL(self.gpkg_path) is not None:
+                gpkg_drv.DeleteDataSource(self.gpkg_path)
+            gpkg_ds = gpkg_drv.CreateDataSource(self.gpkg_path)
+            if gpkg_ds is None:
+                self.error_message = f"Could not create the output GeoPackage: {self.gpkg_path}"
+                return False
 
             total = len(self.datasets)
             for i, dataset in enumerate(self.datasets):

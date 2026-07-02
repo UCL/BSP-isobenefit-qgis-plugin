@@ -4,7 +4,7 @@ QGIS plugin for Isobenefit Urbanism — a tool for brainstorming walkable urban
 development against real-world datasets, based on walkable access to centralities
 (shops, services) and green spaces.
 
-📖 **Documentation & overview website:** <https://ucl.github.io/BSP-isobenefit-qgis-plugin/>
+📖 **Documentation & overview website:** <https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/>
 
 ## Repository layout
 
@@ -79,6 +79,18 @@ count — see [`core/README.md`](core/README.md).
 
 Lint with `ruff check isobenefit_qgis`.
 
+The plugin's pure pipeline (grid/routing/OSM helpers) has a headless test suite that
+needs no QGIS — run it against a locally built engine wheel:
+
+```bash
+uv run --no-project \
+  --with core/dist/isobenefit-*.whl --with numpy --with shapely --with pytest \
+  python -m pytest tests -q
+```
+
+CI runs the same suite against a freshly built wheel on every push, so
+plugin-vs-engine drift is caught before it reaches QGIS.
+
 For live development, link the plugin folder into your QGIS profile. The profile
 directory is named for your QGIS major version (`QGIS4` for QGIS 4.x, `QGIS3` for
 QGIS 3.x). On macOS:
@@ -93,8 +105,9 @@ On Windows, copy/paste the `isobenefit_qgis` folder into
 ### CI
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the Rust tests,
-builds and smoke-tests abi3 wheels on Linux/macOS/Windows, builds the plugin zip,
-and (on a `v*` version tag, e.g. `v0.1.0`) publishes the engine to PyPI via trusted publishing.
+builds and smoke-tests abi3 wheels on Linux/macOS/Windows, runs the plugin's
+headless test suite against a freshly built wheel, builds the plugin zip, and
+(on a `v*` version tag, e.g. `v0.1.0`) publishes the engine to PyPI via trusted publishing.
 
 ## Packaging the plugin
 
@@ -120,7 +133,7 @@ Future Urban Growth project at the Bartlett School of Planning.
 A full overview — the concept, the workflow and its outputs, installation, and the
 parameters — is published from [`website/`](website/) in this repo:
 
-**<https://ucl.github.io/BSP-isobenefit-qgis-plugin/>**
+**<https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/>**
 
 (The previous standalone `BSP-isobenefit-urbanism` repo is deprecated; the site now
 lives here and deploys via [`.github/workflows/website.yml`](.github/workflows/website.yml).)

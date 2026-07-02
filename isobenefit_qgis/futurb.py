@@ -17,6 +17,20 @@ from .isobenefit_dialog import IsobenefitDialog  # Import the code for the dialo
 from .osm_dialog import OsmDialog
 
 
+def _positive(value):
+    """Guard for dialog numbers that must be strictly positive (a 0 grid size would
+    divide by zero; negatives fail deep in numpy with a cryptic message)."""
+    if value <= 0:
+        raise ValueError(f"{value} is not positive")
+    return value
+
+
+def _non_negative(value):
+    if value < 0:
+        raise ValueError(f"{value} is negative")
+    return value
+
+
 class Isobenefit:
     """QGIS Plugin Implementation."""
 
@@ -167,9 +181,13 @@ class Isobenefit:
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginMenu(self.tr("Isobenefit Urbanism"), action)
+            # must match the menu the actions were added under (self.menu), or the
+            # entries survive the unload with dead callbacks
+            self.iface.removePluginMenu(self.menu, action)
             self.iface.removeToolBarIcon(action)
-        # remove the toolbar
+        # remove the toolbar widget itself (del alone leaks it -> duplicates on reload)
+        self.iface.mainWindow().removeToolBar(self.toolbar)
+        self.toolbar.deleteLater()
         del self.toolbar
 
     def run_osm(self):
@@ -225,18 +243,20 @@ class Isobenefit:
             return
         # collect + validate the numeric parameters (a friendly message, not a traceback)
         try:
-            total_iters = int(self.dlg.n_iterations.text())
-            granularity_m = int(self.dlg.grid_size_m.text())
+            total_iters = _positive(int(self.dlg.n_iterations.text()))
+            granularity_m = _positive(int(self.dlg.grid_size_m.text()))
             # Split walks: centres and green each have their own. The CA grows (and the routing graph
             # is bounded) by the LARGER walk; the recommended plan judges each amenity against its own.
-            centre_distance_m = int(self.dlg.centre_walk_dist.text())
-            green_distance_m = int(self.dlg.green_walk_dist.text())
+            centre_distance_m = _positive(int(self.dlg.centre_walk_dist.text()))
+            green_distance_m = _positive(int(self.dlg.green_walk_dist.text()))
             max_distance_m = max(centre_distance_m, green_distance_m)
-            max_populat = int(self.dlg.max_populat.text())
-            exist_built_density = int(self.dlg.built_density.text())
-            min_green_span = int(self.dlg.min_green_span.text())
+            max_populat = _positive(int(self.dlg.max_populat.text()))
+            exist_built_density = _non_negative(int(self.dlg.built_density.text()))
+            min_green_span = _positive(int(self.dlg.min_green_span.text()))
             random_seed = int(self.dlg.random_seed.text())
             build_prob = float(self.dlg.build_prob.text())
+            if not 0.0 < build_prob <= 1.0:
+                raise ValueError(f"build probability {build_prob} outside (0, 1]")
             # Dispersed-development selector -> the CA's isolated-seeding rate. Infill centrality and
             # the centre-formation threshold are sensible internal defaults now (the recommended plan
             # re-derives centres in post-processing, so these no longer need to be user-facing).
@@ -245,14 +265,14 @@ class Isobenefit:
             pop_target_cent_threshold = 0.8
             # Density RANGE -> the engine's descending tiers. Uniform across min..max (equal weights),
             # so the mean is the midpoint and the max is the densification ceiling.
-            min_density = float(self.dlg.min_density.text())
-            max_density = float(self.dlg.max_density.text())
+            min_density = _non_negative(float(self.dlg.min_density.text()))
+            max_density = _positive(float(self.dlg.max_density.text()))
             mid_density = 0.5 * (min_density + max_density)
             density_factors = (max_density, mid_density, min_density)
             prob_distribution = (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)
             # recommended-plan dials. Min settlement is entered as an AREA in hectares; convert to the
             # cell count the model prunes/culls by: ha -> m² (×10 000) / cell area (grid²).
-            min_settlement_ha = float(self.dlg.min_settlement.text())
+            min_settlement_ha = _non_negative(float(self.dlg.min_settlement.text()))
             centre_min_settlement = max(1, round(min_settlement_ha * 10000.0 / (granularity_m**2)))
             # centre clustering is no longer chosen here: the run saves two options (moderately and
             # tightly clustered centres) plus the existing + raw pre-processing plans, to compare and pick.
@@ -260,7 +280,9 @@ class Isobenefit:
             QMessageBox.warning(
                 self.iface.mainWindow(),
                 "Isobenefit",
-                "Please enter valid numbers for all simulation parameters before running.",
+                "Please enter valid numbers for all simulation parameters before running "
+                "(sizes, walks, iterations and population must be positive; "
+                "build probability between 0 and 1).",
             )
             return
 

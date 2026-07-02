@@ -88,12 +88,15 @@ def point_cells(layer, target_crs, geotransform, rows, cols):
         if geom.isEmpty():
             continue
         geom.transform(xform)
-        pt = geom.asPoint()
-        px, py = gdal.ApplyGeoTransform(inv, pt.x(), pt.y())
-        col = int(px)
-        row = int(py)
-        if 0 <= row < rows and 0 <= col < cols:
-            seeds.append((row, col))
+        # asPoint() raises on MultiPoint geometry, which the PointLayer combo filter
+        # admits (common in GeoPackage/shapefile exports) — take every part
+        pts = geom.asMultiPoint() if geom.isMultipart() else [geom.asPoint()]
+        for pt in pts:
+            px, py = gdal.ApplyGeoTransform(inv, pt.x(), pt.y())
+            col = int(px)
+            row = int(py)
+            if 0 <= row < rows and 0 <= col < cols:
+                seeds.append((row, col))
     return seeds
 
 

@@ -207,8 +207,15 @@ class OsmDialog(QtWidgets.QDialog):
     def _on_drawn(self, geom: QgsGeometry) -> None:
         src_crs = self.iface.mapCanvas().mapSettings().destinationCrs()
         g = QgsGeometry(geom)
-        if src_crs != WGS84:
+        if src_crs != WGS84 and (
             g.transform(QgsCoordinateTransform(src_crs, WGS84, QgsProject.instance()))
+            != Qgis.GeometryOperationResult.Success
+        ):
+            # a failed transform leaves projected coords the UI would mislabel as EPSG:4326
+            self._set_aoi(None, "")
+            self.aoi_feedback.setText("Could not reproject the drawn area to EPSG:4326 — check the project CRS.")
+            self._restore_after_draw()
+            return
         self.aoi_layer_box.setCurrentIndex(0)  # a fresh drawing supersedes any chosen layer
         self._set_aoi(g, "drawn polygon")
         self._restore_after_draw()
@@ -233,8 +240,13 @@ class OsmDialog(QtWidgets.QDialog):
             self.aoi_feedback.setText("The chosen layer has no geometry.")
             return
         g = QgsGeometry.unaryUnion(geoms)
-        if layer.crs() != WGS84:
+        if layer.crs() != WGS84 and (
             g.transform(QgsCoordinateTransform(layer.crs(), WGS84, QgsProject.instance()))
+            != Qgis.GeometryOperationResult.Success
+        ):
+            self._set_aoi(None, "")
+            self.aoi_feedback.setText(f"Could not reproject “{layer.name()}” to EPSG:4326 — check the layer's CRS.")
+            return
         self._set_aoi(g, f"layer “{layer.name()}”")
 
     def _set_aoi(self, geom: QgsGeometry | None, source: str) -> None:

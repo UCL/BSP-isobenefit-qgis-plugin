@@ -17,6 +17,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
       discuss with planners. It runs on your own GIS layers. It is an exploratory, conversational tool used
       alongside local knowledge, not a prescription.
     </p>
+    <figure id="hero-plan">
+      <img class="hero" src={dg('demo_recommended_plan')} alt="A recommended plan: new settlements with walkable centres woven through a green matrix around an existing town" />
+      <figcaption>A recommended plan from a real run: new settlements (grey) with walkable centres (red) woven
+      through a continuous green matrix around the existing town (brown) — every home within a walk of both.</figcaption>
+    </figure>
     <nav class="toc">
       <a href="#concept">Concept</a>
       <a href="#install">Install</a>
@@ -35,17 +40,20 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <section>
     <p>
       <a href="https://lucadacci.wixsite.com/dacci/isobenefit-urbanism-morphogenesis">Isobenefit Urbanism</a>
-      (Luca D'Acci) describes a city whose benefits — nearness to centres and to nature — are spread
-      <em>evenly</em>: quality of life shouldn't depend on which corner of town you live in. It steers between
-      the two failure modes of growth: <strong>sprawl</strong>, which strands people far from centres and
-      paves over nature, and <strong>overcrowding</strong>, which squeezes nature out.
+      (Luca D'Acci) describes a city whose benefits are spread <em>evenly</em> — <em>iso</em> as in
+      <em>equal</em>: wherever you live, and however large the settlement grows, you can walk both to a local
+      centre and to green land. Quality of life shouldn't depend on which corner of town you live in. It
+      steers between the two failure modes of growth: <strong>sprawl</strong>, which strands people far from
+      centres and paves over nature, and <strong>overcrowding</strong>, which squeezes nature out.
     </p>
     <p>
-      The plugin turns that principle into a <strong>cellular-automaton</strong> simulation: a grid of land
-      cells grows step by step under rules that keep new development on foot of a centre and protect green
-      corridors. Because the rules are stochastic, no single run is "the" answer — so the plugin runs many and
-      reports both the <strong>uncertainty</strong> (where development is robust vs contingent) and one
-      coherent <strong>recommended plan</strong>.
+      It is also a deliberate third way between rigid master-planning and laissez-faire growth: a handful of
+      simple rules <em>guide</em> development while its detailed form stays free to emerge. The plugin keeps
+      that split. A <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step
+      under rules that keep new development on foot of a centre and protect green corridors — and because the
+      rules are stochastic, no single run is "the" answer, so the plugin runs many and reports both the
+      <strong>uncertainty</strong> (where development is robust vs contingent) and one coherent
+      <strong>recommended plan</strong>.
     </p>
   </section>
 
@@ -110,7 +118,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <figure><img class="diagram" src={dg('step_1c')} alt="" /><figcaption>An empty cell touching built land — on the periphery, so a candidate → continue.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within a <em>centre walk</em> of a centrality — so new homes stay near a centre.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>Building must not shrink a green corridor below the <em>minimum green span</em> — protecting access to nature.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes the cell is built; its density is set by distance to the nearest centre (denser closer in).</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes the cell is built, and it is assigned a density drawn from the configured range (min–max).</figcaption></figure>
     <p>
       Two distinct green thresholds are at play. The <em>green span</em> above is a <strong>build rule</strong> —
       a minimum corridor width the simulation won't crimp. The separate <em>green walk</em> — how far a home may
@@ -131,7 +139,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       Two further dials shape growth: <strong>build probability</strong> (the per-step growth rate — lower is
       tighter and more compact, higher is faster and looser) and the <strong>density range</strong> (min–max),
-      which the engine spreads as a gradient that densifies toward centres.
+      from which each built block's density is drawn — so the population target is met at a realistic mix of
+      densities rather than one uniform figure.
     </p>
   </section>
 
@@ -172,10 +181,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li><strong>development likelihood</strong> (built, green) — the ensemble uncertainty map</li>
       <li><strong><code>_report.txt</code></strong> — a record of the parameters and per-option statistics</li>
     </ul>
-    <figure>
-      <img class="demo" src={dg('demo_recommended_plan')} alt="A recommended plan" />
-      <figcaption>A recommended plan from a real run: an existing core (brown) keeps its centre, new growth (grey) clusters into settlements, each centred, within a green matrix.</figcaption>
-    </figure>
+    <p>
+      The figure <a href="#hero-plan">at the top of the page</a> is one of these recommended plans: the
+      existing core keeps its centre, and new growth clusters into settlements — each centred — within a
+      green matrix.
+    </p>
   </section>
 
   <h2 id="demonstration">Visual demonstration</h2>
@@ -230,7 +240,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <tr><td>Green walk</td><td>400 m</td><td>How near a home must be to green (scored on the plan)</td></tr>
         <tr><td>Min settlement area</td><td>2 ha</td><td>Smaller stranded new clusters revert to green</td></tr>
         <tr><td>Min green span</td><td>400 m</td><td>Minimum green-corridor width (a build rule)</td></tr>
-        <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Gradient, densest near centres</td></tr>
+        <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Range each block's density is drawn from</td></tr>
         <tr><td>Existing-built density</td><td>2000 /km²</td><td>Assumed density of existing fabric</td></tr>
         <tr><td>Detail (ensemble)</td><td>Standard — 50 runs</td><td>How many runs to blend / choose from</td></tr>
       </table>
@@ -247,6 +257,17 @@ const dg = (name: string) => `${base}images/${name}.svg`
       Gabrieli, Luca D'Acci, Heeseo Kwon, Stephen Marshall, Valentina Marin Maureira, Gareth Simons). Code:
       <a href="https://github.com/UCL/BSP-isobenefit-qgis-plugin">BSP-isobenefit-qgis-plugin</a>.
     </p>
+    <p>Reading:</p>
+    <ul>
+      <li>
+        D'Acci, L. (2019). <a href="https://doi.org/10.1016/j.jenvman.2019.05.129">A new type of cities for
+        liveable futures. Isobenefit Urbanism morphogenesis</a>. <em>Journal of Environmental Management</em>, 246.
+      </li>
+      <li>
+        D'Acci, L., Voto, M. (2023). <a href="https://doi.org/10.1016/j.softx.2023.101408">Morphogenesis of
+        Isobenefit urbanism: Isobenefit-cities simulator</a>. <em>SoftwareX</em>, 22.
+      </li>
+    </ul>
   </section>
 
   <footer>© 2026 UCL Bartlett School of Planning</footer>
@@ -272,6 +293,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
     }
     .demo {
       @apply w-full max-w-md;
+    }
+    .hero {
+      @apply w-full max-w-2xl;
     }
     .demo-row,
     .diagram-pair {
