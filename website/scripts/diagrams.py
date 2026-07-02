@@ -418,109 +418,120 @@ def d_plan_cleanup():
     write("plan_cleanup", scene)
 
 
-# ---- input-data catalogue: SVG diagrams of every OSM-downloadable layer form -----------------
+# ---- input-data catalogue: the REAL downloaded layers for the demonstration town -------------
+# Rendered from the GeoJSON snapshots in scripts/data (fetched by fetch_data.py with the plugin's
+# own OSM queries). Every panel shares one transform over the same 4.2 km window, so the layers
+# provably compose — and the SAME window is the growth demonstrators' substrate.
 STREET = "#9a9a9a"
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+# one colour language across the whole site: EXISTING fabric/centres take the same brown/magenta as
+# the demonstrators' existing dots (grey + brand red are reserved for what the SIMULATION adds)
+BUILT_AREA, GREEN_AREA, WATER_AREA, CENTRE_AREA, IND_AREA = EXIST_BUILT, "#3f8f47", "#6f9fcf", EXIST_CENTRE, "#7b6d8f"
 
 
-def _star(x, y, rad, color):
-    pts = []
-    for i in range(10):
-        ang = -math.pi / 2 + i * math.pi / 5
-        rr = rad if i % 2 == 0 else rad * 0.42
-        pts.append(f"{x + rr * math.cos(ang):.1f},{y + rr * math.sin(ang):.1f}")
-    return f'<polygon points="{" ".join(pts)}" fill="white" stroke="{color}" stroke-width="2.6"/>'
+def _features(name):
+    import json
 
-
-def _blobpath(x, y, r, phase=0.0, n=46):
-    """A smooth, deterministic organic polygon outline (a GIS-style vector area)."""
-    pts = []
-    for i in range(n):
-        t = 2 * math.pi * i / n
-        rr = r * (1 + 0.17 * math.sin(3 * t + phase) + 0.09 * math.sin(6 * t + phase * 1.7))
-        pts.append(f"{x + rr * math.cos(t):.1f},{y + rr * math.sin(t):.1f}")
-    return "M " + " L ".join(pts) + " Z"
-
-
-def _areas(cx, cy, P, blobs, fill, stroke):
-    return "".join(
-        f'<path d="{_blobpath(cx(c), cy(r), rad * P, ph)}" fill="{fill}" stroke="{stroke}" stroke-width="2"/>'
-        for (c, r, rad, ph) in blobs)
-
-
-def layer_panel(name, title, feature):
-    """One small panel: a faint land tile + this layer as VECTOR geometry (filled polygons / lines /
-    point markers) — deliberately NOT the dot grid, so downloaded data stays visually distinct from the
-    simulation's cells when the two are shown together."""
-    cols, rows, P, x0, y0 = 11, 8, 46, 34, 64
-    cw, ch = cols * P + 68, rows * P + 96
-
-    def cx(c):
-        return x0 + c * P + P / 2
-
-    def cy(r):
-        return y0 + r * P + P / 2
-
-    tx, ty = cx(0) - P * 0.5, cy(0) - P * 0.5
-    out = [f'<rect width="{cw}" height="{ch}" fill="white"/>',
-           f'<text x="34" y="44" fill="{RED}" font-weight="800" font-size="22">{esc(title)}</text>',
-           f'<rect x="{tx:.1f}" y="{ty:.1f}" width="{(cx(10) + P * 0.5) - tx:.1f}" '
-           f'height="{(cy(7) + P * 0.5) - ty:.1f}" rx="14" fill="#eef1ee"/>',
-           feature(cx, cy, P)]
-    doc = (f'<?xml version="1.0" encoding="UTF-8"?>'
-           f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
-           f'{"".join(out)}</svg>')
-    with open(os.path.join(OUT, f"{name}.svg"), "w", encoding="utf-8") as fh:
-        fh.write(doc)
-    print(f"wrote {os.path.join(OUT, name)}.svg")
+    with open(os.path.join(DATA, f"{name}.geojson"), encoding="utf-8") as fh:
+        return json.load(fh)["features"]
 
 
 def input_layers():
-    BUILT_AREA, GREEN_AREA, WATER_AREA, CENTRE_AREA = "#7a7a7a", "#3f8f47", "#6f9fcf", "#d94652"
+    ring = _features("extents")[0]["geometry"]["coordinates"][0]
+    xs, ys = zip(*ring)
+    xmin, ymin, xmax, ymax = min(xs), min(ys), max(xs), max(ys)
+    side, ox, oy = 520.0, 20.0, 56.0
+    S = side / (xmax - xmin)
+    cw, ch = 560, 600
 
-    def extents(cx, cy, P):
-        x1, y1 = cx(0) - P * 0.35, cy(0) - P * 0.35
-        return (f'<rect x="{x1:.1f}" y="{y1:.1f}" width="{(cx(10) + P * 0.35) - x1:.1f}" '
-                f'height="{(cy(7) + P * 0.35) - y1:.1f}" rx="14" fill="none" stroke="{RED}" '
-                f'stroke-width="3.5" stroke-dasharray="9 6"/>')
+    def X(x):
+        return ox + (x - xmin) * S
 
-    def built(cx, cy, P):
-        return _areas(cx, cy, P, [(4, 4, 2.4, 0.4), (7.5, 4.5, 1.9, 2.1), (5.5, 6, 1.5, 4.0)], BUILT_AREA, "#555555")
+    def Y(y):
+        return oy + (ymax - y) * S
 
-    def green(cx, cy, P):
-        return _areas(cx, cy, P, [(2.6, 2.2, 1.9, 1.0), (8, 5.5, 2.3, 3.2), (4.4, 6, 1.5, 5.0)], GREEN_AREA, "#2f7d33")
+    def poly_path(geom):
+        rings = geom["coordinates"] if geom["type"] == "Polygon" else [r for p in geom["coordinates"] for r in p]
+        return " ".join(
+            "M " + " L ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in ring) + " Z" for ring in rings
+        )
 
-    def water(cx, cy, P):
-        pts = [(cx(0.4 + 1.05 * r), cy(r)) for r in range(8)]
-        d = "M " + " L ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
-        return (f'<path d="{d}" fill="none" stroke="{WATER_AREA}" stroke-width="{P * 0.6:.1f}" '
-                f'stroke-linecap="round" stroke-linejoin="round"/>')
-
-    def centres(cx, cy, P):
-        return _areas(cx, cy, P, [(3.5, 3, 0.95, 0.5), (7.5, 5, 0.8, 2.0)], CENTRE_AREA, "#a82d38")
-
-    def pt(cx, cy, P):
-        s = P * 0.42
+    def polys(name, fill, stroke):
         return "".join(
-            f'<rect x="{cx(c) - s / 2:.1f}" y="{cy(r) - s / 2:.1f}" width="{s:.1f}" height="{s:.1f}" rx="3" fill="{BLUE}"/>'
-            for c, r in [(2, 2), (5, 4), (8, 2), (4, 6), (9, 6)])
+            f'<path d="{poly_path(f["geometry"])}" fill="{fill}" fill-rule="evenodd" '
+            f'stroke="{stroke}" stroke-width="1"/>'
+            for f in _features(name) if f["geometry"]["type"] in ("Polygon", "MultiPolygon")
+        )
 
-    def stations(cx, cy, P):
-        return "".join(_star(cx(c), cy(r), P * 0.46, BLUE) for c, r in [(4, 3), (8, 5)])
+    def street_lines(minor=True):
+        # stroke by class so arterials read over the residential net
+        widths = {"primary": 3.0, "primary_link": 3.0, "secondary": 2.4, "tertiary": 1.9}
+        light = {"footway", "path", "cycleway", "steps", "track", "bridleway"}
+        out = []
+        for f in _features("streets"):
+            hw = f["properties"].get("highway", "")
+            if hw in light:
+                if not minor:
+                    continue
+                w, op = 0.6, 0.5
+            else:
+                w, op = widths.get(hw, 1.1), 1.0
+            pts = " ".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in f["geometry"]["coordinates"])
+            out.append(f'<polyline points="{pts}" fill="none" stroke="{STREET}" stroke-width="{w}" opacity="{op}"/>')
+        return "".join(out)
 
-    def streets(cx, cy, P):
-        ls = [f'<line x1="{cx(0):.1f}" y1="{cy(r):.1f}" x2="{cx(10):.1f}" y2="{cy(r):.1f}" '
-              f'stroke="{STREET}" stroke-width="2.6"/>' for r in (1, 4, 6)]
-        ls += [f'<line x1="{cx(c):.1f}" y1="{cy(0):.1f}" x2="{cx(c):.1f}" y2="{cy(7):.1f}" '
-               f'stroke="{STREET}" stroke-width="2.6"/>' for c in (2, 5, 8)]
-        return "".join(ls)
+    def stop_markers():
+        s = 9.0
+        return "".join(
+            f'<rect x="{X(f["geometry"]["coordinates"][0]) - s / 2:.1f}" '
+            f'y="{Y(f["geometry"]["coordinates"][1]) - s / 2:.1f}" width="{s}" height="{s}" rx="2" fill="{BLUE}"/>'
+            for f in _features("stops")
+        )
 
-    for nm, title, feat in [
-        ("input_extents", "Extents", extents), ("input_built", "Existing built", built),
-        ("input_green", "Green space", green), ("input_unbuildable", "Unbuildable / water", water),
-        ("input_centres", "Urban centres", centres), ("input_pt", "Public-transport stops", pt),
-        ("input_stations", "Rail / tram stations", stations), ("input_streets", "Street network", streets),
-    ]:
-        layer_panel(nm, title, feat)
+    def extents_rect():
+        return (
+            f'<rect x="{X(xmin):.1f}" y="{Y(ymax):.1f}" width="{side:.1f}" height="{(ymax - ymin) * S:.1f}" '
+            f'rx="10" fill="none" stroke="{RED}" stroke-width="3" stroke-dasharray="9 6"/>'
+        )
+
+    tile = (
+        f'<rect x="{ox:.1f}" y="{oy:.1f}" width="{side:.1f}" height="{(ymax - ymin) * S:.1f}" '
+        f'rx="10" fill="#eef1ee"/>'
+    )
+
+    def panel(name, title, body):
+        doc = (
+            f'<?xml version="1.0" encoding="UTF-8"?>'
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
+            f'<rect width="{cw}" height="{ch}" fill="white"/>'
+            f'<text x="20" y="38" fill="{RED}" font-weight="800" font-size="22">{esc(title)}</text>'
+            f"{tile}{body}</svg>"
+        )
+        with open(os.path.join(OUT, f"{name}.svg"), "w", encoding="utf-8") as fh:
+            fh.write(doc)
+        print(f"wrote {os.path.join(OUT, name)}.svg")
+
+    panel("input_extents", "Extents (the area of interest)", extents_rect())
+    panel("input_built", "Existing built fabric", polys("built", BUILT_AREA, "#5e4a30"))
+    panel("input_green", "Green space", polys("green", GREEN_AREA, "#2f7d33"))
+    panel("input_centres", "Urban centres", polys("centres", CENTRE_AREA, "#6e1d40"))
+    panel("input_unbuildable", "Unbuildable (water, industrial, barriers)",
+          polys("unbuildable", WATER_AREA, "#5a86b5"))
+    panel("input_industrial", "Industrial land", polys("industrial", IND_AREA, "#645a78"))
+    panel("input_streets", "Street network", street_lines())
+    panel("input_pt", "Public-transport stops", stop_markers())
+    # everything stacked: the proof the layers are slices of ONE geography
+    panel(
+        "input_composite", "All layers together",
+        polys("green", GREEN_AREA, "#2f7d33")
+        + polys("unbuildable", WATER_AREA, "#5a86b5")
+        + polys("industrial", IND_AREA, "#645a78")
+        + polys("built", BUILT_AREA, "#5e4a30")
+        + polys("centres", CENTRE_AREA, "#6e1d40")
+        + street_lines(minor=False)
+        + stop_markers()
+        + extents_rect(),
+    )
 
 
 def main():
