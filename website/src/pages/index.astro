@@ -13,16 +13,16 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       The <strong>Isobenefit Urbanism</strong> plugin for QGIS simulates how a place could grow so that
       everyone keeps walkable access to <strong>both</strong> local centres (shops, services) <strong>and</strong>
-      green space — then distils that simulation into a concrete <strong>recommended plan</strong> you can
-      discuss with planners. It runs on your own GIS layers. It is an exploratory, conversational tool used
-      alongside local knowledge, not a prescription.
+      green space, and turns the results into a <strong>recommended plan</strong> you can put in front of
+      planners. It runs on your own GIS layers. It is a tool for exploring options alongside local knowledge,
+      not a prescription.
     </p>
     <figure id="hero-plan">
       <img class="hero" src={dg('demo_recommended_plan')} alt="A recommended plan for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
-      <figcaption>A recommended plan for <strong>Cambourne</strong>, grown by the real pipeline from the
-      downloaded layers shown below: new settlements (dark grey) with walkable centres (red) join the existing
-      town (brown) within a green matrix, over the town's actual street network. This one worked example runs
-      through the whole page.</figcaption>
+      <figcaption>A recommended plan for <strong>Cambourne</strong>, grown from the downloaded layers shown
+      below. New settlements (dark grey) with their centres (red) join the existing town (brown), and every
+      home stays within a walk of a centre and of green. The same example runs through the whole
+      page.</figcaption>
     </figure>
     <nav class="toc">
       <a href="#concept">Concept</a>
@@ -51,9 +51,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
       centres and paves over nature, and <strong>overcrowding</strong>, which squeezes nature out.
     </p>
     <p>
-      It is also a deliberate third way between rigid master-planning and laissez-faire growth: a handful of
-      simple rules <em>guide</em> development while its detailed form stays free to emerge. The plugin keeps
-      that split. A <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step
+      It also sits between master-planning and laissez-faire growth: a few simple rules <em>guide</em>
+      development, while the detailed form is left to emerge. The plugin keeps that split. A <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step
       under rules that keep new development on foot of a centre and protect green corridors — and because the
       rules are stochastic, no single run is "the" answer, so the plugin runs many and reports both the
       <strong>uncertainty</strong> (where development is robust vs contingent) and one coherent
@@ -90,10 +89,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       The workflow starts with a companion <strong>Extract from OpenStreetMap</strong> tool: pick an area of
       interest and it downloads every layer the simulation understands — no manual data preparation. The
-      panels below are <strong>the actual downloaded layers</strong> for a 4.2 km window around Cambourne,
-      fetched with the plugin's own queries. They are not illustrations of separate ideas: each panel is one
-      <em>slice</em> of the same geography, so green never overlaps built, centres sit inside the built
-      fabric, and stacking them reassembles the town.
+      panels below are <strong>the downloaded layers</strong> for a 4.2 km window around Cambourne, fetched
+      with the plugin's own queries. Each shows one layer of the same place: green doesn't overlap built,
+      centres sit inside the built fabric, and stacked together they re-make the town.
     </p>
     <div class="layer-grid">
       <figure><img class="layer" src={dg('input_extents')} alt="" /><figcaption>Extents — the area of interest (the only <em>required</em> layer)</figcaption></figure>
@@ -106,15 +104,14 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops — groundwork for transit-aware growth</figcaption></figure>
     </div>
     <p>
-      Two further datasets — <em>railways</em> and <em>rail/tram stations</em> — are downloaded too, and are
-      honestly <strong>empty here</strong>: Cambourne has no railway. Where they exist, stations anchor
-      centres in the recommended plan.
+      Two further datasets — <em>railways</em> and <em>rail/tram stations</em> — are downloaded too, but are
+      <strong>empty here</strong>: Cambourne has no railway. Where stations exist, they anchor centres in the
+      recommended plan.
     </p>
     <figure>
       <img class="hero" src={dg('input_composite')} alt="All downloaded layers stacked into one map of Cambourne" />
-      <figcaption><strong>All layers together.</strong> Stacked, the slices reassemble the town — the proof
-      they were cut from one geography. Vector shapes are <em>data</em>; everywhere else on this page, dots
-      are <em>simulation</em>.</figcaption>
+      <figcaption><strong>All layers together.</strong> Throughout this page, vector shapes are
+      <em>data</em> and dots are <em>simulation</em>.</figcaption>
     </figure>
   </section>
 
@@ -122,12 +119,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <section>
     <p>
       In QGIS you point the run dialog at these layers, choose a projected CRS and an output path, and press
-      Run — everything from here on is automatic. The simulation runs on a grid (here 50 m cells), so the
-      vector layers are rasterised first: existing built
-      fabric becomes <em>frozen</em> built cells, downloaded green becomes protected green cells, centre
-      <em>areas</em> become centre cells across their full extent, and water, industrial land and buffered
-      motorway-class corridors are carved out as <strong>unbuildable</strong> — the simulation can never
-      develop them. This is the exact starting grid of every run on this page:
+      Run; the rest is automatic. The simulation works on a grid (here 50 m cells), so the vector layers are
+      rasterised first: existing built fabric becomes <em>frozen</em> built cells, downloaded green becomes
+      protected green cells, centre <em>areas</em> become centre cells across their full extent, and water,
+      industrial land and buffered motorway-class corridors are marked <strong>unbuildable</strong>, so the
+      simulation never develops them. Every run on this page starts from this grid:
     </p>
     <figure>
       <img class="hero" src={dg('demo_substrate')} alt="Cambourne rasterised to the simulation grid" />
@@ -170,9 +166,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </div>
     <h3>The rules at work on the real town</h3>
     <p>
-      Those five rules, run on the Cambourne grid from Step 2 — one run, three moments. Watch new development
-      (dark) stay on the periphery of the existing fabric, keep within a walk of centres (red seeds appear as
-      the town outgrows them), and leave the green corridors and unbuildable cells alone:
+      Here are those rules running on the Cambourne grid from Step 2 — one run, three moments. New
+      development (dark) stays on the periphery of the existing fabric, keeps within a walk of a centre (red
+      seeds appear as the town outgrows them), and leaves the green corridors and unbuildable cells alone:
     </p>
     <div class="demo-row">
       <figure><img class="demo" src={dg('demo_growth_006')} alt="" /><figcaption><strong>Iteration 6</strong> — first infill at the edges of the existing fabric</figcaption></figure>
@@ -182,8 +178,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       Two further dials shape growth: <strong>build probability</strong> (the per-step growth rate — lower is
       tighter and more compact, higher is faster and looser) and the <strong>density range</strong> (min–max),
-      which the engine spreads as a gradient toward centres — the closer a block is to a centre, the denser
-      it is, with the mean holding at the range's midpoint so the population target stays honest.
+      which the engine spreads as a gradient toward centres: the closer a block is to a centre, the denser
+      it is. The mean stays at the midpoint of the range, so the population total is unaffected.
     </p>
   </section>
 
@@ -201,8 +197,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <figure>
       <img class="hero" src={dg('demo_likelihood')} alt="Development likelihood over Cambourne from 24 blended runs" />
       <figcaption><strong>Development likelihood.</strong> Dark cells end up built in most runs (robust);
-      faint cells only in a few (contingent). Useful as a conversation about <em>where growth wants to go</em> —
-      but it is not itself a plan, which is why the best single run is selected and refined.</figcaption>
+      faint cells only in a few (contingent). It shows where growth tends to go, but it is not itself
+      a plan — hence the selection of a best single run.</figcaption>
     </figure>
   </section>
 
@@ -230,7 +226,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
 
   <h2 id="outputs">Step 6 — Outputs</h2>
   <section>
-    <p>An ensemble run writes a small, self-explaining set of layers — each shown above:</p>
+    <p>An ensemble run writes a small set of layers, each shown above:</p>
     <ul>
       <li><strong>existing development</strong> — the baseline (the starting grid in <a href="#grid">Step 2</a>)</li>
       <li><strong>raw (before post-processing)</strong> — the chosen run as grown (end of <a href="#simulation">Step 3</a>)</li>
@@ -306,8 +302,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       The growth rules themselves — periphery-only development, a walk to the nearest centrality, protected
       green spans, stochastic seeding of new centralities — follow D'Acci's morphogenesis and Voto's original
-      simulator. Around that core, this tool makes deliberate additions, listed here so it is always clear
-      what is <em>the theory</em> and what is <em>our engineering</em>:
+      simulator. Around that core, this tool adds several things of its own, listed here so it is clear what comes
+      from the theory and what we added:
     </p>
     <ul>
       <li>

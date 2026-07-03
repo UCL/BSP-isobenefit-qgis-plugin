@@ -140,6 +140,20 @@ def streets_underlay(sub, P, x0, y0):
     return "".join(out)
 
 
+
+def _legend(items, x0, ly, avail_w):
+    """Horizontal legend: one column per item, its dot centred ABOVE the label, all
+    vertically aligned."""
+    col_w = avail_w / len(items)
+    out = []
+    for i, (label, color, rad, op) in enumerate(items):
+        cx = x0 + i * col_w + col_w / 2
+        out.append(f'<circle cx="{cx:.1f}" cy="{ly:.1f}" r="{rad}" fill="{color}" opacity="{op}"/>')
+        out.append(f'<text x="{cx:.1f}" y="{ly + 26:.1f}" fill="{BUILT}" '
+                   f'font-family="Arial" font-size="15" text-anchor="middle">{label}</text>')
+    return "".join(out)
+
+
 def render_likelihood(prob, sub, name, title, underlay=""):
     """The ensemble's development-likelihood layer: dot opacity = share of runs ending built."""
     H, Wc = prob.shape
@@ -160,12 +174,9 @@ def render_likelihood(prob, sub, name, title, underlay=""):
                 out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.42:.1f}" fill="{BUILT}" opacity="{op:.2f}"/>')
             else:
                 out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.18:.1f}" fill="{GREEN}"/>')
-    ly, lx = y0 + H * P + 44, x0
-    for label, color, op in [("existing built", EXIST_BUILT, 1.0), ("built in most runs", BUILT, 1.0),
-                             ("built in few runs", BUILT, 0.25), ("unbuildable", UNBUILDABLE, 1.0)]:
-        out.append(f'<circle cx="{lx + 9}" cy="{ly - 5}" r="9" fill="{color}" opacity="{op}"/>')
-        out.append(f'<text x="{lx + 26}" y="{ly}" fill="{BUILT}" font-family="Arial" font-size="16">{label}</text>')
-        lx += 46 + len(label) * 9
+    out.append(_legend([("existing built", EXIST_BUILT, 9, 1.0), ("built in most runs", BUILT, 9, 1.0),
+                        ("built in few runs", BUILT, 9, 0.25), ("unbuildable", UNBUILDABLE, 9, 1.0)],
+                       x0, y0 + H * P + 40, Wc * P))
     doc = (f'<?xml version="1.0" encoding="UTF-8"?>'
            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
            f'{"".join(out)}</svg>')
@@ -200,14 +211,11 @@ def render(plan, name, title, underlay="", unbuildable=None):
                 out.append(dot(c, r, UNBUILDABLE, P * 0.3))  # carved out, never developed
             else:  # green + untouched land: ONE consistent small dot, for contrast with built
                 out.append(dot(c, r, GREEN, P * 0.18))
-    # legend
-    ly, lx = y0 + H * P + 44, x0
-    for label, color, big in [("nature", GREEN, False), ("unbuildable", UNBUILDABLE, False),
-                              ("new built", BUILT, True), ("existing built", EXIST_BUILT, True),
-                              ("new centre", RED, True), ("existing centre", EXIST_CENTRE, True)]:
-        out.append(f'<circle cx="{lx + 9}" cy="{ly - 5}" r="{9 if big else 5}" fill="{color}"/>')
-        out.append(f'<text x="{lx + 26}" y="{ly}" fill="{BUILT}" font-family="Arial" font-size="16">{label}</text>')
-        lx += 46 + len(label) * 9
+    # legend: dots above wrapped labels, one aligned horizontal row
+    out.append(_legend([("nature", GREEN, 5, 1.0), ("unbuildable", UNBUILDABLE, 5, 1.0),
+                        ("new built", BUILT, 9, 1.0), ("existing built", EXIST_BUILT, 9, 1.0),
+                        ("new centre", RED, 9, 1.0), ("existing centre", EXIST_CENTRE, 9, 1.0)],
+                       x0, y0 + H * P + 40, Wc * P))
     doc = (
         f'<?xml version="1.0" encoding="UTF-8"?>'
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
