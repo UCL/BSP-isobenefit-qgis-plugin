@@ -7,21 +7,21 @@ const dg = (name: string) => `${base}images/${name}.svg`
 
 <BaseLayout>
   <h1>Isobenefit Urbanism — QGIS Plugin</h1>
-  <h6>Brainstorming walkable, nature-rich urban growth on real-world data</h6>
+  <h6>Brainstorming walkable urban growth on real-world data</h6>
 
   <section>
     <p>
       The <strong>Isobenefit Urbanism</strong> plugin for QGIS simulates how a place could grow so that
       everyone keeps walkable access to <strong>both</strong> local centres (shops, services) <strong>and</strong>
-      green space, and turns the results into a <strong>recommended plan</strong> you can put in front of
-      planners. It runs on your own GIS layers. It is a tool for exploring options alongside local knowledge,
-      not a prescription.
+      green space. From the simulation it generates a <strong>recommended plan</strong> for further discussion
+      with planning experts. It runs on your own GIS layers, and it explores options rather than prescribing
+      them.
     </p>
     <figure id="hero-plan">
       <img class="hero" src={dg('demo_recommended_plan')} alt="A recommended plan for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
       <figcaption>A recommended plan for <strong>Cambourne</strong>, grown from the downloaded layers shown
       below. New settlements (dark grey) with their centres (red) join the existing town (brown), and every
-      home stays within a walk of a centre and of green. The same example runs through the whole
+      home stays within a walk of a centre and of green. The same example is used throughout this
       page.</figcaption>
     </figure>
     <nav class="toc">
@@ -46,17 +46,17 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <a href="https://lucadacci.wixsite.com/dacci/isobenefit-urbanism-morphogenesis">Isobenefit Urbanism</a>
       (Luca D'Acci) describes a city whose benefits are spread <em>evenly</em> — <em>iso</em> as in
       <em>equal</em>: wherever you live, and however large the settlement grows, you can walk both to a local
-      centre and to green land. Quality of life shouldn't depend on which corner of town you live in. It
-      steers between the two failure modes of growth: <strong>sprawl</strong>, which strands people far from
-      centres and paves over nature, and <strong>overcrowding</strong>, which squeezes nature out.
+      centre and to green land. Quality of life shouldn't depend on which corner of town you live in. The
+      aim is to avoid both <strong>sprawl</strong> (people stranded far from centres, nature paved over) and
+      <strong>overcrowding</strong> (nature squeezed out).
     </p>
     <p>
       It also sits between master-planning and laissez-faire growth: a few simple rules <em>guide</em>
-      development, while the detailed form is left to emerge. The plugin keeps that split. A <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step
-      under rules that keep new development on foot of a centre and protect green corridors — and because the
-      rules are stochastic, no single run is "the" answer, so the plugin runs many and reports both the
-      <strong>uncertainty</strong> (where development is robust vs contingent) and one coherent
-      <strong>recommended plan</strong>.
+      development, while the detailed form is left to emerge. The plugin works the same way: a
+      <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step under rules that
+      keep new development on foot of a centre and protect green corridors. The rules include randomness, so
+      no single run is "the" answer — the plugin runs many, and reports the <strong>variation</strong> across
+      runs as well as a single <strong>recommended plan</strong>.
     </p>
   </section>
 
@@ -87,8 +87,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="inputs">Step 1 — Download the data</h2>
   <section>
     <p>
-      The workflow starts with a companion <strong>Extract from OpenStreetMap</strong> tool: pick an area of
-      interest and it downloads every layer the simulation understands — no manual data preparation. The
+      A companion <strong>Extract from OpenStreetMap</strong> tool downloads all of the input layers for an
+      area of interest, so no manual data preparation is needed. The
       panels below are <strong>the downloaded layers</strong> for a 4.2 km window around Cambourne, fetched
       with the plugin's own queries. Each shows one layer of the same place: green doesn't overlap built,
       centres sit inside the built fabric, and stacked together they re-make the town.
@@ -166,7 +166,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </div>
     <h3>The rules at work on the real town</h3>
     <p>
-      Here are those rules running on the Cambourne grid from Step 2 — one run, three moments. New
+      Here are those rules running on the Cambourne grid from Step 2 — the same run at three points in
+      time. New
       development (dark) stays on the periphery of the existing fabric, keeps within a walk of a centre (red
       seeds appear as the town outgrows them), and leaves the green corridors and unbuildable cells alone:
     </p>
@@ -186,8 +187,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="plan">Step 4 — From many runs to one plan</h2>
   <section>
     <p>
-      A single run is just one plausible future; a different random seed gives a different — but equally valid —
-      layout. So the plugin runs an <strong>ensemble</strong> and does two distinct things with it.
+      A single run is one plausible outcome; a different random seed gives a different, equally valid
+      layout. So the plugin runs an <strong>ensemble</strong> and does two things with it.
     </p>
     <div class="diagram-pair">
       <figure><img class="diagram" src={dg('plan_ensemble')} alt="" /><figcaption>Average the runs into <em>likelihood</em> layers: an uncertainty map of where development is robust vs contingent.</figcaption></figure>
@@ -198,7 +199,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <img class="hero" src={dg('demo_likelihood')} alt="Development likelihood over Cambourne from 24 blended runs" />
       <figcaption><strong>Development likelihood.</strong> Dark cells end up built in most runs (robust);
       faint cells only in a few (contingent). It shows where growth tends to go, but it is not itself
-      a plan — hence the selection of a best single run.</figcaption>
+      a plan — which is why a best single run is also selected.</figcaption>
     </figure>
   </section>
 
@@ -248,8 +249,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="scenarios">Scenarios — the dials on the same town</h2>
   <section>
     <p>
-      Every figure below is a <strong>real pipeline run on the same Cambourne grid</strong> — only the named
-      dial changes, so differences you see are differences the dial makes.
+      Every figure below is a <strong>real pipeline run on the same Cambourne grid</strong>; only the named
+      dial changes between figures.
     </p>
 
     <h3>Dispersed development</h3>
@@ -307,9 +308,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <ul>
       <li>
-        <strong>Ensembles instead of a single run.</strong> The original simulator shows one stochastic
-        unfolding. We run many, blend them into likelihood (uncertainty) layers, and select the best single
-        run by shortest average walk to amenities.
+        <strong>Ensembles instead of a single run.</strong> The original simulator produces a single run.
+        We run many, blend them into likelihood layers, and select the best single run by shortest average
+        walk to amenities.
       </li>
       <li>
         <strong>Post-processing of the chosen run.</strong> The original keeps centres exactly where they
