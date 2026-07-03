@@ -999,6 +999,50 @@ def select_plan(
     return best_plan, best, pre_plan, best_state
 
 
+def derive_density(
+    plan,
+    granularity_m,
+    centre_distance_m,
+    min_density_km2,
+    max_density_km2,
+    exist_density_km2=EXIST_DENSITY_KM2,
+    router=None,
+):
+    """Per-cell density (people/km²) for a FINISHED scenario, derived from its final centres.
+
+    New development takes a gradient by walking distance to the nearest (post-processed) centre:
+    the maximum density at a centre, falling linearly to the minimum at the walk's edge and
+    beyond. The new fabric is then rescaled so its mean equals the range midpoint — the same
+    population accounting the run's stopping rule and the per-person metrics use — so the layout
+    redistributes people without changing how many. Existing fabric stays flat at its own assumed
+    density, and non-built cells are 0 (nodata).
+
+    Derived here, after post-processing, rather than during growth: mid-run distances measure
+    against whichever centres happen to exist at that moment, and post-processing then moves,
+    adds and culls centres — so an in-run gradient describes centre history, not the scenario.
+    """
+    plan = np.asarray(plan)
+    g = float(granularity_m)
+    new_built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE))
+    exist_built = np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
+    centres = np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE))
+    out = np.zeros(plan.shape, dtype=np.float32)
+    out[exist_built] = exist_density_km2
+    if not new_built.any():
+        return out
+    if centres.any():
+        walk = router if router is not None else (lambda m: _walk_distance(m, g, float(centre_distance_m)))
+        t = np.clip(walk(centres) / float(centre_distance_m), 0.0, 1.0)  # inf clips to 1 (beyond the walk)
+    else:
+        t = np.ones(plan.shape)
+    grad = max_density_km2 * (1.0 - t) + min_density_km2 * t
+    mid = 0.5 * (float(min_density_km2) + float(max_density_km2))
+    total = float(grad[new_built].sum())
+    scale = mid * int(new_built.sum()) / total if total else 1.0
+    out[new_built] = (grad[new_built] * scale).astype(np.float32)
+    return out
+
+
 def plan_variants(
     state,
     granularity_m,

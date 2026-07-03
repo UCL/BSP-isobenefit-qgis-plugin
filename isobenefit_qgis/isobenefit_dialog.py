@@ -136,7 +136,8 @@ class IsobenefitDialog(QtWidgets.QDialog):
         pp.addRow(self.optimise_centres_check)
         self.centre_m2_person = QtWidgets.QLineEdit("20", self)
         self.centre_m2_person.setToolTip(
-            "How much centre land (shops, services, civic space) to provide per resident served — a "
+            "How much mixed-use centre land (shops, services, civic space over homes) to provide per "
+            "resident served, as a "
             "rule-of-thumb provision. Each centre grows to this m² per person in its catchment, so "
             "denser or more populous catchments get bigger centres."
         )

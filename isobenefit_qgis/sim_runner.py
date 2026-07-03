@@ -470,6 +470,16 @@ class IsobenefitTask(QgsTask):
                         # put the centre COUNT in the layer name so the difference between the options is
                         # obvious in the QGIS layer panel itself, not only by eyeballing the map
                         self._plan_outputs.append((vpath, f"{labels[key]} ({ncent} centres)"))
+                        # the scenario's density, derived from ITS final centres (the gradient is a
+                        # post-processing product; in-run density is only population accounting)
+                        dens = grid.derive_density(
+                            vplan, self.granularity_m, self.centre_distance_m,
+                            min(self.density_factors), max(self.density_factors),
+                            exist_density_km2=self.exist_built_density, router=router,
+                        )
+                        dpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}_density.tif"))
+                        gis_io.write_density_raster(dpath, dens, geotransform, self.target_crs)
+                        self._plan_outputs.append((dpath, f"density — {labels[key]}"))
                         report_stats.append((labels[key], vm, ncent))
                         self._log(  # per-option metrics so the choice is informed, not just visual
                             f"  {labels[key]}: {ncent} centres, {vm.get('served_coverage', 0):.0%} served, "
@@ -488,6 +498,14 @@ class IsobenefitTask(QgsTask):
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.plan_path, "idealised scenario"))
+                    dens = grid.derive_density(
+                        plan, self.granularity_m, self.centre_distance_m,
+                        min(self.density_factors), max(self.density_factors),
+                        exist_density_km2=self.exist_built_density, router=router,
+                    )
+                    dpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_density.tif"))
+                    gis_io.write_density_raster(dpath, dens, geotransform, self.target_crs)
+                    self._plan_outputs.append((dpath, "density — idealised scenario"))
                     if metrics:
                         report_stats.append(("idealised scenario", metrics, self._count_centres(plan)))
                 if metrics:
@@ -604,7 +622,10 @@ class IsobenefitTask(QgsTask):
                 lyr = QgsRasterLayer(path, f"{self.out_file_name} — {label}", "gdal")
                 if lyr.isValid():
                     lyr.setCrs(self.target_crs)
-                    gis_io.apply_plan_style(lyr)
+                    if path.endswith("_density.tif"):
+                        gis_io.apply_density_style(lyr, min(self.density_factors), max(self.density_factors))
+                    else:
+                        gis_io.apply_plan_style(lyr)
                     QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                     group.insertLayer(0, lyr)
             self._log(

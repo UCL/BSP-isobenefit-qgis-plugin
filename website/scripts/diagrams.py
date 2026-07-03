@@ -56,7 +56,7 @@ def base_town() -> list[list[str]]:
                     for dc in (-1, 0, 1)
                     if (dr, dc) != (0, 0)
                 )
-                if touches and (r + c) % 2 == 0:
+                if touches:
                     grid[r][c] = "g"
     return grid
 

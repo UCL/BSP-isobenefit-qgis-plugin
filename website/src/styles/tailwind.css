@@ -60,7 +60,9 @@
   }
 
   img {
-    @apply pt-6 pb-3;
+    /* generous space above each image, almost none below: a caption visibly belongs
+       to the image above it, not the one that follows */
+    @apply pt-10 pb-1;
   }
 
   :not(pre) > code {
@@ -178,7 +180,7 @@ figure {
 }
 
 figcaption {
-  @apply max-w-lg text-center text-sm font-medium;
+  @apply max-w-lg pb-2 text-center text-xs font-medium;
 }
 
 .heading-icon {

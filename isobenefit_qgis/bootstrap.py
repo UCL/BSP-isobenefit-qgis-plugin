@@ -25,7 +25,7 @@ CORE_IMPORT = "isobenefit"
 CORE_PACKAGE = "isobenefit"
 MIN_VERSION = (0, 10, 0)
 MAX_VERSION_EXCLUSIVE = (0, 11, 0)
-PIP_SPEC = "isobenefit>=0.10,<0.11"
+PIP_SPEC = "isobenefit>=0.11,<0.12"
 
 
 def _parse_version(version: str) -> tuple[int, int, int]:

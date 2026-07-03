@@ -848,3 +848,24 @@ def test_plan_variants_router_bound_must_cover_spacing():
     assert good["tight"] < good["moderate"]  # clustering harder -> strictly fewer centres
     clipped = centre_counts(walk)  # the pre-fix bound: spacing decisions clipped at the walk
     assert not (clipped["tight"] < clipped["moderate"])  # collapse fingerprint the fix removes
+
+
+def test_derive_density_gradient_and_population_held():
+    # The scenario's density layer is derived from its FINAL centres: denser near a centre, the
+    # minimum out at the walk edge, existing fabric flat at its own density, and the new fabric's
+    # mean held at the range midpoint (the accounting the stopping rule and per-person metrics use).
+    from isobenefit_qgis.grid import derive_density
+
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[10, 5:35] = PLAN_BUILT  # a 3 km row of homes at 100 m cells
+    plan[10, 5] = PLAN_CENTRE  # one centre at the left end
+    plan[30, 5:15] = PLAN_EXIST_BUILT
+    dens = derive_density(plan, 100.0, 400.0, 1500.0, 6000.0, exist_density_km2=2000.0)
+    assert dens[10, 6] > dens[10, 12]  # nearer the centre = denser
+    row = dens[10, 5:35]
+    assert row.mean() == pytest.approx(0.5 * (1500.0 + 6000.0), rel=1e-4)  # population held
+    assert (dens[30, 5:15] == 2000.0).all()  # existing fabric flat at its own density
+    assert dens[0, 0] == 0.0  # non-built land carries no density
+    # beyond the walk everything sits at the (rescaled) minimum: flat, not still falling
+    assert dens[10, 30] == pytest.approx(dens[10, 34])

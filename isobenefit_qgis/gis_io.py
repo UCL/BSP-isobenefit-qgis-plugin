@@ -201,6 +201,36 @@ def write_plan_raster(path, plan, geotransform, target_crs):
     ds = None
 
 
+def write_density_raster(path, density, geotransform, target_crs):
+    """Write the derived per-cell density (people/km²) as Float32; 0 = no development (nodata)."""
+    rows, cols = density.shape
+    srs = _srs_from_crs(target_crs)
+    ds = gdal.GetDriverByName("GTiff").Create(
+        path, cols, rows, 1, gdal.GDT_Float32, options=["COMPRESS=DEFLATE", "TILED=YES"]
+    )
+    ds.SetGeoTransform(geotransform)
+    ds.SetProjection(srs.ExportToWkt())
+    band = ds.GetRasterBand(1)
+    band.WriteArray(density.astype(np.float32))
+    band.SetNoDataValue(0)
+    ds.FlushCache()
+    ds = None
+
+
+def apply_density_style(rast_layer, min_density, max_density):
+    """Graduated ramp for the derived density layer: pale at the range minimum, deep at the maximum."""
+    lo, hi = float(min_density), float(max_density)
+    ramp = QgsColorRampShader(lo, hi)
+    ramp.setColorRampType(QgsColorRampShader.Type.Interpolated)
+    stops = [(lo, (254, 232, 200, 255)), (0.5 * (lo + hi), (253, 187, 132, 255)), (hi, (215, 48, 31, 255))]
+    ramp.setColorRampItemList(
+        [QgsColorRampShader.ColorRampItem(v, QColor(*rgba), f"{v:,.0f} /km²") for v, rgba in stops]
+    )
+    shader = QgsRasterShader()
+    shader.setRasterShaderFunction(ramp)
+    rast_layer.setRenderer(QgsSingleBandPseudoColorRenderer(rast_layer.dataProvider(), 1, shader))
+
+
 def apply_plan_style(rast_layer):
     """Apply the categorical palette for the recommended-plan raster."""
     classes = [

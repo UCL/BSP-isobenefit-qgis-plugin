@@ -12,8 +12,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <section>
     <p>
       The <strong>Isobenefit Urbanism</strong> plugin for QGIS simulates how a place could grow so that
-      everyone keeps walkable access to <strong>both</strong> local centres (shops, services) <strong>and</strong>
-      green space. From the simulation it generates <strong>idealised planning scenarios</strong> for further discussion
+      everyone keeps walkable access to <strong>both</strong> mixed-use local centres (shops and services
+      among homes) <strong>and</strong> green space. From the simulation it generates <strong>idealised planning scenarios</strong> for further discussion
       with planning experts. It runs on your own GIS layers, and it is meant for exploring options rather than
       prescribing them.
     </p>
@@ -58,6 +58,12 @@ const dg = (name: string) => `${base}images/${name}.svg`
       is no single answer; the plugin runs many simulations and reports the <strong>variation</strong>
       across them, as well as coherent individual <strong>scenarios</strong>.
     </p>
+    <p>
+      The settlements and their centres should also be linked by effective public transport, buses and
+      rail. Without that link they would not work as one cohesive city, and dispersed development becomes a
+      warning sign rather than a feature. The plugin downloads streets, stops and stations as groundwork
+      for this.
+    </p>
   </section>
 
   <h2 id="install">Install the plugin</h2>
@@ -76,7 +82,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       If automatic install is blocked, run it yourself with the QGIS Python:
     </p>
-    <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.10,&lt;0.11"</code></pre>
+    <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.11,&lt;0.12"</code></pre>
     <p>
       The install comes in two parts because the QGIS plugin repository doesn't allow compiled binaries.
       The plugin handles the dialogs and the GIS reading and writing; the simulation itself is written in
@@ -89,7 +95,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <section>
     <p>
       A companion <strong>Extract from OpenStreetMap</strong> tool downloads all of the input layers for an
-      area of interest, so no manual data preparation is needed. The
+      area of interest, so no manual data preparation is needed. The downloaded layers are ordinary editable
+      layers, though: you can adjust them before running a simulation, or use your own layers instead. The
       panels below are <strong>the downloaded layers</strong> for a 4.2 km window around Cambourne, fetched
       with the plugin's own queries. Each panel shows one layer of the same place, so green doesn't overlap built land,
       centres sit inside the built fabric, and when the layers are stacked they add back up to the whole
@@ -99,7 +106,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="layer" src={dg('input_extents')} alt="" /><figcaption>The extents layer sets the area of interest. It is the only layer the simulation requires.</figcaption></figure>
       <figure><img class="layer" src={dg('input_built')} alt="" /><figcaption>The existing built fabric. The simulation treats it as frozen and never redevelops it.</figcaption></figure>
       <figure><img class="layer" src={dg('input_green')} alt="" /><figcaption>Existing green space, which the growth rules preserve.</figcaption></figure>
-      <figure><img class="layer" src={dg('input_centres')} alt="" /><figcaption>Urban centres, taken from retail and commercial land. Every cell they cover acts as a centre.</figcaption></figure>
+      <figure><img class="layer" src={dg('input_centres')} alt="" /><figcaption>Mixed-use urban centres, taken from retail and commercial land. Every cell they cover acts as a centre.</figcaption></figure>
       <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land: water, industrial land, and buffered barrier corridors such as the A428.</figcaption></figure>
       <figure><img class="layer" src={dg('input_industrial')} alt="" /><figcaption>Industrial land. It stays as it is, but no new housing is placed on it.</figcaption></figure>
       <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. It lays the groundwork for walking-distance routing.</figcaption></figure>
@@ -148,7 +155,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <figure><img class="diagram" src={dg('step_1c')} alt="" /><figcaption>This cell is empty and touches built land, so it is a candidate and the checks continue.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within a <em>centre walk</em> of a centrality, which keeps new homes near a centre.</figcaption></figure>
     <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>Building here must not shrink a green corridor below the <em>minimum green span</em>, which protects access to nature.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes, the cell is built. Its density is set by walking distance to the nearest centre, denser closer in, within the configured range.</figcaption></figure>
+    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes, the cell is built, and the population it houses counts toward the target.</figcaption></figure>
     <p>
       Two green settings play different roles. The <em>minimum green span</em> above is a building rule; the
       simulation refuses to pinch a green corridor below that width. The <em>green walk</em> sets how far a
@@ -180,9 +187,10 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       Two further dials shape growth. The <strong>build probability</strong> is the per-step growth rate;
       lower values grow tighter and more compact, higher values faster and looser. The <strong>density
-      range</strong> is spread as a gradient toward centres, so the closer a block is to a centre, the
-      denser it is. The mean stays at the midpoint of the range, which leaves the population total
-      unaffected.
+      range</strong> sets how many people the land houses. During the run it works as plain accounting:
+      each new cell carries the mean of the range, and growth stops once enough land is built to house the
+      target. The finished scenario then gets a real density layer, derived as a gradient toward its final
+      centres, and that is described in step 5.
     </p>
   </section>
 
@@ -215,6 +223,14 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, tiny stranded settlements below the minimum size revert to green. The raw state is saved as well, so the change stays visible.</figcaption></figure>
     <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>Each centre is then moved to the <em>interior</em> of its contiguous built area, so it sits on built land and central to it, never on an edge or in a gap.</figcaption></figure>
     <p>
+      The centres are mixed-use throughout: a centre cell keeps its homes and gains shops and services, and
+      each centre is sized by the population it serves at a rule-of-thumb provision (m² of centre land per
+      person). Once the centres are settled, each scenario also gets its <strong>density layer</strong>:
+      density is derived as a gradient toward the final centres, denser closer in, with the total population
+      held. Deriving it here, rather than during growth, means the gradient measures against the centres the
+      scenario actually shows, not against whichever centres happened to exist mid-run.
+    </p>
+    <p>
       Finally, centres are offered at two <strong>clustering</strong> strengths. The run and the buildings
       are the same; only the centre arrangement differs. These are the two options the plugin writes:
     </p>
@@ -236,6 +252,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li><strong>raw (before post-processing)</strong>, the chosen run as it grew (the end of <a href="#simulation">step 3</a>)</li>
       <li><strong>moderately and tightly clustered centres</strong>, the two scenario options from <a href="#postprocessing">step 5</a></li>
       <li><strong>development likelihood</strong> for built and for green, the uncertainty map from <a href="#plan">step 4</a></li>
+      <li><strong>density</strong> for each option, the gradient toward its centres from <a href="#postprocessing">step 5</a></li>
       <li><strong><code>_report.txt</code></strong>, a record of the parameters and the per-option statistics</li>
     </ul>
     <p>
@@ -319,13 +336,15 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li>
         <strong>Post-processing of the chosen run.</strong> The original keeps centres exactly where they
         seeded. We add a gentle cleanup (stranded specks below a minimum settlement size revert to green) and
-        re-position centres to the interior of the development they serve, sized by the population in
-        their catchment (a m²-per-person provision rule) and offered at two clustering strengths. The raw grown state is always saved alongside, so the edit is transparent.
+        re-position the mixed-use centres to the interior of the development they serve, sized by the
+        population in their catchment at a m²-per-person rule of thumb, and offered at two clustering
+        strengths. The raw grown state is always saved alongside, so the edit is transparent.
       </li>
       <li>
         <strong>Density as a gradient toward centres.</strong> The original draws each block's density
-        randomly from fixed tiers. We set density by walking distance to the nearest centre (denser closer
-        in), holding the mean so population accounting is unchanged.
+        randomly from fixed tiers. We derive density after post-processing, as a gradient toward the
+        scenario's final centres, denser closer in, with the total population held. During the run itself,
+        density is plain accounting at the mean of the range.
       </li>
       <li>
         <strong>Separate centre-walk and green-walk thresholds.</strong> The original uses one walkable
@@ -398,8 +417,19 @@ const dg = (name: string) => `${base}images/${name}.svg`
     .diagram-pair {
       @apply flex flex-wrap items-start justify-center gap-4;
     }
+    .demo-row figure {
+      /* share the row: three dispersal figures sit side by side on desktop */
+      @apply min-w-56 flex-1;
+    }
+    .demo-row .demo {
+      @apply max-w-full;
+    }
     .layer-grid {
       @apply grid grid-cols-2 gap-3 sm:grid-cols-4;
+    }
+    .layer-grid figure {
+      /* top-align the images so caption length can't push panels out of line */
+      @apply justify-start self-start;
     }
     .layer {
       @apply w-full;
