@@ -668,16 +668,40 @@ def test_optimise_plan_centre_spacing_disperses():
     assert n_disp > n_cons
 
 
-def test_optimise_plan_centre_area_scales():
+def test_optimise_plan_centre_area_scales_per_person():
+    # Centres are sized by the POPULATION they serve: more m² per person -> bigger centre, and the
+    # same dial at a higher density (more people in the catchment) -> bigger centre too.
     from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
 
     g = 60
     plan = np.zeros((g, g), np.uint8)
     plan[10:50, 10:50] = PLAN_BUILT
     common = dict(ca_centres=[(30, 30)], optimise_centres=True, centre_spacing_m=700.0)
-    small = optimise_plan(plan, 50.0, 400.0, 800.0, centre_area_frac=0.02, **common)
-    large = optimise_plan(plan, 50.0, 400.0, 800.0, centre_area_frac=0.12, **common)
-    assert int((large == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # bigger area per home
+    small = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=5.0, **common)
+    large = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=30.0, **common)
+    assert int((large == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # more provision per person
+    dense = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=5.0, new_density_km2=9000.0, **common)
+    assert int((dense == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # more people, same dial
+
+
+def test_evaluate_plan_reports_per_person_provision():
+    # The per-person readouts: population from the existing/new split, centre + green m² per person.
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:30, 10:30] = PLAN_BUILT
+    plan[19:21, 19:21] = PLAN_CENTRE
+    plan[10:30, 32:38] = PLAN_GREEN
+    m = evaluate_plan(plan, 100.0, 800.0, min_green_span_m=200.0,
+                      new_density_km2=4000.0, exist_density_km2=2000.0)
+    assert m["population"] == pytest.approx(400 * 4000.0 * 0.01)  # 400 cells x 1 ha at 4000/km²
+    assert m["centre_m2_per_person"] == pytest.approx(4 * 100.0 * 100.0 / m["population"])
+    assert m["green_m2_per_person"] > 0.0
+    # existing fabric counts at its own density
+    marked = plan.copy()
+    marked[10:30, 10:20] = PLAN_EXIST_BUILT
+    m2 = evaluate_plan(marked, 100.0, 800.0, min_green_span_m=200.0,
+                       new_density_km2=4000.0, exist_density_km2=2000.0)
+    assert m2["population"] < m["population"]  # half the fabric now at the lower existing density
 
 
 def test_optimise_plan_min_settlement_culls_satellite():

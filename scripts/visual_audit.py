@@ -273,8 +273,8 @@ def s03_centre_area():
         "03_centre_area",
         "Centre area: each centre grows with the population it serves (area per home)",
         [
-            P(_opt(plan, centre_area_frac=0.02, **common), "small centres (area 0.02 / home)"),
-            P(_opt(plan, centre_area_frac=0.12, **common), "large centres (area 0.12 / home)"),
+            P(_opt(plan, centre_m2_per_person=5.0, **common), "small centres (5 m2 / person)"),
+            P(_opt(plan, centre_m2_per_person=30.0, **common), "large centres (30 m2 / person)"),
         ],
     )
 
@@ -364,7 +364,7 @@ def s09_station_anchor():
     # a larger area fraction (few, sizable centres) so the station's grown
     # centre is clearly visible rather than lost among many small spread-out ones
     plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_area_frac=0.16)
+    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_m2_per_person=40.0)
     figure(
         "09_station_anchor",
         "Station anchoring: no station (A) vs a rail/tram station seeding a (grown) centre at (40, 84) (B)",

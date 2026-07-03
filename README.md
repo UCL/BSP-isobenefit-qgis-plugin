@@ -23,7 +23,7 @@ binaries: the compiled engine is installed from PyPI rather than bundled.
 
 ## Installation
 
-1. In QGIS, enable experimental plugins (Plugins → Manage and Install Plugins →
+1. In QGIS (4.x; the 3.40 LTR should also work, but is untested), enable experimental plugins (Plugins → Manage and Install Plugins →
    Settings → "Show also experimental plugins"), then search for **isobenefit**
    and install it.
 2. The first time you run the plugin it will check for the `isobenefit`
@@ -51,9 +51,9 @@ downloads them for an area of interest.
 Set the parameters and run. A single run is written iteration-by-iteration as a
 categorical GeoTIFF and loaded as a temporal animation (press play in the Temporal
 Controller). An **ensemble** of runs instead produces development-likelihood layers
-plus one **recommended plan**, saved as a few options to compare — the existing
-fabric, the raw (as-grown) plan, and moderately- vs tightly-clustered centre
-arrangements — alongside a `_report.txt` summarising the run. A demo project is in
+plus **idealised planning scenarios** to compare — the existing fabric, the raw
+(as-grown) state, and moderately- vs tightly-clustered centre arrangements —
+alongside a `_report.txt` summarising the run. A demo project is in
 [`demo_layers/`](demo_layers/) (`cambourne.qgz`).
 
 ## Development

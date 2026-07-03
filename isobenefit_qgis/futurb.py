@@ -274,6 +274,8 @@ class Isobenefit:
             # cell count the model prunes/culls by: ha -> m² (×10 000) / cell area (grid²).
             min_settlement_ha = _non_negative(float(self.dlg.min_settlement.text()))
             centre_min_settlement = max(1, round(min_settlement_ha * 10000.0 / (granularity_m**2)))
+            # centre provision is per person (rule-of-thumb m² of centre land per resident served)
+            centre_m2_per_person = _positive(float(self.dlg.centre_m2_person.text()))
             # centre clustering is no longer chosen here: the run saves two options (moderately and
             # tightly clustered centres) plus the existing + raw pre-processing plans, to compare and pick.
         except ValueError:
@@ -319,6 +321,7 @@ class Isobenefit:
             n_ensemble=n_ensemble,
             optimise_centres=self.dlg.optimise_centres_check.isChecked(),
             centre_min_settlement=centre_min_settlement,
+            centre_m2_per_person=centre_m2_per_person,
             centre_distance_m=centre_distance_m,
             green_distance_m=green_distance_m,
         )

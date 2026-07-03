@@ -13,13 +13,13 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       The <strong>Isobenefit Urbanism</strong> plugin for QGIS simulates how a place could grow so that
       everyone keeps walkable access to <strong>both</strong> local centres (shops, services) <strong>and</strong>
-      green space. From the simulation it generates a <strong>recommended plan</strong> for further discussion
+      green space. From the simulation it generates <strong>idealised planning scenarios</strong> for further discussion
       with planning experts. It runs on your own GIS layers, and it explores options rather than prescribing
       them.
     </p>
     <figure id="hero-plan">
-      <img class="hero" src={dg('demo_recommended_plan')} alt="A recommended plan for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
-      <figcaption>A recommended plan for <strong>Cambourne</strong>, grown from the downloaded layers shown
+      <img class="hero" src={dg('demo_recommended_plan')} alt="An idealised scenario for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
+      <figcaption>An idealised scenario for <strong>Cambourne</strong>, grown from the downloaded layers shown
       below. New settlements (dark grey) with their centres (red) join the existing town (brown), and every
       home stays within a walk of a centre and of green. The same example is used throughout this
       page.</figcaption>
@@ -56,7 +56,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step under rules that
       keep new development on foot of a centre and protect green corridors. The rules include randomness, so
       no single run is "the" answer — the plugin runs many, and reports the <strong>variation</strong> across
-      runs as well as a single <strong>recommended plan</strong>.
+      runs as well as coherent single <strong>scenarios</strong>.
     </p>
   </section>
 
@@ -64,7 +64,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <section>
     <ol>
       <li>
-        In QGIS (3.x or 4.x): <em>Plugins → Manage and Install Plugins → Settings →</em> tick
+        In QGIS 4 (the 3.40 LTR should also work, but is untested): <em>Plugins → Manage and Install
+        Plugins → Settings →</em> tick
         <em>"Show also experimental plugins"</em>, then search for <strong>isobenefit</strong> and install it.
       </li>
       <li>
@@ -106,7 +107,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       Two further datasets — <em>railways</em> and <em>rail/tram stations</em> — are downloaded too, but are
       <strong>empty here</strong>: Cambourne has no railway. Where stations exist, they anchor centres in the
-      recommended plan.
+      scenarios.
     </p>
     <figure>
       <img class="hero" src={dg('input_composite')} alt="All downloaded layers stacked into one map of Cambourne" />
@@ -206,7 +207,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="postprocessing">Step 5 — Post-processing the chosen run</h2>
   <section>
     <p>
-      The chosen run is tidied into the recommended plan. Post-processing deliberately changes <strong>only the
+      The chosen run is tidied into the idealised scenario. Post-processing deliberately changes <strong>only the
       centres</strong> (plus a gentle building cleanup) — the buildings come from the simulation.
     </p>
     <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption><strong>Cleanup:</strong> tiny stranded settlements below the minimum size revert to green. It's gentle, and the raw plan is saved too, so the change stays visible.</figcaption></figure>
@@ -231,7 +232,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <ul>
       <li><strong>existing development</strong> — the baseline (the starting grid in <a href="#grid">Step 2</a>)</li>
       <li><strong>raw (before post-processing)</strong> — the chosen run as grown (end of <a href="#simulation">Step 3</a>)</li>
-      <li><strong>moderately / tightly clustered centres</strong> — the two recommended-plan options (<a href="#postprocessing">Step 5</a>)</li>
+      <li><strong>moderately / tightly clustered centres</strong> — the two scenario options (<a href="#postprocessing">Step 5</a>)</li>
       <li><strong>development likelihood</strong> (built, green) — the ensemble uncertainty map (<a href="#plan">Step 4</a>)</li>
       <li><strong><code>_report.txt</code></strong> — a record of the parameters and per-option statistics</li>
     </ul>
@@ -241,7 +242,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <a href="#simulation">Step 3</a> are exactly such frames.)
     </p>
     <p>
-      The figure <a href="#hero-plan">at the top of the page</a> is the moderately-clustered recommended plan
+      The figure <a href="#hero-plan">at the top of the page</a> is the moderately-clustered scenario
       from exactly this pipeline.
     </p>
   </section>
@@ -291,6 +292,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <tr><td>Green walk</td><td>400 m</td><td>How near a home must be to green (scored on the plan)</td></tr>
         <tr><td>Min settlement area</td><td>2 ha</td><td>Smaller stranded new clusters revert to green</td></tr>
         <tr><td>Min green span</td><td>400 m</td><td>Minimum green-corridor width (a build rule)</td></tr>
+        <tr><td>Centre area</td><td>20 m²/person</td><td>Centre land provided per resident served</td></tr>
         <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Gradient toward centres (denser closer in)</td></tr>
         <tr><td>Existing-built density</td><td>2000 /km²</td><td>Assumed density of existing fabric</td></tr>
         <tr><td>Detail (ensemble)</td><td>Standard — 50 runs</td><td>How many runs to blend / choose from</td></tr>
@@ -315,8 +317,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li>
         <strong>Post-processing of the chosen run.</strong> The original keeps centres exactly where they
         seeded. We add a gentle cleanup (stranded specks below a minimum settlement size revert to green) and
-        re-position centres to the interior of the development they serve, offered at two clustering
-        strengths. The raw grown state is always saved alongside, so the edit is transparent.
+        re-position centres to the interior of the development they serve, sized by the population in
+        their catchment (a m²-per-person provision rule) and offered at two clustering strengths. The raw grown state is always saved alongside, so the edit is transparent.
       </li>
       <li>
         <strong>Density as a gradient toward centres.</strong> The original draws each block's density

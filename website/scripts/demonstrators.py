@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Recommended-plan DEMONSTRATORS for the website: run the REAL pipeline (CA growth ->
+"""Scenario DEMONSTRATORS for the website: run the REAL pipeline (CA growth ->
 select run -> post-process) on REAL downloaded data — the Cambourne snapshots in
 scripts/data (fetched by fetch_data.py with the plugin's own OSM queries) — and render
 the results as a fine dot-grid over the town's actual street network.
 
 One geography threads the whole site: the input-layer panels (diagrams.py), these
-growth demonstrators, and the hero recommended plan are all the same 4.2 km window.
+growth demonstrators, and the hero scenario are all the same 4.2 km window.
 
     uv run --no-project --with core/dist/isobenefit-*.whl --with numpy --with shapely \
         python website/scripts/demonstrators.py
@@ -248,7 +248,7 @@ def main():
 
     # THE worked example: grow the real town, snapshotting the growth on the way
     final, snaps = grow(sub, stages=(6, 30))
-    draw(to_plan(sub, final, 1.5 * WALK), "demo_recommended_plan", "Recommended plan — Cambourne, grown")
+    draw(to_plan(sub, final, 1.5 * WALK), "demo_recommended_plan", "An idealised scenario — Cambourne, grown")
     for it, st in snaps.items():
         draw(state_codes(sub, st), f"demo_growth_{it:03d}", f"Growth — iteration {it}")
     draw(state_codes(sub, final), "demo_growth_final", "Growth — population target met")

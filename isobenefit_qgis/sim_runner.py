@@ -65,6 +65,7 @@ class IsobenefitTask(QgsTask):
         n_ensemble=1,
         optimise_centres=True,
         centre_min_settlement=3,
+        centre_m2_per_person=grid.CENTRE_M2_PER_PERSON,
         centre_distance_m=None,
         green_distance_m=None,
     ):
@@ -101,6 +102,7 @@ class IsobenefitTask(QgsTask):
         self.n_ensemble = int(n_ensemble)
         self.optimise_centres = bool(optimise_centres)
         self.centre_min_settlement = int(centre_min_settlement)
+        self.centre_m2_per_person = float(centre_m2_per_person)
         self.centre_distance_m = None if centre_distance_m is None else float(centre_distance_m)
         self.green_distance_m = None if green_distance_m is None else float(green_distance_m)
         self.is_ensemble = self.n_ensemble > 1
@@ -172,7 +174,10 @@ class IsobenefitTask(QgsTask):
             lines.append(
                 f"  {label}: served {m.get('served_coverage', 0):.0%}, "
                 f"centre walk {m.get('centre_access', 0):.0f} m, green walk {m.get('green_access', 0):.0f} m, "
-                f"{ncent} centres, {m.get('built_cells', 0):,} built cells"
+                f"{ncent} centres, {m.get('built_cells', 0):,} built cells, "
+                f"~{m.get('population', 0):,.0f} people: "
+                f"{m.get('centre_m2_per_person', 0):.0f} m² centre, "
+                f"{m.get('green_m2_per_person', 0):.0f} m² walkable green / person"
             )
         if report_stats and "transit_coverage" in report_stats[-1][1]:
             tm = report_stats[-1][1]
@@ -346,7 +351,7 @@ class IsobenefitTask(QgsTask):
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
                 iter_summary = self._log_iterations_to_target(isobenefit, state, origin, density, seeds)
                 # Collect each run's final layout (not just the blended average): the
-                # likelihood layers come from all runs, and the recommended plan is the
+                # likelihood layers come from all runs, and the idealised scenario is the
                 # best single run, optimised. Batched for progress + cancellation.
                 states = []
                 while len(states) < n:
@@ -368,10 +373,10 @@ class IsobenefitTask(QgsTask):
                     self.target_crs,
                 )
 
-                # recommended plan = the best single run, optimised. Population-aware
+                # idealised scenario = the best single run, optimised. Population-aware
                 # green (funded by densification, not lost homes) + facility-location
                 # centres; existing centre seeds kept. Picked by shortest average walk.
-                self._log("Selecting and optimising the recommended plan…")
+                self._log("Selecting and refining the idealised scenario…")
                 self.setProgress(90.0)
                 # ONE distance model: with a streets layer, walking is measured along the network
                 # (built once here, reused for every run); without one, the open-grid walk. No silent
@@ -414,6 +419,9 @@ class IsobenefitTask(QgsTask):
                     router=router,
                     centre_spacing_m=(spacings["moderate"] if self.optimise_centres else None),
                     centre_min_settlement=self.centre_min_settlement,
+                    centre_m2_per_person=self.centre_m2_per_person,
+                    new_density_km2=self.density_factors[1],
+                    exist_density_km2=self.exist_built_density,
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
                 )
@@ -436,6 +444,7 @@ class IsobenefitTask(QgsTask):
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
                         router=router, centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
+                        new_density_km2=self.density_factors[1], exist_density_km2=self.exist_built_density,
                     )
                     report_stats.append(("raw (before post-processing)", pre_m, self._count_centres(pre_plan)))
                 if self.optimise_centres and best_state is not None:
@@ -446,6 +455,8 @@ class IsobenefitTask(QgsTask):
                         centre_anchors=station_anchors, router=router,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         centre_min_settlement=self.centre_min_settlement,
+                        centre_m2_per_person=self.centre_m2_per_person,
+                        new_density_km2=self.density_factors[1], exist_density_km2=self.exist_built_density,
                     )
                     labels = {
                         "moderate": "moderately clustered centres",
@@ -462,7 +473,8 @@ class IsobenefitTask(QgsTask):
                         report_stats.append((labels[key], vm, ncent))
                         self._log(  # per-option metrics so the choice is informed, not just visual
                             f"  {labels[key]}: {ncent} centres, {vm.get('served_coverage', 0):.0%} served, "
-                            f"centre walk {vm.get('centre_access', 0):.0f} m, green {vm.get('green_access', 0):.0f} m"
+                            f"centre walk {vm.get('centre_access', 0):.0f} m, green {vm.get('green_access', 0):.0f} m, "
+                            f"{vm.get('centre_m2_per_person', 0):.0f} m² centre / person"
                         )
                     plan, metrics = variants["moderate"]  # headline metrics + audit use the moderate option
                     if pre_plan is not None:  # surface the gentle cleanup (raw is kept un-cleaned to compare)
@@ -475,12 +487,12 @@ class IsobenefitTask(QgsTask):
                         )
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
                     gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
-                    self._plan_outputs.append((self.plan_path, "recommended plan"))
+                    self._plan_outputs.append((self.plan_path, "idealised scenario"))
                     if metrics:
-                        report_stats.append(("recommended", metrics, self._count_centres(plan)))
+                        report_stats.append(("idealised scenario", metrics, self._count_centres(plan)))
                 if metrics:
                     self._log(
-                        f"Recommended plan: {metrics.get('served_coverage', 0):.0%} of homes within a walk of "
+                        f"Idealised scenario: {metrics.get('served_coverage', 0):.0%} of homes within a walk of "
                         f"both green and a centre (avg walk to a centre {metrics.get('centre_access', 0):.0f} m, "
                         f"to green {metrics.get('green_access', 0):.0f} m)."
                     )

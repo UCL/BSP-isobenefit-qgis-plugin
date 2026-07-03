@@ -6,7 +6,7 @@
 
 [general]
 name=isobenefit
-qgisMinimumVersion=3.0
+qgisMinimumVersion=3.40
 qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
