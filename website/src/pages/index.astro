@@ -78,10 +78,10 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.10,&lt;0.11"</code></pre>
     <p>
-      <strong>Why two pieces?</strong> The plugin itself is thin (UI + GIS I/O). The heavy compute is a
-      separate Rust engine published to PyPI as the <code>isobenefit</code> package — kept apart because the
-      QGIS plugin repository doesn't permit shipping compiled binaries. Source for both:
-      <a href="https://github.com/UCL/BSP-isobenefit-qgis-plugin">BSP-isobenefit-qgis-plugin</a>.
+      The install comes in two parts because the QGIS plugin repository doesn't allow compiled binaries.
+      The plugin handles the dialogs and the GIS reading and writing; the simulation itself is written in
+      Rust and installed from PyPI as the <code>isobenefit</code> package. Source for both is in
+      <a href="https://github.com/UCL/BSP-isobenefit-qgis-plugin">one repository</a>.
     </p>
   </section>
 
