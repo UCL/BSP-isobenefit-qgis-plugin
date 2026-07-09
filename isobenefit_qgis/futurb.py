@@ -251,7 +251,6 @@ class Isobenefit:
             green_distance_m = _positive(int(self.dlg.green_walk_dist.text()))
             max_distance_m = max(centre_distance_m, green_distance_m)
             max_populat = _positive(int(self.dlg.max_populat.text()))
-            exist_built_density = _non_negative(int(self.dlg.built_density.text()))
             min_green_span = _positive(int(self.dlg.min_green_span.text()))
             random_seed = int(self.dlg.random_seed.text())
             build_prob = float(self.dlg.build_prob.text())
@@ -263,13 +262,19 @@ class Isobenefit:
             cent_prob_nb = 0.01
             cent_prob_isol = float(self.dlg.dispersal_mode.currentData())
             pop_target_cent_threshold = 0.8
-            # Density RANGE -> the engine's descending tiers. Uniform across min..max (equal weights),
-            # so the mean is the midpoint and the max is the densification ceiling.
-            min_density = _non_negative(float(self.dlg.min_density.text()))
-            max_density = _positive(float(self.dlg.max_density.text()))
-            mid_density = 0.5 * (min_density + max_density)
-            density_factors = (max_density, mid_density, min_density)
-            prob_distribution = (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)
+            # Three explicit density tiers, each drawn at its own probability. The engine wants the
+            # densities descending (high, med, low) and the probabilities summing to 1 — the dialog
+            # guards both, so this only mirrors that order.
+            density_factors = (
+                _positive(float(self.dlg.high_density.text())),
+                _positive(float(self.dlg.med_density.text())),
+                _positive(float(self.dlg.low_density.text())),
+            )
+            prob_distribution = (
+                float(self.dlg.high_prob.text()),
+                float(self.dlg.med_prob.text()),
+                float(self.dlg.low_prob.text()),
+            )
             # recommended-plan dials. Min settlement is entered as an AREA in hectares; convert to the
             # cell count the model prunes/culls by: ha -> m² (×10 000) / cell area (grid²).
             min_settlement_ha = _non_negative(float(self.dlg.min_settlement.text()))
@@ -309,7 +314,6 @@ class Isobenefit:
             granularity_m=granularity_m,
             max_distance_m=max_distance_m,
             max_populat=max_populat,
-            exist_built_density=exist_built_density,
             min_green_span=min_green_span,
             build_prob=build_prob,
             cent_prob_nb=cent_prob_nb,

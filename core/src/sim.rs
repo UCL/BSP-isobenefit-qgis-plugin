@@ -6,9 +6,10 @@
 //! module only sees numpy-shaped integer/float grids.
 
 use crate::access::{agg_dijkstra_cont, agg_dijkstra_dist, prepare_green_arrs, DijkstraOpts};
-use crate::density::{rng_for, splitmix64};
+use crate::density::{random_density, rng_for, splitmix64};
 use crate::neighbours::{count_cont_nbs, green_spans, iter_nbs};
 use ndarray::Array2;
+use rand_chacha::ChaCha8Rng;
 use rayon::prelude::*;
 
 /// Scalar simulation parameters (densities already converted to per-block).
@@ -184,10 +185,9 @@ impl Simulation {
     pub fn new(
         mut state: Array2<i16>,
         mut origin: Array2<i16>,
-        mut density: Array2<f32>,
+        density: Array2<f32>,
         centre_seeds: &[(usize, usize)],
         params: Params,
-        exist_built_per_block: f32,
         total_iters: usize,
         master_seed: u64,
     ) -> Result<Self, String> {
@@ -195,12 +195,10 @@ impl Simulation {
         if origin.dim() != dim || density.dim() != dim {
             return Err("state, origin and density must share the same shape".to_string());
         }
-        // existing built cells get the baseline density (before centres are seeded)
-        for ((y, x), &s) in state.indexed_iter() {
-            if s > 0 {
-                density[[y, x]] = exist_built_per_block;
-            }
-        }
+        // Existing built fabric carries no density and no population: it is assumed to be served by
+        // its own centres, so it is spatial context only. Only new development is counted, so the
+        // population target is a new-only target. Its cells stay at density 0 here (they are never
+        // re-visited: `step` skips any cell whose state is already built).
         // seed centres and aggregate their accessibility
         let mut cent_acc = Array2::<i32>::zeros(dim);
         let cent_opts = DijkstraOpts::new(params.max_distance_m, params.granularity_m);
@@ -231,13 +229,20 @@ impl Simulation {
         })
     }
 
-    fn assign_density(&mut self, y: usize, x: usize) {
-        // In-run density is pure population ACCOUNTING: every new cell carries the mean of the
-        // density range, so the run stops once enough land is built to house the target. The
-        // scenario's real density field is derived afterwards, in post-processing, as a gradient
-        // toward the FINAL (post-processed) centres — assigning it here would measure distances
-        // against centres that later steps and post-processing move, add or cull.
-        self.density[[y, x]] = self.params.med_per_block as f32;
+    fn assign_density(&mut self, y: usize, x: usize, rng: &mut ChaCha8Rng) {
+        // Every new block is built at one of three density tiers, drawn at the configured
+        // probabilities. This is real population accounting: the run stops once the drawn densities
+        // reach the (new-only) target. Post-processing later re-arranges these values spatially so
+        // the highest sit nearest the FINAL (post-processed) mixed-use centres — assigning the
+        // arrangement here would measure distances against centres that later steps then move, add
+        // or cull, so the placement is a post-processing product; only the mix is fixed now.
+        self.density[[y, x]] = random_density(
+            rng,
+            self.params.prob_distribution,
+            self.params.high_per_block,
+            self.params.med_per_block,
+            self.params.low_per_block,
+        ) as f32;
     }
 
     fn plant_centre(&mut self, y: usize, x: usize) {
@@ -300,7 +305,7 @@ impl Simulation {
                             self.state[[y, x]] = 1;
                             self.green_itx = ni;
                             self.green_acc = na;
-                            self.assign_density(y, x);
+                            self.assign_density(y, x, &mut rng);
                         }
                     }
                 } else if !centrality_this_iter
@@ -320,7 +325,7 @@ impl Simulation {
                         self.green_itx = ni;
                         self.green_acc = na;
                         self.plant_centre(y, x);
-                        self.assign_density(y, x);
+                        self.assign_density(y, x, &mut rng);
                         centrality_this_iter = true;
                     }
                 }
@@ -342,7 +347,7 @@ impl Simulation {
                     self.green_itx = ni;
                     self.green_acc = na;
                     self.plant_centre(y, x);
-                    self.assign_density(y, x);
+                    self.assign_density(y, x, &mut rng);
                     centrality_this_iter = true;
                 }
             }
@@ -472,7 +477,6 @@ mod tests {
             density,
             &[(grid / 2, grid / 2)],
             growth_params(),
-            0.0,
             25,
             seed,
         )
@@ -584,21 +588,49 @@ mod tests {
     }
 
     #[test]
-    fn density_is_flat_accounting_at_the_range_mean() {
-        // in-run density is population accounting only: every new-built cell carries the
-        // mean of the density range (the gradient is derived later, in post-processing,
-        // against the final centres)
+    fn density_is_drawn_from_the_three_tiers() {
+        // every new-built cell is built at one of the three density tiers (the spatial
+        // arrangement is a post-processing product; the mix is fixed here)
         let mut sim = seeded_sim(40, 5);
         sim.run();
-        let expected = sim.params.med_per_block as f32;
+        let tiers = [
+            sim.params.high_per_block as f32,
+            sim.params.med_per_block as f32,
+            sim.params.low_per_block as f32,
+        ];
         let mut checked = 0;
         for (&s, &d) in sim.state.iter().zip(sim.density.iter()) {
             if s == 1 {
-                assert_eq!(d, expected);
+                assert!(tiers.contains(&d), "density {d} is not one of the tiers {tiers:?}");
                 checked += 1;
             }
         }
         assert!(checked > 0, "expected some built cells");
+    }
+
+    #[test]
+    fn existing_built_is_not_counted_in_population() {
+        // seed a grid with existing built cells (state 1) already present; they must carry no
+        // density, so the population target is a new-only target.
+        let grid = 20;
+        let mut state = Array2::<i16>::zeros((grid, grid));
+        state[[0, 0]] = 1; // an existing built cell
+        state[[0, 1]] = 1;
+        let origin = Array2::<i16>::from_elem((grid, grid), -1);
+        let density = Array2::<f32>::zeros((grid, grid));
+        let sim = Simulation::new(
+            state,
+            origin,
+            density,
+            &[(grid / 2, grid / 2)],
+            growth_params(),
+            25,
+            3,
+        )
+        .unwrap();
+        assert_eq!(sim.density[[0, 0]], 0.0);
+        assert_eq!(sim.density[[0, 1]], 0.0);
+        assert_eq!(sim.population(), 0.0);
     }
 
     #[test]

@@ -19,19 +19,38 @@ NATURE = 0
 NEW_LOW = 1
 NEW_MED = 2
 NEW_HIGH = 3
-CENTRE = 4
-EXIST_BUILT = 5
-FIXED_GREEN = 6
+CENTRE_LOW = 4
+CENTRE_MED = 5
+CENTRE_HIGH = 6
+EXIST_BUILT = 7
+FIXED_GREEN = 8
+EXIST_CENTRE = 9
 
-# (class code, (r, g, b), legend label) — echoes the original NetLogo scheme.
+# New development reads as two hue families, each in three tiers so high/medium/low is obvious:
+# built as a yellow -> amber -> orange-brown ramp, mixed-use centres as a pale -> deep red ramp.
+# Existing fabric is a single muted shade (it carries no density and is not counted).
+_BUILT_LOW = (255, 237, 160)
+_BUILT_MED = (254, 196, 79)
+_BUILT_HIGH = (204, 122, 41)
+_CENTRE_LOW = (252, 187, 161)
+_CENTRE_MED = (239, 101, 72)
+_CENTRE_HIGH = (179, 18, 24)
+_EXIST_BUILT = (150, 134, 122)  # a cool grey-taupe so existing fabric recedes and reads apart from the warm new ramp
+_EXIST_CENTRE = (150, 40, 85)
+_GREEN = (54, 109, 35)
+
+# (class code, (r, g, b), legend label) — the single-run animation palette.
 PALETTE = [
     (NATURE, (89, 176, 60), "Nature / green"),
-    (NEW_LOW, (200, 136, 68), "New built — low density"),
-    (NEW_MED, (197, 86, 17), "New built — medium density"),
-    (NEW_HIGH, (101, 44, 7), "New built — high density"),
-    (CENTRE, (255, 255, 255), "Centrality"),
-    (EXIST_BUILT, (114, 114, 114), "Existing built"),
-    (FIXED_GREEN, (54, 109, 35), "Existing green / park"),
+    (NEW_LOW, _BUILT_LOW, "New built — low density"),
+    (NEW_MED, _BUILT_MED, "New built — medium density"),
+    (NEW_HIGH, _BUILT_HIGH, "New built — high density"),
+    (CENTRE_LOW, _CENTRE_LOW, "Mixed-use centre — low density"),
+    (CENTRE_MED, _CENTRE_MED, "Mixed-use centre — medium density"),
+    (CENTRE_HIGH, _CENTRE_HIGH, "Mixed-use centre — high density"),
+    (EXIST_BUILT, _EXIST_BUILT, "Existing built"),
+    (EXIST_CENTRE, _EXIST_CENTRE, "Existing mixed-use centre"),
+    (FIXED_GREEN, _GREEN, "Existing green / park"),
 ]
 
 
@@ -56,9 +75,10 @@ def align_bounds(x_min: float, y_min: float, x_max: float, y_max: float, granula
 def classify(state, origin, density, per_block) -> np.ndarray:
     """Map the simulation arrays to a uint8 categorical raster (see class codes).
 
-    ``per_block`` is ``(high, med, low)`` persons-per-block; new-built cells carry
-    one of these exact values so density tiers can be matched directly. Existing
-    (origin) features take visual precedence.
+    ``per_block`` is ``(high, med, low)`` persons-per-block; new-built and new-centre
+    cells each carry one of these exact drawn values, so both are split into density
+    tiers (built and centres in distinct hues). Existing (origin) features take visual
+    precedence.
     """
     high_pb, med_pb, low_pb = per_block
     cls = np.full(state.shape, NODATA, dtype=np.uint8)
@@ -67,9 +87,14 @@ def classify(state, origin, density, per_block) -> np.ndarray:
     cls[built & np.isclose(density, low_pb)] = NEW_LOW
     cls[built & np.isclose(density, med_pb)] = NEW_MED
     cls[built & np.isclose(density, high_pb)] = NEW_HIGH
-    cls[state == 2] = CENTRE
+    centre = state == 2
+    cls[centre & np.isclose(density, low_pb)] = CENTRE_LOW
+    cls[centre & np.isclose(density, med_pb)] = CENTRE_MED
+    cls[centre & np.isclose(density, high_pb)] = CENTRE_HIGH
     cls[origin == 1] = EXIST_BUILT
     cls[origin == 0] = FIXED_GREEN
+    # existing centre seeds carry no density (never counted); tag them so they stay visible
+    cls[origin == 2] = EXIST_CENTRE
     return cls
 
 
@@ -77,17 +102,32 @@ def classify(state, origin, density, per_block) -> np.ndarray:
 
 PLAN_NONE = 0
 PLAN_GREEN = 1
-PLAN_BUILT = 2  # new (speculative) development
-PLAN_CENTRE = 3  # new centre
+PLAN_BUILT = 2  # new (speculative) development — base code, used by all metric logic
+PLAN_CENTRE = 3  # new mixed-use centre — base code
 PLAN_EXIST_BUILT = 4  # development that was already there (frozen, shown muted)
-PLAN_EXIST_CENTRE = 5  # centre that was already there
+PLAN_EXIST_CENTRE = 5  # mixed-use centre that was already there
+# Per-tier DISPLAY codes: written to disk by to_tiered_plan so the map shows low/medium/high
+# development in distinct shades. The base PLAN_BUILT/PLAN_CENTRE codes stay for all logic.
+PLAN_BUILT_LOW = 6
+PLAN_BUILT_MED = 7
+PLAN_BUILT_HIGH = 8
+PLAN_CENTRE_LOW = 9
+PLAN_CENTRE_MED = 10
+PLAN_CENTRE_HIGH = 11
 
 PLAN_PALETTE = [
-    (PLAN_GREEN, (54, 109, 35), "Recommended green network"),
-    (PLAN_EXIST_BUILT, (120, 92, 62), "Existing development"),
-    (PLAN_BUILT, (196, 140, 74), "New development"),
-    (PLAN_EXIST_CENTRE, (150, 40, 85), "Existing centre"),
-    (PLAN_CENTRE, (210, 35, 35), "New centre"),
+    (PLAN_GREEN, _GREEN, "Recommended green network"),
+    (PLAN_EXIST_BUILT, _EXIST_BUILT, "Existing development"),
+    (PLAN_EXIST_CENTRE, _EXIST_CENTRE, "Existing mixed-use centre"),
+    (PLAN_BUILT_LOW, _BUILT_LOW, "New development — low density"),
+    (PLAN_BUILT_MED, _BUILT_MED, "New development — medium density"),
+    (PLAN_BUILT_HIGH, _BUILT_HIGH, "New development — high density"),
+    (PLAN_CENTRE_LOW, _CENTRE_LOW, "New mixed-use centre — low density"),
+    (PLAN_CENTRE_MED, _CENTRE_MED, "New mixed-use centre — medium density"),
+    (PLAN_CENTRE_HIGH, _CENTRE_HIGH, "New mixed-use centre — high density"),
+    # base codes kept as a neutral fallback for any raster written without tiering
+    (PLAN_BUILT, _BUILT_MED, "New development"),
+    (PLAN_CENTRE, _CENTRE_MED, "New mixed-use centre"),
 ]
 
 
@@ -1003,43 +1043,79 @@ def derive_density(
     plan,
     granularity_m,
     centre_distance_m,
-    min_density_km2,
-    max_density_km2,
-    exist_density_km2=EXIST_DENSITY_KM2,
+    density_factors_km2,
+    prob_distribution,
     router=None,
 ):
-    """Per-cell density (people/km²) for a FINISHED scenario, derived from its final centres.
+    """Per-cell density (people/km²) for a FINISHED scenario, arranging the three tiers by distance.
 
-    New development takes a gradient by walking distance to the nearest (post-processed) centre:
-    the maximum density at a centre, falling linearly to the minimum at the walk's edge and
-    beyond. The new fabric is then rescaled so its mean equals the range midpoint — the same
-    population accounting the run's stopping rule and the per-person metrics use — so the layout
-    redistributes people without changing how many. Existing fabric stays flat at its own assumed
-    density, and non-built cells are 0 (nodata).
+    Every new cell was built at one of three densities, drawn at the given probabilities (the mix).
+    Here those drawn values are ARRANGED spatially: new cells are ranked by walking distance to the
+    nearest (post-processed) mixed-use centre, and the highest densities go to the closest cells,
+    then medium, then low. The tier counts follow the probabilities (``n_high = round(p_high · N)``,
+    …), so the population equals the probability-weighted mean over the cells — the same accounting
+    the run's stopping rule uses — while the layout is coherent (densest by the centres). Existing
+    fabric is not counted (0); non-built cells are 0 (nodata).
 
-    Derived here, after post-processing, rather than during growth: mid-run distances measure
-    against whichever centres happen to exist at that moment, and post-processing then moves,
-    adds and culls centres — so an in-run gradient describes centre history, not the scenario.
+    Arranged in post-processing, not during growth: mid-run distances measure against whichever
+    centres happen to exist at that moment, and post-processing then moves, adds and culls centres.
     """
     plan = np.asarray(plan)
     g = float(granularity_m)
+    high, med, low = (float(d) for d in density_factors_km2)
+    p_high, p_med, _p_low = (float(p) for p in prob_distribution)
     new_built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE))
-    exist_built = np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
     centres = np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE))
     out = np.zeros(plan.shape, dtype=np.float32)
-    out[exist_built] = exist_density_km2
-    if not new_built.any():
+    n = int(new_built.sum())
+    if n == 0:
         return out
+    # walking distance to the nearest centre for every new cell (inf where none is within a walk)
     if centres.any():
         walk = router if router is not None else (lambda m: _walk_distance(m, g, float(centre_distance_m)))
-        t = np.clip(walk(centres) / float(centre_distance_m), 0.0, 1.0)  # inf clips to 1 (beyond the walk)
+        dist_field = walk(centres)
     else:
-        t = np.ones(plan.shape)
-    grad = max_density_km2 * (1.0 - t) + min_density_km2 * t
-    mid = 0.5 * (float(min_density_km2) + float(max_density_km2))
-    total = float(grad[new_built].sum())
-    scale = mid * int(new_built.sum()) / total if total else 1.0
-    out[new_built] = (grad[new_built] * scale).astype(np.float32)
+        dist_field = np.full(plan.shape, np.inf)
+    dists = dist_field[new_built]
+    # rank ascending; ties and unreachable (inf) sort last, so they take the lowest tier
+    order = np.argsort(dists, kind="stable")
+    n_high = min(int(round(p_high * n)), n)
+    n_med = min(int(round(p_med * n)), n - n_high)
+    ranked = np.empty(n, dtype=np.float32)
+    tiers = np.empty(n, dtype=np.float32)
+    tiers[:n_high] = high
+    tiers[n_high : n_high + n_med] = med
+    tiers[n_high + n_med :] = low
+    ranked[order] = tiers  # closest cell (order[0]) gets the first (highest) tier
+    out[new_built] = ranked
+    return out
+
+
+def to_tiered_plan(plan, density, density_factors_km2):
+    """Remap a plan's new built/centre cells to per-tier DISPLAY codes by their arranged density, so
+    the categorical raster shows low/medium/high development in distinct shades (built and centres in
+    separate hues). Existing and green cells are unchanged. Returns a uint8 copy for writing/styling;
+    the base ``plan`` codes are untouched for all metric logic."""
+    plan = np.asarray(plan)
+    density = np.asarray(density)
+    high, med, low = (float(d) for d in density_factors_km2)
+    out = plan.astype(np.uint8).copy()
+
+    def _tier(mask, low_code, med_code, high_code):
+        if not mask.any():
+            return
+        vals = density[mask]
+        # nearest tier by value (derive_density assigns the exact tier values, so this is exact)
+        dl, dm, dh = np.abs(vals - low), np.abs(vals - med), np.abs(vals - high)
+        pick = np.select(
+            [(dl <= dm) & (dl <= dh), (dm <= dl) & (dm <= dh)],
+            [low_code, med_code],
+            default=high_code,
+        )
+        out[mask] = pick.astype(np.uint8)
+
+    _tier(plan == PLAN_BUILT, PLAN_BUILT_LOW, PLAN_BUILT_MED, PLAN_BUILT_HIGH)
+    _tier(plan == PLAN_CENTRE, PLAN_CENTRE_LOW, PLAN_CENTRE_MED, PLAN_CENTRE_HIGH)
     return out
 
 

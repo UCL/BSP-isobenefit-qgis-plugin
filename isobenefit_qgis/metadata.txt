@@ -11,7 +11,7 @@ qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
 description=Isobenefit Urbanism plugin for QGIS.
-version=0.11.0
+version=0.12.0
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -28,6 +28,7 @@ repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 # Recommended items:
 
 changelog=
+    0.12.0 Density returns to three explicit tiers (low/medium/high people/km2), each built at a user-set probability that must sum to 1. Post-processing arranges the drawn densities so the highest sit nearest the final mixed-use centres. Population now counts NEW development only — the existing-density input is removed and existing fabric is context (assumed served by its own centres). Plans are coloured per density tier: built as a yellow-to-brown ramp, mixed-use centres as a reds ramp, existing muted.
     0.11.0 Density is now derived in post-processing as a gradient toward the FINAL (post-processed) mixed-use centres, written as a density layer per scenario option; in-run density is flat population accounting (the mean of the range). Centre areas sized per person served (m2/person dial). User-facing outputs renamed to idealised scenarios.
 0.10.0 Density now follows a gradient toward centres: each new home is denser the closer it is to its nearest centre and sparser out at the walkable edge, replacing the previous random high/medium/low tier draw. The growth pattern is unchanged from 0.9.0 (identical run-to-run); only the density values assigned to new homes differ.
     0.9.0 Centres rebuilt around the simulation's own grown centres: each is re-positioned central to the new development it anchors, extra centres are added where new development is under-served, and redundant/tiny ones are culled. Centre optimisation is now an optional step (on by default). Removed the centre likelihood layer (not meaningful across runs).

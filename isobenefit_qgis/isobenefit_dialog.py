@@ -155,18 +155,42 @@ class IsobenefitDialog(QtWidgets.QDialog):
         pp.addRow("Min green span (m)", self.min_green_span)
 
         # --- Density ------------------------------------------------------------------
-        dens = _group("Density (people per km²)")
-        self.min_density = QtWidgets.QLineEdit("1500", self)
-        self.min_density.textChanged.connect(self.handle_densities)
-        self.min_density.setToolTip("Density at a catchment edge (spread across min..max, denser near centres).")
-        dens.addRow("Min density", self.min_density)
-        self.max_density = QtWidgets.QLineEdit("6000", self)
-        self.max_density.textChanged.connect(self.handle_densities)
-        self.max_density.setToolTip("Density near a centre (the upper end of the density range used for population).")
-        dens.addRow("Max density", self.max_density)
-        self.built_density = QtWidgets.QLineEdit("2000", self)
-        self.built_density.setToolTip("Assumed density of the existing built fabric (people it already holds).")
-        dens.addRow("Existing built density", self.built_density)
+        # Three development-density tiers (people per km²), each drawn at a probability. Every new
+        # block is built at one of the three densities; the three probabilities are the mix and must
+        # sum to 1. Post-processing then arranges the drawn densities so the highest sit nearest the
+        # mixed-use centres. Existing fabric carries no density and no population — it is assumed to be
+        # served by its own centres, so it is context only and never counted here.
+        dens = _group("Development density (people per km²)")
+        intro = QtWidgets.QLabel(
+            "Every new block is built at one of three densities. Set each density and the share of "
+            "new blocks built at it; the three shares must sum to 1.",
+            self,
+        )
+        intro.setWordWrap(True)
+        dens.addRow(intro)
+
+        def _tier_row(label: str, density_default: str, prob_default: str, tip: str):
+            """A tier row: density (people/km²) on the left, its share (0–1) on the right."""
+            density_edit = QtWidgets.QLineEdit(density_default, self)
+            density_edit.setToolTip(f"People per km² for the {label.lower()}-density tier.")
+            prob_edit = QtWidgets.QLineEdit(prob_default, self)
+            prob_edit.setToolTip(tip)
+            prob_edit.setMaximumWidth(70)
+            row = QtWidgets.QWidget(self)
+            hb = QtWidgets.QHBoxLayout(row)
+            hb.setContentsMargins(0, 0, 0, 0)
+            hb.addWidget(density_edit, 1)
+            hb.addWidget(QtWidgets.QLabel("share", self))
+            hb.addWidget(prob_edit)
+            density_edit.textChanged.connect(self.handle_densities)
+            prob_edit.textChanged.connect(self.handle_densities)
+            dens.addRow(label, row)
+            return density_edit, prob_edit
+
+        share_tip = "Share of new blocks built at this density (0–1). The three shares must sum to 1."
+        self.high_density, self.high_prob = _tier_row("High density", "6000", "0.2", share_tip)
+        self.med_density, self.med_prob = _tier_row("Medium density", "3000", "0.3", share_tip)
+        self.low_density, self.low_prob = _tier_row("Low density", "1500", "0.5", share_tip)
         self.density_text_feedback = QtWidgets.QLabel("", self)
         self.density_text_feedback.setWordWrap(True)
         dens.addRow(self.density_text_feedback)
@@ -308,31 +332,55 @@ class IsobenefitDialog(QtWidgets.QDialog):
             missing.append("an output file (.tif)")
         if self.selected_crs is None:
             missing.append("a projected CRS")
-        if self.prob_sum != 1:
-            missing.append("valid min/max densities")
+        if self.prob_sum is None or abs(self.prob_sum - 1.0) > 1e-3:
+            missing.append("valid densities and shares (summing to 1)")
         ok = not missing
         self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(not ok)
         self.run_status.setText("" if ok else "To enable Run, set " + ", ".join(missing) + ".")
 
     def handle_densities(self) -> None:
-        """Validate the density range. ``prob_sum`` is kept as the OK-enable flag used by
-        ``refresh_state`` (1 = valid): the model derives its tiers from min/max, so the only check
-        is that the max exceeds the min."""
+        """Validate the three density tiers and their probabilities, and show live feedback.
+
+        Two guards gate the Run button: the densities must be positive and strictly descending
+        (High > Medium > Low, which the engine requires), and the three shares must sum to 1.
+        ``prob_sum`` holds the actual share total (``refresh_state`` enables Run only when it is 1);
+        it is set to ``None`` whenever any field fails to parse or the densities are invalid."""
         try:
-            mn = float(self.min_density.text())
-            mx = float(self.max_density.text())
-            if mx <= mn:
-                self.prob_sum = None
-                self.reset_state()
-                self.density_text_feedback.setText("Max density must be greater than min")
-                return
-            self.prob_sum = 1
-            self.refresh_state()
-            self.density_text_feedback.setText("")
-        except Exception:
+            hd = float(self.high_density.text())
+            md = float(self.med_density.text())
+            ld = float(self.low_density.text())
+            hp = float(self.high_prob.text())
+            mp = float(self.med_prob.text())
+            lp = float(self.low_prob.text())
+        except ValueError:
             self.prob_sum = None
             self.reset_state()
-            self.density_text_feedback.setText("Enter valid min and max densities")
+            self.density_text_feedback.setStyleSheet("color: #a00;")
+            self.density_text_feedback.setText("Enter valid numbers for every density and share.")
+            return
+        if not (ld > 0 and hd > md > ld):
+            self.prob_sum = None
+            self.reset_state()
+            self.density_text_feedback.setStyleSheet("color: #a00;")
+            self.density_text_feedback.setText("Densities must be positive and High > Medium > Low.")
+            return
+        if any(not 0.0 <= p <= 1.0 for p in (hp, mp, lp)):
+            self.prob_sum = None
+            self.reset_state()
+            self.density_text_feedback.setStyleSheet("color: #a00;")
+            self.density_text_feedback.setText("Each share must be between 0 and 1.")
+            return
+        total = round(hp + mp + lp, 3)
+        self.prob_sum = total
+        if abs(total - 1.0) > 1e-3:
+            self.reset_state()
+            self.density_text_feedback.setStyleSheet("color: #a00;")
+            self.density_text_feedback.setText(f"Shares must sum to 1 (currently {total:.2f}).")
+            return
+        mean = hp * hd + mp * md + lp * ld
+        self.density_text_feedback.setStyleSheet("color: #060;")
+        self.density_text_feedback.setText(f"Shares sum to 1.00 ✓ · mean ≈ {mean:,.0f} /km²")
+        self.refresh_state()
 
     def handle_output_path(self) -> None:
         """ """

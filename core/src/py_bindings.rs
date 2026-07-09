@@ -28,7 +28,7 @@ impl PySimulation {
         state, origin, density, centre_seeds,
         granularity_m, max_distance_m, max_populat, min_green_span_m,
         build_prob, cent_prob_nb, cent_prob_isol, pop_target_cent_threshold,
-        prob_distribution, density_factors_km2, exist_built_km2,
+        prob_distribution, density_factors_km2,
         total_iters, random_seed,
     ))]
     fn new(
@@ -46,7 +46,6 @@ impl PySimulation {
         pop_target_cent_threshold: f64,
         prob_distribution: (f64, f64, f64),
         density_factors_km2: (f64, f64, f64),
-        exist_built_km2: f64,
         total_iters: usize,
         random_seed: u64,
     ) -> PyResult<Self> {
@@ -63,15 +62,12 @@ impl PySimulation {
             density_factors_km2,
         )
         .map_err(PyValueError::new_err)?;
-        let block = granularity_m * granularity_m / 1.0e6;
-        let exist_built_per_block = (exist_built_km2 * block) as f32;
         let inner = Simulation::new(
             state.as_array().to_owned(),
             origin.as_array().to_owned(),
             density.as_array().to_owned(),
             &centre_seeds,
             params,
-            exist_built_per_block,
             total_iters,
             random_seed,
         )

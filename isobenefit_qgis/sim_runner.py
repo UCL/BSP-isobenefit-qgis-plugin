@@ -53,7 +53,6 @@ class IsobenefitTask(QgsTask):
         granularity_m,
         max_distance_m,
         max_populat,
-        exist_built_density,
         min_green_span,
         build_prob,
         cent_prob_nb,
@@ -90,7 +89,6 @@ class IsobenefitTask(QgsTask):
         self.granularity_m = float(granularity_m)
         self.max_distance_m = float(max_distance_m)
         self.max_populat = float(max_populat)
-        self.exist_built_density = float(exist_built_density)
         self.min_green_span = float(min_green_span)
         self.build_prob = float(build_prob)
         self.cent_prob_nb = float(cent_prob_nb)
@@ -121,6 +119,24 @@ class IsobenefitTask(QgsTask):
         block = self.granularity_m**2 / 1.0e6
         return tuple(d * block for d in self.density_factors)
 
+    def _mean_new_density_km2(self) -> float:
+        """Probability-weighted mean density of new development (people/km²). This is the expected
+        density of a new block over the three tiers, so it is what the population accounting, the
+        per-person metrics and the centre provision size against."""
+        return float(sum(p * d for p, d in zip(self.prob_distribution, self.density_factors)))
+
+    def _write_tiered_plan(self, path: str, plan, router, label: str) -> None:
+        """Arrange the drawn density tiers by walking distance to the final mixed-use centres, then
+        write the plan as one categorical raster in which each new cell takes its tier's colour
+        (built and centres in distinct hues). Registers the raster for finished() to load."""
+        dens = grid.derive_density(
+            plan, self.granularity_m, self.centre_distance_m,
+            self.density_factors, self.prob_distribution, router=router,
+        )
+        disp = grid.to_tiered_plan(plan, dens, self.density_factors)
+        gis_io.write_plan_raster(path, disp, self.geotransform, self.target_crs)
+        self._plan_outputs.append((path, label))
+
     @staticmethod
     def _count_centres(plan) -> int:
         """Number of centre AREAS (connected components) in a plan — new and existing."""
@@ -138,7 +154,12 @@ class IsobenefitTask(QgsTask):
         gwalk = self.green_distance_m or self.max_distance_m
         min_ha = self.centre_min_settlement * self.granularity_m**2 / 1.0e4
         km = self.granularity_m / 1000.0
-        dens = f"{min(self.density_factors):,.0f}-{max(self.density_factors):,.0f} /km²"
+        hi, md, lo = self.density_factors
+        ph, pm, pl = self.prob_distribution
+        dens = (
+            f"high {hi:,.0f} ({ph:.0%}), med {md:,.0f} ({pm:.0%}), low {lo:,.0f} ({pl:.0%}) /km²; "
+            f"mean {self._mean_new_density_km2():,.0f}"
+        )
         lines = [
             "Isobenefit Urbanism — simulation report",
             "=" * 42,
@@ -156,7 +177,7 @@ class IsobenefitTask(QgsTask):
             f"  Centre walk           : {cwalk:.0f} m",
             f"  Green walk            : {gwalk:.0f} m",
             f"  Min green span        : {self.min_green_span:.0f} m",
-            f"  Density               : {dens} (existing built {self.exist_built_density:,.0f})",
+            f"  Density               : {dens}",
             f"  Min settlement        : {min_ha:.0f} ha ({self.centre_min_settlement} cells)",
             f"  Optimise centres      : {'on' if self.optimise_centres else 'off'}",
             f"  Ensemble              : {self.n_ensemble} run(s)",
@@ -212,7 +233,7 @@ class IsobenefitTask(QgsTask):
             state, origin, density, seeds,
             self.granularity_m, self.max_distance_m, self.max_populat, self.min_green_span,
             self.build_prob, self.cent_prob_nb, self.cent_prob_isol, self.pop_target_cent_threshold,
-            self.prob_distribution, self.density_factors, self.exist_built_density,
+            self.prob_distribution, self.density_factors,
             self.total_iters, self.random_seed,
         )
         iters = 0
@@ -328,21 +349,12 @@ class IsobenefitTask(QgsTask):
                 self.pop_target_cent_threshold,
                 self.prob_distribution,
                 self.density_factors,
-                self.exist_built_density,
                 self.total_iters,
                 self.random_seed,
             )
-            self._log(
-                f"Starting population {int(sim.population)} "
-                f"({sim.pop_target_ratio:.0%} of the {self.max_populat:.0f} target)."
-            )
-            if sim.pop_target_ratio >= 1.0:
-                self.error_message = (
-                    f"The existing built area already holds {int(sim.population)} people — "
-                    f"{sim.pop_target_ratio:.0%} of the {self.max_populat:.0f} target, so there is nothing "
-                    "to simulate. Raise the target population (or lower the built density) and rerun."
-                )
-                return False
+            # Only NEW development is counted, so a run always starts from zero population and grows
+            # toward the new-only target; existing fabric is context and never contributes here.
+            self._log(f"Growing toward a target of {self.max_populat:.0f} new residents.")
 
             if self.is_ensemble:
                 cores = os.cpu_count() or 4
@@ -420,8 +432,8 @@ class IsobenefitTask(QgsTask):
                     centre_spacing_m=(spacings["moderate"] if self.optimise_centres else None),
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
-                    new_density_km2=self.density_factors[1],
-                    exist_density_km2=self.exist_built_density,
+                    new_density_km2=self._mean_new_density_km2(),
+                    exist_density_km2=0.0,  # existing fabric is not counted in population
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
                 )
@@ -439,12 +451,11 @@ class IsobenefitTask(QgsTask):
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
                 if pre_plan is not None:  # the chosen run BEFORE post-processing — saved for comparison
-                    gis_io.write_plan_raster(self.pre_path, pre_plan, geotransform, self.target_crs)
-                    self._plan_outputs.append((self.pre_path, "raw (before post-processing)"))
+                    self._write_tiered_plan(self.pre_path, pre_plan, router, "raw (before post-processing)")
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
                         router=router, centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
-                        new_density_km2=self.density_factors[1], exist_density_km2=self.exist_built_density,
+                        new_density_km2=self._mean_new_density_km2(), exist_density_km2=0.0,
                     )
                     report_stats.append(("raw (before post-processing)", pre_m, self._count_centres(pre_plan)))
                 if self.optimise_centres and best_state is not None:
@@ -456,7 +467,7 @@ class IsobenefitTask(QgsTask):
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         centre_min_settlement=self.centre_min_settlement,
                         centre_m2_per_person=self.centre_m2_per_person,
-                        new_density_km2=self.density_factors[1], exist_density_km2=self.exist_built_density,
+                        new_density_km2=self._mean_new_density_km2(), exist_density_km2=0.0,
                     )
                     labels = {
                         "moderate": "moderately clustered centres",
@@ -466,20 +477,10 @@ class IsobenefitTask(QgsTask):
                         vplan, vm = variants[key]
                         ncent = self._count_centres(vplan)
                         vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}.tif"))
-                        gis_io.write_plan_raster(vpath, vplan, geotransform, self.target_crs)
                         # put the centre COUNT in the layer name so the difference between the options is
-                        # obvious in the QGIS layer panel itself, not only by eyeballing the map
-                        self._plan_outputs.append((vpath, f"{labels[key]} ({ncent} centres)"))
-                        # the scenario's density, derived from ITS final centres (the gradient is a
-                        # post-processing product; in-run density is only population accounting)
-                        dens = grid.derive_density(
-                            vplan, self.granularity_m, self.centre_distance_m,
-                            min(self.density_factors), max(self.density_factors),
-                            exist_density_km2=self.exist_built_density, router=router,
-                        )
-                        dpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}_density.tif"))
-                        gis_io.write_density_raster(dpath, dens, geotransform, self.target_crs)
-                        self._plan_outputs.append((dpath, f"density — {labels[key]}"))
+                        # obvious in the QGIS layer panel itself, not only by eyeballing the map. The
+                        # density tiers are arranged onto this plan and coloured per tier (built vs centre).
+                        self._write_tiered_plan(vpath, vplan, router, f"{labels[key]} ({ncent} centres)")
                         report_stats.append((labels[key], vm, ncent))
                         self._log(  # per-option metrics so the choice is informed, not just visual
                             f"  {labels[key]}: {ncent} centres, {vm.get('served_coverage', 0):.0%} served, "
@@ -496,16 +497,7 @@ class IsobenefitTask(QgsTask):
                             f"un-cleaned so you can see exactly what the cleanup changed."
                         )
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
-                    gis_io.write_plan_raster(self.plan_path, plan, geotransform, self.target_crs)
-                    self._plan_outputs.append((self.plan_path, "idealised scenario"))
-                    dens = grid.derive_density(
-                        plan, self.granularity_m, self.centre_distance_m,
-                        min(self.density_factors), max(self.density_factors),
-                        exist_density_km2=self.exist_built_density, router=router,
-                    )
-                    dpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_density.tif"))
-                    gis_io.write_density_raster(dpath, dens, geotransform, self.target_crs)
-                    self._plan_outputs.append((dpath, "density — idealised scenario"))
+                    self._write_tiered_plan(self.plan_path, plan, router, "idealised scenario")
                     if metrics:
                         report_stats.append(("idealised scenario", metrics, self._count_centres(plan)))
                 if metrics:
@@ -622,10 +614,9 @@ class IsobenefitTask(QgsTask):
                 lyr = QgsRasterLayer(path, f"{self.out_file_name} — {label}", "gdal")
                 if lyr.isValid():
                     lyr.setCrs(self.target_crs)
-                    if path.endswith("_density.tif"):
-                        gis_io.apply_density_style(lyr, min(self.density_factors), max(self.density_factors))
-                    else:
-                        gis_io.apply_plan_style(lyr)
+                    # every plan raster is categorical now — new development is coloured per density
+                    # tier (built vs mixed-use centre in distinct hues) directly in the palette
+                    gis_io.apply_plan_style(lyr)
                     QgsProject.instance().addMapLayer(lyr, addToLegend=False)
                     group.insertLayer(0, lyr)
             self._log(
