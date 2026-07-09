@@ -3,8 +3,9 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        defaults: ['Raleway', 'serif'],
-        headings: ['Raleway', 'sans-serif'],
+        // Source Sans 3 body (light strokes, open, very readable) + bolder Space Grotesk headings
+        defaults: ['Source Sans 3', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        headings: ['Space Grotesk', 'ui-sans-serif', 'sans-serif'],
         mono: ['Roboto Mono', 'monospace'],
       },
       fontSize: {

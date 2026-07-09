@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the explanatory dot-grid SVG diagrams for the website, in the established style:
-black = built, green = green periphery, red ring = centrality, blue reticle = candidate, with a
-right-hand explainer panel (context parameters -> step -> the decision -> legend).
+warm orange-brown = built, green = green periphery, red ring = centrality, blue reticle = candidate,
+with a right-hand explainer panel (context parameters -> step -> the decision -> legend).
 
 These replace the original Illustrator diagrams with versions matching the CURRENT logic (centre-walk
 vs green-walk, "Dispersed development") and add the recommended-plan pipeline. Reproducible:
@@ -14,11 +14,12 @@ import math
 import os
 
 # palette — one shared system, brand-aligned (site theme red #D32333) and worked across diagrams +
-# demonstrators: developed = grey, nature = forest green, centre/accent = brand red, candidate = blue;
-# existing fabric gets its own muted shades so "already there" reads apart from "newly recommended".
-RED, GREEN, BLUE, BUILT = "#D32333", "#2f7d33", "#1f6fbf", "#3a3a3a"
-EXIST_BUILT, EXIST_CENTRE = "#7d6240", "#962858"
-W, H = 1360, 720
+# demonstrators: newly developed = warm orange-brown (the mid of the plan's built ramp), nature = forest
+# green, centre/accent = brand red, candidate = blue; existing fabric gets its own muted shades so
+# "already there" reads apart from "newly recommended".
+RED, GREEN, BLUE, BUILT = "#D32333", "#2f7d33", "#1f6fbf", "#cc7a29"
+EXIST_BUILT, EXIST_CENTRE = "#96867a", "#962858"  # existing built matches grid.py's cool grey-taupe
+W, H = 1200, 680  # cropped tight to the content (grid + panel end ~1110 / ~654) to cut dead margin
 X0, Y0, STEP = 92, 46, 50  # grid origin (col 1 / row 1 centre) + cell pitch
 COLS, ROWS = 16, 12
 PANEL_X = 880  # right of the 16-col grid (which ends at x≈842) so panel text never overlaps the grid
@@ -63,16 +64,17 @@ def base_town() -> list[list[str]]:
 
 # --- primitives ------------------------------------------------------------------------------
 def grid_lines() -> str:
+    # non-scaling-stroke pins every line to a full device pixel regardless of how the SVG is scaled,
+    # so no vertical/horizontal grid line drops out to sub-pixel rounding (e.g. column 11, row 10).
+    style = 'stroke="{}" stroke-width="1" opacity="0.35" vector-effect="non-scaling-stroke"'.format(RED)
     out = []
     for c in range(1, COLS + 1):
         out.append(
-            f'<line x1="{gx(c):.1f}" y1="{gy(1) - 30:.1f}" x2="{gx(c):.1f}" y2="{gy(ROWS) + 30:.1f}" '
-            f'stroke="{RED}" stroke-width="0.5" opacity="0.3"/>'
+            f'<line x1="{gx(c):.1f}" y1="{gy(1) - 30:.1f}" x2="{gx(c):.1f}" y2="{gy(ROWS) + 30:.1f}" {style}/>'
         )
     for r in range(1, ROWS + 1):
         out.append(
-            f'<line x1="{gx(1) - 30:.1f}" y1="{gy(r):.1f}" x2="{gx(COLS) + 30:.1f}" y2="{gy(r):.1f}" '
-            f'stroke="{RED}" stroke-width="0.5" opacity="0.3"/>'
+            f'<line x1="{gx(1) - 30:.1f}" y1="{gy(r):.1f}" x2="{gx(COLS) + 30:.1f}" y2="{gy(r):.1f}" {style}/>'
         )
     return "".join(out)
 
@@ -162,20 +164,23 @@ def panel(params: list[str], title: str, body: list) -> str:
 
 
 def legend(entries: list[str], y0: float) -> str:
+    # A quiet key, subordinate to the action comment above it: smaller, grey text and tighter rows.
+    # Callers leave a clear gap above y0 so it reads as a separate, secondary thing.
     x, y = PANEL_X, y0
+    grey = "#6b6b6b"
     markers = {
-        "green": f'<circle cx="{x + 9}" cy="{{y}}" r="7.5" fill="{GREEN}"/>',
-        "built": f'<circle cx="{x + 9}" cy="{{y}}" r="11" fill="{BUILT}"/>',
-        "centre": f'<circle cx="{x + 9}" cy="{{y}}" r="8" fill="white" stroke="{RED}" stroke-width="3"/>'
-        f'<circle cx="{x + 9}" cy="{{y}}" r="2.3" fill="{RED}"/>',
-        "candidate": f'<circle cx="{x + 9}" cy="{{y}}" r="8" fill="none" stroke="{BLUE}" stroke-width="2.6"/>',
+        "green": f'<circle cx="{x + 7}" cy="{{y}}" r="6" fill="{GREEN}"/>',
+        "built": f'<circle cx="{x + 7}" cy="{{y}}" r="8" fill="{BUILT}"/>',
+        "centre": f'<circle cx="{x + 7}" cy="{{y}}" r="6.5" fill="white" stroke="{RED}" stroke-width="2.6"/>'
+        f'<circle cx="{x + 7}" cy="{{y}}" r="2" fill="{RED}"/>',
+        "candidate": f'<circle cx="{x + 7}" cy="{{y}}" r="6.5" fill="none" stroke="{BLUE}" stroke-width="2.3"/>',
     }
     labels = {"green": "green periphery", "built": "built cell", "centre": "centrality", "candidate": "candidate location"}
     out = []
     for kind in entries:
-        out.append(markers[kind].replace("{y}", str(y - 5)))
-        out.append(f'<text x="{x + 36}" y="{y}" fill="{BUILT}" font-size="16">{labels[kind]}</text>')
-        y += 42
+        out.append(markers[kind].replace("{y}", str(y - 4)))
+        out.append(f'<text x="{x + 26}" y="{y}" fill="{grey}" font-size="13">{labels[kind]}</text>')
+        y += 30
     return "".join(out)
 
 
@@ -192,189 +197,204 @@ def write(name: str, body: str) -> None:
 
 
 # --- diagrams --------------------------------------------------------------------------------
-def d_step2():
-    town = base_town()
-    scene = grid_lines() + axes() + cells(town) + centre(5, 6) + centre(12, 8)
-    scene += dist_line(8, 5, 5, 6, "316 m") + reticle(8, 5) + cand_label(8, 5, "5, 8")
+def d_step2():  # SAME candidate: its distance to the nearest centre is within the centre walk
+    town = worked_town()
+    (wc, wr), (ec, er) = WORKED_CENTRES
+    cc, cr = WORKED_CANDIDATE
+    scene = grid_lines() + axes() + cells(town) + centre(wc, wr) + centre(ec, er)
+    scene += dist_line(cc, cr, wc, wr, "424 m") + reticle(cc, cr) + cand_label(cc, cr, f"r{cr} c{cc}")
     p, ey = panel(
-        ["100 m grid cells", "600 m centre walk", "400 m green span"],
-        "Step 2 — centre access",
-        [
-            ("Candidate at row 5, col 8.", RED, 700),
-            "",
-            "Distance to the nearest centre?",
-            ("316 m", RED, 700),
-            "",
-            "Within the 600 m centre walk?",
-            ("Yes → continue.", BUILT, 700),
-        ],
+        PARAMS, "Step 2: centre walk",
+        [("The same candidate.", RED, 700), "", "Distance to the nearest centre?", ("424 m", RED, 700), "",
+         "Within the 600 m centre walk?", ("Yes → next check.", BUILT, 700)],
     )
-    scene += p + legend(["green", "built", "centre", "candidate"], ey + 30)
+    scene += p + legend(["green", "built", "centre", "candidate"], ey + 56)
     write("step_2", scene)
 
 
 def d_plan_centring():
-    # one contiguous built area; the centre sits at its INTERIOR, not the centroid (which here is off
-    # the built, in the notch) nor an edge.
+    # A grown centre often lands on the EDGE or a corner of its development, where it serves fewer
+    # homes. Post-processing moves it to a CENTRAL location in the same built area.
     grid = [["." for _ in range(COLS + 2)] for _ in range(ROWS + 2)]
-    Lc = {(c, r) for c in range(3, 7) for r in range(3, 11)}  # vertical arm
-    Lc |= {(c, r) for c in range(3, 13) for r in range(8, 11)}  # horizontal arm -> an L
-    for c, r in Lc:
-        grid[r][c] = "#"
+    for c in range(4, 14):
+        for r in range(3, 11):
+            grid[r][c] = "#"
     scene = grid_lines() + axes() + cells(grid)
-    scene += centre(4, 9)  # interior of the (thick) corner of the L
-    # mark where the plain centroid would fall (off built, in the notch)
-    bx, by = gx(8.5), gy(6.0)
+    # the as-grown centre, sitting in a corner (blue, marked as poorly placed)
+    ex, ey_ = gx(4), gy(3)
     scene += (
-        f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="9" fill="none" stroke="{BLUE}" stroke-width="2.5" '
-        f'stroke-dasharray="3 3"/><line x1="{bx - 6:.1f}" y1="{by - 6:.1f}" x2="{bx + 6:.1f}" y2="{by + 6:.1f}" '
-        f'stroke="{BLUE}" stroke-width="2.5"/><line x1="{bx + 6:.1f}" y1="{by - 6:.1f}" x2="{bx - 6:.1f}" '
-        f'y2="{by + 6:.1f}" stroke="{BLUE}" stroke-width="2.5"/>'
-        f'<text x="{bx + 16:.1f}" y="{by - 12:.1f}" fill="{BLUE}" font-weight="700" font-size="13">centroid (off built)</text>'
+        f'<circle cx="{ex:.1f}" cy="{ey_:.1f}" r="9" fill="white" stroke="{BLUE}" stroke-width="3.5"/>'
+        f'<circle cx="{ex:.1f}" cy="{ey_:.1f}" r="2.6" fill="{BLUE}"/>'
+        f'<text x="{ex - 6:.1f}" y="{ey_ - 14:.1f}" fill="{BLUE}" font-weight="700" font-size="13" '
+        f'text-anchor="middle">as grown: on the edge</text>'
+    )
+    # the re-placed centre, central to the development (red), with a dashed move arrow
+    scene += centre(8, 6)
+    scene += (
+        f'<line x1="{ex + 13:.1f}" y1="{ey_ + 10:.1f}" x2="{gx(8) - 14:.1f}" y2="{gy(6) - 12:.1f}" '
+        f'stroke="{BLUE}" stroke-width="2" stroke-dasharray="5 4"/>'
+        f'<text x="{gx(8) + 16:.1f}" y="{gy(6) - 14:.1f}" fill="{RED}" font-weight="700" font-size="13">re-placed: central</text>'
     )
     p, ey = panel(
-        ["one contiguous", "built area", "(an L shape)"],
+        ["one contiguous", "built area"],
         "Centre placement",
         [
-            "A centre sits at the INTERIOR of",
-            "its contiguous built area — the",
-            "point furthest from any edge.",
+            "A grown centre often lands on",
+            "the edge or in a corner, where",
+            "it serves fewer homes.",
             "",
-            ("Not the centroid", BLUE, 700),
-            "(which an L / ring / gap puts off",
-            "the built, on an edge).",
+            ("Post-processing moves it to a", BUILT, 700),
+            ("central spot in the same", BUILT, 700),
+            ("development.", BUILT, 700),
         ],
     )
-    scene += p + legend(["built", "centre"], ey + 30)
+    scene += p + legend(["built", "centre"], ey + 56)
     write("plan_centring", scene)
 
 
 PARAMS = ["100 m grid cells", "600 m centre walk", "400 m green span"]
 CENTRES = ((5, 6), (12, 8))
 
+# ONE consistent worked example threads Steps 1c -> 2 -> 3 -> 4: the SAME town, the SAME two centres,
+# and the SAME candidate cell. Two built lobes are separated by a 500 m green corridor (5 cells); the
+# candidate sits on the periphery at the north edge of that corridor. It survives every check and builds.
+WORKED_CENTRES = ((4, 6), (14, 6))
+WORKED_CANDIDATE = (7, 3)  # west edge of the corridor, touches the west lobe -> on the periphery
 
-def build_step(name, title, body, candidate=None, cand_color=BLUE, distline=None, town=None, extra=""):
+
+def worked_town() -> list[list[str]]:
+    g = [["." for _ in range(COLS + 2)] for _ in range(ROWS + 2)]
+    for r in range(3, 12):  # two solid lobes, rows 3-11
+        for c in range(2, 7):  # west lobe, cols 2-6
+            g[r][c] = "#"
+        for c in range(12, 17):  # east lobe, cols 12-16
+            g[r][c] = "#"
+    for r in range(1, ROWS + 1):  # green periphery: empty cells touching built
+        for c in range(1, COLS + 1):
+            if g[r][c] == "." and any(
+                g[r + dr][c + dc] == "#" for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr, dc) != (0, 0)
+            ):
+                g[r][c] = "g"
+    return g
+
+
+def build_step(name, title, body, candidate=None, cand_color=BLUE, distline=None, town=None, extra="",
+               centres=CENTRES):
     g = town if town is not None else base_town()
     scene = grid_lines() + axes() + cells(g)
-    for cc, rr in CENTRES:
+    for cc, rr in centres:
         if g[rr][cc] in ("#", "g", "."):
             scene += centre(cc, rr)
     if distline:
         scene += dist_line(*distline)
     if candidate:
         scene += reticle(candidate[0], candidate[1], cand_color)
-        scene += cand_label(candidate[0], candidate[1], f"{candidate[1]}, {candidate[0]}")
+        scene += cand_label(candidate[0], candidate[1], f"r{candidate[1]} c{candidate[0]}")
     scene += extra
     p, ey = panel(PARAMS, title, body)
-    scene += p + legend(["green", "built", "centre", "candidate"], ey + 30)
+    # a clear gap below the action comment sets the (secondary) key apart from the main message
+    scene += p + legend(["green", "built", "centre", "candidate"], ey + 56)
     write(name, scene)
 
 
 def d_step0():
     build_step(
-        "step_0", "Step 0 — population",
-        ["Is the population still below", "the target?", "", ("Yes → visit every cell.", BUILT, 700),
-         "If the target is met, stop."],
+        "step_0", "Step 0: population",
+        ["Checked before each", "iteration, not cell by cell.", "",
+         ("Below target →", BUILT, 700), ("run the whole iteration.", BUILT, 700), "",
+         ("Target met → stop.", BUILT, 700)],
+        town=worked_town(), centres=WORKED_CENTRES,  # SAME town as steps 1-4 (was the old base town)
     )
 
 
-def d_step1a():
+def d_step1a():  # a cell that is already built -> skip (same worked town)
     build_step(
-        "step_1a", "Step 1 — periphery",
-        [("Candidate at row 7, col 8.", RED, 700), "", "It is already a built cell.", ("Bail.", BUILT, 700)],
-        candidate=(8, 7),
+        "step_1a", "Step 1: a candidate?",
+        [("Look at row 6, col 5.", RED, 700), "", "It is already a built cell.", ("Skip it.", BUILT, 700)],
+        candidate=(5, 6), town=worked_town(), centres=WORKED_CENTRES,
     )
 
 
-def d_step1b():
+def d_step1b():  # an empty cell in the open green, touching no built land -> not on the periphery
     build_step(
-        "step_1b", "Step 1 — periphery",
-        [("Candidate at row 4, col 15.", RED, 700), "", "It is empty but not next to any", "built land — not on the periphery.",
-         ("Bail.", BUILT, 700)],
-        candidate=(15, 4),
+        "step_1b", "Step 1: a candidate?",
+        [("Look at row 7, col 9.", RED, 700), "", "Empty, but it touches no built", "land — not on the periphery.",
+         ("Skip it.", BUILT, 700)],
+        candidate=(9, 7), town=worked_town(), centres=WORKED_CENTRES,
     )
 
 
-def d_step1c():
+def d_step1c():  # THE worked candidate: empty and on the periphery -> continues into Steps 2, 3, 4
     build_step(
-        "step_1c", "Step 1 — periphery",
-        [("Candidate at row 2, col 8.", RED, 700), "", "It is empty and touches built", "land — on the periphery.",
-         ("Continue.", BUILT, 700)],
-        candidate=(8, 2),
+        "step_1c", "Step 1: a candidate?",
+        [(f"Look at row {WORKED_CANDIDATE[1]}, col {WORKED_CANDIDATE[0]}.", RED, 700), "",
+         "Empty, and it touches built", "land — on the periphery.", ("A candidate → next check.", BUILT, 700)],
+        candidate=WORKED_CANDIDATE, town=worked_town(), centres=WORKED_CENTRES,
     )
 
 
-def d_step3():
-    g = [["." for _ in range(COLS + 2)] for _ in range(ROWS + 2)]
-    for r in range(3, 11):
-        for c in range(2, 7):
-            g[r][c] = "#"
-        for c in range(11, 16):
-            g[r][c] = "#"
-    for r in range(3, 11):  # a narrow green corridor between the two blocks
-        for c in range(8, 10):
-            g[r][c] = "g"
+def d_step3():  # SAME candidate: its green corridor stays >= the minimum span, so it passes
+    cy = (gy(4) + gy(5)) / 2  # sit the dimension line in the GAP between two dot rows, not over the dots
+    x1, x2 = gx(7) - 25, gx(11) + 25  # the green corridor spans cols 7..11 = 5 cells = 500 m
     span = (
-        f'<line x1="{gx(8) - 22:.1f}" y1="{gy(3):.1f}" x2="{gx(8) - 22:.1f}" y2="{gy(10):.1f}" '
-        f'stroke="{GREEN}" stroke-width="2"/>'
-        f'<text x="{gx(8) - 30:.1f}" y="{gy(6.5):.1f}" fill="{GREEN}" font-weight="700" font-size="13" '
-        f'text-anchor="end">green span</text>'
+        f'<line x1="{x1:.1f}" y1="{cy:.1f}" x2="{x2:.1f}" y2="{cy:.1f}" stroke="{GREEN}" stroke-width="2.5"/>'
+        f'<line x1="{x1:.1f}" y1="{cy - 9:.1f}" x2="{x1:.1f}" y2="{cy + 9:.1f}" stroke="{GREEN}" stroke-width="2.5"/>'
+        f'<line x1="{x2:.1f}" y1="{cy - 9:.1f}" x2="{x2:.1f}" y2="{cy + 9:.1f}" stroke="{GREEN}" stroke-width="2.5"/>'
+        f'<text x="{(x1 + x2) / 2:.1f}" y="{cy - 12:.1f}" fill="{GREEN}" font-weight="700" font-size="13" '
+        f'text-anchor="middle">green span 500 m</text>'
     )
     build_step(
-        "step_3", "Step 3 — green span",
-        ["Would building here shrink a", "green corridor below the", "400 m minimum span?",
-         ("Yes → bail (keep the green).", BUILT, 700)],
-        candidate=(9, 6), town=g, extra=span,
+        "step_3", "Step 3: green span",
+        [("The same candidate, on the", RED, 700), ("green corridor.", RED, 700), "",
+         "Building it narrows the corridor", "from 500 m to 400 m.", "",
+         ("Still ≥ the 400 m minimum → build.", BUILT, 700)],
+        candidate=WORKED_CANDIDATE, town=worked_town(), centres=WORKED_CENTRES, extra=span,
     )
 
 
-def d_step4():
-    g = base_town()
-    g[2][8] = "#"  # the candidate cell, now built
+def d_step4():  # SAME candidate builds
+    g = worked_town()
+    g[WORKED_CANDIDATE[1]][WORKED_CANDIDATE[0]] = "#"  # the candidate cell, now built
     build_step(
-        "step_4", "Step 4 — build",
-        ["All checks pass →", ("the cell becomes built.", BUILT, 700), "",
-         "Its density is set by distance", "to the nearest centre (denser", "closer in)."],
-        candidate=(8, 2), cand_color=BUILT, town=g,
+        "step_4", "Step 4: build",
+        ["Every check passed →", ("the cell becomes built.", BUILT, 700), "",
+         "Its density is one of the three", "tiers, arranged later by distance", "to the centres."],
+        candidate=WORKED_CANDIDATE, cand_color=BUILT, town=g, centres=WORKED_CENTRES,
     )
 
 
 def d_centres_neighbouring():
+    # built land has grown a long eastern lobe whose frontier is beyond a walk of the single centre,
+    # so a new neighbouring centre seeds there. Custom town so the distance genuinely exceeds 600 m.
+    g = [["." for _ in range(COLS + 2)] for _ in range(ROWS + 2)]
+    for c in range(2, 8):  # the west blob, holding the centre
+        for r in range(4, 10):
+            g[r][c] = "#"
+    for c in range(8, 15):  # the eastern lobe, grown out beyond the walk
+        for r in range(6, 9):
+            g[r][c] = "#"
+    for r in range(1, ROWS + 1):
+        for c in range(1, COLS + 1):
+            if g[r][c] == "." and any(
+                g[r + dr][c + dc] == "#" for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr, dc) != (0, 0)
+            ):
+                g[r][c] = "g"
     build_step(
-        "centres_neighbouring", "Seeding — neighbouring",
-        [("Candidate at row 11, col 15.", RED, 700), "", "Beyond the 600 m centre walk", "of any centre.",
-         "", "A new neighbouring centre may", "seed (per Dispersed development)."],
-        candidate=(15, 11), distline=(15, 11, 12, 8, "632 m"),
+        "centres_neighbouring", "Seeding: neighbouring",
+        [("The eastern lobe has grown", RED, 700), ("beyond a walk of the centre.", RED, 700), "",
+         "Its frontier is 900 m from the", "centre, over the 600 m walk.", "",
+         ("A neighbouring centre seeds here.", BUILT, 700)],
+        candidate=(14, 7), distline=(14, 7, 5, 7, "900 m"), town=g, centres=((5, 7),),
     )
 
 
 def d_centres_isolated():
     build_step(
-        "centres_isolated", "Seeding — isolated",
-        ["Dispersed development", "(Moderate / Aggressive) lets a", "new settlement leapfrog away", "from the built area —",
+        "centres_isolated", "Seeding: isolated",
+        ["Dispersed development", "(Moderate / Aggressive) lets a", "new settlement leapfrog away", "from the built area,",
          ("a satellite, with its centre.", BUILT, 700)],
         candidate=(15, 3),
     )
-
-
-def d_plan_ensemble():
-    g = base_town()
-    cy0, cx0 = 6.5, 8.5
-    shade = {}
-    for r in range(1, ROWS + 1):
-        for c in range(1, COLS + 1):
-            if g[r][c] == "#":
-                d = math.hypot(c - cx0, r - cy0)
-                shade[(c, r)] = max(0.25, min(1.0, 1.15 - d / 7.0))
-    scene = grid_lines() + axes() + cells(g, shade=shade)
-    p, ey = panel(
-        ["many runs", "of the same", "simulation"],
-        "Ensemble → likelihood",
-        ["Run the simulation many times.", "Each cell's shade = the share of", "runs where it ended built.",
-         "", ("Dark = robust,", BUILT, 700), "faint = contingent."],
-    )
-    scene += p + legend(["green", "built"], ey + 30)
-    write("plan_ensemble", scene)
 
 
 def d_plan_select():
@@ -388,7 +408,7 @@ def d_plan_select():
         ["From the ensemble, take the", "single run with the shortest", "average walk to amenities.", "",
          ("A coherent, buildable layout —", BUILT, 700), "not a blurry average."],
     )
-    scene += p + legend(["green", "built", "centre"], ey + 30)
+    scene += p + legend(["green", "built", "centre"], ey + 56)
     write("plan_select", scene)
 
 
@@ -414,7 +434,7 @@ def d_plan_cleanup():
         ["Tiny stranded settlements", "(below the minimum size)", ("revert to green.", GREEN, 700), "",
          "The raw plan is kept too, so", "the change stays visible."],
     )
-    scene += p + legend(["green", "built", "centre"], ey + 30)
+    scene += p + legend(["green", "built", "centre"], ey + 56)
     write("plan_cleanup", scene)
 
 
@@ -425,7 +445,7 @@ def d_plan_cleanup():
 STREET = "#9a9a9a"
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 # one colour language across the whole site: EXISTING fabric/centres take the same brown/magenta as
-# the demonstrators' existing dots (grey + brand red are reserved for what the SIMULATION adds)
+# the demonstrators' existing dots (the warm built colour + brand red are what the SIMULATION adds)
 BUILT_AREA, GREEN_AREA, WATER_AREA, CENTRE_AREA, IND_AREA = EXIST_BUILT, "#3f8f47", "#6f9fcf", EXIST_CENTRE, "#7b6d8f"
 
 
@@ -539,7 +559,7 @@ def main():
     input_layers()
     for fn in (d_step0, d_step1a, d_step1b, d_step1c, d_step2, d_step3, d_step4,
                d_centres_neighbouring, d_centres_isolated,
-               d_plan_ensemble, d_plan_select, d_plan_cleanup, d_plan_centring):
+               d_plan_select, d_plan_cleanup, d_plan_centring):
         fn()
     print("done")
 

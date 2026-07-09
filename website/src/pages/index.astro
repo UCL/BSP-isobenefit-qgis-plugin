@@ -6,7 +6,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
 ---
 
 <BaseLayout>
-  <h1>Isobenefit Urbanism — QGIS Plugin</h1>
+  <h1>Isobenefit Urbanism: QGIS Plugin</h1>
   <h6>Brainstorming walkable urban growth on real-world data</h6>
 
   <section>
@@ -20,9 +20,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <figure id="hero-plan">
       <img class="hero" src={dg('demo_recommended_plan')} alt="An idealised scenario for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
       <figcaption>An idealised scenario for <strong>Cambourne</strong>, grown from the downloaded layers shown
-      below. New settlements (dark grey) with their centres (red) join the existing town (brown), and every
-      home stays within a walk of a centre and of green. The same example is used throughout this
-      page.</figcaption>
+      below. New settlements, coloured by density from pale (low) to deep (high), with their mixed-use centres
+      in red, join the existing town (muted brown), and every home stays within a walk of a centre and of
+      green. The same example is used throughout this page.</figcaption>
     </figure>
     <nav class="toc">
       <a href="#concept">Concept</a>
@@ -82,7 +82,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       If automatic install is blocked, run it yourself with the QGIS Python:
     </p>
-    <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.11,&lt;0.12"</code></pre>
+    <pre><code>&lt;qgis-python&gt; -m pip install "isobenefit&gt;=0.12,&lt;0.13"</code></pre>
     <p>
       The install comes in two parts because the QGIS plugin repository doesn't allow compiled binaries.
       The plugin handles the dialogs and the GIS reading and writing; the simulation itself is written in
@@ -91,7 +91,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
   </section>
 
-  <h2 id="inputs">Step 1 — Download the data</h2>
+  <h2 id="inputs">Step 1: Download the data</h2>
   <section>
     <p>
       A companion <strong>Extract from OpenStreetMap</strong> tool downloads all of the input layers for an
@@ -124,7 +124,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </figure>
   </section>
 
-  <h2 id="grid">Step 2 — From layers to cells</h2>
+  <h2 id="grid">Step 2: From layers to cells</h2>
   <section>
     <p>
       In QGIS you point the run dialog at these layers, choose a projected CRS and an output path, and press
@@ -142,20 +142,35 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </figure>
   </section>
 
-  <h2 id="simulation">Step 3 — The simulation</h2>
+  <h2 id="simulation">Step 3: The simulation</h2>
   <section>
     <p>
       Each step, the cellular automaton visits the land grid and decides whether an undeveloped cell may be
       built. The rules are shown below, zoomed into a schematic neighbourhood.
     </p>
-    <figure><img class="diagram" src={dg('step_0')} alt="Step 0: population target" /><figcaption>If the target population has been reached, the simulation stops. Otherwise it keeps growing.</figcaption></figure>
-    <p>In step 1, a cell is only a candidate if it is empty <em>and</em> on the periphery of built land:</p>
-    <figure><img class="diagram" src={dg('step_1a')} alt="" /><figcaption>This cell is already built, so there is nothing to do and it is skipped.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_1b')} alt="" /><figcaption>This cell is empty but touches no built land, so it is not on the periphery and is skipped.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_1c')} alt="" /><figcaption>This cell is empty and touches built land, so it is a candidate and the checks continue.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within a <em>centre walk</em> of a centrality, which keeps new homes near a centre.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>Building here must not shrink a green corridor below the <em>minimum green span</em>, which protects access to nature.</figcaption></figure>
-    <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes, the cell is built, and the population it houses counts toward the target.</figcaption></figure>
+    <div class="ca-step">
+      <h4>Step 0: population target</h4>
+      <figure><img class="diagram" src={dg('step_0')} alt="Step 0: population target" /><figcaption>The population is counted once per iteration, after every cell has been visited, not partway through. A whole iteration always runs to completion, so the simulation stops only before the next one begins once the target is reached, and the final population can slightly overshoot.</figcaption></figure>
+    </div>
+    <div class="ca-step">
+      <h4>Step 1: a candidate cell</h4>
+      <p>A cell is only a candidate if it is empty <em>and</em> on the periphery of built land:</p>
+      <figure><img class="diagram" src={dg('step_1a')} alt="" /><figcaption>This cell is already built, so there is nothing to do and it is skipped.</figcaption></figure>
+      <figure><img class="diagram" src={dg('step_1b')} alt="" /><figcaption>This cell is empty but touches no built land, so it is not on the periphery and is skipped.</figcaption></figure>
+      <figure><img class="diagram" src={dg('step_1c')} alt="" /><figcaption>This cell is empty and touches built land, so it is a candidate and the checks continue.</figcaption></figure>
+    </div>
+    <div class="ca-step">
+      <h4>Step 2: centre walk</h4>
+      <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within a <em>centre walk</em> of a centrality, which keeps new homes near a centre.</figcaption></figure>
+    </div>
+    <div class="ca-step">
+      <h4>Step 3: green span</h4>
+      <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>The same candidate sits on a green corridor. Building it narrows the corridor from 500 m to 400 m, which still meets the <em>minimum green span</em>, so the check passes.</figcaption></figure>
+    </div>
+    <div class="ca-step">
+      <h4>Step 4: build</h4>
+      <figure><img class="diagram" src={dg('step_4')} alt="Step 4: build" /><figcaption>If every check passes, the cell is built, and the population it houses counts toward the target.</figcaption></figure>
+    </div>
     <p>
       Two green settings play different roles. The <em>minimum green span</em> above is a building rule; the
       simulation refuses to pinch a green corridor below that width. The <em>green walk</em> sets how far a
@@ -168,52 +183,51 @@ const dg = (name: string) => `${base}images/${name}.svg`
       development</strong> dial (Off, Moderate or Aggressive), sets how readily development
       <em>leapfrogs</em> away from the core to form satellite settlements.
     </p>
-    <div class="diagram-pair">
-      <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre is seeded where built land has outgrown a walk of every existing centre.</figcaption></figure>
-      <figure><img class="diagram" src={dg('centres_isolated')} alt="" /><figcaption>An <em>isolated</em> centre lets a satellite settlement leapfrog away from the core.</figcaption></figure>
-    </div>
+    <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre is seeded where built land has outgrown a walk of every existing centre.</figcaption></figure>
+    <figure><img class="diagram" src={dg('centres_isolated')} alt="" /><figcaption>An <em>isolated</em> centre lets a satellite settlement leapfrog away from the core.</figcaption></figure>
     <h3>The rules at work on the real town</h3>
     <p>
       Below, those rules run on the Cambourne grid from step 2; the three figures show the same run at three
-      points in time. New development (dark) stays on the periphery of the existing fabric, keeps within a
-      walk of a centre (red seeds appear as the town outgrows them), and leaves the green corridors and the
-      unbuildable cells alone.
+      points in time. New development (coloured by density) stays on the periphery of the existing fabric,
+      keeps within a walk of a centre (red seeds appear as the town outgrows them), and leaves the green
+      corridors and the unbuildable cells alone.
     </p>
-    <div class="demo-row">
-      <figure><img class="demo" src={dg('demo_growth_006')} alt="" /><figcaption><strong>Iteration 6.</strong> The first infill appears at the edges of the existing fabric.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_growth_030')} alt="" /><figcaption><strong>Iteration 30.</strong> The settlements consolidate, and new centres have been seeded.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_growth_final')} alt="" /><figcaption><strong>Target met.</strong> The raw grown state, before any post-processing.</figcaption></figure>
-    </div>
+    <figure>
+      <img class="wide" src={dg('demo_growth')} alt="The growth rules at work on Cambourne, at iterations 6 and 30 and once the target is met" />
+      <figcaption>The same run at three points: first infill at the edges (iteration 6), settlements consolidating with new centres seeded (iteration 30), and the raw grown state once the target is met.</figcaption>
+    </figure>
     <p>
       Two further dials shape growth. The <strong>build probability</strong> is the per-step growth rate;
-      lower values grow tighter and more compact, higher values faster and looser. The <strong>density
-      range</strong> sets how many people the land houses. During the run it works as plain accounting:
-      each new cell carries the mean of the range, and growth stops once enough land is built to house the
-      target. The finished scenario then gets a real density layer, derived as a gradient toward its final
-      centres, and that is described in step 5.
+      lower values grow tighter and more compact, higher values faster and looser. The <strong>development
+      density</strong> is set as three tiers, low, medium and high people per km², each with a probability,
+      and the three probabilities sum to 1. Every new cell is built at one of the three densities, drawn at
+      those probabilities, so the probabilities set the mix. Growth counts new development only, and stops
+      once the new population reaches the target; the existing fabric is context and is not counted. The
+      finished scenario then arranges the drawn densities and colours the plan by tier, described in step 5.
     </p>
   </section>
 
-  <h2 id="plan">Step 4 — From many runs to one scenario</h2>
+  <h2 id="plan">Step 4: From many runs to one scenario</h2>
   <section>
     <p>
       A single run is one plausible outcome; a different random seed gives a different, equally valid
-      layout. So the plugin runs an <strong>ensemble</strong> and does two things with it.
+      layout. So the plugin runs an <strong>ensemble</strong> and does two things with it. First, it blends
+      every run into a development-<strong>likelihood</strong> map, the real probabilities over Cambourne,
+      from twenty-four runs.
     </p>
-    <div class="diagram-pair">
-      <figure><img class="diagram" src={dg('plan_ensemble')} alt="" /><figcaption>The runs are averaged into <em>likelihood</em> layers, an uncertainty map showing where development is robust and where it is contingent.</figcaption></figure>
-      <figure><img class="diagram" src={dg('plan_select')} alt="" /><figcaption>A probability surface is not a buildable layout, so the single best run is also picked out: the one with the shortest average walk to amenities.</figcaption></figure>
-    </div>
-    <p>This is the real likelihood layer for Cambourne, blended from twenty-four runs.</p>
     <figure>
       <img class="hero" src={dg('demo_likelihood')} alt="Development likelihood over Cambourne from 24 blended runs" />
-      <figcaption>Dark cells end up built in most runs, faint cells only in a few. The layer shows where
-      growth tends to go, but it is not itself a layout, which is why a best single run is also
-      selected.</figcaption>
+      <figcaption>Each cell's shade is the share of runs in which it ends up built: dark where growth is
+      robust, faint where it is contingent. This is an uncertainty map, not itself a buildable layout.</figcaption>
     </figure>
+    <p>
+      Because a probability surface is not a buildable layout, the plugin also picks out the single best
+      run, the one with the shortest average walk to amenities, and carries that forward.
+    </p>
+    <figure><img class="diagram" src={dg('plan_select')} alt="" /><figcaption>A probability surface is not a buildable layout, so the single best run is picked out: the one with the shortest average walk to amenities.</figcaption></figure>
   </section>
 
-  <h2 id="postprocessing">Step 5 — Post-processing the chosen run</h2>
+  <h2 id="postprocessing">Step 5: Post-processing the chosen run</h2>
   <section>
     <p>
       The chosen run is tidied into the idealised scenario. Post-processing deliberately changes <strong>only
@@ -221,38 +235,39 @@ const dg = (name: string) => `${base}images/${name}.svg`
       simulation.
     </p>
     <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, tiny stranded settlements below the minimum size revert to green. The raw state is saved as well, so the change stays visible.</figcaption></figure>
-    <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>Each centre is then moved to the <em>interior</em> of its contiguous built area, so it sits on built land and central to it, never on an edge or in a gap.</figcaption></figure>
+    <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>A grown centre often lands on the edge or in a corner of its development, where it serves fewer homes. Each is moved to a <em>central</em> spot in the same built area.</figcaption></figure>
     <p>
       The centres are mixed-use throughout: a centre cell keeps its homes and gains shops and services, and
       each centre is sized by the population it serves at a rule-of-thumb provision (m² of centre land per
-      person). Once the centres are settled, each scenario also gets its <strong>density layer</strong>:
-      density is derived as a gradient toward the final centres, denser closer in, with the total population
-      held. Deriving it here, rather than during growth, means the gradient measures against the centres the
-      scenario actually shows, not against whichever centres happened to exist mid-run.
+      person). Once the centres are settled, each scenario is coloured by <strong>density tier</strong>. The
+      densities drawn during the run are arranged by walking distance to the final centres: the highest sit
+      nearest a centre, then medium, then low. The mix of tiers is fixed, so the total population does not
+      change; only their placement is set here. Arranging it after post-processing, rather than during
+      growth, means the placement measures against the centres the scenario actually shows, not against
+      whichever centres happened to exist mid-run.
     </p>
     <p>
       Finally, centres are offered at two <strong>clustering</strong> strengths. The run and the buildings
       are the same; only the centre arrangement differs. These are the two options the plugin writes:
     </p>
-    <div class="demo-row">
-      <figure><img class="demo" src={dg('demo_clustering_moderate')} alt="" /><figcaption><strong>Moderately clustered.</strong> More and smaller centres, with shorter walks.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_clustering_tight')} alt="" /><figcaption><strong>Tightly clustered.</strong> Fewer and larger centres, more consolidated.</figcaption></figure>
-    </div>
+    <figure>
+      <img class="wide" src={dg('demo_clustering')} alt="Two centre-clustering options for the same run: moderately clustered and tightly clustered" />
+      <figcaption>The same run and buildings at two centre spacings: moderately clustered gives more, smaller centres and shorter walks; tightly clustered gives fewer, larger, more consolidated centres.</figcaption>
+    </figure>
     <p>
       Either can be compared against the raw grown state at the end of <a href="#simulation">step 3</a>. The
       raw state is always saved alongside, so everything post-processing did stays visible.
     </p>
   </section>
 
-  <h2 id="outputs">Step 6 — Outputs</h2>
+  <h2 id="outputs">Step 6: Outputs</h2>
   <section>
     <p>An ensemble run writes a small set of layers, each shown above:</p>
     <ul>
       <li><strong>existing development</strong>, the starting grid from <a href="#grid">step 2</a></li>
       <li><strong>raw (before post-processing)</strong>, the chosen run as it grew (the end of <a href="#simulation">step 3</a>)</li>
-      <li><strong>moderately and tightly clustered centres</strong>, the two scenario options from <a href="#postprocessing">step 5</a></li>
+      <li><strong>moderately and tightly clustered centres</strong>, the two scenario options from <a href="#postprocessing">step 5</a>, each coloured by density tier</li>
       <li><strong>development likelihood</strong> for built and for green, the uncertainty map from <a href="#plan">step 4</a></li>
-      <li><strong>density</strong> for each option, the gradient toward its centres from <a href="#postprocessing">step 5</a></li>
       <li><strong><code>_report.txt</code></strong>, a record of the parameters and the per-option statistics</li>
     </ul>
     <p>
@@ -306,7 +321,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <tr><td>Max iterations</td><td>100</td><td>Cap on growth steps</td></tr>
         <tr><td>Target population</td><td>100,000</td><td>Growth stops once reached</td></tr>
         <tr><td>Build probability</td><td>0.25</td><td>Per-step growth rate (tighter ↔ faster)</td></tr>
-        <tr><td>Dispersed development</td><td>Moderate</td><td>Leapfrog rate — Off / Moderate / Aggressive</td></tr>
+        <tr><td>Dispersed development</td><td>Moderate</td><td>Leapfrog rate: Off / Moderate / Aggressive</td></tr>
         <tr><td>Centre walk</td><td>400 m</td><td>How near a home must be to a centre</td></tr>
         <tr><td>Green walk</td><td>400 m</td><td>How near a home must be to green (scored on the plan)</td></tr>
         <tr><td>Min settlement area</td><td>2 ha</td><td>Smaller stranded new clusters revert to green</td></tr>
@@ -314,7 +329,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <tr><td>Centre area</td><td>20 m²/person</td><td>Centre land provided per resident served</td></tr>
         <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Gradient toward centres (denser closer in)</td></tr>
         <tr><td>Existing-built density</td><td>2000 /km²</td><td>Assumed density of existing fabric</td></tr>
-        <tr><td>Detail (ensemble)</td><td>Standard — 50 runs</td><td>How many runs to blend / choose from</td></tr>
+        <tr><td>Detail (ensemble)</td><td>Standard: 50 runs</td><td>How many runs to blend / choose from</td></tr>
       </table>
     </div>
   </section>
@@ -322,8 +337,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="departures">Departures from standard Isobenefit Urbanism</h2>
   <section>
     <p>
-      The growth rules themselves — periphery-only development, a walk to the nearest centrality, protected
-      green spans, stochastic seeding of new centralities — follow D'Acci's morphogenesis and Voto's original
+      The growth rules themselves (periphery-only development, a walk to the nearest centrality, protected
+      green spans, stochastic seeding of new centralities) follow D'Acci's morphogenesis and Voto's original
       simulator. Around that core, this tool adds several things of its own, listed here so it is clear what comes
       from the theory and what we added:
     </p>
@@ -341,10 +356,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
         strengths. The raw grown state is always saved alongside, so the edit is transparent.
       </li>
       <li>
-        <strong>Density as a gradient toward centres.</strong> The original draws each block's density
-        randomly from fixed tiers. We derive density after post-processing, as a gradient toward the
-        scenario's final centres, denser closer in, with the total population held. During the run itself,
-        density is plain accounting at the mean of the range.
+        <strong>Density tiers arranged toward centres.</strong> The original draws each block's density
+        randomly from three fixed tiers, scattered across the map. We keep the three tiers and their
+        probabilities, but arrange the drawn densities in post-processing so the highest sit nearest the
+        mixed-use centres, then medium, then low. The mix is unchanged, so the population is the same; only
+        the placement is organised. Growth counts new development only.
       </li>
       <li>
         <strong>Separate centre-walk and green-walk thresholds.</strong> The original uses one walkable
@@ -354,7 +370,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <strong>Real-data grounding.</strong> Existing fabric is frozen (never redeveloped); water,
         industrial land and motorway-class corridors are carved out as unbuildable; downloaded centre
         <em>areas</em> act as true multi-cell centres; and an OSM extraction tool supplies all of it. Streets
-        and public-transport stops are downloaded as groundwork — the growth rules do not use them yet.
+        and public-transport stops are downloaded as groundwork, though the growth rules do not use them yet.
       </li>
     </ul>
   </section>
@@ -398,6 +414,16 @@ const dg = (name: string) => `${base}images/${name}.svg`
     section {
       @apply border-t-1 border-theme pb-2;
     }
+    /* Each simulation step is one visual unit: a light-GREY rule (a sub-divider that never competes
+       with the red section rules) leads the step, then its step-number heading, its figure and its
+       text, kept tight together. The generous gap ABOVE the rule sets each step apart from the last. */
+    .ca-step {
+      @apply mt-8 pt-3;
+      border-top: 1px solid #b4b4b4;
+    }
+    .ca-step h4 {
+      @apply pt-0;
+    }
     ol {
       @apply ml-4 list-decimal;
     }
@@ -413,8 +439,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
     .hero {
       @apply w-full max-w-2xl;
     }
-    .demo-row,
-    .diagram-pair {
+    /* multi-panel figures (growth, clustering) expand to the full page width so the sub-panels stay legible */
+    .wide {
+      @apply w-full;
+    }
+    .demo-row {
       @apply flex flex-wrap items-start justify-center gap-4;
     }
     .demo-row figure {

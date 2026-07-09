@@ -8,7 +8,12 @@
   }
 
   body {
-    @apply bg-lighter-grey font-defaults text-darker-grey;
+    @apply bg-lighter-grey font-defaults;
+    /* grayscale smoothing (not subpixel) so body text renders lighter/thinner, and a soft near-black
+       (not pure black) so high contrast doesn't read as heavy */
+    color: #2b2a2e;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1,
@@ -22,15 +27,15 @@
   }
 
   h1 {
-    @apply pt-12 pt-8 pb-4 text-4xl font-light;
+    @apply pt-12 pt-8 pb-4 text-4xl font-semibold;
   }
 
   h2 {
-    @apply pt-6 pb-2 text-3xl font-light;
+    @apply pt-6 pb-2 text-3xl font-semibold;
   }
 
   h3 {
-    @apply pt-4 text-2xl font-normal;
+    @apply pt-4 text-2xl font-medium;
   }
 
   h4 {
@@ -42,27 +47,27 @@
   }
 
   h6 {
-    @apply text-base font-light;
+    @apply text-base font-normal;
   }
 
   ul {
-    @apply pl-2 font-light;
+    @apply pl-2 font-normal;
 
     & li {
-      @apply my-2 ml-2 text-sm font-light;
+      @apply my-2 ml-2 text-[0.84rem] font-normal leading-normal;
 
       list-style-type: disc;
     }
   }
 
   p {
-    @apply my-2 text-sm font-light;
+    @apply my-2 text-[0.84rem] font-normal leading-normal;
   }
 
   img {
-    /* generous space above each image, almost none below: a caption visibly belongs
-       to the image above it, not the one that follows */
-    @apply pt-10 pb-1;
+    /* a little space above each image, almost none below: a caption visibly belongs to the image
+       above it, not the one that follows, while the intro text stays close to the image it precedes */
+    @apply pt-3 pb-1;
   }
 
   :not(pre) > code {

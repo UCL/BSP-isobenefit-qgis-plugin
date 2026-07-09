@@ -23,18 +23,46 @@ import isobenefit
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from isobenefit_qgis import grid as G  # noqa: E402  (repo root added to path above)
 
-GREEN, BUILT, EXIST_BUILT, RED, EXIST_CENTRE = "#2f7d33", "#3a3a3a", "#7d6240", "#D32333", "#962858"
+def _hex(rgb):
+    return "#%02x%02x%02x" % tuple(int(v) for v in rgb)
+
+
+# Colours mirror the plugin's plan palette EXACTLY (isobenefit_qgis/grid.py), so the site reads as the
+# plugin's own output: new development is coloured by density tier — built as a yellow->brown ramp,
+# mixed-use centres as a reds ramp — and existing fabric is a single muted shade (it carries no density).
+BUILT_LOW, BUILT_MED, BUILT_HIGH = _hex(G._BUILT_LOW), _hex(G._BUILT_MED), _hex(G._BUILT_HIGH)
+CENTRE_LOW, CENTRE_MED, CENTRE_HIGH = _hex(G._CENTRE_LOW), _hex(G._CENTRE_MED), _hex(G._CENTRE_HIGH)
+EXIST_BUILT, EXIST_CENTRE = _hex(G._EXIST_BUILT), _hex(G._EXIST_CENTRE)
+GREEN = _hex((89, 176, 60))  # nature
+RED = "#D32333"  # site-theme red for headings (centre dots use the CENTRE_* ramp)
 UNBUILDABLE = "#6f9fcf"  # water / industrial / barrier corridors, matching the input-layer panels
 STREET = "#a9a9a9"
+INK = "#333333"  # legend and label text
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
 OUT = os.environ.get("DEMO_OUT", os.path.join(os.path.dirname(HERE), "public", "images"))
 GRAN = 50.0  # m per cell — the demonstration window is 84 x 84 cells (4.2 km)
 
-# the same walk/density dials the dialog defaults to
-WALK, GREEN_SPAN, MIN_D, MAX_D, EXIST_D = 400.0, 400.0, 1500.0, 6000.0, 2000.0
-DENSITY_TIERS = (MAX_D, 0.5 * (MIN_D + MAX_D), MIN_D)
-TIER_PROBS = (1 / 3, 1 / 3, 1 / 3)
+# the same walk/density dials the dialog defaults to: three explicit tiers (people/km²) each with a
+# probability (summing to 1), high -> low
+WALK, GREEN_SPAN = 400.0, 400.0
+DENSITY_TIERS = (6000.0, 3000.0, 1500.0)  # high, med, low
+TIER_PROBS = (0.2, 0.3, 0.5)
+
+# per-cell dot colour + radius factor, keyed by the plan/tier codes to_tiered_plan emits
+TIER_STYLE = {
+    G.PLAN_GREEN: (GREEN, 0.18),
+    G.PLAN_EXIST_BUILT: (EXIST_BUILT, 0.42),
+    G.PLAN_EXIST_CENTRE: (EXIST_CENTRE, 0.46),
+    G.PLAN_BUILT_LOW: (BUILT_LOW, 0.42),
+    G.PLAN_BUILT_MED: (BUILT_MED, 0.42),
+    G.PLAN_BUILT_HIGH: (BUILT_HIGH, 0.42),
+    G.PLAN_CENTRE_LOW: (CENTRE_LOW, 0.46),
+    G.PLAN_CENTRE_MED: (CENTRE_MED, 0.46),
+    G.PLAN_CENTRE_HIGH: (CENTRE_HIGH, 0.46),
+    G.PLAN_BUILT: (BUILT_MED, 0.42),  # fallbacks for an untiered plan
+    G.PLAN_CENTRE: (CENTRE_MED, 0.46),
+}
 
 
 def _features(name):
@@ -77,7 +105,7 @@ def substrate():
     built, green, unbuild, cent = mask("built"), mask("green"), mask("unbuildable"), mask("centres")
     state[built] = 1
     origin[built] = 1
-    density[built] = EXIST_D
+    # existing fabric carries no density and no population — it is context only
     origin[green & ~built] = 0
     state[unbuild & ~built] = -1
     seeds = [(int(r), int(c)) for r, c in np.argwhere(cent & built)]
@@ -86,17 +114,20 @@ def substrate():
 
 
 def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, stages=()):
-    """Step one CA run on the substrate; return (final state, {iter: state} at ``stages``)."""
+    """Step one CA run on the substrate; return (final state, final density, {iter: (state, density)}
+    at ``stages``). Density is carried so growth stages can be coloured by their drawn tier."""
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
-        GRAN, WALK, pop, GREEN_SPAN, bp, nb, isol, 0.8, TIER_PROBS, DENSITY_TIERS, EXIST_D, iters, seed,
+        GRAN, WALK, pop, GREEN_SPAN, bp, nb, isol, 0.8, TIER_PROBS, DENSITY_TIERS, iters, seed,
     )
     snaps = {}
     while sim.current_iter < iters and sim.pop_target_ratio < 1.0:
         sim.step()
         if sim.current_iter in stages:
-            snaps[sim.current_iter] = np.asarray(sim.snapshot()["state"]).copy()
-    return np.asarray(sim.snapshot()["state"]), snaps
+            snap = sim.snapshot()
+            snaps[sim.current_iter] = (np.asarray(snap["state"]).copy(), np.asarray(snap["density"]).copy())
+    final = sim.snapshot()
+    return np.asarray(final["state"]).copy(), np.asarray(final["density"]).copy(), snaps
 
 
 def to_plan(sub, st, spacing):
@@ -123,6 +154,22 @@ def state_codes(sub, st):
     return plan
 
 
+def tiered(plan):
+    """Colour a post-processed plan by density tier, exactly as the plugin does: arrange the drawn
+    densities by walking distance to the final centres, then map each new cell to its tier code."""
+    dens = G.derive_density(plan, GRAN, WALK, DENSITY_TIERS, TIER_PROBS)
+    return G.to_tiered_plan(plan, dens, DENSITY_TIERS)
+
+
+def growth_codes(sub, st, dens):
+    """Raw CA stage -> tier display codes, colouring each new cell by its DRAWN density tier (matching
+    the plugin's growth animation). ``dens`` is the sim's per-block density, so compare in per-block."""
+    plan = state_codes(sub, st)
+    block = GRAN**2 / 1.0e6
+    tiers_per_block = tuple(d * block for d in DENSITY_TIERS)
+    return G.to_tiered_plan(plan, np.asarray(dens), tiers_per_block)
+
+
 def streets_underlay(sub, P, x0, y0):
     """The town's actual street network, in the same transform as the dot grid — vector
     geography under simulation dots, the site's visual contract."""
@@ -141,26 +188,39 @@ def streets_underlay(sub, P, x0, y0):
 
 
 
-def _legend(items, x0, ly, avail_w):
-    """Horizontal legend: one column per item, its dot centred ABOVE the label, all
-    vertically aligned."""
-    col_w = avail_w / len(items)
+def _legend(groups, x0, y_top, avail_w):
+    """A tidy grouped legend. Each group is a titled column; within it, rows of (swatch, label) with
+    the colour swatch to the LEFT of a left-aligned label. Groups are spread evenly across ``avail_w``,
+    so the new-development tiers read as a stacked high/medium/low scale beside the context classes."""
+    def esc(s):
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
     out = []
-    for i, (label, color, rad, op) in enumerate(items):
-        cx = x0 + i * col_w + col_w / 2
-        out.append(f'<circle cx="{cx:.1f}" cy="{ly:.1f}" r="{rad}" fill="{color}" opacity="{op}"/>')
-        out.append(f'<text x="{cx:.1f}" y="{ly + 26:.1f}" fill="{BUILT}" '
-                   f'font-family="Arial" font-size="15" text-anchor="middle">{label}</text>')
+    col_w = min(230.0, avail_w / len(groups))  # cap the column width so wide figures don't spread the key out
+    total = col_w * len(groups)
+    start = x0 + max(0.0, (avail_w - total) / 2.0)  # centre the legend block within the available width
+    row_h = 27
+    for gi, (title, items) in enumerate(groups):
+        cx = start + gi * col_w
+        sx = cx + 9  # swatch centre
+        tx = sx + 16  # label start (left-aligned)
+        out.append(f'<text x="{cx:.1f}" y="{y_top:.1f}" fill="{INK}" font-family="Arial" '
+                   f'font-size="15" font-weight="700">{esc(title)}</text>')
+        for ri, (label, color, rad, op) in enumerate(items):
+            ry = y_top + 24 + ri * row_h
+            out.append(f'<circle cx="{sx:.1f}" cy="{ry - 5:.1f}" r="{rad}" fill="{color}" opacity="{op}"/>')
+            out.append(f'<text x="{tx:.1f}" y="{ry:.1f}" fill="{INK}" '
+                       f'font-family="Arial" font-size="14">{esc(label)}</text>')
     return "".join(out)
 
 
 def render_likelihood(prob, sub, name, title, underlay=""):
     """The ensemble's development-likelihood layer: dot opacity = share of runs ending built."""
     H, Wc = prob.shape
-    P, x0, y0 = 9, 44, 86
-    cw, ch = Wc * P + 88, H * P + 230
+    P, x0, y0 = 9, 16, 54
+    cw, ch = Wc * P + 2 * x0, y0 + H * P + 120
     out = [f'<rect width="{cw}" height="{ch}" fill="white"/>',
-           f'<text x="{x0}" y="52" fill="{RED}" font-weight="800" font-size="26">{title}</text>', underlay]
+           f'<text x="{x0}" y="34" fill="{RED}" font-weight="800" font-size="26">{title}</text>', underlay]
     exist, unb = sub["origin"] == 1, sub["state"] == -1
     for r in range(H):
         for c in range(Wc):
@@ -170,13 +230,17 @@ def render_likelihood(prob, sub, name, title, underlay=""):
             elif unb[r, c]:
                 out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.3:.1f}" fill="{UNBUILDABLE}"/>')
             elif prob[r, c] > 0.04:
-                op = 0.15 + 0.85 * float(prob[r, c])
-                out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.42:.1f}" fill="{BUILT}" opacity="{op:.2f}"/>')
+                op = 0.30 + 0.70 * float(prob[r, c])
+                out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.42:.1f}" '
+                           f'fill="{BUILT_MED}" opacity="{op:.2f}"/>')
             else:
                 out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.18:.1f}" fill="{GREEN}"/>')
-    out.append(_legend([("existing built", EXIST_BUILT, 9, 1.0), ("built in most runs", BUILT, 9, 1.0),
-                        ("built in few runs", BUILT, 9, 0.25), ("unbuildable", UNBUILDABLE, 9, 1.0)],
-                       x0, y0 + H * P + 40, Wc * P))
+    out.append(_legend([
+        ("Development likelihood", [("built in most runs", BUILT_MED, 8, 1.0),
+                                    ("built in few runs", BUILT_MED, 8, 0.35)]),
+        ("Existing", [("existing built", EXIST_BUILT, 8, 1.0)]),
+        ("Other", [("nature", GREEN, 6, 1.0), ("unbuildable", UNBUILDABLE, 6, 1.0)]),
+    ], x0, y0 + H * P + 24, Wc * P))
     doc = (f'<?xml version="1.0" encoding="UTF-8"?>'
            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
            f'{"".join(out)}</svg>')
@@ -185,46 +249,82 @@ def render_likelihood(prob, sub, name, title, underlay=""):
     print(f"wrote {os.path.join(OUT, name)}.svg  ({Wc}x{H} cells)")
 
 
-def render(plan, name, title, underlay="", unbuildable=None):
-    H, Wc = plan.shape
-    P, x0, y0 = 9, 44, 86
-    cw, ch = Wc * P + 88, H * P + 230
-    out = [f'<rect width="{cw}" height="{ch}" fill="white"/>']
-    out.append(f'<text x="{x0}" y="52" fill="{RED}" font-weight="800" font-size="26">{title}</text>')
-    out.append(underlay)
-
-    def dot(c, r, color, rad):
-        return f'<circle cx="{x0 + c * P + P / 2:.1f}" cy="{y0 + r * P + P / 2:.1f}" r="{rad}" fill="{color}"/>'
-
+def _grid_dots(codes, ox, oy, P, unbuildable) -> str:
+    """One dot per cell for a tier-coded grid, drawn at origin (ox, oy) and pitch P."""
+    out = []
+    H, Wc = codes.shape
     for r in range(H):
         for c in range(Wc):
-            v = plan[r, c]
-            if v == G.PLAN_BUILT:
-                out.append(dot(c, r, BUILT, P * 0.42))
-            elif v == G.PLAN_EXIST_BUILT:
-                out.append(dot(c, r, EXIST_BUILT, P * 0.42))
-            elif v == G.PLAN_CENTRE:
-                out.append(dot(c, r, RED, P * 0.46))
-            elif v == G.PLAN_EXIST_CENTRE:
-                out.append(dot(c, r, EXIST_CENTRE, P * 0.46))
+            cx, cy = ox + c * P + P / 2, oy + r * P + P / 2
+            v = int(codes[r, c])
+            if v in TIER_STYLE:
+                color, radf = TIER_STYLE[v]
+                out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{P * radf:.1f}" fill="{color}"/>')
             elif unbuildable is not None and unbuildable[r, c]:
-                out.append(dot(c, r, UNBUILDABLE, P * 0.3))  # carved out, never developed
-            else:  # green + untouched land: ONE consistent small dot, for contrast with built
-                out.append(dot(c, r, GREEN, P * 0.18))
-    # legend: dots above wrapped labels, one aligned horizontal row
-    out.append(_legend([("nature", GREEN, 5, 1.0), ("unbuildable", UNBUILDABLE, 5, 1.0),
-                        ("new built", BUILT, 9, 1.0), ("existing built", EXIST_BUILT, 9, 1.0),
-                        ("new centre", RED, 9, 1.0), ("existing centre", EXIST_CENTRE, 9, 1.0)],
-                       x0, y0 + H * P + 40, Wc * P))
-    doc = (
-        f'<?xml version="1.0" encoding="UTF-8"?>'
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
-        f'{"".join(out)}</svg>'
-    )
+                out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{P * 0.3:.1f}" fill="{UNBUILDABLE}"/>')
+            else:
+                out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{P * 0.18:.1f}" fill="{GREEN}"/>')
+    return "".join(out)
+
+
+# the shared four-column key: built and centre tiers, then existing fabric and other land
+_TIER_LEGEND = [
+    ("New built", [("high", BUILT_HIGH, 8, 1.0), ("medium", BUILT_MED, 8, 1.0), ("low", BUILT_LOW, 8, 1.0)]),
+    ("Mixed-use centre", [("high", CENTRE_HIGH, 8, 1.0), ("medium", CENTRE_MED, 8, 1.0),
+                          ("low", CENTRE_LOW, 8, 1.0)]),
+    ("Existing", [("existing built", EXIST_BUILT, 8, 1.0), ("existing centre", EXIST_CENTRE, 8, 1.0)]),
+    ("Other", [("nature", GREEN, 6, 1.0), ("unbuildable", UNBUILDABLE, 6, 1.0)]),
+]
+
+# the starting grid has no new development, so its key drops the New built / Mixed-use tier columns
+_EXISTING_LEGEND = _TIER_LEGEND[2:]
+
+
+def _write_svg(name, cw, ch, out) -> None:
+    doc = (f'<?xml version="1.0" encoding="UTF-8"?>'
+           f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
+           f'{"".join(out)}</svg>')
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, f"{name}.svg"), "w", encoding="utf-8") as fh:
         fh.write(doc)
-    print(f"wrote {os.path.join(OUT, name)}.svg  ({Wc}x{H} cells)")
+    print(f"wrote {os.path.join(OUT, name)}.svg")
+
+
+def render(plan, name, title, underlay="", unbuildable=None, legend=None):
+    """Render a tier-coded plan (from ``tiered`` or ``growth_codes``): each cell takes its tier's
+    colour via TIER_STYLE, so new built reads as a yellow->brown ramp and mixed-use centres as reds."""
+    H, Wc = plan.shape
+    P, x0, y0 = 9, 16, 54  # tight left/right (x0) and title-to-grid (y0) margins
+    cw, ch = Wc * P + 2 * x0, y0 + H * P + 120  # just enough room for the grouped legend below
+    out = [f'<rect width="{cw}" height="{ch}" fill="white"/>',
+           f'<text x="{cw / 2:.1f}" y="34" fill="{RED}" font-weight="800" font-size="26" '
+           f'text-anchor="middle">{title}</text>', underlay,
+           _grid_dots(plan, x0, y0, P, unbuildable),
+           _legend(legend or _TIER_LEGEND, x0, y0 + H * P + 24, Wc * P)]
+    _write_svg(name, cw, ch, out)
+
+
+def render_multi(sub, panels, name, title, unbuildable):
+    """Several sub-maps in ONE figure under one title, sharing a single legend (no per-panel legend).
+    ``panels`` is a list of ``(tier_codes, subtitle)``. Used for the growth stages and the clustering
+    options, so the sub-figures read as one comparison rather than separate images."""
+    H, Wc = panels[0][0].shape
+    P, x0, y0 = 5, 16, 96  # smaller pitch so the panels sit side by side; y0 leaves a clear gap below the title
+    pw, gap = Wc * P, 40
+    n = len(panels)
+    total_w = n * pw + (n - 1) * gap
+    cw, ch = total_w + 2 * x0, y0 + H * P + 134  # extra room for the wider title/legend gaps
+    out = [f'<rect width="{cw}" height="{ch}" fill="white"/>',
+           f'<text x="{cw / 2:.1f}" y="38" fill="{RED}" font-weight="800" font-size="28" '
+           f'text-anchor="middle">{title}</text>']
+    for i, (codes, subtitle) in enumerate(panels):
+        ox = x0 + i * (pw + gap)
+        out.append(f'<text x="{ox + pw / 2:.1f}" y="{y0 - 14:.1f}" fill="{INK}" font-size="16" '
+                   f'font-weight="700" text-anchor="middle">{subtitle}</text>')
+        out.append(streets_underlay(sub, P, ox, y0))
+        out.append(_grid_dots(codes, ox, y0, P, unbuildable))
+    out.append(_legend(_TIER_LEGEND, x0, y0 + H * P + 42, total_w))  # clear gap between panels and legend
+    _write_svg(name, cw, ch, out)
 
 
 def main():
@@ -232,7 +332,7 @@ def main():
     print(f"substrate: {sub['rows']}x{sub['cols']} cells, {len(sub['seeds'])} existing centre cells, "
           f"{int((sub['origin'] == 1).sum())} existing built cells, "
           f"{int((sub['state'] == -1).sum())} unbuildable cells")
-    P, x0, y0 = 9, 44, 86
+    P, x0, y0 = 9, 16, 54  # must match render()'s grid transform so the street underlay aligns
     streets = streets_underlay(sub, P, x0, y0)
     unb = sub["state"] == -1
 
@@ -244,41 +344,48 @@ def main():
     start = state_codes(sub, sub["state"])
     for r, c in sub["seeds"]:
         start[r, c] = G.PLAN_EXIST_CENTRE
-    draw(start, "demo_substrate", "The town as cells — the starting grid")
+    # the starting grid has no new development, so drop the New built / Mixed-use tiers from its key
+    render(start, "demo_substrate", "The town as cells: the starting grid",
+           underlay=streets, unbuildable=unb, legend=_EXISTING_LEGEND)
 
-    # THE worked example: grow the real town, snapshotting the growth on the way
-    final, snaps = grow(sub, stages=(6, 30))
-    draw(to_plan(sub, final, 1.5 * WALK), "demo_recommended_plan", "An idealised scenario — Cambourne, grown")
-    for it, st in snaps.items():
-        draw(state_codes(sub, st), f"demo_growth_{it:03d}", f"Growth — iteration {it}")
-    draw(state_codes(sub, final), "demo_growth_final", "Growth — population target met")
+    # THE worked example: grow the real town, snapshotting the growth on the way. The three growth
+    # stages are ONE figure (three sub-panels, one shared legend), so they read as a single sequence.
+    final, final_dens, snaps = grow(sub, stages=(6, 30))
+    draw(tiered(to_plan(sub, final, 1.5 * WALK)), "demo_recommended_plan", "An idealised scenario: Cambourne, grown")
+    render_multi(sub, [
+        (growth_codes(sub, snaps[6][0], snaps[6][1]), "Iteration 6"),
+        (growth_codes(sub, snaps[30][0], snaps[30][1]), "Iteration 30"),
+        (growth_codes(sub, final, final_dens), "Target met (raw)"),
+    ], "demo_growth", "The rules at work on the real town", unb)
 
     # The ensemble's uncertainty map: many runs -> share of runs each cell ends built
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
-        GRAN, WALK, 12000.0, GREEN_SPAN, 0.3, 0.01, 0.0001, 0.8, TIER_PROBS, DENSITY_TIERS, EXIST_D, 400, 11,
+        GRAN, WALK, 12000.0, GREEN_SPAN, 0.3, 0.01, 0.0001, 0.8, TIER_PROBS, DENSITY_TIERS, 400, 11,
     )
     prob = np.asarray(isobenefit.ensemble_probability(sim, 11, 24))
-    render_likelihood(prob, sub, "demo_likelihood", "Development likelihood — 24 runs blended",
+    render_likelihood(prob, sub, "demo_likelihood", "Development likelihood: 24 runs blended",
                       underlay=streets)
 
     # Dispersed development on the same town: Off / Moderate / Aggressive
     for label, isol in (("off", 0.0), ("moderate", 0.0001), ("aggressive", 0.04)):
-        st, _ = grow(sub, isol=isol)
-        draw(to_plan(sub, st, 1.5 * WALK), f"demo_dispersal_{label}",
-             f"Dispersed development — {label.capitalize()}")
+        st, _dens, _ = grow(sub, isol=isol)
+        draw(tiered(to_plan(sub, st, 1.5 * WALK)), f"demo_dispersal_{label}",
+             f"Dispersed development: {label.capitalize()}")
 
-    # Centre clustering: the SAME run and buildings, only the centre spacing differs
-    st, _ = grow(sub, isol=0.0)
-    for label, mult in (("moderate", 1.5), ("tight", 2.5)):
-        draw(to_plan(sub, st, mult * WALK), f"demo_clustering_{label}",
-             f"Centre clustering — {label.capitalize()}")
+    # Centre clustering: the SAME run and buildings, only the centre spacing differs. The two options
+    # are ONE figure (two sub-panels, one shared legend) so they read as a direct comparison.
+    st, _dens, _ = grow(sub, isol=0.0)
+    render_multi(sub, [
+        (tiered(to_plan(sub, st, 1.5 * WALK)), "Moderately clustered"),
+        (tiered(to_plan(sub, st, 2.5 * WALK)), "Tightly clustered"),
+    ], "demo_clustering", "Centre clustering options", unb)
 
     # Build probability: cap iterations (huge pop) so the same elapsed time shows the RATE
     for label, bp in (("slow", 0.08), ("fast", 0.6)):
-        st, _ = grow(sub, isol=0.0, bp=bp, pop=1_000_000.0, iters=60)
-        draw(to_plan(sub, st, 1.5 * WALK), f"demo_buildprob_{label}",
-             f"Build probability — {label.capitalize()} ({bp})")
+        st, _dens, _ = grow(sub, isol=0.0, bp=bp, pop=1_000_000.0, iters=60)
+        draw(tiered(to_plan(sub, st, 1.5 * WALK)), f"demo_buildprob_{label}",
+             f"Build probability: {label.capitalize()} ({bp})")
 
 
 if __name__ == "__main__":
