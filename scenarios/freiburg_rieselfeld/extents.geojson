@@ -1,0 +1,43 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "crs": "EPSG:25832"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Freiburg west: Rieselfeld and Vauban",
+        "status": "draft boundary, adjust in QGIS",
+        "area_ha": 2986
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              414912.40895292955,
+              5313594.660334558
+            ],
+            [
+              414978.14272813726,
+              5318040.395832311
+            ],
+            [
+              408265.99381682294,
+              5318143.59145067
+            ],
+            [
+              408195.06922786427,
+              5313697.870837679
+            ],
+            [
+              414912.40895292955,
+              5313594.660334558
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

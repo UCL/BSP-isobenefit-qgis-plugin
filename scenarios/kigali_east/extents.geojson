@@ -1,0 +1,43 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "crs": "EPSG:32736"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kigali eastern expansion (Ndera / Masaka direction)",
+        "status": "draft boundary, adjust in QGIS",
+        "area_ha": 4066
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              188495.981292778,
+              9777566.566026714
+            ],
+            [
+              188485.68308792257,
+              9783653.089577178
+            ],
+            [
+              181804.86158540513,
+              9783641.822944092
+            ],
+            [
+              181815.3813835099,
+              9777554.982942015
+            ],
+            [
+              188495.981292778,
+              9777566.566026714
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

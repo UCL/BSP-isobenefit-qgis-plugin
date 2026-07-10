@@ -1,39 +1,39 @@
 {
   "type": "FeatureCollection",
   "metadata": {
-    "crs": "EPSG:32734"
+    "crs": "EPSG:32618"
   },
   "features": [
     {
       "type": "Feature",
       "properties": {
-        "name": "Blue Downs / Kuils River corridor, Cape Town",
+        "name": "Medellin, Pajarito / Ciudadela Nuevo Occidente",
         "status": "draft boundary, adjust in QGIS",
-        "area_ha": 5332
+        "area_ha": 4402
       },
       "geometry": {
         "type": "Polygon",
         "coordinates": [
           [
             [
-              289438.30289641634,
-              6234945.852265289
+              433628.0252868059,
+              690878.0733089239
             ],
             [
-              289277.9107261782,
-              6242155.050898651
+              433635.623632759,
+              697511.0303727484
             ],
             [
-              281882.5933882373,
-              6241987.769125925
+              426998.9107208586,
+              697519.0511664567
             ],
             [
-              282048.62322626763,
-              6234778.416351955
+              426990.5523802983,
+              690886.0190491821
             ],
             [
-              289438.30289641634,
-              6234945.852265289
+              433628.0252868059,
+              690878.0733089239
             ]
           ]
         ]

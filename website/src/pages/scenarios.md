@@ -29,7 +29,9 @@ repository, containing:
 | 2 | [Dnipro, Ukraine](#dnipro) | Post-war regeneration and edge growth, DBN norms | Worked |
 | 3 | [Crews Hill, London](#crews-hill) | Green-belt release at the metropolitan edge | Draft |
 | 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | Draft |
-| 5 | [Blue Downs, Cape Town](#blue-downs) | Southeast growth corridor densification | Draft |
+| 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | Draft |
+| 6 | [Medellín, Colombia](#medellin) | Planned hillside expansion on steep terrain | Draft |
+| 7 | [Freiburg, Germany](#freiburg) | Validation against celebrated walkable districts | Draft |
 
 <h2 id="cambourne">1. Cambourne, UK: the reference demo</h2>
 
@@ -146,20 +148,51 @@ Folder: [`scenarios/celina_tx/`](https://github.com/UCL/BSP-isobenefit-qgis-plug
   characteristic).
 - **Status:** draft boundary and indicative numbers, to be confirmed against city projections.
 
-<h2 id="blue-downs">5. Blue Downs, Cape Town: corridor densification (draft)</h2>
+<h2 id="kigali">5. Kigali, Rwanda: plan-guided rapid urbanisation (draft)</h2>
 
-The Blue Downs and Kuils River corridor in Cape Town's southeast is a focus of the city's
-densification policy, between the metro southeast and the Bottelary hills, with a new rail link
-long planned. It tests the model in a Global South context: high household sizes, strong pressure
-for affordable delivery, and a hard floodplain limit along the Kuils River.
-Folder: [`scenarios/cape_town_blue_downs/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/cape_town_blue_downs).
+Kigali is Africa's clearest case of plan-guided growth: a city-wide master plan steers rapid
+urbanisation into designated expansion zones with managed green networks, which is exactly the
+regime this model speaks to, simple rules guiding new growth while protecting green. The draft
+boundary covers the eastern expansion direction (toward Ndera and Masaka).
+Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/kigali_east).
 
-- **Tiers (indicative values, household 3.3):** 5,000 / 13,000 / 26,000 people/km²
-  (15 / 40 / 80 dwellings/ha), shares 0.25 / 0.5 / 0.25 (low / medium / high).
-- **Target:** about 30,000 new residents for the corridor. **Walks:** 400 m. **Grid:** 25 m,
-  EPSG:32734. **Dispersal:** moderate.
-- **Status:** draft boundary and indicative numbers, to be confirmed against the municipal
-  spatial development framework.
+- **Tiers (indicative values, household 4.3):** 10,000 / 20,000 / 35,000 people/km²
+  (roughly 25 / 45 / 80 dwellings/ha), shares 0.4 / 0.4 / 0.2 (low / medium / high).
+- **Target:** about 60,000 new residents for one expansion area. **Walks:** 400 m.
+  **Grid:** 25 m, EPSG:32736. **Dispersal:** moderate.
+- **Status:** draft boundary and indicative numbers, to be confirmed against the Kigali master
+  plan zoning.
+
+<h2 id="medellin">6. Medellín, Colombia: planned hillside expansion (draft)</h2>
+
+Pajarito and Ciudadela Nuevo Occidente on Medellín's northwestern slopes are a planned expansion
+of metrocable-served social housing at height. Steep terrain makes the model's green network and
+short walks decisive, and the slopes themselves belong in the unbuildable layer, so the scenario
+tests the rules where topography, not policy, is the binding constraint.
+Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/medellin_pajarito).
+
+- **Tiers (indicative values, household 3.1):** 8,000 / 18,000 / 35,000 people/km², shares
+  0.3 / 0.4 / 0.3 (low / medium / high); the high tier reflects the area's housing towers.
+- **Target:** about 40,000 new residents. **Walks:** 400 m. **Grid:** 25 m, EPSG:32618.
+  **Dispersal:** moderate.
+- **Status:** draft boundary and indicative numbers, to be confirmed against the POT zoning; a
+  slope layer should be added to unbuildable from a DEM.
+
+<h2 id="freiburg">7. Freiburg, Germany: a validation scenario (draft)</h2>
+
+Rieselfeld and Vauban in western Freiburg are among Europe's most celebrated walkable districts.
+This scenario runs the model where a known-good answer already exists: delete the two districts
+from the `built` layer (keeping a reference copy), let the model regrow the same land toward the
+districts' real population, and compare the result against what was actually built. Agreement
+strengthens confidence in the model; disagreement locates what the rules miss.
+Folder: [`scenarios/freiburg_rieselfeld/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/freiburg_rieselfeld).
+
+- **Tiers (indicative values, household 2.0, centred on the districts' real densities):**
+  8,000 / 14,000 / 22,000 people/km², shares 0.2 / 0.6 / 0.2 (low / medium / high).
+- **Target:** about 16,000 residents (the two districts' combined population). **Walks:** 400 m.
+  **Grid:** 25 m, EPSG:25832. **Dispersal:** off (both districts are contiguous extensions).
+- **Status:** draft boundary; the validation protocol (remove, regrow, compare) is described in
+  the folder's `params.json` notes.
 
 ## Adding a scenario
 
