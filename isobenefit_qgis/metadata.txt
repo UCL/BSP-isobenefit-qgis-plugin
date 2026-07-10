@@ -11,7 +11,7 @@ qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
 description=Isobenefit Urbanism plugin for QGIS.
-version=0.12.2
+version=0.12.3
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -28,6 +28,7 @@ repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 # Recommended items:
 
 changelog=
+    0.12.3 Contiguity rule: a mixed-use centre only exists attached to a contiguous built settlement of at least the minimum settlement size, whether or not centre optimisation is on; the threshold is floored at 4 cells so coarse grids cannot let orphan centres survive stranded in green.
     0.12.2 Run parameters are now cached: every run writes a <output>_params.json sidecar, and the dialog's new Load parameters button repopulates every dial from a sidecar or from a scenario preset. A scenarios folder in the repository ships seven worked scenarios (Cambourne, Dnipro, Crews Hill London, Celina Texas, Kigali, Medellin, and a Freiburg validation case), each with extents, parameters and pre-fetched OSM layers.
     0.12.1 Per-person readouts now report NEW amenity per NEW resident only (new mixed-use centre land and new green over the new population; existing fabric and pre-existing amenities are excluded), and mixed-use centres are sized by the new residents they serve. Ensembles are reproducible across machines: the same random seed now yields the same ensemble regardless of core count.
     0.12.0 Density returns to three explicit tiers (low/medium/high people/km2), each built at a user-set probability that must sum to 1. Post-processing arranges the drawn densities so the highest sit nearest the final mixed-use centres. Population now counts NEW development only — the existing-density input is removed and existing fabric is context (assumed served by its own centres). Plans are coloured per density tier: built as a yellow-to-brown ramp, mixed-use centres as a reds ramp, existing muted.

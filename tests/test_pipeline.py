@@ -726,6 +726,23 @@ def test_evaluate_plan_reports_per_person_provision():
     assert m4["green_coverage"] == m["green_coverage"]
 
 
+def test_contiguity_floor_reverts_orphan_centres():
+    # The contiguity rule: a mixed-use centre only exists attached to a contiguous settlement of at
+    # least the (floored) minimum size — even with centre optimisation OFF and a tiny threshold, a
+    # 2-cell speck with a centre reverts to green rather than leaving a centre stranded in green.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, PLAN_GREEN, optimise_plan
+
+    g = 60
+    plan = np.zeros((g, g), np.uint8)
+    plan[20:50, 20:50] = PLAN_BUILT  # the real town
+    plan[5, 5] = PLAN_BUILT  # a 2-cell orphan speck with the CA's grown centre
+    plan[5, 6] = PLAN_BUILT
+    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(35, 35), (5, 5)],
+                        optimise_centres=False, centre_min_settlement=1)
+    assert out[5, 5] == PLAN_GREEN and out[5, 6] == PLAN_GREEN  # speck reverted, centre gone
+    assert (out[20:50, 20:50] == PLAN_CENTRE).sum() >= 1  # the town keeps its centre
+
+
 def test_optimise_plan_min_settlement_culls_satellite():
     # A small detached satellite keeps its centre at a low minimum, loses it at a high one.
     from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan

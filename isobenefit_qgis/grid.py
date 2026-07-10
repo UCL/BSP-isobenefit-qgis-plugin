@@ -388,6 +388,10 @@ CENTRE_M2_PER_PERSON = 20.0
 # anywhere — it is assumed served by its own centres, so only new development is ever counted.
 MEAN_NEW_DENSITY_KM2 = 2850.0
 CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
+# Contiguity floor: however coarse the grid, a settlement (and so any mixed-use centre attached to
+# it) must span at least this many contiguous cells, or it reverts to green. Keeps the ha-based
+# minimum-settlement dial resolution-independent.
+MIN_SETTLEMENT_CELLS = 4
 # Redundancy floor for the centre cull/add — a centre that uniquely serves fewer than this many built
 # cells is dropped. This is the CENTRE catchment minimum, kept small and SEPARATE from the
 # minimum-SETTLEMENT size (which prunes failed-satellite clusters); conflating them made large
@@ -840,7 +844,11 @@ def optimise_plan(
     # a lone centre on a 3-cell orphan (the catchment cull keeps such a centre because it can SEE many
     # scattered homes within a walk; judging by SETTLEMENT SIZE is what actually removes the orphan).
     # A small cluster contiguous with existing/frozen fabric is kept (it extends a real settlement).
-    if prune_islands and optimise_centres and centre_min_settlement > 1:
+    # This is the CONTIGUITY rule: a mixed-use centre only exists attached to a contiguous built
+    # settlement of at least the minimum size, so it applies whether or not centres are optimised,
+    # and the threshold is floored (MIN_SETTLEMENT_CELLS) so a coarse grid cannot collapse it.
+    centre_min_settlement = max(int(centre_min_settlement), MIN_SETTLEMENT_CELLS)
+    if prune_islands:
         for comp in _components((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)):
             if len(comp) < centre_min_settlement and not any(frozen[y, x] for y, x in comp):
                 for y, x in comp:

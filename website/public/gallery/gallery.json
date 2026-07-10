@@ -168,13 +168,13 @@
      },
      "image": "cambourne/dispersed.png",
      "metrics": {
-      "served_coverage": 0.623,
-      "centre_access": 425.391,
-      "green_access": 110.542,
-      "population": 12211.965,
-      "centre_m2_per_person": 18.572,
-      "green_m2_per_person": 5027.692,
-      "built_cells": 1059.0
+      "served_coverage": 0.631,
+      "centre_access": 421.028,
+      "green_access": 110.581,
+      "population": 12165.795,
+      "centre_m2_per_person": 18.642,
+      "green_m2_per_person": 5048.104,
+      "built_cells": 1057.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -638,13 +638,13 @@
      "overrides": {},
      "image": "dnipro_A/baseline.png",
      "metrics": {
-      "served_coverage": 0.321,
-      "centre_access": 510.673,
-      "green_access": 480.211,
+      "served_coverage": 0.322,
+      "centre_access": 506.989,
+      "green_access": 480.338,
       "population": 136398.0,
-      "centre_m2_per_person": 16.056,
+      "centre_m2_per_person": 16.129,
       "green_m2_per_person": 87.905,
-      "built_cells": 4073.0
+      "built_cells": 4071.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -780,13 +780,13 @@
      },
      "image": "dnipro_A/dispersed.png",
      "metrics": {
-      "served_coverage": 0.237,
-      "centre_access": 581.472,
-      "green_access": 482.884,
-      "population": 123952.0,
-      "centre_m2_per_person": 15.086,
-      "green_m2_per_person": 94.472,
-      "built_cells": 4033.0
+      "served_coverage": 0.234,
+      "centre_access": 581.843,
+      "green_access": 484.095,
+      "population": 115824.0,
+      "centre_m2_per_person": 15.541,
+      "green_m2_per_person": 102.656,
+      "built_cells": 4002.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -832,12 +832,12 @@
      "image": "dnipro_A/denser.png",
      "metrics": {
       "served_coverage": 0.306,
-      "centre_access": 530.492,
-      "green_access": 482.586,
-      "population": 137241.0,
-      "centre_m2_per_person": 14.209,
-      "green_m2_per_person": 93.995,
-      "built_cells": 3994.0
+      "centre_access": 526.694,
+      "green_access": 482.717,
+      "population": 137540.0,
+      "centre_m2_per_person": 14.323,
+      "green_m2_per_person": 93.791,
+      "built_cells": 3992.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -879,12 +879,12 @@
      "image": "dnipro_A/tight.png",
      "metrics": {
       "served_coverage": 0.251,
-      "centre_access": 595.542,
-      "green_access": 480.211,
-      "population": 137668.0,
-      "centre_m2_per_person": 13.656,
-      "green_m2_per_person": 87.094,
-      "built_cells": 4073.0
+      "centre_access": 596.38,
+      "green_access": 480.338,
+      "population": 136906.0,
+      "centre_m2_per_person": 13.586,
+      "green_m2_per_person": 87.578,
+      "built_cells": 4071.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -945,12 +945,12 @@
      "image": "dnipro_B/baseline.png",
      "metrics": {
       "served_coverage": 0.275,
-      "centre_access": 479.323,
-      "green_access": 537.626,
-      "population": 73261.5,
-      "centre_m2_per_person": 17.949,
-      "green_m2_per_person": 88.264,
-      "built_cells": 3178.0
+      "centre_access": 479.723,
+      "green_access": 538.027,
+      "population": 72828.0,
+      "centre_m2_per_person": 17.956,
+      "green_m2_per_person": 89.087,
+      "built_cells": 3175.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -993,12 +993,12 @@
      "image": "dnipro_B/walk800.png",
      "metrics": {
       "served_coverage": 0.295,
-      "centre_access": 966.317,
-      "green_access": 533.066,
-      "population": 76874.0,
-      "centre_m2_per_person": 13.534,
-      "green_m2_per_person": 84.586,
-      "built_cells": 3197.0
+      "centre_access": 965.722,
+      "green_access": 533.487,
+      "population": 76440.5,
+      "centre_m2_per_person": 13.611,
+      "green_m2_per_person": 85.35,
+      "built_cells": 3194.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1086,13 +1086,13 @@
      },
      "image": "dnipro_B/dispersed.png",
      "metrics": {
-      "served_coverage": 0.283,
-      "centre_access": 483.764,
-      "green_access": 531.614,
-      "population": 72539.0,
-      "centre_m2_per_person": 17.629,
-      "green_m2_per_person": 87.351,
-      "built_cells": 3175.0
+      "served_coverage": 0.28,
+      "centre_access": 484.686,
+      "green_access": 532.834,
+      "population": 71238.5,
+      "centre_m2_per_person": 17.647,
+      "green_m2_per_person": 89.858,
+      "built_cells": 3166.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1184,13 +1184,13 @@
      },
      "image": "dnipro_B/tight.png",
      "metrics": {
-      "served_coverage": 0.124,
-      "centre_access": 632.577,
-      "green_access": 537.626,
+      "served_coverage": 0.127,
+      "centre_access": 629.869,
+      "green_access": 538.027,
       "population": 73261.5,
-      "centre_m2_per_person": 14.694,
-      "green_m2_per_person": 88.264,
-      "built_cells": 3178.0
+      "centre_m2_per_person": 15.483,
+      "green_m2_per_person": 88.56,
+      "built_cells": 3175.0
      },
      "settings": {
       "crs": "EPSG:32636",
