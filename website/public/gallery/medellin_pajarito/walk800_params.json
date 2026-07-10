@@ -1,0 +1,30 @@
+{
+  "crs": "EPSG:32618",
+  "grid_size_m": 25,
+  "max_iterations": 400,
+  "target_population": 40000,
+  "build_prob": 0.25,
+  "dispersal": "moderate",
+  "random_seed": 42,
+  "centre_walk_m": 800.0,
+  "green_walk_m": 400.0,
+  "optimise_centres": true,
+  "centre_m2_per_person": 20,
+  "min_settlement_ha": 2,
+  "min_green_span_m": 400,
+  "densities_km2": {
+    "high": 35000,
+    "medium": 18000,
+    "low": 8000
+  },
+  "shares": {
+    "high": 0.3,
+    "medium": 0.4,
+    "low": 0.3
+  },
+  "ensemble": true,
+  "ensemble_runs": 50,
+  "schema": "isobenefit-params/1",
+  "name": "medellin_pajarito_walk800",
+  "notes": "Centres serve an 800 m walk; growth reaches further from each centre."
+}

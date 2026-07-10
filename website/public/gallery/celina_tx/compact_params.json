@@ -1,0 +1,30 @@
+{
+  "crs": "EPSG:32614",
+  "grid_size_m": 30,
+  "max_iterations": 400,
+  "target_population": 50000,
+  "build_prob": 0.3,
+  "dispersal": "off",
+  "random_seed": 42,
+  "centre_walk_m": 800,
+  "green_walk_m": 800,
+  "optimise_centres": true,
+  "centre_m2_per_person": 20,
+  "min_settlement_ha": 2,
+  "min_green_span_m": 400,
+  "densities_km2": {
+    "high": 18500,
+    "medium": 7500,
+    "low": 1500
+  },
+  "shares": {
+    "high": 0.1,
+    "medium": 0.3,
+    "low": 0.6
+  },
+  "ensemble": true,
+  "ensemble_runs": 50,
+  "schema": "isobenefit-params/1",
+  "name": "celina_tx_compact",
+  "notes": "No leapfrogging: one contiguous settlement."
+}

@@ -59,7 +59,7 @@ TIER_STYLE = {
 # params.json. "clustering" picks the centre-spacing multiple in post-processing.
 def presets_for(name: str, params: dict) -> list[dict]:
     base = [
-        {"id": "baseline", "label": "Baseline", "note": "The scenario's own params.json, as shipped."},
+        {"id": "baseline", "label": "Baseline run", "note": "The scenario's own params.json, as shipped."},
         {"id": "walk800", "label": "Longer walk (800 m)",
          "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
          "overrides": {"centre_walk_m": 800.0, "green_walk_m": max(400.0, params.get("green_walk_m", 400.0))}},
@@ -215,6 +215,43 @@ def render_png(codes, layers, sub, gran, path):
     im.save(path, optimize=True)
 
 
+_SCHEMA_KEYS = (
+    "crs", "grid_size_m", "max_iterations", "target_population", "build_prob", "dispersal",
+    "random_seed", "centre_walk_m", "green_walk_m", "optimise_centres", "centre_m2_per_person",
+    "min_settlement_ha", "min_green_span_m", "densities_km2", "shares", "ensemble", "ensemble_runs",
+)
+
+
+def merged_formal_params(params: dict, preset: dict, entry_name: str) -> dict:
+    """The FULL-resolution parameter set for a preset, in the plugin's params schema, so the file
+    downloads straight into the dialog's Load parameters button. Post-processing choices that are
+    not dialog parameters (the clustering option) are noted rather than encoded."""
+    p = {k: params[k] for k in _SCHEMA_KEYS if k in params}
+    for k, v in preset.get("overrides", {}).items():
+        if k in ("shares", "densities_km2"):
+            p[k] = v
+        elif k != "clustering":
+            p[k] = v
+    p["schema"] = "isobenefit-params/1"
+    p["name"] = f"{entry_name}_{preset['id']}"
+    note = preset["note"]
+    if preset.get("overrides", {}).get("clustering"):
+        note += " In QGIS, both clustering options are always written; open the tightly-clustered output layer."
+    p["notes"] = note
+    return p
+
+
+def existing_panel(sub):
+    """The place as downloaded, before any simulated growth."""
+    plan = np.zeros_like(sub["state"], np.uint8)
+    plan[sub["state"] == 0] = G.PLAN_GREEN
+    plan[sub["origin"] == 0] = G.PLAN_GREEN
+    plan[sub["origin"] == 1] = G.PLAN_EXIST_BUILT
+    for r, c in sub["seeds"]:
+        plan[r, c] = G.PLAN_EXIST_CENTRE
+    return plan
+
+
 def entry_for(folder: str, extent_key: str, extent, params, layers, title, subtitle):
     name = os.path.basename(folder) + ("" if extent_key == "main" else f"_{extent_key}")
     span = max(extent.bounds[2] - extent.bounds[0], extent.bounds[3] - extent.bounds[1])
@@ -223,6 +260,17 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
     print(f"{name}: grid {sub['cols']}x{sub['rows']} at {gran:.0f} m, {len(sub['seeds'])} centre seeds")
     p = dict(params, _gran=gran)
     presets_out = []
+
+    # panel 0: the existing situation, so every comparison starts from the before-picture
+    rel = f"{name}/existing.png"
+    render_png(existing_panel(sub), layers, sub, gran, os.path.join(OUT, rel))
+    presets_out.append({
+        "id": "existing", "label": "Existing (before growth)",
+        "note": "The place as downloaded: existing fabric muted, its mixed-use centres magenta. "
+                "No simulation has run.",
+        "image": rel, "metrics": None, "settings": None, "params_file": None,
+    })
+
     for preset in presets_for(name, params):
         disp, metrics = run_preset(sub, p, preset)
         rel = f"{name}/{preset['id']}.png"
@@ -230,12 +278,22 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
         keep = {k: round(float(metrics.get(k, 0)), 3) for k in
                 ("served_coverage", "centre_access", "green_access", "population",
                  "centre_m2_per_person", "green_m2_per_person", "built_cells")}
+        formal = merged_formal_params(params, preset, name)
+        params_rel = f"{name}/{preset['id']}_params.json"
+        with open(os.path.join(OUT, params_rel), "w", encoding="utf-8") as fh:
+            json.dump(formal, fh, indent=2, ensure_ascii=False)
         presets_out.append({"id": preset["id"], "label": preset["label"], "note": preset["note"],
-                            "overrides": preset.get("overrides", {}), "image": rel, "metrics": keep})
+                            "overrides": preset.get("overrides", {}), "image": rel, "metrics": keep,
+                            "settings": {k: v for k, v in formal.items() if k not in ("schema", "notes")},
+                            "params_file": params_rel})
         print(f"  {preset['id']}: served {keep['served_coverage']:.0%}, pop {keep['population']:,.0f}")
     return {"id": name, "title": title, "subtitle": subtitle,
             "grid": f"{sub['cols']}x{sub['rows']} cells at {gran:.0f} m (preview resolution)",
-            "seed": int(params.get("random_seed", 42)), "presets": presets_out}
+            "seed": int(params.get("random_seed", 42)),
+            "folder": os.path.basename(folder),
+            "github": f"https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/{os.path.basename(folder)}",
+            "zip": f"scenarios/{os.path.basename(folder)}.zip",
+            "presets": presets_out}
 
 
 TITLES = {
@@ -268,6 +326,21 @@ def main():
                     with open(bpath, encoding="utf-8") as fh:
                         pp = json.load(fh)
             entries.append(entry_for(folder, key, extent, pp, layers, title, subtitle))
+    # one downloadable ZIP per scenario folder (layers + params presets), served by the site
+    import zipfile
+
+    zip_dir = os.path.join(REPO, "website", "public", "scenarios")
+    os.makedirs(zip_dir, exist_ok=True)
+    for folder in folders:
+        base = os.path.basename(folder)
+        zpath = os.path.join(zip_dir, f"{base}.zip")
+        with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as zf:
+            for fname in sorted(os.listdir(folder)):
+                if fname.startswith("_") or fname.endswith(".qgz"):
+                    continue  # caches and personal QGIS projects stay out
+                zf.write(os.path.join(folder, fname), arcname=f"{base}/{fname}")
+        print(f"{zpath}: {os.path.getsize(zpath) // 1024} kB")
+
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, "gallery.json"), "w", encoding="utf-8") as fh:
         json.dump({"entries": entries}, fh, indent=1)

@@ -1,0 +1,30 @@
+{
+  "crs": "EPSG:25832",
+  "grid_size_m": 25,
+  "max_iterations": 300,
+  "target_population": 16000,
+  "build_prob": 0.25,
+  "dispersal": "moderate",
+  "random_seed": 42,
+  "centre_walk_m": 400,
+  "green_walk_m": 400,
+  "optimise_centres": true,
+  "centre_m2_per_person": 20,
+  "min_settlement_ha": 2,
+  "min_green_span_m": 400,
+  "densities_km2": {
+    "high": 22000,
+    "medium": 14000,
+    "low": 8000
+  },
+  "shares": {
+    "high": 0.2,
+    "medium": 0.6,
+    "low": 0.2
+  },
+  "ensemble": true,
+  "ensemble_runs": 50,
+  "schema": "isobenefit-params/1",
+  "name": "freiburg_rieselfeld_moderate",
+  "notes": "Some leapfrogging allowed (the baseline is compact)."
+}

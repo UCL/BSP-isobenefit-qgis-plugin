@@ -35,6 +35,27 @@ const base = import.meta.env.BASE_URL
           <tr id="metrics-row"></tr>
         </table>
       </div>
+      <div id="reproduce" style="display:none">
+        <h3>Reproduce this run</h3>
+        <ol>
+          <li>Download the <a id="dl-zip" href="#">scenario data (ZIP)</a>: the extents, prepared OSM
+              layers and parameter presets (also <a id="gh-link" href="#">browsable on GitHub</a>).</li>
+          <li>Download <a id="dl-params" href="#">this run's parameters</a> (a plugin
+              <code>params.json</code>).</li>
+          <li>In QGIS, add the layers from the ZIP, open the run dialog, press
+              <em>Load parameters</em> and pick the downloaded file, then choose the layers in the
+              <em>Input layers</em> group (extents, built, green, unbuildable, centres, streets).</li>
+          <li>Set an output path and press Run. The preview above used a coarsened grid; the loaded
+              parameters run at the scenario's own resolution, so expect finer (and slower) results
+              with the same character.</li>
+        </ol>
+        <details>
+          <summary>Exact settings used by this run</summary>
+          <div class="flex justify-center overflow-x-auto">
+            <table id="settings-table"></table>
+          </div>
+        </details>
+      </div>
     </div>
   </section>
 
@@ -70,7 +91,9 @@ const base = import.meta.env.BASE_URL
       label: string
       note: string
       image: string
-      metrics: Record<string, number>
+      metrics: Record<string, number> | null
+      settings: Record<string, unknown> | null
+      params_file: string | null
     }
     interface Entry {
       id: string
@@ -78,6 +101,8 @@ const base = import.meta.env.BASE_URL
       subtitle: string
       grid: string
       seed: number
+      github: string
+      zip: string
       presets: Preset[]
     }
 
@@ -90,25 +115,66 @@ const base = import.meta.env.BASE_URL
     const caption = document.getElementById('preset-caption') as HTMLElement
     const table = document.getElementById('metrics-table') as HTMLElement
     const row = document.getElementById('metrics-row') as HTMLElement
+    const repro = document.getElementById('reproduce') as HTMLElement
+    const dlZip = document.getElementById('dl-zip') as HTMLAnchorElement
+    const dlParams = document.getElementById('dl-params') as HTMLAnchorElement
+    const ghLink = document.getElementById('gh-link') as HTMLAnchorElement
+    const settingsTable = document.getElementById('settings-table') as HTMLElement
 
     const fmtM = (v: number) => `${Math.round(v)} m`
     const fmtPct = (v: number) => `${Math.round(v * 100)}%`
     const fmtN = (v: number) => Math.round(v).toLocaleString('en-GB')
+
+    function fillSettings(settings: Record<string, unknown>) {
+      settingsTable.innerHTML = ''
+      const rows: [string, string][] = []
+      for (const [key, value] of Object.entries(settings)) {
+        if (value !== null && typeof value === 'object') {
+          const parts = Object.entries(value as Record<string, unknown>).map(([k, v]) => `${k} ${v}`)
+          rows.push([key, parts.join(' · ')])
+        } else {
+          rows.push([key, String(value)])
+        }
+      }
+      for (const [key, value] of rows) {
+        const tr = document.createElement('tr')
+        const th = document.createElement('td')
+        th.textContent = key
+        const td = document.createElement('td')
+        td.textContent = value
+        tr.appendChild(th)
+        tr.appendChild(td)
+        settingsTable.appendChild(tr)
+      }
+    }
 
     function selectPreset(entry: Entry, preset: Preset) {
       img.src = `${base}gallery/${preset.image}`
       caption.textContent = `${entry.title}: ${preset.label}. ${entry.grid}, seed ${entry.seed}.`
       noteEl.textContent = preset.note
       const m = preset.metrics
-      row.innerHTML = ''
-      for (const v of [fmtPct(m.served_coverage), fmtM(m.centre_access), fmtM(m.green_access),
-                       fmtN(m.population), String(Math.round(m.centre_m2_per_person)),
-                       String(Math.round(m.green_m2_per_person))]) {
-        const td = document.createElement('td')
-        td.textContent = v
-        row.appendChild(td)
+      if (m === null) {
+        table.style.display = 'none'
+        repro.style.display = 'none'
+      } else {
+        row.innerHTML = ''
+        for (const v of [fmtPct(m.served_coverage), fmtM(m.centre_access), fmtM(m.green_access),
+                         fmtN(m.population), String(Math.round(m.centre_m2_per_person)),
+                         String(Math.round(m.green_m2_per_person))]) {
+          const td = document.createElement('td')
+          td.textContent = v
+          row.appendChild(td)
+        }
+        table.style.display = ''
+        dlZip.href = `${base}${entry.zip}`
+        ghLink.href = entry.github
+        if (preset.params_file) {
+          dlParams.href = `${base}gallery/${preset.params_file}`
+          dlParams.setAttribute('download', `${entry.id}_${preset.id}_params.json`)
+        }
+        if (preset.settings) fillSettings(preset.settings)
+        repro.style.display = ''
       }
-      table.style.display = ''
       for (const b of Array.from(presetBox.children) as HTMLElement[]) {
         b.classList.toggle('active', b.dataset.id === preset.id)
       }
