@@ -58,6 +58,9 @@ impl Params {
         {
             return Err("Density factors should be in descending order".to_string());
         }
+        if max_populat <= 0.0 {
+            return Err("The population target must be positive".to_string());
+        }
         let block = granularity_m * granularity_m / 1.0e6;
         Ok(Params {
             granularity_m,
@@ -549,7 +552,7 @@ mod tests {
                 .num_threads(threads)
                 .build()
                 .unwrap();
-            pool.install(|| run_ensemble(&template, 2024, 8))
+            pool.install(|| run_ensemble(&template, 2024, 8, 0))
         };
         let one = run_with(1);
         let many = run_with(4);
@@ -571,7 +574,7 @@ mod tests {
     #[test]
     fn different_seeds_diverge() {
         let template = seeded_sim(40, 11);
-        let results = run_ensemble(&template, 123, 6);
+        let results = run_ensemble(&template, 123, 6, 0);
         // at least two members should differ given independent seeds
         let all_same = results.iter().all(|r| *r == results[0]);
         assert!(!all_same);
@@ -641,6 +644,59 @@ mod tests {
         assert_eq!(sim.density[[0, 0]], 0.0);
         assert_eq!(sim.density[[0, 1]], 0.0);
         assert_eq!(sim.population(), 0.0);
+    }
+
+    #[test]
+    fn batched_ensemble_equals_single_call() {
+        // splitting one ensemble into batches via member_offset draws the exact
+        // same seed sequence as a single call, whatever the batch size
+        let template = seeded_sim(30, 7);
+        let whole = run_ensemble(&template, 99, 6, 0);
+        let mut batched = run_ensemble(&template, 99, 2, 0);
+        batched.extend(run_ensemble(&template, 99, 3, 2));
+        batched.extend(run_ensemble(&template, 99, 1, 5));
+        assert_eq!(whole, batched);
+    }
+
+    #[test]
+    fn tier_draw_proportions_follow_probabilities() {
+        // over many draws, a mixed (0.5, 0.3, 0.2) distribution should yield roughly
+        // those tier shares (loose tolerance; the draw is plain inverse-CDF sampling)
+        use crate::density::{random_density, rng_for};
+        let mut rng = rng_for(7, 1);
+        let (mut hi, mut med, mut lo) = (0u32, 0u32, 0u32);
+        let n = 20_000;
+        for _ in 0..n {
+            let d = random_density(&mut rng, (0.5, 0.3, 0.2), 9.0, 4.0, 1.0);
+            if d > 8.0 {
+                hi += 1;
+            } else if d > 3.0 {
+                med += 1;
+            } else {
+                lo += 1;
+            }
+        }
+        let f = |c: u32| c as f64 / n as f64;
+        assert!((f(hi) - 0.5).abs() < 0.02, "high share {}", f(hi));
+        assert!((f(med) - 0.3).abs() < 0.02, "med share {}", f(med));
+        assert!((f(lo) - 0.2).abs() < 0.02, "low share {}", f(lo));
+    }
+
+    #[test]
+    fn rejects_non_positive_population_target() {
+        let err = Params::from_raw(
+            100.0,
+            800.0,
+            0.0,
+            800.0,
+            0.1,
+            0.0,
+            0.0,
+            0.8,
+            (0.4, 0.4, 0.2),
+            (3.0, 2.0, 1.0),
+        );
+        assert!(err.is_err());
     }
 
     #[test]

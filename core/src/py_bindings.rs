@@ -119,15 +119,21 @@ impl PySimulation {
 
 /// Run `n_members` independent simulations from `template`, in parallel, returning
 /// each member's final `state` grid. Releases the GIL during compute.
+///
+/// `member_offset` is the global index of the first member, so one logical
+/// ensemble can be split into batches (progress/cancellation) while drawing the
+/// exact seed sequence of a single call — independent of batch size or core count.
 #[pyfunction]
+#[pyo3(signature = (template, base_seed, n_members, member_offset = 0))]
 fn run_ensemble(
     py: Python<'_>,
     template: &PySimulation,
     base_seed: u64,
     n_members: usize,
+    member_offset: usize,
 ) -> Vec<Py<PyArray2<i16>>> {
-    let results: Vec<Array2<i16>> =
-        py.allow_threads(|| core_run_ensemble(&template.inner, base_seed, n_members));
+    let results: Vec<Array2<i16>> = py
+        .allow_threads(|| core_run_ensemble(&template.inner, base_seed, n_members, member_offset));
     results
         .into_iter()
         .map(|arr| arr.into_pyarray_bound(py).unbind())

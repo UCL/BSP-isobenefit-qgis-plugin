@@ -67,7 +67,7 @@ requires-dist = [{ name = "numpy", specifier = ">=1.21" }]
 
 [[package]]
 name = "isobenefit-qgis-plugin"
-version = "0.12.0"
+version = "0.12.1"
 source = { virtual = "." }
 
 [package.dev-dependencies]

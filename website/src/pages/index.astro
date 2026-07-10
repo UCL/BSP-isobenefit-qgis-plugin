@@ -21,7 +21,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <img class="hero" src={dg('demo_recommended_plan')} alt="An idealised scenario for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
       <figcaption>An idealised scenario for <strong>Cambourne</strong>, grown from the downloaded layers shown
       below. New settlements, coloured by density from pale (low) to deep (high), with their mixed-use centres
-      in red, join the existing town (muted brown), and every home stays within a walk of a centre and of
+      in red, join the existing town (muted taupe), and every home stays within a walk of a centre and of
       green. The same example is used throughout this page.</figcaption>
     </figure>
     <nav class="toc">
@@ -136,7 +136,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <figure>
       <img class="hero" src={dg('demo_substrate')} alt="Cambourne rasterised to the simulation grid" />
-      <figcaption>The town as cells. The brown dots are the existing built fabric, the magenta dots its
+      <figcaption>The town as cells. The taupe dots are the existing built fabric, the magenta dots its
       existing centres, and the blue dots are unbuildable cells; the A428 corridor and the waterways stand
       out. The small green dots are free land, and the real street network stays visible beneath.</figcaption>
     </figure>
@@ -271,6 +271,14 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li><strong><code>_report.txt</code></strong>, a record of the parameters and the per-option statistics</li>
     </ul>
     <p>
+      Reading the report: every population figure counts <strong>new residents only</strong>. Existing
+      fabric is shown for context and is assumed to be served by its own centres, so it is never counted.
+      The per-person readouts follow the same convention: <em>m² of centre per person</em> is new mixed-use
+      centre land over new residents, and <em>m² of walkable green per person</em> is new green over new
+      residents. The coverage percentages, by contrast, include every home, existing and new, since a walk
+      to a centre matters to everyone.
+    </p>
+    <p>
       A <em>single</em> run, with the ensemble checkbox off, is instead written step by step as a growth
       animation you can play in the QGIS Temporal Controller. The three growth moments in
       <a href="#simulation">step 3</a> are exactly such frames.
@@ -311,8 +319,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <section>
     <p>
       The run dialog groups the controls into <strong>Simulation</strong>, <strong>Walkable access</strong>,
-      <strong>Post-processing</strong>, <strong>Density</strong> and <strong>Output &amp; input layers</strong>.
-      The key controls, with their defaults:
+      <strong>Post-processing</strong>, <strong>Development density</strong>, <strong>Output</strong> and
+      <strong>Input layers</strong>. The key controls, with their defaults:
     </p>
     <div class="flex justify-center overflow-x-auto">
       <table>
@@ -327,8 +335,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <tr><td>Min settlement area</td><td>2 ha</td><td>Smaller stranded new clusters revert to green</td></tr>
         <tr><td>Min green span</td><td>400 m</td><td>Minimum green-corridor width (a build rule)</td></tr>
         <tr><td>Centre area</td><td>20 m²/person</td><td>Centre land provided per resident served</td></tr>
-        <tr><td>Density (min–max)</td><td>1500–6000 /km²</td><td>Gradient toward centres (denser closer in)</td></tr>
-        <tr><td>Existing-built density</td><td>2000 /km²</td><td>Assumed density of existing fabric</td></tr>
+        <tr><td>Density tiers</td><td>High 6000 / Med 3000 / Low 1500 /km²</td><td>Each new block is built at one of the three densities</td></tr>
+        <tr><td>Tier shares</td><td>0.2 / 0.3 / 0.5</td><td>Probability of each tier; the three sum to 1, and the highest densities are arranged nearest the centres</td></tr>
         <tr><td>Detail (ensemble)</td><td>Standard: 50 runs</td><td>How many runs to blend / choose from</td></tr>
       </table>
     </div>
@@ -369,8 +377,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li>
         <strong>Real-data grounding.</strong> Existing fabric is frozen (never redeveloped); water,
         industrial land and motorway-class corridors are carved out as unbuildable; downloaded centre
-        <em>areas</em> act as true multi-cell centres; and an OSM extraction tool supplies all of it. Streets
-        and public-transport stops are downloaded as groundwork, though the growth rules do not use them yet.
+        <em>areas</em> act as true multi-cell centres; and an OSM extraction tool supplies all of it. When a
+        street network is supplied, post-processing measures walking distances along it and stations anchor
+        centres; the growth rules themselves do not use streets or stops yet.
       </li>
     </ul>
   </section>

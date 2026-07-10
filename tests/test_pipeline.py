@@ -60,16 +60,24 @@ def test_align_bounds_snaps_to_cells():
 
 
 def test_classify_codes_and_precedence():
+    from isobenefit_qgis.grid import CENTRE_HIGH, CENTRE_LOW, CENTRE_MED, EXIST_CENTRE, FIXED_GREEN, NEW_HIGH, NEW_MED
+
     per = (60.0, 30.0, 10.0)  # high, med, low
-    state = np.array([[0, 1, 2], [1, 1, -1]], dtype=np.int16)
-    origin = np.array([[-1, -1, -1], [1, -1, -1]], dtype=np.int16)
-    density = np.array([[0, 10, 0], [60, 30, 0]], dtype=np.float32)
+    state = np.array([[0, 1, 2], [1, 1, -1], [2, 2, 1], [2, 0, 0]], dtype=np.int16)
+    origin = np.array([[-1, -1, -1], [1, -1, -1], [-1, -1, -1], [2, 0, -1]], dtype=np.int16)
+    density = np.array([[0, 10, 30], [60, 30, 0], [60, 10, 60], [0, 0, 0]], dtype=np.float32)
     cls = classify(state, origin, density, per)
     assert cls.dtype == np.uint8
     assert cls[0, 0] == NATURE
     assert cls[1, 0] == EXIST_BUILT  # origin==1 overrides the density tier
     assert cls[1, 2] == NODATA  # unbuildable / out of bounds
     assert cls[0, 1] == 1  # NEW_LOW (density 10 == low)
+    assert cls[1, 1] == NEW_MED and cls[2, 2] == NEW_HIGH  # the other two built tiers
+    # new centres split by their drawn tier, in the centre hue
+    assert cls[0, 2] == CENTRE_MED and cls[2, 0] == CENTRE_HIGH and cls[2, 1] == CENTRE_LOW
+    # existing centre seeds (origin==2) and fixed green (origin==0) take their own codes
+    assert cls[3, 0] == EXIST_CENTRE
+    assert cls[3, 1] == FIXED_GREEN
 
 
 # --- end-to-end on real demo data ------------------------------------------
@@ -684,23 +692,35 @@ def test_optimise_plan_centre_area_scales_per_person():
 
 
 def test_evaluate_plan_reports_per_person_provision():
-    # The per-person readouts: population from the existing/new split, centre + green m² per person.
+    # The per-person readouts are NEW-ONLY: new population (existing fabric counts zero), new
+    # centres, and new green (existing green excluded when a mask is given).
     g = 40
     plan = np.zeros((g, g), np.uint8)
     plan[10:30, 10:30] = PLAN_BUILT
     plan[19:21, 19:21] = PLAN_CENTRE
     plan[10:30, 32:38] = PLAN_GREEN
-    m = evaluate_plan(plan, 100.0, 800.0, min_green_span_m=200.0,
-                      new_density_km2=4000.0, exist_density_km2=2000.0)
+    m = evaluate_plan(plan, 100.0, 800.0, min_green_span_m=200.0, new_density_km2=4000.0)
     assert m["population"] == pytest.approx(400 * 4000.0 * 0.01)  # 400 cells x 1 ha at 4000/km²
     assert m["centre_m2_per_person"] == pytest.approx(4 * 100.0 * 100.0 / m["population"])
     assert m["green_m2_per_person"] > 0.0
-    # existing fabric counts at its own density
+    # existing fabric carries NO population: marking half the fabric existing halves the count
     marked = plan.copy()
     marked[10:30, 10:20] = PLAN_EXIST_BUILT
-    m2 = evaluate_plan(marked, 100.0, 800.0, min_green_span_m=200.0,
-                       new_density_km2=4000.0, exist_density_km2=2000.0)
-    assert m2["population"] < m["population"]  # half the fabric now at the lower existing density
+    m2 = evaluate_plan(marked, 100.0, 800.0, min_green_span_m=200.0, new_density_km2=4000.0)
+    assert m2["population"] == pytest.approx(0.5 * m["population"])
+    # existing centres do not count as provided amenity (only PLAN_CENTRE does)
+    marked2 = plan.copy()
+    marked2[19:21, 19:21] = PLAN_EXIST_CENTRE
+    m3 = evaluate_plan(marked2, 100.0, 800.0, min_green_span_m=200.0, new_density_km2=4000.0)
+    assert m3["centre_m2_per_person"] == 0.0
+    # pre-existing green is excluded from the green provision when the mask is supplied
+    exist_green = np.zeros((g, g), bool)
+    exist_green[10:30, 32:38] = True
+    m4 = evaluate_plan(plan, 100.0, 800.0, min_green_span_m=200.0,
+                       new_density_km2=4000.0, existing_green=exist_green)
+    assert m4["green_m2_per_person"] == 0.0
+    # coverage metrics are unaffected by the tagging (basis-independent)
+    assert m4["green_coverage"] == m["green_coverage"]
 
 
 def test_optimise_plan_min_settlement_culls_satellite():
@@ -894,3 +914,43 @@ def test_to_tiered_plan_maps_new_cells_to_tier_codes():
     assert out[0, 1] == PLAN_BUILT_HIGH
     assert out[0, 2] == PLAN_CENTRE_HIGH
     assert out[0, 3] == PLAN_EXIST_BUILT  # existing untouched
+
+
+def test_derive_density_without_centres_still_conserves_population():
+    # A plan with no centres has no distance basis; every tier still lands somewhere and the
+    # population still equals the probability-weighted mean over the new cells.
+    from isobenefit_qgis.grid import derive_density
+
+    plan = np.zeros((10, 10), np.uint8)
+    plan[2:8, 2:8] = PLAN_BUILT  # 36 new cells, no centre anywhere
+    tiers, probs = (6000.0, 3000.0, 1500.0), (0.25, 0.25, 0.5)
+    dens = derive_density(plan, 100.0, 400.0, tiers, probs)
+    vals = dens[plan == PLAN_BUILT]
+    assert set(np.unique(vals).tolist()) <= set(tiers)
+    assert vals.mean() == pytest.approx(sum(p * d for p, d in zip(probs, tiers)), rel=1e-6)
+    assert (dens[plan == 0] == 0.0).all()
+
+
+def test_density_share_validator():
+    # The dialog's guard logic, extracted pure so it is testable without Qt.
+    from isobenefit_qgis.validation import check_density_tiers
+
+    ok = check_density_tiers("6000", "3000", "1500", "0.2", "0.3", "0.5")
+    assert ok.ok and ok.total == 1.0 and ok.mean == pytest.approx(2850.0)
+    assert not check_density_tiers("6000", "3000", "1500", "0.5", "0.4", "0.2").ok  # sums to 1.1
+    assert not check_density_tiers("1500", "3000", "6000", "0.2", "0.3", "0.5").ok  # not descending
+    assert not check_density_tiers("6000", "3000", "1500", "1.2", "-0.4", "0.2").ok  # shares outside [0,1]
+    assert not check_density_tiers("6000", "x", "1500", "0.2", "0.3", "0.5").ok  # unparseable
+    ok2 = check_density_tiers("6000", "3000", "1500", "0.2", "0.3", "0.5005")  # within the 1e-3 tolerance
+    assert ok2.ok
+
+
+def test_run_ensemble_member_offset_reproducible_across_batch_sizes(grid):
+    # One logical ensemble split into batches (as the runner does per core count) must equal a
+    # single call: the same random_seed then reproduces the same ensemble on any machine.
+    whole = isobenefit.run_ensemble(_make(grid, total_iters=8), 7, 5)
+    sim2 = _make(grid, total_iters=8)
+    batched = list(isobenefit.run_ensemble(sim2, 7, 2, member_offset=0))
+    batched += list(isobenefit.run_ensemble(sim2, 7, 3, member_offset=2))
+    assert len(whole) == len(batched) == 5
+    assert all(np.array_equal(a, b) for a, b in zip(whole, batched))

@@ -130,7 +130,7 @@ class IsobenefitTask(QgsTask):
         write the plan as one categorical raster in which each new cell takes its tier's colour
         (built and centres in distinct hues). Registers the raster for finished() to load."""
         dens = grid.derive_density(
-            plan, self.granularity_m, self.centre_distance_m,
+            plan, self.granularity_m, self.centre_distance_m or self.max_distance_m,
             self.density_factors, self.prob_distribution, router=router,
         )
         disp = grid.to_tiered_plan(plan, dens, self.density_factors)
@@ -364,14 +364,19 @@ class IsobenefitTask(QgsTask):
                 iter_summary = self._log_iterations_to_target(isobenefit, state, origin, density, seeds)
                 # Collect each run's final layout (not just the blended average): the
                 # likelihood layers come from all runs, and the idealised scenario is the
-                # best single run, optimised. Batched for progress + cancellation.
+                # best single run, optimised. Batched for progress + cancellation; one fixed
+                # base seed with member_offset continuing the global member index, so the
+                # seed sequence is identical whatever the batch size (i.e. the core count) —
+                # the same random_seed reproduces the same ensemble on any machine.
                 states = []
                 while len(states) < n:
                     if self.isCanceled():
                         self._log("Simulation cancelled by user.", Qgis.MessageLevel.Warning)
                         return False
                     members = min(batch, n - len(states))
-                    states.extend(isobenefit.run_ensemble(sim, self.random_seed + len(states), members))
+                    states.extend(
+                        isobenefit.run_ensemble(sim, self.random_seed, members, member_offset=len(states))
+                    )
                     self.setProgress(len(states) / n * 80.0)
                     self._log(f"ensemble: {len(states)}/{n} runs")
 
@@ -433,7 +438,6 @@ class IsobenefitTask(QgsTask):
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
                     new_density_km2=self._mean_new_density_km2(),
-                    exist_density_km2=0.0,  # existing fabric is not counted in population
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
                 )
@@ -455,7 +459,7 @@ class IsobenefitTask(QgsTask):
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
                         router=router, centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
-                        new_density_km2=self._mean_new_density_km2(), exist_density_km2=0.0,
+                        new_density_km2=self._mean_new_density_km2(), existing_green=(origin == 0),
                     )
                     report_stats.append(("raw (before post-processing)", pre_m, self._count_centres(pre_plan)))
                 if self.optimise_centres and best_state is not None:
@@ -467,7 +471,7 @@ class IsobenefitTask(QgsTask):
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         centre_min_settlement=self.centre_min_settlement,
                         centre_m2_per_person=self.centre_m2_per_person,
-                        new_density_km2=self._mean_new_density_km2(), exist_density_km2=0.0,
+                        new_density_km2=self._mean_new_density_km2(),
                     )
                     labels = {
                         "moderate": "moderately clustered centres",

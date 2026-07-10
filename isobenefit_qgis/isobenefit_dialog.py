@@ -14,6 +14,8 @@ from qgis.core import (
 from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
 
+from .validation import check_density_tiers
+
 
 class IsobenefitDialog(QtWidgets.QDialog):
     """ """
@@ -22,8 +24,6 @@ class IsobenefitDialog(QtWidgets.QDialog):
     out_dir_path: Path | None
     out_file_name: str | None
     extents_layer: QgsVectorLayer | None
-    exist_built_areas: QgsVectorLayer | None
-    exist_green_areas: QgsVectorLayer | None
     selected_crs: QgsCoordinateReferenceSystem | None
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
@@ -35,10 +35,6 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.out_file_name = None
         # extents selection
         self.extents_layer = None
-        # existing build areas
-        self.exist_built_areas = None
-        # existing green areas
-        self.exist_green_areas = None
         # CRS selection
         self.selected_crs = None
         # prepare UI
@@ -341,46 +337,21 @@ class IsobenefitDialog(QtWidgets.QDialog):
     def handle_densities(self) -> None:
         """Validate the three density tiers and their probabilities, and show live feedback.
 
-        Two guards gate the Run button: the densities must be positive and strictly descending
-        (High > Medium > Low, which the engine requires), and the three shares must sum to 1.
-        ``prob_sum`` holds the actual share total (``refresh_state`` enables Run only when it is 1);
-        it is set to ``None`` whenever any field fails to parse or the densities are invalid."""
-        try:
-            hd = float(self.high_density.text())
-            md = float(self.med_density.text())
-            ld = float(self.low_density.text())
-            hp = float(self.high_prob.text())
-            mp = float(self.med_prob.text())
-            lp = float(self.low_prob.text())
-        except ValueError:
-            self.prob_sum = None
+        The rules live in :func:`validation.check_density_tiers` (pure, headless-tested): densities
+        positive and strictly descending, shares each in [0, 1] and summing to 1. ``prob_sum`` holds
+        the share total (``refresh_state`` enables Run only when it is 1); it is ``None`` whenever a
+        field fails to parse or the densities are invalid."""
+        result = check_density_tiers(
+            self.high_density.text(), self.med_density.text(), self.low_density.text(),
+            self.high_prob.text(), self.med_prob.text(), self.low_prob.text(),
+        )
+        self.prob_sum = result.total
+        self.density_text_feedback.setStyleSheet("color: #060;" if result.ok else "color: #a00;")
+        self.density_text_feedback.setText(result.message)
+        if result.ok:
+            self.refresh_state()
+        else:
             self.reset_state()
-            self.density_text_feedback.setStyleSheet("color: #a00;")
-            self.density_text_feedback.setText("Enter valid numbers for every density and share.")
-            return
-        if not (ld > 0 and hd > md > ld):
-            self.prob_sum = None
-            self.reset_state()
-            self.density_text_feedback.setStyleSheet("color: #a00;")
-            self.density_text_feedback.setText("Densities must be positive and High > Medium > Low.")
-            return
-        if any(not 0.0 <= p <= 1.0 for p in (hp, mp, lp)):
-            self.prob_sum = None
-            self.reset_state()
-            self.density_text_feedback.setStyleSheet("color: #a00;")
-            self.density_text_feedback.setText("Each share must be between 0 and 1.")
-            return
-        total = round(hp + mp + lp, 3)
-        self.prob_sum = total
-        if abs(total - 1.0) > 1e-3:
-            self.reset_state()
-            self.density_text_feedback.setStyleSheet("color: #a00;")
-            self.density_text_feedback.setText(f"Shares must sum to 1 (currently {total:.2f}).")
-            return
-        mean = hp * hd + mp * md + lp * ld
-        self.density_text_feedback.setStyleSheet("color: #060;")
-        self.density_text_feedback.setText(f"Shares sum to 1.00 ✓ · mean ≈ {mean:,.0f} /km²")
-        self.refresh_state()
 
     def handle_output_path(self) -> None:
         """ """

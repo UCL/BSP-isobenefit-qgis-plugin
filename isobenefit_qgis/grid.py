@@ -383,10 +383,10 @@ def _refine_centres(
 # resident in the catchment. 20 m²/person matches the previous 8%-of-homes sizing at the default
 # densities, but adapts when density changes — denser catchments get bigger centres.
 CENTRE_M2_PER_PERSON = 20.0
-# Per-cell population estimates when sizing: new development at the density range's mean, existing
-# fabric at its own assumed density (the same defaults the dialog uses).
-MEAN_NEW_DENSITY_KM2 = 3750.0
-EXIST_DENSITY_KM2 = 2000.0
+# Fallback per-cell population estimate for new development: the probability-weighted mean of the
+# dialog's default tiers (0.2*6000 + 0.3*3000 + 0.5*1500). Existing fabric carries NO population
+# anywhere — it is assumed served by its own centres, so only new development is ever counted.
+MEAN_NEW_DENSITY_KM2 = 2850.0
 CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
 # Redundancy floor for the centre cull/add — a centre that uniquely serves fewer than this many built
 # cells is dropped. This is the CENTRE catchment minimum, kept small and SEPARATE from the
@@ -587,7 +587,7 @@ def evaluate_plan(
     centre_distance_m: float | None = None,
     green_distance_m: float | None = None,
     new_density_km2: float = MEAN_NEW_DENSITY_KM2,
-    exist_density_km2: float = EXIST_DENSITY_KM2,
+    existing_green: np.ndarray | None = None,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
@@ -677,15 +677,21 @@ def evaluate_plan(
         "centre_efficiency": float(near_cent.sum()) / n_centres if n_centres else 0.0,  # homes served per centre
         "green_efficiency": float(near_green.sum()) / n_green if n_green else 0.0,  # homes served per green cell
     }
-    # per-person provision (rule-of-thumb readouts): population estimated per cell — existing fabric
-    # at its assumed density, new development at the density range's mean. NB these depend on the
-    # existing-* tagging, unlike the coverage metrics above (evaluate marked plans for honest splits).
+    # per-person provision (rule-of-thumb readouts): NEW amenity over NEW population only. Existing
+    # fabric carries no population (it is assumed served by its own centres), so the honest ratio is
+    # what the plan ADDS — new mixed-use centre land, and new green — per new resident. Pass
+    # ``existing_green`` (a bool mask) to exclude pre-existing green from the provision numerator;
+    # without it, all qualifying green counts as new. NB these depend on the existing-* tagging,
+    # unlike the coverage metrics above (evaluate marked plans for honest splits).
     cell_km2 = granularity_m * granularity_m / 1e6
     n_exist = int(np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE)).sum())
-    population = (n_exist * exist_density_km2 + (n_built - n_exist) * new_density_km2) * cell_km2
+    population = (n_built - n_exist) * new_density_km2 * cell_km2
+    n_new_centres = int((plan == PLAN_CENTRE).sum())
+    new_green_mask = green_mask if existing_green is None else green_mask & ~np.asarray(existing_green, dtype=bool)
+    n_new_green = int(new_green_mask.sum())
     metrics["population"] = population
-    metrics["centre_m2_per_person"] = n_centres * cell_km2 * 1e6 / population if population else 0.0
-    metrics["green_m2_per_person"] = n_green * cell_km2 * 1e6 / population if population else 0.0
+    metrics["centre_m2_per_person"] = n_new_centres * cell_km2 * 1e6 / population if population else 0.0
+    metrics["green_m2_per_person"] = n_new_green * cell_km2 * 1e6 / population if population else 0.0
 
     # transit access — a third dimension, REPORTED ONLY for now (not folded into access_cost,
     # so it cannot distort run-selection until validated). See the transit-routing plan.
@@ -786,7 +792,6 @@ def optimise_plan(
     centre_spacing_m: float | None = None,
     centre_m2_per_person: float = CENTRE_M2_PER_PERSON,
     new_density_km2: float = MEAN_NEW_DENSITY_KM2,
-    exist_density_km2: float = EXIST_DENSITY_KM2,
     centre_min_settlement: int = 3,
     prune_islands: bool = True,
 ) -> np.ndarray:
@@ -803,8 +808,8 @@ def optimise_plan(
     ``max_distance_m``) are the walk thresholds for centre vs green coverage. ``centre_spacing_m``
     sets centre consolidation (consolidated↔dispersed; see ``_refine_centres``); each centre grows to
     ``centre_m2_per_person`` of centre land per resident it serves (population estimated per cell from
-    ``new_density_km2`` / ``exist_density_km2``); ``centre_min_settlement`` is the minimum settlement
-    size below which a detached new cluster is pruned.
+    ``new_density_km2``; existing fabric counts zero — only new residents size a centre);
+    ``centre_min_settlement`` is the minimum settlement size below which a detached new cluster is pruned.
     """
     plan = plan.copy()
     g = float(granularity_m)
@@ -891,7 +896,8 @@ def optimise_plan(
             if existing_built is not None
             else np.zeros_like(built)
         )
-        cell_pop = np.where(exist_mask, exist_density_km2, new_density_km2) * (g * g / 1e6)
+        # existing fabric contributes NO population: centres are sized by the new residents they serve
+        cell_pop = np.where(exist_mask, 0.0, new_density_km2) * (g * g / 1e6)
         new_centres = _grow_centres(
             grow_points, existing_on_built, built, walk, cell_pop, centre_m2_per_person, g * g
         )
@@ -974,7 +980,6 @@ def select_plan(
     centre_spacing_m=None,
     centre_m2_per_person=CENTRE_M2_PER_PERSON,
     new_density_km2=MEAN_NEW_DENSITY_KM2,
-    exist_density_km2=EXIST_DENSITY_KM2,
     centre_min_settlement=3,
     prune_islands=True,
 ):
@@ -1005,7 +1010,7 @@ def select_plan(
             router=router,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=centre_spacing_m, centre_m2_per_person=centre_m2_per_person,
-            new_density_km2=new_density_km2, exist_density_km2=exist_density_km2,
+            new_density_km2=new_density_km2,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
         )
         m = evaluate_plan(
@@ -1017,19 +1022,21 @@ def select_plan(
             router=router,
             centre_distance_m=centre_distance_m,
             green_distance_m=green_distance_m,
+            new_density_km2=new_density_km2,
         )
-        if best is None or m["access_cost"] < best["access_cost"]:
+        # a degenerate run can yield zero built cells (metrics has no access_cost); never select it
+        if best is None or m.get("access_cost", math.inf) < best.get("access_cost", math.inf):
             best_plan, best, best_state = opt, m, st
     pre_plan = None
     if best_plan is not None:
         best_plan = _mark_existing(best_plan, existing_built=existing_built, existing_centres=existing_centres)
         # re-score the marked plan: coverage metrics are basis-independent, but the per-person
-        # readouts need the existing/new split (existing fabric sits at its own density)
+        # readouts need the existing/new split (new amenity over new population only)
         best = evaluate_plan(
             best_plan, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
             transit_stops=transit_stops, router=router,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
-            new_density_km2=new_density_km2, exist_density_km2=exist_density_km2,
+            new_density_km2=new_density_km2, existing_green=existing_green,
         )
         # the chosen run BEFORE post-processing — its raw CA development + grown centres + qualifying
         # green — tagged with existing-* codes so it lines up with the post-processed plan
@@ -1135,7 +1142,6 @@ def plan_variants(
     green_distance_m=None,
     centre_m2_per_person=CENTRE_M2_PER_PERSON,
     new_density_km2=MEAN_NEW_DENSITY_KM2,
-    exist_density_km2=EXIST_DENSITY_KM2,
     centre_min_settlement=3,
     prune_islands=True,
 ):
@@ -1155,16 +1161,16 @@ def plan_variants(
             optimise_centres=True, centre_anchors=centre_anchors, router=router,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=spacing_m, centre_m2_per_person=centre_m2_per_person,
-            new_density_km2=new_density_km2, exist_density_km2=exist_density_km2,
+            new_density_km2=new_density_km2,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
         )
         marked = _mark_existing(plan, existing_built=existing_built, existing_centres=existing_centres)
         # scored on the MARKED plan: coverage is basis-independent, and the per-person readouts
-        # need the existing/new split (existing fabric sits at its own density)
+        # need the existing/new split (new amenity over new population only)
         metrics = evaluate_plan(
             marked, granularity_m, max_distance_m, min_green_span_m=min_green_span_m, router=router,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
-            new_density_km2=new_density_km2, exist_density_km2=exist_density_km2,
+            new_density_km2=new_density_km2, existing_green=existing_green,
         )
         out[label] = (marked, metrics)
     return out
