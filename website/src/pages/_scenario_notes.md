@@ -1,14 +1,8 @@
----
-layout: ../layouts/BaseLayout.astro
-title: Scenario library
----
-
-# Scenario library
+## The scenarios in detail
 
 Each scenario is a real place with a worked parameter set: local density norms translated into the
 plugin's dials, prepared input layers, and a population target to grow toward. The aim is that a
-scenario can be rerun by anyone with the same data and the same settings. The
-[overview page](./) explains the model itself; this page holds the case studies.
+scenario can be rerun by anyone with the same data and the same settings.
 
 Every scenario lives in a folder under
 [`scenarios/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios) in the

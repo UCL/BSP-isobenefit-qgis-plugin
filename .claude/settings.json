@@ -6,7 +6,8 @@
       "Bash(uv run poe lint)",
       "Bash(uv run ty check *)",
       "Bash(uv run poe audit)",
-      "Bash(uv run coverage report *)"
+      "Bash(uv run coverage report *)",
+      "Bash(.venv/bin/python scripts/render_scenario_gallery.py)"
     ]
   }
 }

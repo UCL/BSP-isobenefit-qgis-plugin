@@ -28,6 +28,11 @@ const base = import.meta.env.BASE_URL
   <body class="h-full w-full">
     <div class="app-container">
       <div class="app-content">
+        <nav class="site-nav">
+          <a href={base}>Introduction</a>
+          <a href={`${base}plugin/`}>Plugin guide</a>
+          <a href={`${base}scenarios/`}>Scenarios</a>
+        </nav>
         <slot />
       </div>
     </div>
@@ -40,5 +45,11 @@ const base = import.meta.env.BASE_URL
   }
   .app-content {
     @apply flex w-full max-w-6xl flex-col items-stretch px-3 py-10;
+  }
+  .site-nav {
+    @apply flex gap-6 border-b-1 border-theme pb-2 text-sm font-semibold;
+  }
+  .site-nav a {
+    @apply no-underline;
   }
 </style>

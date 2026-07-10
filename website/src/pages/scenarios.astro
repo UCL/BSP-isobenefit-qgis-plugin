@@ -1,0 +1,151 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro'
+import { Content as ScenarioNotes } from './_scenario_notes.md'
+
+const base = import.meta.env.BASE_URL
+---
+
+<BaseLayout>
+  <h1>Scenario library</h1>
+  <h6>Real places, prepared data, precomputed parameter explorations</h6>
+
+  <section>
+    <p>
+      Pick a scenario, then toggle between precomputed runs to see how the dials change the outcome.
+      Every panel is a real simulation through the full pipeline (growth, then post-processing), run at a
+      coarsened preview resolution with a fixed seed, so each one is exactly reproducible; formal runs
+      happen in QGIS at the scenario's own resolution using the folders linked below. Built land is
+      coloured by density tier (yellow to brown), mixed-use centres in reds, existing fabric muted,
+      nature green, unbuildable blue.
+    </p>
+    <div id="explorer" data-base={base}>
+      <div class="chooser" id="scenario-buttons"></div>
+      <div class="chooser presets" id="preset-buttons"></div>
+      <p class="preset-note" id="preset-note"></p>
+      <figure>
+        <img id="preset-image" alt="Precomputed scenario run" />
+        <figcaption id="preset-caption"></figcaption>
+      </figure>
+      <div class="flex justify-center overflow-x-auto">
+        <table id="metrics-table" style="display:none">
+          <tr>
+            <th>Served (walk to both)</th><th>Avg walk to centre</th><th>Avg walk to green</th>
+            <th>New population</th><th>Centre m²/person</th><th>Green m²/person</th>
+          </tr>
+          <tr id="metrics-row"></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <ScenarioNotes />
+
+  <style is:global>
+    /* is:global because the buttons are created at runtime by the script below, so Astro's
+       scoped-style attributes never reach them */
+    .chooser {
+      @apply my-2 flex flex-wrap justify-center gap-2;
+    }
+    .chooser button {
+      @apply rounded border-1 border-light-grey bg-white px-3 py-1 text-sm;
+      cursor: pointer;
+    }
+    .chooser button.active {
+      @apply border-theme font-semibold text-theme;
+    }
+    .presets button {
+      @apply text-xs;
+    }
+    .preset-note {
+      @apply text-center italic;
+    }
+    #preset-image {
+      @apply w-full max-w-3xl;
+    }
+  </style>
+
+  <script>
+    interface Preset {
+      id: string
+      label: string
+      note: string
+      image: string
+      metrics: Record<string, number>
+    }
+    interface Entry {
+      id: string
+      title: string
+      subtitle: string
+      grid: string
+      seed: number
+      presets: Preset[]
+    }
+
+    const root = document.getElementById('explorer') as HTMLElement
+    const base = root.dataset.base ?? '/'
+    const scenarioBox = document.getElementById('scenario-buttons') as HTMLElement
+    const presetBox = document.getElementById('preset-buttons') as HTMLElement
+    const noteEl = document.getElementById('preset-note') as HTMLElement
+    const img = document.getElementById('preset-image') as HTMLImageElement
+    const caption = document.getElementById('preset-caption') as HTMLElement
+    const table = document.getElementById('metrics-table') as HTMLElement
+    const row = document.getElementById('metrics-row') as HTMLElement
+
+    const fmtM = (v: number) => `${Math.round(v)} m`
+    const fmtPct = (v: number) => `${Math.round(v * 100)}%`
+    const fmtN = (v: number) => Math.round(v).toLocaleString('en-GB')
+
+    function selectPreset(entry: Entry, preset: Preset) {
+      img.src = `${base}gallery/${preset.image}`
+      caption.textContent = `${entry.title}: ${preset.label}. ${entry.grid}, seed ${entry.seed}.`
+      noteEl.textContent = preset.note
+      const m = preset.metrics
+      row.innerHTML = ''
+      for (const v of [fmtPct(m.served_coverage), fmtM(m.centre_access), fmtM(m.green_access),
+                       fmtN(m.population), String(Math.round(m.centre_m2_per_person)),
+                       String(Math.round(m.green_m2_per_person))]) {
+        const td = document.createElement('td')
+        td.textContent = v
+        row.appendChild(td)
+      }
+      table.style.display = ''
+      for (const b of Array.from(presetBox.children) as HTMLElement[]) {
+        b.classList.toggle('active', b.dataset.id === preset.id)
+      }
+    }
+
+    function selectScenario(entries: Entry[], id: string) {
+      const entry = entries.find((e) => e.id === id)
+      if (!entry) return
+      for (const b of Array.from(scenarioBox.children) as HTMLElement[]) {
+        b.classList.toggle('active', b.dataset.id === id)
+      }
+      presetBox.innerHTML = ''
+      for (const preset of entry.presets) {
+        const b = document.createElement('button')
+        b.textContent = preset.label
+        b.dataset.id = preset.id
+        b.addEventListener('click', () => selectPreset(entry, preset))
+        presetBox.appendChild(b)
+      }
+      selectPreset(entry, entry.presets[0])
+    }
+
+    fetch(`${base}gallery/gallery.json`)
+      .then((r) => r.json())
+      .then((d: { entries: Entry[] }) => {
+        for (const entry of d.entries) {
+          const b = document.createElement('button')
+          b.textContent = entry.title
+          b.title = entry.subtitle
+          b.dataset.id = entry.id
+          b.addEventListener('click', () => selectScenario(d.entries, entry.id))
+          scenarioBox.appendChild(b)
+        }
+        selectScenario(d.entries, d.entries[0].id)
+      })
+      .catch(() => {
+        noteEl.textContent = 'The gallery could not be loaded.'
+      })
+  </script>
+</BaseLayout>

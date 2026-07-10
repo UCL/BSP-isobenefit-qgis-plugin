@@ -1,0 +1,964 @@
+{
+ "entries": [
+  {
+   "id": "cambourne",
+   "title": "Cambourne, UK",
+   "subtitle": "New-settlement growth: the reference demo",
+   "grid": "144x116 cells at 90 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "cambourne/baseline.png",
+     "metrics": {
+      "served_coverage": 0.708,
+      "centre_access": 385.464,
+      "green_access": 117.922,
+      "population": 12165.795,
+      "centre_m2_per_person": 19.308,
+      "green_m2_per_person": 5048.77,
+      "built_cells": 1057.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 400.0
+     },
+     "image": "cambourne/walk800.png",
+     "metrics": {
+      "served_coverage": 0.804,
+      "centre_access": 669.324,
+      "green_access": 113.568,
+      "population": 11681.01,
+      "centre_m2_per_person": 8.321,
+      "green_m2_per_person": 5270.786,
+      "built_cells": 1035.0
+     }
+    },
+    {
+     "id": "compact",
+     "label": "Compact (dispersal off)",
+     "note": "No leapfrogging: one contiguous settlement.",
+     "overrides": {
+      "dispersal": "off"
+     },
+     "image": "cambourne/compact.png",
+     "metrics": {
+      "served_coverage": 0.725,
+      "centre_access": 371.182,
+      "green_access": 128.637,
+      "population": 11565.585,
+      "centre_m2_per_person": 18.91,
+      "green_m2_per_person": 5322.688,
+      "built_cells": 1029.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "cambourne/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.623,
+      "centre_access": 425.391,
+      "green_access": 110.542,
+      "population": 12211.965,
+      "centre_m2_per_person": 18.572,
+      "green_m2_per_person": 5027.692,
+      "built_cells": 1059.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "cambourne/denser.png",
+     "metrics": {
+      "served_coverage": 0.589,
+      "centre_access": 453.629,
+      "green_access": 112.298,
+      "population": 12145.14,
+      "centre_m2_per_person": 14.006,
+      "green_m2_per_person": 5170.068,
+      "built_cells": 887.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "cambourne/tight.png",
+     "metrics": {
+      "served_coverage": 0.628,
+      "centre_access": 437.253,
+      "green_access": 117.922,
+      "population": 12165.795,
+      "centre_m2_per_person": 15.979,
+      "green_m2_per_person": 5048.77,
+      "built_cells": 1057.0
+     }
+    }
+   ]
+  },
+  {
+   "id": "celina_tx",
+   "title": "Celina, Texas",
+   "subtitle": "US suburbia at the metropolitan fringe",
+   "grid": "144x126 cells at 50 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "celina_tx/baseline.png",
+     "metrics": {
+      "served_coverage": 0.892,
+      "centre_access": 507.745,
+      "green_access": 157.174,
+      "population": 50787.5,
+      "centre_m2_per_person": 17.426,
+      "green_m2_per_person": 384.494,
+      "built_cells": 6970.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 800
+     },
+     "image": "celina_tx/walk800.png",
+     "metrics": {
+      "served_coverage": 0.892,
+      "centre_access": 507.745,
+      "green_access": 157.174,
+      "population": 50787.5,
+      "centre_m2_per_person": 17.426,
+      "green_m2_per_person": 384.494,
+      "built_cells": 6970.0
+     }
+    },
+    {
+     "id": "compact",
+     "label": "Compact (dispersal off)",
+     "note": "No leapfrogging: one contiguous settlement.",
+     "overrides": {
+      "dispersal": "off"
+     },
+     "image": "celina_tx/compact.png",
+     "metrics": {
+      "served_coverage": 0.895,
+      "centre_access": 505.36,
+      "green_access": 172.386,
+      "population": 49512.5,
+      "centre_m2_per_person": 17.218,
+      "green_m2_per_person": 397.879,
+      "built_cells": 6876.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "celina_tx/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.808,
+      "centre_access": 646.578,
+      "green_access": 143.455,
+      "population": 46100.0,
+      "centre_m2_per_person": 16.92,
+      "green_m2_per_person": 443.384,
+      "built_cells": 6601.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "celina_tx/denser.png",
+     "metrics": {
+      "served_coverage": 0.835,
+      "centre_access": 589.556,
+      "green_access": 164.682,
+      "population": 50887.5,
+      "centre_m2_per_person": 15.721,
+      "green_m2_per_person": 502.334,
+      "built_cells": 4612.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "celina_tx/tight.png",
+     "metrics": {
+      "served_coverage": 0.624,
+      "centre_access": 863.196,
+      "green_access": 157.174,
+      "population": 50925.0,
+      "centre_m2_per_person": 16.053,
+      "green_m2_per_person": 383.456,
+      "built_cells": 6970.0
+     }
+    }
+   ]
+  },
+  {
+   "id": "dnipro_A",
+   "title": "Dnipro, Ukraine: Area A",
+   "subtitle": "Central right-bank regeneration (DBN norms)",
+   "grid": "143x120 cells at 100 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "dnipro_A/baseline.png",
+     "metrics": {
+      "served_coverage": 0.321,
+      "centre_access": 510.673,
+      "green_access": 480.211,
+      "population": 136398.0,
+      "centre_m2_per_person": 16.056,
+      "green_m2_per_person": 87.905,
+      "built_cells": 4073.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 400.0
+     },
+     "image": "dnipro_A/walk800.png",
+     "metrics": {
+      "served_coverage": 0.396,
+      "centre_access": 833.604,
+      "green_access": 483.312,
+      "population": 144780.0,
+      "centre_m2_per_person": 10.844,
+      "green_m2_per_person": 82.815,
+      "built_cells": 4100.0
+     }
+    },
+    {
+     "id": "compact",
+     "label": "Compact (dispersal off)",
+     "note": "No leapfrogging: one contiguous settlement.",
+     "overrides": {
+      "dispersal": "off"
+     },
+     "image": "dnipro_A/compact.png",
+     "metrics": {
+      "served_coverage": 0.323,
+      "centre_access": 500.574,
+      "green_access": 481.465,
+      "population": 135890.0,
+      "centre_m2_per_person": 15.822,
+      "green_m2_per_person": 89.926,
+      "built_cells": 4066.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "dnipro_A/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.237,
+      "centre_access": 581.472,
+      "green_access": 482.884,
+      "population": 123952.0,
+      "centre_m2_per_person": 15.086,
+      "green_m2_per_person": 94.472,
+      "built_cells": 4033.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "dnipro_A/denser.png",
+     "metrics": {
+      "served_coverage": 0.306,
+      "centre_access": 530.492,
+      "green_access": 482.586,
+      "population": 137241.0,
+      "centre_m2_per_person": 14.209,
+      "green_m2_per_person": 93.995,
+      "built_cells": 3994.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "dnipro_A/tight.png",
+     "metrics": {
+      "served_coverage": 0.251,
+      "centre_access": 595.542,
+      "green_access": 480.211,
+      "population": 137668.0,
+      "centre_m2_per_person": 13.656,
+      "green_m2_per_person": 87.094,
+      "built_cells": 4073.0
+     }
+    }
+   ]
+  },
+  {
+   "id": "dnipro_B",
+   "title": "Dnipro, Ukraine: Area B",
+   "subtitle": "Left-bank edge growth (DBN norms)",
+   "grid": "151x93 cells at 85 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "dnipro_B/baseline.png",
+     "metrics": {
+      "served_coverage": 0.275,
+      "centre_access": 479.323,
+      "green_access": 537.626,
+      "population": 73261.5,
+      "centre_m2_per_person": 17.949,
+      "green_m2_per_person": 88.264,
+      "built_cells": 3178.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 400.0
+     },
+     "image": "dnipro_B/walk800.png",
+     "metrics": {
+      "served_coverage": 0.295,
+      "centre_access": 966.317,
+      "green_access": 533.066,
+      "population": 76874.0,
+      "centre_m2_per_person": 13.534,
+      "green_m2_per_person": 84.586,
+      "built_cells": 3197.0
+     }
+    },
+    {
+     "id": "compact",
+     "label": "Compact (dispersal off)",
+     "note": "No leapfrogging: one contiguous settlement.",
+     "overrides": {
+      "dispersal": "off"
+     },
+     "image": "dnipro_B/compact.png",
+     "metrics": {
+      "served_coverage": 0.275,
+      "centre_access": 493.261,
+      "green_access": 536.095,
+      "population": 63724.5,
+      "centre_m2_per_person": 17.46,
+      "green_m2_per_person": 108.503,
+      "built_cells": 3115.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "dnipro_B/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.283,
+      "centre_access": 483.764,
+      "green_access": 531.614,
+      "population": 72539.0,
+      "centre_m2_per_person": 17.629,
+      "green_m2_per_person": 87.351,
+      "built_cells": 3175.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "dnipro_B/denser.png",
+     "metrics": {
+      "served_coverage": 0.266,
+      "centre_access": 506.835,
+      "green_access": 536.72,
+      "population": 88571.275,
+      "centre_m2_per_person": 16.396,
+      "green_m2_per_person": 83.53,
+      "built_cells": 3068.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "dnipro_B/tight.png",
+     "metrics": {
+      "served_coverage": 0.124,
+      "centre_access": 632.577,
+      "green_access": 537.626,
+      "population": 73261.5,
+      "centre_m2_per_person": 14.694,
+      "green_m2_per_person": 88.264,
+      "built_cells": 3178.0
+     }
+    }
+   ]
+  },
+  {
+   "id": "freiburg_rieselfeld",
+   "title": "Freiburg, Germany",
+   "subtitle": "Validation against Rieselfeld and Vauban",
+   "grid": "137x92 cells at 50 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "freiburg_rieselfeld/baseline.png",
+     "metrics": {
+      "served_coverage": 0.247,
+      "centre_access": 499.325,
+      "green_access": 515.921,
+      "population": 1512.0,
+      "centre_m2_per_person": 14.881,
+      "green_m2_per_person": 1731.151,
+      "built_cells": 5488.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 400.0
+     },
+     "image": "freiburg_rieselfeld/walk800.png",
+     "metrics": {
+      "served_coverage": 0.367,
+      "centre_access": 573.197,
+      "green_access": 515.965,
+      "population": 1728.0,
+      "centre_m2_per_person": 4.34,
+      "green_m2_per_person": 1514.757,
+      "built_cells": 5493.0
+     }
+    },
+    {
+     "id": "moderate",
+     "label": "Moderate dispersal",
+     "note": "Some leapfrogging allowed (the baseline is compact).",
+     "overrides": {
+      "dispersal": "moderate"
+     },
+     "image": "freiburg_rieselfeld/moderate.png",
+     "metrics": {
+      "served_coverage": 0.252,
+      "centre_access": 497.295,
+      "green_access": 511.394,
+      "population": 3564.0,
+      "centre_m2_per_person": 17.536,
+      "green_m2_per_person": 694.444,
+      "built_cells": 5545.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "freiburg_rieselfeld/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.235,
+      "centre_access": 501.591,
+      "green_access": 508.098,
+      "population": 5148.0,
+      "centre_m2_per_person": 18.454,
+      "green_m2_per_person": 455.031,
+      "built_cells": 5589.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "freiburg_rieselfeld/denser.png",
+     "metrics": {
+      "served_coverage": 0.247,
+      "centre_access": 499.325,
+      "green_access": 515.921,
+      "population": 1764.0,
+      "centre_m2_per_person": 12.755,
+      "green_m2_per_person": 1483.844,
+      "built_cells": 5488.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "freiburg_rieselfeld/tight.png",
+     "metrics": {
+      "served_coverage": 0.212,
+      "centre_access": 531.122,
+      "green_access": 515.921,
+      "population": 1548.0,
+      "centre_m2_per_person": 6.46,
+      "green_m2_per_person": 1690.891,
+      "built_cells": 5488.0
+     }
+    }
+   ]
+  },
+  {
+   "id": "kigali_east",
+   "title": "Kigali, Rwanda",
+   "subtitle": "Plan-guided rapid urbanisation",
+   "grid": "149x137 cells at 45 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "kigali_east/baseline.png",
+     "metrics": {
+      "served_coverage": 0.284,
+      "centre_access": 608.447,
+      "green_access": 471.087,
+      "population": 60828.975,
+      "centre_m2_per_person": 19.808,
+      "green_m2_per_person": 313.825,
+      "built_cells": 9226.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 400.0
+     },
+     "image": "kigali_east/walk800.png",
+     "metrics": {
+      "served_coverage": 0.325,
+      "centre_access": 1070.314,
+      "green_access": 478.837,
+      "population": 61906.275,
+      "centre_m2_per_person": 18.94,
+      "green_m2_per_person": 309.934,
+      "built_cells": 9241.0
+     }
+    },
+    {
+     "id": "compact",
+     "label": "Compact (dispersal off)",
+     "note": "No leapfrogging: one contiguous settlement.",
+     "overrides": {
+      "dispersal": "off"
+     },
+     "image": "kigali_east/compact.png",
+     "metrics": {
+      "served_coverage": 0.299,
+      "centre_access": 587.693,
+      "green_access": 482.02,
+      "population": 61175.25,
+      "centre_m2_per_person": 19.894,
+      "green_m2_per_person": 310.295,
+      "built_cells": 9237.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "kigali_east/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.182,
+      "centre_access": 669.189,
+      "green_access": 462.934,
+      "population": 60675.075,
+      "centre_m2_per_person": 19.958,
+      "green_m2_per_person": 313.887,
+      "built_cells": 9243.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "kigali_east/denser.png",
+     "metrics": {
+      "served_coverage": 0.247,
+      "centre_access": 633.663,
+      "green_access": 485.692,
+      "population": 63101.025,
+      "centre_m2_per_person": 19.383,
+      "green_m2_per_person": 314.496,
+      "built_cells": 8852.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "kigali_east/tight.png",
+     "metrics": {
+      "served_coverage": 0.204,
+      "centre_access": 661.696,
+      "green_access": 471.087,
+      "population": 60213.375,
+      "centre_m2_per_person": 19.371,
+      "green_m2_per_person": 317.034,
+      "built_cells": 9226.0
+     }
+    }
+   ]
+  },
+  {
+   "id": "london_crews_hill",
+   "title": "Crews Hill, London",
+   "subtitle": "Green-belt release at the metropolitan edge",
+   "grid": "131x130 cells at 30 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "london_crews_hill/baseline.png",
+     "metrics": {
+      "served_coverage": 0.884,
+      "centre_access": 471.674,
+      "green_access": 142.218,
+      "population": 13210.38,
+      "centre_m2_per_person": 10.151,
+      "green_m2_per_person": 322.451,
+      "built_cells": 3174.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 400.0
+     },
+     "image": "london_crews_hill/walk800.png",
+     "metrics": {
+      "served_coverage": 0.884,
+      "centre_access": 471.674,
+      "green_access": 142.218,
+      "population": 13210.38,
+      "centre_m2_per_person": 10.151,
+      "green_m2_per_person": 322.451,
+      "built_cells": 3174.0
+     }
+    },
+    {
+     "id": "moderate",
+     "label": "Moderate dispersal",
+     "note": "Some leapfrogging allowed (the baseline is compact).",
+     "overrides": {
+      "dispersal": "moderate"
+     },
+     "image": "london_crews_hill/moderate.png",
+     "metrics": {
+      "served_coverage": 0.901,
+      "centre_access": 483.857,
+      "green_access": 122.366,
+      "population": 12982.86,
+      "centre_m2_per_person": 11.715,
+      "green_m2_per_person": 333.717,
+      "built_cells": 3159.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "london_crews_hill/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.894,
+      "centre_access": 501.048,
+      "green_access": 121.109,
+      "population": 12670.02,
+      "centre_m2_per_person": 10.868,
+      "green_m2_per_person": 342.312,
+      "built_cells": 3129.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "london_crews_hill/denser.png",
+     "metrics": {
+      "served_coverage": 0.879,
+      "centre_access": 471.668,
+      "green_access": 146.404,
+      "population": 13354.605,
+      "centre_m2_per_person": 8.154,
+      "green_m2_per_person": 331.099,
+      "built_cells": 2994.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "london_crews_hill/tight.png",
+     "metrics": {
+      "served_coverage": 0.638,
+      "centre_access": 809.82,
+      "green_access": 142.218,
+      "population": 13139.28,
+      "centre_m2_per_person": 2.74,
+      "green_m2_per_person": 324.196,
+      "built_cells": 3174.0
+     }
+    }
+   ]
+  },
+  {
+   "id": "medellin_pajarito",
+   "title": "Medell\u00edn, Colombia",
+   "subtitle": "Planned hillside expansion",
+   "grid": "149x149 cells at 45 m (preview resolution)",
+   "seed": 42,
+   "presets": [
+    {
+     "id": "baseline",
+     "label": "Baseline",
+     "note": "The scenario's own params.json, as shipped.",
+     "overrides": {},
+     "image": "medellin_pajarito/baseline.png",
+     "metrics": {
+      "served_coverage": 0.738,
+      "centre_access": 260.121,
+      "green_access": 152.092,
+      "population": 41720.062,
+      "centre_m2_per_person": 19.367,
+      "green_m2_per_person": 569.348,
+      "built_cells": 1882.0
+     }
+    },
+    {
+     "id": "walk800",
+     "label": "Longer walk (800 m)",
+     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "overrides": {
+      "centre_walk_m": 800.0,
+      "green_walk_m": 400.0
+     },
+     "image": "medellin_pajarito/walk800.png",
+     "metrics": {
+      "served_coverage": 0.715,
+      "centre_access": 576.476,
+      "green_access": 163.423,
+      "population": 40173.368,
+      "centre_m2_per_person": 15.828,
+      "green_m2_per_person": 593.89,
+      "built_cells": 1837.0
+     }
+    },
+    {
+     "id": "compact",
+     "label": "Compact (dispersal off)",
+     "note": "No leapfrogging: one contiguous settlement.",
+     "overrides": {
+      "dispersal": "off"
+     },
+     "image": "medellin_pajarito/compact.png",
+     "metrics": {
+      "served_coverage": 0.791,
+      "centre_access": 228.176,
+      "green_access": 185.498,
+      "population": 35533.283,
+      "centre_m2_per_person": 18.635,
+      "green_m2_per_person": 678.794,
+      "built_cells": 1732.0
+     }
+    },
+    {
+     "id": "dispersed",
+     "label": "Dispersed (aggressive)",
+     "note": "Satellites leapfrog readily across the window.",
+     "overrides": {
+      "dispersal": "aggressive"
+     },
+     "image": "medellin_pajarito/dispersed.png",
+     "metrics": {
+      "served_coverage": 0.553,
+      "centre_access": 385.928,
+      "green_access": 154.838,
+      "population": 39725.64,
+      "centre_m2_per_person": 18.81,
+      "green_m2_per_person": 587.585,
+      "built_cells": 1845.0
+     }
+    },
+    {
+     "id": "denser",
+     "label": "Denser mix",
+     "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
+     "overrides": {
+      "shares": {
+       "high": 0.5,
+       "medium": 0.3,
+       "low": 0.2
+      }
+     },
+     "image": "medellin_pajarito/denser.png",
+     "metrics": {
+      "served_coverage": 0.71,
+      "centre_access": 273.971,
+      "green_access": 159.78,
+      "population": 41327.212,
+      "centre_m2_per_person": 19.11,
+      "green_m2_per_person": 589.362,
+      "built_cells": 1686.0
+     }
+    },
+    {
+     "id": "tight",
+     "label": "Tightly clustered centres",
+     "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
+     "overrides": {
+      "clustering": 2.5
+     },
+     "image": "medellin_pajarito/tight.png",
+     "metrics": {
+      "served_coverage": 0.542,
+      "centre_access": 399.242,
+      "green_access": 152.092,
+      "population": 41597.955,
+      "centre_m2_per_person": 18.352,
+      "green_m2_per_person": 571.02,
+      "built_cells": 1882.0
+     }
+    }
+   ]
+  }
+ ]
+}
