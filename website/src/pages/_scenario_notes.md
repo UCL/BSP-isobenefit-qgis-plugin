@@ -32,9 +32,9 @@ repository, containing:
 A fast-growing Cambridgeshire new settlement and the worked example that threads the whole
 [overview page](./). The scenario folder is the demo project
 ([`scenarios/cambourne/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/cambourne),
-with `cambourne.qgz`), and its `params.json` matches the website's demonstrators: a 4.2 km study
-window, 50 m cells, EPSG:27700, a 12,000-person target, 400 m walks, and tiers of
-6,000 / 3,000 / 1,500 people/km² at shares 0.2 / 0.3 / 0.5.
+with `cambourne.qgz`): a 30,000-person target across the demo extents, 50 m cells, EPSG:27700,
+400 m walks, and tiers of 6,000 / 3,000 / 1,500 people/km² at shares 0.2 / 0.3 / 0.5. The
+overview page's own demonstrators use a smaller 4.2 km window with a 12,000-person target.
 
 <h2 id="dnipro">2. Dnipro, Ukraine: regeneration and edge growth under DBN norms</h2>
 

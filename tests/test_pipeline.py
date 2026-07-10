@@ -429,7 +429,10 @@ def test_optimise_plan_threads_one_distance_model_to_placement():
 
     out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(15, 15)], router=router)
     assert calls  # the injected model was used inside the optimiser, not just the scorer
-    assert not (out == PLAN_CENTRE).any()  # unreachable -> no centre is warranted
+    # the anchor invariant holds even under a degenerate distance model: the settlement keeps
+    # exactly its one attached centre (previously "unreachable -> no centre", now overridden —
+    # a settlement without a centre is not a settlement in this model's terms)
+    assert int((out == PLAN_CENTRE).sum()) == 1
 
 
 def test_network_router_uses_graph_distance():
@@ -724,6 +727,25 @@ def test_evaluate_plan_reports_per_person_provision():
     assert m4["green_m2_per_person"] == 0.0
     # coverage metrics are unaffected by the tagging (basis-independent)
     assert m4["green_coverage"] == m["green_coverage"]
+
+
+def test_every_settlement_keeps_an_anchor_centre():
+    # The anchor invariant: consolidation may thin centres WITHIN a cluster but may never strip a
+    # cluster bare. Two detached settlements within one another's (large) centre spacing across a
+    # green gap must BOTH end up with a directly attached centre, at every clustering strength.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, _components, optimise_plan
+
+    g = 60
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:26, 10:26] = PLAN_BUILT  # settlement one (16x16)
+    plan[38:48, 38:48] = PLAN_BUILT  # settlement two (10x10), ~1.7 km away at 100 m cells
+    for spacing in (400.0, 1500.0, 4000.0):  # dispersed, moderate, aggressively consolidated
+        out = optimise_plan(
+            plan, 100.0, 400.0, 400.0, ca_centres=[(18, 18), (43, 43)],
+            optimise_centres=True, centre_spacing_m=spacing,
+        )
+        for comp in _components((out == PLAN_BUILT) | (out == PLAN_CENTRE)):
+            assert any(out[y, x] == PLAN_CENTRE for y, x in comp), f"unanchored settlement at spacing {spacing}"
 
 
 def test_contiguity_floor_reverts_orphan_centres():

@@ -273,6 +273,12 @@ def _refine_centres(
     larger, more central centres, accepting that some homes end up beyond a single walk of one; a
     smaller spacing disperses (more, closer centres). It may exceed the walk (the ``walk`` field is
     bounded to reach it), which is how aggressive consolidation actually clumps centres together.
+
+    ANCHOR INVARIANT: every contiguous built settlement containing new development keeps at least
+    one directly attached centre (its own, or a fixed one within it). Walking distances traverse
+    green, so without this a cluster can look "served" by a neighbouring cluster's centre across a
+    green gap and be stripped bare by consolidation; a settlement without its own centre is not a
+    settlement in this model's terms.
     """
     built = np.asarray(built, dtype=bool)
     new_built = np.asarray(new_built, dtype=bool) & built
@@ -302,6 +308,16 @@ def _refine_centres(
         return walk(onehot(cells)) <= spacing
 
     new = [_nearest_built(new_built, int(y), int(x)) for y, x in seeds]
+
+    # settlement components for the anchor invariant: label contiguous built clusters, note which
+    # contain new development (those must stay anchored) and which hold a fixed/existing centre
+    comps = _components(built)
+    comp_label = np.full((rows, cols), -1, dtype=int)
+    for i, comp in enumerate(comps):
+        for y, x in comp:
+            comp_label[y, x] = i
+    needs_anchor = {i for i, comp in enumerate(comps) if any(new_built[y, x] for y, x in comp)}
+    fixed_comps = {int(comp_label[y, x]) for y, x in fixed if 0 <= y < rows and 0 <= x < cols} - {-1}
 
     # Distance/reach to the nearest FIXED (existing) centre, solved ONCE — fixed centres don't move,
     # and true-area centres are many cells, so collapsing them into a single field (rather than one
@@ -364,15 +380,36 @@ def _refine_centres(
 
     # Cull a centre uniquely serving < cull_min_unique built cells (redundant / overly small). A new
     # centre's unique coverage = cells it reaches that no OTHER new centre and no fixed centre does.
+    # The anchor invariant caps the cull: a centre that is its settlement's LAST anchor is never
+    # removed, however redundant its coverage looks through the green to a neighbouring cluster.
+    def is_last_anchor(j, centres):
+        cj = int(comp_label[centres[j][0], centres[j][1]])
+        if cj < 0 or cj not in needs_anchor or cj in fixed_comps:
+            return False
+        return not any(int(comp_label[c[0], c[1]]) == cj for k, c in enumerate(centres) if k != j)
+
     while new:
         new_masks = [reach([c]) for c in new]
         new_count = np.sum(new_masks, axis=0)
         unique = [int((built & new_masks[j] & (new_count == 1) & ~fixed_reach).sum()) for j in range(len(new))]
-        worst = min(range(len(new)), key=lambda j: unique[j])
-        if unique[worst] >= cull_min_unique:
+        cullable = [j for j in range(len(new)) if unique[j] < cull_min_unique and not is_last_anchor(j, new)]
+        if not cullable:
             break
-        new.pop(worst)
+        new.pop(min(cullable, key=lambda j: unique[j]))
         new = lloyd(new)
+
+    # Backstop for the same invariant: if a settlement with new development still has no attached
+    # centre (the CA never seeded one there, or Lloyd drifted its centre into another cluster),
+    # anchor it at the interior of its new development.
+    anchored = fixed_comps | {int(comp_label[y, x]) for y, x in new}
+    for i in sorted(needs_anchor - anchored):
+        mask = np.zeros((rows, cols), dtype=bool)
+        for y, x in comps[i]:
+            if new_built[y, x]:
+                mask[y, x] = True
+        pt = _interior_point(mask)
+        if pt is not None:
+            new.append((int(pt[0]), int(pt[1])))
     return new
 
 

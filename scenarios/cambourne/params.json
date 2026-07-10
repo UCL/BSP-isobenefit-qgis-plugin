@@ -1,7 +1,7 @@
 {
   "schema": "isobenefit-params/1",
   "name": "cambourne",
-  "notes": "The original demo town: a fast-growing Cambridgeshire new settlement. Values match the website demonstrators.",
+  "notes": "The original demo town: a fast-growing Cambridgeshire new settlement. A 30,000-person target across the demo window gives substantial growth to study; the website demonstrators use a smaller 12,000-person window.",
   "random_seed": 42,
   "optimise_centres": true,
   "centre_m2_per_person": 20,
@@ -11,7 +11,7 @@
   "crs": "EPSG:27700",
   "grid_size_m": 50,
   "max_iterations": 400,
-  "target_population": 12000,
+  "target_population": 30000,
   "build_prob": 0.3,
   "dispersal": "moderate",
   "centre_walk_m": 400,
