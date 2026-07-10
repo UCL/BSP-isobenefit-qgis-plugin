@@ -169,8 +169,6 @@ pub struct Simulation {
     pub green_itx: Array2<i16>,
     pub green_acc: Array2<i32>,
     pub cent_acc: Array2<i32>,
-    /// Minimum walking distance (metres) from each cell to any centre; `INFINITY`
-    /// where no centre is within `max_distance_m`. Drives the density gradient.
     pub params: Params,
     pub total_iters: usize,
     pub current_iter: usize,
@@ -378,8 +376,17 @@ impl Simulation {
 /// each with its own deterministic seed, across all available cores. Returns the
 /// final `state` grid of each member (the basis for probability-of-development
 /// maps). Output is independent of thread count.
-pub fn run_ensemble(template: &Simulation, base_seed: u64, n_members: usize) -> Vec<Array2<i16>> {
-    (0..n_members)
+/// `member_offset` is the global index of the first member: member `i` of this
+/// call is seeded as global member `member_offset + i`, so callers may split one
+/// logical ensemble into batches (for progress/cancellation) and still draw the
+/// exact seed sequence of a single call, independent of batch size.
+pub fn run_ensemble(
+    template: &Simulation,
+    base_seed: u64,
+    n_members: usize,
+    member_offset: usize,
+) -> Vec<Array2<i16>> {
+    (member_offset..member_offset + n_members)
         .into_par_iter()
         .map(|member| {
             let mut sim = template.clone();
@@ -601,7 +608,10 @@ mod tests {
         let mut checked = 0;
         for (&s, &d) in sim.state.iter().zip(sim.density.iter()) {
             if s == 1 {
-                assert!(tiers.contains(&d), "density {d} is not one of the tiers {tiers:?}");
+                assert!(
+                    tiers.contains(&d),
+                    "density {d} is not one of the tiers {tiers:?}"
+                );
                 checked += 1;
             }
         }
