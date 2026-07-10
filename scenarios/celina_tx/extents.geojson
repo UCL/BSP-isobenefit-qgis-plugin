@@ -1,0 +1,43 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "crs": "EPSG:32614"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Celina, Texas, northern DFW fringe",
+        "status": "draft boundary, adjust in QGIS",
+        "area_ha": 4261
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              709958.613136143,
+              3686814.874527301
+            ],
+            [
+              709826.6498500555,
+              3692914.3870632765
+            ],
+            [
+              702846.571602116,
+              3692765.778161296
+            ],
+            [
+              702974.1389316773,
+              3686666.3889533496
+            ],
+            [
+              709958.613136143,
+              3686814.874527301
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

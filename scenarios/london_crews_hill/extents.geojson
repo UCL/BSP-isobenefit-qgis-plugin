@@ -1,0 +1,43 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "crs": "EPSG:27700"
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Crews Hill / Enfield green-belt edge",
+        "status": "draft boundary, adjust in QGIS",
+        "area_ha": 1438
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              532472.6957307251,
+              200540.4429464832
+            ],
+            [
+              532373.4918448993,
+              204321.45213338744
+            ],
+            [
+              528574.733802508,
+              204223.19207172818
+            ],
+            [
+              528671.0867632474,
+              200442.15521455824
+            ],
+            [
+              532472.6957307251,
+              200540.4429464832
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

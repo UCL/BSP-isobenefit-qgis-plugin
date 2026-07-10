@@ -1,6 +1,6 @@
 """Headless end-to-end test + benchmark on the real Cambourne demo data.
 
-Rasterises the demo_layers/*.geojson (all EPSG:27700) onto the simulation grid
+Rasterises the scenarios/cambourne/*.geojson (all EPSG:27700) onto the simulation grid
 without QGIS, runs a single scenario and an ensemble, and prints timings so we can
 see the parallel speedup. The plugin's gis_io does the same job via GDAL/QGIS; here
 we use shapely so it runs in a plain venv.
@@ -22,7 +22,7 @@ import isobenefit
 import numpy as np
 import shapely
 
-DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
+DEMO = Path(__file__).resolve().parent.parent / "scenarios" / "cambourne"
 GRAN = 100.0
 TOTAL_ITERS = 100
 MAX_POPULAT = 10_000_000.0  # high so the run does not stop early on existing pop

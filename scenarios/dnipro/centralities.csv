@@ -1,0 +1,23 @@
+id,name,type,lat,lon,weight,pilot_area
+C01,City centre (Yevropeiska Sq / Yavornytskoho axis),centre,48.4625,35.0440,3,A
+C02,Most-City Center (mall + business),shopping,48.4590,35.0310,3,A
+C03,Dnipro-Holovnyi railway station,transport,48.4772,35.0175,3,A
+C04,Central bus station (Avtovokzal),transport,48.4760,35.0205,2,A
+C05,Ozerka central market,market,48.4560,35.0395,3,A
+C06,Mechnikov Regional Clinical Hospital,health,48.4690,35.0405,3,A
+C07,Lazar Globa Park,leisure,48.4615,35.0375,2,A
+C08,Opera & Ballet Theatre,entertainment,48.4630,35.0430,2,A
+C09,Regional State Administration,business,48.4650,35.0460,2,A
+C10,Menorah Center (business + community),business,48.4612,35.0460,2,A
+C11,Dnipro University of Technology (Polytechnic),education,48.4665,35.0460,2,A
+C12,Oles Honchar Dnipro National University,education,48.4345,35.0455,2,A
+C13,Alfred Nobel University (Sicheslavska Nab. 18),education,48.4515,35.0650,2,A
+C14,Dnipro State Medical University,education,48.4655,35.0430,1.5,A
+C15,Shevchenko Park & Monastyrsky Island,leisure,48.4530,35.0730,2,A
+C16,Dafi mall (Zoryany Blvd),shopping,48.4490,35.0275,2,A
+C17,Central embankment promenade,leisure,48.4570,35.0600,1.5,A
+C18,Vokzalna metro station,transport,48.4770,35.0185,1.5,A
+C19,Pokrovska metro station (west),transport,48.4615,35.0010,1.5,A
+C20,"Karavan mall (Auchan, Multiplex), left bank",shopping,48.4905,35.0725,3,B
+C21,"Slobozhanskyi Prospekt node, left bank",business,48.5050,35.0900,2,B
+C22,Prydniprovsk left-bank residential hub,residential-magnet,48.4800,35.1000,1.5,B

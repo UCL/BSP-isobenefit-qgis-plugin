@@ -14,6 +14,7 @@ from qgis.core import (
 from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
 
+from .params_io import load_params
 from .validation import check_density_tiers
 
 
@@ -81,6 +82,19 @@ class IsobenefitDialog(QtWidgets.QDialog):
             box.setShowCrs(True)
             box.setMinimumWidth(160)
             return box
+
+        # --- Parameters preset / cache ---------------------------------------------------
+        # Every run writes a <output>_params.json sidecar; this loads one back (or a scenario
+        # preset from scenarios/<scenario>/params.json) to repopulate the dialog.
+        pre = _group("Parameters")
+        self.load_params_btn = QtWidgets.QPushButton("Load parameters from a previous run or scenario…", self)
+        self.load_params_btn.clicked.connect(self.handle_load_params)
+        pre.addRow(self.load_params_btn)
+        self.params_feedback = QtWidgets.QLabel(
+            "Each run saves its settings next to the output as *_params.json.", self
+        )
+        self.params_feedback.setWordWrap(True)
+        pre.addRow(self.params_feedback)
 
         # --- Simulation ---------------------------------------------------------------
         sim = _group("Simulation")
@@ -333,6 +347,71 @@ class IsobenefitDialog(QtWidgets.QDialog):
         ok = not missing
         self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(not ok)
         self.run_status.setText("" if ok else "To enable Run, set " + ", ".join(missing) + ".")
+
+    def handle_load_params(self) -> None:
+        """Pick a params JSON (a run's ``*_params.json`` sidecar or a scenario preset) and apply it."""
+        path, _filter = QtWidgets.QFileDialog.getOpenFileName(
+            self, "Load run parameters", "", "Run parameters (*.json)"
+        )
+        if not path:
+            return
+        try:
+            params = load_params(path)
+        except ValueError as exc:
+            self.params_feedback.setText(str(exc))
+            return
+        self.apply_params(params)
+        label = params.get("name") or Path(path).name
+        self.params_feedback.setText(f"Loaded parameters from {label}.")
+
+    def apply_params(self, params: dict) -> None:
+        """Repopulate the dialog from a loaded params dict (missing keys leave fields untouched)."""
+
+        def fmt(v: float) -> str:
+            return str(int(v)) if float(v).is_integer() else str(v)
+
+        line_edits = {
+            "grid_size_m": self.grid_size_m,
+            "max_iterations": self.n_iterations,
+            "target_population": self.max_populat,
+            "build_prob": self.build_prob,
+            "random_seed": self.random_seed,
+            "centre_walk_m": self.centre_walk_dist,
+            "green_walk_m": self.green_walk_dist,
+            "min_green_span_m": self.min_green_span,
+            "min_settlement_ha": self.min_settlement,
+            "centre_m2_per_person": self.centre_m2_person,
+        }
+        for key, widget in line_edits.items():
+            if key in params:
+                widget.setText(fmt(params[key]))
+        tier_edits = {
+            "densities_km2": {"high": self.high_density, "medium": self.med_density, "low": self.low_density},
+            "shares": {"high": self.high_prob, "medium": self.med_prob, "low": self.low_prob},
+        }
+        for group, widgets in tier_edits.items():
+            for tier, widget in widgets.items():
+                if tier in params.get(group, {}):
+                    widget.setText(fmt(params[group][tier]))
+        if "dispersal" in params:
+            wanted = str(params["dispersal"]).lower()
+            for i in range(self.dispersal_mode.count()):
+                if self.dispersal_mode.itemText(i).lower().startswith(wanted[:3]):
+                    self.dispersal_mode.setCurrentIndex(i)
+                    break
+        if "optimise_centres" in params:
+            self.optimise_centres_check.setChecked(bool(params["optimise_centres"]))
+        if "ensemble" in params:
+            self.ensemble_check.setChecked(bool(params["ensemble"]))
+        if "ensemble_runs" in params:
+            runs = int(params["ensemble_runs"])
+            best = min(range(self.detail_mode.count()), key=lambda i: abs(self.detail_mode.itemData(i) - runs))
+            self.detail_mode.setCurrentIndex(best)
+        if "crs" in params:
+            crs = QgsCoordinateReferenceSystem(str(params["crs"]))
+            if crs.isValid():
+                self.crs_selection.setCrs(crs)
+        self.handle_densities()
 
     def handle_densities(self) -> None:
         """Validate the three density tiers and their probabilities, and show live feedback.

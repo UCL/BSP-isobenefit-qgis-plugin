@@ -54,7 +54,7 @@ Controller). An **ensemble** of runs instead produces development-likelihood lay
 plus **idealised planning scenarios** to compare — the existing fabric, the raw
 (as-grown) state, and moderately- vs tightly-clustered centre arrangements —
 alongside a `_report.txt` summarising the run. A demo project is in
-[`demo_layers/`](demo_layers/) (`cambourne.qgz`).
+[`scenarios/cambourne/`](scenarios/cambourne/) (`cambourne.qgz`), and further worked scenarios sit alongside it in [`scenarios/`](scenarios/).
 
 ## Development
 

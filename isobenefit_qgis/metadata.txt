@@ -11,13 +11,13 @@ qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
 description=Isobenefit Urbanism plugin for QGIS.
-version=0.12.1
+version=0.12.2
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
 about=The Isobenefit Urbanism QGIS plugin is a tool for brainstorming walkable urban development against real-world datasets. The algorithm is based on walkable access to centralities (shops, services) and green spaces. Please see the homepage link for more background information.
     Please refer to the repository for the source code and the README.md file for additional information.
-    A demo project is provided in the project repository in the "demo_layers" folder.
+    A demo project and worked scenarios are provided in the project repository in the "scenarios" folder.
     This plugin is currently marked as experimental. To see the plugin in the plugin repository, it is necessary to select the option for showing experimental plugins in the plugin settings dialogue box.
     On first use, the plugin offers to install its simulation engine (the "isobenefit" package) into the QGIS Python environment; this needs an internet connection and a QGIS restart. No manual package installation is required.
 
@@ -28,6 +28,7 @@ repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 # Recommended items:
 
 changelog=
+    0.12.2 Run parameters are now cached: every run writes a <output>_params.json sidecar, and the dialog's new Load parameters button repopulates every dial from a sidecar or from a scenario preset. A scenarios folder in the repository ships five worked scenarios (Cambourne, Dnipro, Crews Hill London, Celina Texas, Blue Downs Cape Town), each with extents, parameters and pre-fetched OSM layers.
     0.12.1 Per-person readouts now report NEW amenity per NEW resident only (new mixed-use centre land and new green over the new population; existing fabric and pre-existing amenities are excluded), and mixed-use centres are sized by the new residents they serve. Ensembles are reproducible across machines: the same random seed now yields the same ensemble regardless of core count.
     0.12.0 Density returns to three explicit tiers (low/medium/high people/km2), each built at a user-set probability that must sum to 1. Post-processing arranges the drawn densities so the highest sit nearest the final mixed-use centres. Population now counts NEW development only — the existing-density input is removed and existing fabric is context (assumed served by its own centres). Plans are coloured per density tier: built as a yellow-to-brown ramp, mixed-use centres as a reds ramp, existing muted.
     0.11.0 Density is now derived in post-processing as a gradient toward the FINAL (post-processed) mixed-use centres, written as a density layer per scenario option; in-run density is flat population accounting (the mean of the range). Centre areas sized per person served (m2/person dial). User-facing outputs renamed to idealised scenarios.

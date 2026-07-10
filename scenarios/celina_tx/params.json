@@ -1,0 +1,31 @@
+{
+  "schema": "isobenefit-params/1",
+  "name": "celina_tx",
+  "notes": "US suburbia: Celina on the Dallas-Fort Worth northern fringe, one of the fastest-growing US cities, converting ranchland to master-planned subdivisions. Densities are indicative suburban tiers (2.5/12/30 dwellings/acre at household 2.5); the low tier dominates. Leapfrog growth is characteristic, so dispersal is moderate. Confirm against city projections.",
+  "random_seed": 42,
+  "optimise_centres": true,
+  "centre_m2_per_person": 20,
+  "min_settlement_ha": 2,
+  "ensemble": true,
+  "ensemble_runs": 50,
+  "crs": "EPSG:32614",
+  "grid_size_m": 30,
+  "max_iterations": 400,
+  "target_population": 50000,
+  "build_prob": 0.3,
+  "dispersal": "moderate",
+  "centre_walk_m": 800,
+  "green_walk_m": 800,
+  "min_green_span_m": 400,
+  "densities_km2": {
+    "high": 18500,
+    "medium": 7500,
+    "low": 1500
+  },
+  "shares": {
+    "high": 0.1,
+    "medium": 0.3,
+    "low": 0.6
+  },
+  "fetch_buffer_m": 400
+}

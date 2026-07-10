@@ -1,6 +1,6 @@
 [project]
 name = "isobenefit-qgis-plugin"
-version = "0.12.1"
+version = "0.12.2"
 description = "QGIS plugin for Isobenefit Urbanism simulation (thin wrapper over the isobenefit engine)."
 authors = [{ name = "Gareth Simons", email = "gareth.simons@ucl.ac.uk" }]
 requires-python = ">=3.9"
@@ -28,6 +28,7 @@ dev = [
     "pytest>=8",
     "numpy>=1.24",
     "shapely>=2",
+    "pyproj>=3.6",         # scripts/fetch_scenario.py + website/scripts/fetch_data.py reprojection
     "isobenefit",          # built from core/ so `pytest tests` can import the engine
 ]
 

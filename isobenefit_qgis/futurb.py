@@ -12,7 +12,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox, QToolBar, QWidget
 
-from . import bootstrap, osm_fetcher, sim_runner
+from . import bootstrap, osm_fetcher, params_io, sim_runner
 from .isobenefit_dialog import IsobenefitDialog  # Import the code for the dialog
 from .osm_dialog import OsmDialog
 
@@ -331,4 +331,32 @@ class Isobenefit:
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)
+        # cache exactly what was run as a sidecar next to the output, reloadable via the dialog's
+        # "Load parameters" button (same schema as the scenarios/<scenario>/params.json presets)
+        try:
+            params_io.save_params(
+                params_io.sidecar_path(self.dlg.out_dir_path, self.dlg.out_file_name),
+                {
+                    "name": self.dlg.out_file_name,
+                    "crs": self.dlg.selected_crs.authid(),
+                    "grid_size_m": granularity_m,
+                    "max_iterations": total_iters,
+                    "target_population": max_populat,
+                    "build_prob": build_prob,
+                    "dispersal": self.dlg.dispersal_mode.currentText().split(" ")[0].lower(),
+                    "random_seed": random_seed,
+                    "centre_walk_m": centre_distance_m,
+                    "green_walk_m": green_distance_m,
+                    "optimise_centres": self.dlg.optimise_centres_check.isChecked(),
+                    "centre_m2_per_person": centre_m2_per_person,
+                    "min_settlement_ha": min_settlement_ha,
+                    "min_green_span_m": min_green_span,
+                    "densities_km2": dict(zip(("high", "medium", "low"), density_factors)),
+                    "shares": dict(zip(("high", "medium", "low"), prob_distribution)),
+                    "ensemble": self.dlg.ensemble_check.isChecked(),
+                    "ensemble_runs": n_ensemble,
+                },
+            )
+        except OSError as exc:  # a failed cache never blocks the queued run
+            QgsMessageLog.logMessage(f"Could not write the parameters sidecar: {exc}", level=Qgis.MessageLevel.Warning)
         QgsMessageLog.logMessage("Isobenefit simulation queued.", level=Qgis.MessageLevel.Info, notifyUser=True)

@@ -1,0 +1,31 @@
+{
+  "schema": "isobenefit-params/1",
+  "name": "dnipro_A",
+  "notes": "Area A, central right-bank regeneration. DBN Б.2.2-12 net densities (120/250/400 persons/ha at household 2.55); medium-led mix for compact reconstruction; also run centre_walk_m=800 for comparison. Use extents_A.geojson.",
+  "random_seed": 42,
+  "optimise_centres": true,
+  "centre_m2_per_person": 20,
+  "min_settlement_ha": 2,
+  "ensemble": true,
+  "ensemble_runs": 50,
+  "crs": "EPSG:32636",
+  "grid_size_m": 25,
+  "max_iterations": 400,
+  "build_prob": 0.25,
+  "dispersal": "moderate",
+  "centre_walk_m": 400,
+  "green_walk_m": 400,
+  "min_green_span_m": 400,
+  "densities_km2": {
+    "high": 40000,
+    "medium": 25000,
+    "low": 12000
+  },
+  "fetch_buffer_m": 0,
+  "target_population": 153250,
+  "shares": {
+    "high": 0.2,
+    "medium": 0.6,
+    "low": 0.2
+  }
+}

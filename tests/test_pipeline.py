@@ -40,13 +40,14 @@ from isobenefit_qgis.grid import (
     select_plan,
 )
 
-DEMO = Path(__file__).resolve().parent.parent / "demo_layers"
+DEMO = Path(__file__).resolve().parent.parent / "scenarios" / "cambourne"
 GRAN = 100.0
 
 
 def _union(path: Path):
     data = json.loads(path.read_text())
-    return shapely.unary_union([shapely.geometry.shape(f["geometry"]) for f in data["features"]])
+    # make_valid per feature: real OSM polygons occasionally arrive invalid, and union would raise
+    return shapely.unary_union([shapely.make_valid(shapely.geometry.shape(f["geometry"])) for f in data["features"]])
 
 
 # --- pure-logic unit tests (numpy only) -------------------------------------
@@ -97,13 +98,15 @@ def grid():
 
     state = burn(np.full((rows, cols), -1, np.int16), "extents", 0)
     origin = np.full((rows, cols), -1, np.int16)
-    for name, val in [("urban", 1), ("green", 0)]:
+    for name, val in [("built", 1), ("green", 0)]:
         burn(state, name, val)
         burn(origin, name, val)
     burn(state, "unbuildable", -1)
+    # centres from OSM are polygon AREAS (retail/commercial); seed each area's representative cell
     seeds = []
     for f in json.loads((DEMO / "centres.geojson").read_text())["features"]:
-        pt = shapely.geometry.shape(f["geometry"])
+        geom = shapely.geometry.shape(f["geometry"])
+        pt = geom if geom.geom_type == "Point" else geom.representative_point()
         c, r = int((pt.x - gt[0]) / GRAN), int((gt[3] - pt.y) / GRAN)
         if 0 <= r < rows and 0 <= c < cols:
             seeds.append((r, c))
