@@ -69,7 +69,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       This page explains the model, using one real town throughout. To install the plugin and
       run it yourself, the <a href={`${base}plugin/`}>plugin guide</a> covers installation, a first-run
-      walkthrough, every dialog control, the outputs and troubleshooting. Ready-made places to start
+      walkthrough, the run dialog, the outputs and troubleshooting. Ready-made places to start
       from, with data and parameters prepared, are in the
       <a href={`${base}scenarios/`}>scenario library</a>.
     </p>
@@ -78,7 +78,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="inputs">Step 1: Download the data</h2>
   <section>
     <p>
-      A companion <strong>Extract from OpenStreetMap</strong> tool downloads all of the input layers for an
+      A companion <strong>Extract from OpenStreetMap</strong> tool downloads the input layers for an
       area of interest, so no manual data preparation is needed. The downloaded layers are ordinary editable
       layers, though: you can adjust them before running a simulation, or use your own layers instead. The
       panels below are <strong>the downloaded layers</strong> for a 4.2 km window around Cambourne, fetched
@@ -196,7 +196,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       A single run is one plausible outcome; a different random seed gives a different, equally valid
       layout. So the plugin runs an <strong>ensemble</strong> and does two things with it. First, it blends
-      every run into a development-<strong>likelihood</strong> map, the real probabilities over Cambourne,
+      the runs into a development-<strong>likelihood</strong> map, the real probabilities over Cambourne,
       from twenty-four runs.
     </p>
     <figure>
@@ -240,7 +240,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </figure>
     <p>
       Either can be compared against the raw grown state at the end of <a href="#simulation">step 3</a>. The
-      raw state is always saved alongside, so everything post-processing did stays visible.
+      raw state is always saved alongside, so the effect of post-processing stays visible.
     </p>
   </section>
 

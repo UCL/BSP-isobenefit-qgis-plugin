@@ -5,8 +5,8 @@ title: Plugin guide
 
 # Plugin guide
 
-This page covers installation, a first run, the data downloader, every dialog control, the
-outputs, and troubleshooting. The [introduction](./) explains the model itself, and the
+This page covers installation, a first run, the data downloader, the run dialog, the outputs,
+and troubleshooting. The [introduction](./) explains the model itself, and the
 [scenario library](./scenarios/) provides prepared data and parameters to start from.
 
 ## Install
@@ -58,14 +58,14 @@ To start from a prepared case instead, use a scenario download, described in the
 
 <h2 id="use-a-scenario">Using a downloaded scenario</h2>
 
-Each entry in the [scenario library](./scenarios/) downloads as one ZIP holding everything a run
-needs.
+Each entry in the [scenario library](./scenarios/) downloads as one ZIP with the data and
+parameters for a run.
 
 - **Contents**: `extents*.geojson` (the study boundary), the input layers (`built`, `green`,
   `centres`, `unbuildable`, `streets`, `stops`, `stations`), the terrain bands
   (`steep.geojson`), and one or more `params*.json` presets.
 - **Layers**: drag the GeoJSON files onto the QGIS map.
-- **Local adjustment**: every layer is ordinary editable data, and the scenarios are prepared
+- **Local adjustment**: the layers are ordinary editable data, and the scenarios are prepared
   on the assumption that they will be revised. The built fabric, the extents, the green areas
   and the unbuildable land can each be corrected wherever local knowledge or stakeholder
   feedback improves on the downloaded state.
@@ -76,7 +76,7 @@ needs.
   GLO-30 elevation model. The bands at or above the scenario's maximum slope belong in the
   unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
 - **Parameters**: in **Isobenefit Urbanism**, *Load parameters* with the scenario's
-  `params.json` fills every control. Dnipro provides one preset per pilot area.
+  `params.json` fills in the dialog. Dnipro provides one preset per pilot area.
 - **Running**: select the layers in the *Input layers* group, confirm the suggested CRS,
   choose an output folder and run name, and press **Run**.
 - **Reproducing a published panel**: the explorer's per-run parameter files carry the exact
@@ -100,7 +100,7 @@ layers and pre-selects them.
 
 ## The run dialog, group by group
 
-**Parameters.** *Load parameters* repopulates every control from a previous run's
+**Parameters.** *Load parameters* repopulates the dialog from a previous run's
 `*_params.json` sidecar or from a scenario preset. Every run writes such a sidecar next to its
 output.
 
