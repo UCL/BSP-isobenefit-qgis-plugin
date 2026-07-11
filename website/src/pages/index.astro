@@ -32,7 +32,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <a href="#plan">From runs to a scenario</a>
       <a href="#postprocessing">Post-processing</a>
       <a href="#outputs">Outputs</a>
-      <a href="#scenarios">Dials</a>
+      <a href="#scenarios">Parameters</a>
       <a href="#departures">Departures</a>
       <a href="#credits">Credits</a>
     </nav>
@@ -44,7 +44,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <a href="https://lucadacci.wixsite.com/dacci/isobenefit-urbanism-morphogenesis">Isobenefit Urbanism</a>
       (Luca D'Acci) describes a city whose benefits are spread <em>evenly</em>; the <em>iso</em> means
       equal. Wherever you live, and however large the settlement grows, you can walk both to a local centre
-      and to green land, so quality of life doesn't depend on which corner of town you live in. The aim is
+      and to green land, so quality of life does not depend on which part of town you live in. The aim is
       to avoid <strong>sprawl</strong>, which strands people far from centres and paves over nature, and
       equally to avoid <strong>overcrowding</strong>, which squeezes nature out.
     </p>
@@ -52,7 +52,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       It also sits between master-planning and laissez-faire growth: a few simple rules <em>guide</em>
       development, while the detailed form is left to emerge. The plugin works the same way: a
       <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step under rules that
-      keep new development on foot of a centre and protect green corridors. The rules include randomness, so there
+      keep new development within a walk of a centre and protect green corridors. The rules include randomness, so there
       is no single answer; the plugin runs many simulations and reports the <strong>variation</strong>
       across them, as well as coherent individual <strong>scenarios</strong>.
     </p>
@@ -82,7 +82,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       area of interest, so no manual data preparation is needed. The downloaded layers are ordinary editable
       layers, though: you can adjust them before running a simulation, or use your own layers instead. The
       panels below are <strong>the downloaded layers</strong> for a 4.2 km window around Cambourne, fetched
-      with the plugin's own queries. Each panel shows one layer of the same place, so green doesn't overlap built land,
+      with the plugin's own queries. Each panel shows one layer of the same place, so green does not overlap built land,
       centres sit inside the built fabric, and when the layers are stacked they add back up to the whole
       town.
     </p>
@@ -94,7 +94,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land: water, industrial land, and buffered barrier corridors such as the A428.</figcaption></figure>
       <figure><img class="layer" src={dg('input_industrial')} alt="" /><figcaption>Industrial land. It stays as it is, but no new housing is placed on it.</figcaption></figure>
       <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. It lays the groundwork for walking-distance routing.</figcaption></figure>
-      <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops, which lay the groundwork for transit-aware growth.</figcaption></figure>
+      <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops, collected for future transit-aware growth.</figcaption></figure>
     </div>
     <p>
       Two further datasets, <em>railways</em> and <em>rail/tram stations</em>, are also downloaded. They
@@ -164,7 +164,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       As built land outgrows a walk of any centre, the simulation seeds a new <em>neighbouring</em> centre,
       which lets a single town keep growing outward. A separate control, the <strong>Dispersed
-      development</strong> dial (Off, Moderate or Aggressive), sets how readily development
+      development</strong> control (Off, Moderate or Aggressive), sets how readily development
       <em>leapfrogs</em> away from the core to form satellite settlements.
     </p>
     <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre is seeded where built land has outgrown a walk of every existing centre.</figcaption></figure>
@@ -181,7 +181,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figcaption>The same run at three points: first infill at the edges (iteration 6), settlements consolidating with new centres seeded (iteration 30), and the raw grown state once the target is met.</figcaption>
     </figure>
     <p>
-      Two further dials shape growth. The <strong>build probability</strong> is the per-step growth rate;
+      Two further settings shape growth. The <strong>build probability</strong> is the per-step growth rate;
       lower values grow tighter and more compact, higher values faster and looser. The <strong>development
       density</strong> is set as three tiers, low, medium and high people per km², each with a probability,
       and the three probabilities sum to 1. Every new cell is built at one of the three densities, drawn at
@@ -214,11 +214,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="postprocessing">Step 5: Post-processing the chosen run</h2>
   <section>
     <p>
-      The chosen run is tidied into the idealised scenario. Post-processing deliberately changes <strong>only
-      the centres</strong>, plus a gentle building cleanup; the buildings themselves come from the
+      The chosen run is refined into the idealised scenario. Post-processing deliberately changes <strong>only
+      the centres</strong>, plus a limited building cleanup; the buildings themselves come from the
       simulation.
     </p>
-    <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, tiny stranded settlements below the minimum size revert to green. The raw state is saved as well, so the change stays visible.</figcaption></figure>
+    <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, stranded settlements below the minimum size revert to green. The raw state is saved as well, so the change stays visible.</figcaption></figure>
     <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>A grown centre often lands on the edge or in a corner of its development, where it serves fewer homes. Each is moved to a <em>central</em> spot in the same built area.</figcaption></figure>
     <p>
       The centres are mixed-use throughout: a centre cell keeps its homes and gains shops and services, and
@@ -273,16 +273,16 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
   </section>
 
-  <h2 id="scenarios">Changing the dials</h2>
+  <h2 id="scenarios">Changing the parameters</h2>
   <section>
     <p>
-      Every figure below is a <strong>real pipeline run on the same Cambourne grid</strong>; only the named
-      dial changes between figures.
+      Every figure below is a <strong>complete pipeline run on the same Cambourne grid</strong>; only the named
+      parameter changes between figures.
     </p>
 
     <h3>Dispersed development</h3>
     <p>
-      This dial sets how readily growth leapfrogs away from the existing fabric. Even <em>Moderate</em>
+      This control sets how readily growth leapfrogs away from the existing fabric. Even <em>Moderate</em>
       keeps the existing town dominant, while <em>Aggressive</em> scatters satellites across the window.
     </p>
     <div class="demo-row">
@@ -304,8 +304,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       The growth rules themselves (periphery-only development, a walk to the nearest centrality, protected
       green spans, stochastic seeding of new centralities) follow D'Acci's morphogenesis and Voto's original
-      simulator. Around that core, this tool adds several things of its own, listed here so it is clear what comes
-      from the theory and what we added:
+      simulator. Around that core, this implementation departs in several ways, listed here to keep the boundary
+      with the theory clear:
     </p>
     <ul>
       <li>
@@ -315,7 +315,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       </li>
       <li>
         <strong>Post-processing of the chosen run.</strong> The original keeps centres exactly where they
-        seeded. We add a gentle cleanup (stranded specks below a minimum settlement size revert to green) and
+        seeded. We add a limited cleanup (stranded fragments below a minimum settlement size revert to green) and
         re-position the mixed-use centres to the interior of the development they serve, sized by the
         population in their catchment at a m²-per-person rule of thumb, and offered at two clustering
         strengths. The raw grown state is always saved alongside, so the edit is transparent.

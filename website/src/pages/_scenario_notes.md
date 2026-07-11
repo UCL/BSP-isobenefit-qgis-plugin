@@ -1,15 +1,15 @@
 ## The scenarios in detail
 
-Each scenario is a real place with a worked parameter set: local density norms translated into the
-plugin's dials, prepared input layers, and a population target to grow toward. The aim is that a
-scenario can be rerun by anyone with the same data and the same settings.
+Each scenario is a real place with a worked parameter set: local density norms translated into
+the plugin's controls, prepared input layers, and a population target to grow toward. Anyone can
+rerun a scenario with the same data and settings.
 
 Every scenario lives in a folder under
 [`scenarios/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios) in the
 repository, containing:
 
 - `extents*.geojson`, the formal simulation boundary (or boundaries), in the scenario's metric CRS;
-- `params.json`, the full dial set in the plugin's parameters format. The run dialog's
+- `params.json`, the full parameter set in the plugin's format. The run dialog's
   *Load parameters* button reads this file directly, and every plugin run writes the same format
   back as a `*_params.json` sidecar next to its output, so any past run can be reloaded too;
 - the OSM input layers (`built`, `green`, `centres`, `unbuildable`, `streets`, `stops`,
@@ -18,7 +18,7 @@ repository, containing:
   one fetch covers every pilot area; the hull is kept as `osm_download_extent.geojson`;
 - `steep.geojson`, terrain slope bands (15° / 20° / 25° / 30°) from the Copernicus GLO-30
   elevation model. This ships as a separate, editable layer so local knowledge can trim or extend
-  it; the scenario's `slope_max_deg` parameter says which bands preclude development. Where it
+  it; the scenario's `slope_max_deg` parameter specifies which bands preclude development. Where it
   applies, review the layer, then merge the selected bands into the unbuildable layer for a run.
 
 Every scenario downloads as a single ZIP (extents, all input layers including the editable
@@ -37,8 +37,8 @@ Every scenario downloads as a single ZIP (extents, all input layers including th
 
 <h2 id="cambourne">1. Cambourne, UK: the reference demo</h2>
 
-A fast-growing Cambridgeshire new settlement and the worked example that threads the whole
-[overview page](./). The scenario folder is the demo project
+Cambourne is a fast-growing Cambridgeshire new settlement, and the worked example used
+throughout the [overview page](./). The scenario folder is the demo project
 ([`scenarios/cambourne/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/cambourne),
 with `cambourne.qgz`): a 30,000-person target across the demo extents, 50 m cells, EPSG:27700,
 400 m walks, and tiers of 6,000 / 3,000 / 1,500 people/km² at shares 0.2 / 0.3 / 0.5. The
@@ -58,7 +58,7 @@ Area B.
 
 Residential densities follow the national planning norms, assuming an average household of
 **2.55 persons per dwelling**. The DBN net residential density band is 150–450 persons/ha, up to
-+20% in large cities under conditions; Dnipro qualifies. The three built forms map directly onto
++20% in large cities under conditions; Dnipro qualifies as a large city. The three built forms map directly onto
 the plugin's three density tiers (1 person/ha = 100 people/km²):
 
 | Tier | Built form (Ukraine) | DBN storeys | Net density (persons/ha) | Avg dwelling (m²) | Plugin density (people/km²) | Persons per 25 m cell |
@@ -68,7 +68,7 @@ the plugin's three density tiers (1 person/ha = 100 people/km²):
 | High | 10–25 storey high-rise | 10–25 | 400 | 52 | **40,000** | 25.0 |
 
 These are *net* residential densities (people per hectare of residential land), which suits the
-plugin's per-cell accounting at a fine grid. The shares are a scenario dial: Area A starts at
+plugin's per-cell accounting at a fine grid. The shares are a scenario choice: Area A starts at
 0.2 / 0.6 / 0.2 (high / medium / low) for a medium-led compact reconstruction, Area B at
 0.1 / 0.4 / 0.5 for a low-to-medium edge mix.
 
@@ -76,7 +76,7 @@ plugin's per-cell accounting at a fine grid. The shares are a scenario dial: Are
 
 Buildable area is the part of each large district realistically available for new housing (about
 7% of Area A's 8,756 ha and 9% of Area B's 5,515 ha). The target population is buildable area
-times net density, and is itself a scenario dial:
+times net density, and is itself a scenario choice:
 
 | Pilot area | Buildable area (ha) | Net density (persons/ha) | Target population |
 |---|---|---|---|
@@ -93,7 +93,7 @@ times net density, and is itself a scenario dial:
 | Centrality seeding | Chance the model adds a new local centre | 0.8 | 0.8 | Dispersed development | 0 disables new centres; the sheet's 0.8 maps to the Moderate/Aggressive end of the dial |
 | Cell resolution (m) | Grid cell size (spatial precision) | 25 | 25–30 | Grid size (m) | Coarser for large districts |
 | CRS | Coordinate system (metres) | EPSG:32636 | EPSG:32636 | CRS picker | UTM 36N, Dnipro |
-| Time steps | Iterations until the target population is reached | model | model | Max iterations | The run stops itself at the target |
+| Time steps | Iterations until the target population is reached | model | model | Max iterations | The run stops at the target |
 
 ### Curated centralities
 
@@ -125,8 +125,8 @@ sources then refine them.
 
 The Crews Hill area of Enfield, at London's northern edge inside the M25, is one of the largest
 green-belt releases proposed in an emerging London local plan, at about 5,500 homes around an
-existing rail station. It tests the model on the green-belt question directly: can a release
-deliver a walkable settlement rather than car-led sprawl, and what green network survives?
+existing rail station. The scenario examines whether a release can deliver a walkable
+settlement rather than car-led sprawl, and which green network survives.
 Folder: [`scenarios/london_crews_hill/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/london_crews_hill).
 
 - **Tiers (indicative UK design-code values, household 2.36):** 9,500 / 15,500 / 26,000
@@ -138,9 +138,9 @@ Folder: [`scenarios/london_crews_hill/`](https://github.com/UCL/BSP-isobenefit-q
 <h2 id="celina">4. Celina, Texas: US suburbia at the fringe (draft)</h2>
 
 Celina, on the Dallas–Fort Worth northern fringe, has repeatedly been the fastest-growing city in
-the United States, converting ranchland into master-planned subdivisions at speed. It tests the
-model on low-density, leapfrog suburbia: what do walkable-access rules change when the low tier
-dominates and the street grid is coarse?
+the United States, converting ranchland into master-planned subdivisions at speed. The scenario
+examines what walkable-access rules change where the low density tier dominates and the street
+grid is coarse.
 Folder: [`scenarios/celina_tx/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/celina_tx).
 
 - **Tiers (indicative suburban values, household 2.5):** 1,500 / 7,500 / 18,500 people/km²
@@ -153,10 +153,10 @@ Folder: [`scenarios/celina_tx/`](https://github.com/UCL/BSP-isobenefit-qgis-plug
 <h2 id="kigali">5. Kigali, Rwanda: plan-guided rapid urbanisation (draft)</h2>
 
 Kigali manages rapid urbanisation through a city-wide master plan that steers growth into
-designated expansion zones while protecting a network of green corridors and wetlands. Because
-the model also works by guiding new growth with a small set of rules under green protection, the
-two fit naturally. The draft boundary covers the eastern expansion direction, toward Ndera and
-Masaka.
+designated expansion zones while protecting a network of green corridors and wetlands. The
+model works on the same principle, a small set of rules guiding new growth under green
+protection, so the scenario applies it to one designated expansion direction on the eastern
+fringe, toward Ndera and Masaka.
 Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/kigali_east).
 
 - **Tiers (indicative values, household 4.3):** 10,000 / 20,000 / 35,000 people/km²

@@ -17,7 +17,7 @@ outputs, and troubleshooting. The [introduction](./) explains the model itself, 
 2. Two toolbar buttons appear: **Isobenefit Urbanism** (the simulation) and **Extract from
    OpenStreetMap** (the data downloader).
 3. The first time you run the simulation, the plugin checks for its `isobenefit` engine and, if
-   missing, offers to install it into the QGIS Python environment (needs internet).
+   missing, offers to install it into the QGIS Python environment (this requires an internet connection).
    **Restart QGIS** once it finishes.
 
 If the automatic install is blocked (a locked-down environment), run the shown command yourself
@@ -36,22 +36,22 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
 2. Open **Extract from OpenStreetMap**. Click *Draw area on map…*: the dialog hides,
    left-clicks add corners, a right-click finishes the polygon (Esc cancels).
 3. Leave all datasets ticked, choose an output GeoPackage path, and press **Fetch**. The layers
-   download, land in the GeoPackage, and are added to the project as an "OSM" group. They are
-   ordinary editable layers; adjust them if you want.
+   are saved to the GeoPackage and added to the project as an "OSM" group. They are ordinary
+   editable layers and can be adjusted before any run.
 4. Open **Isobenefit Urbanism**. The dialog pre-fills its layer pickers from the OSM download,
    suggests a local projected CRS, and validates as you type; the status line under the form
    lists what is still missing.
 5. Set an **output file** (a `.tif` path). This is usually the only required field left.
-6. Set the **target population**: how many NEW residents to house. Existing buildings are
+6. Set the **target population**: the number of new residents to house. Existing buildings are
    context only and are never counted.
 7. Check the **Development density** group: three densities (people per km²) and the share of
    new blocks built at each. The shares must sum to 1; the feedback line shows the running
    total and the resulting mean density.
-8. Press **Run**. The simulation runs as a background task (watch the progress bar; cancelling
-   is safe). With the default *Development likelihood* mode, several layers load when it
-   finishes; start with the *moderately clustered centres* plan.
+8. Press **Run**. The simulation runs as a background task; the progress bar tracks it, and a
+   run can be cancelled safely. With the default *Development likelihood* mode, several layers
+   load on completion; start with the *moderately clustered centres* plan.
 9. The run's full settings are saved next to the output as `<name>_params.json`. To repeat or
-   tweak the run later, use *Load parameters* at the top of the dialog.
+   adjust the run later, use *Load parameters* at the top of the dialog.
 
 To start from a prepared case instead, use a scenario download, described in the next section.
 
@@ -60,25 +60,26 @@ To start from a prepared case instead, use a scenario download, described in the
 Each entry in the [scenario library](./scenarios/) downloads as one ZIP holding everything a run
 needs.
 
-- **Unzip**: `extents*.geojson` (the study boundary), the input layers (`built`, `green`,
+- **Contents**: `extents*.geojson` (the study boundary), the input layers (`built`, `green`,
   `centres`, `unbuildable`, `streets`, `stops`, `stations`), the terrain bands
   (`steep.geojson`), and one or more `params*.json` presets.
-- **Add the layers**: drag the GeoJSON files onto the QGIS map.
-- **Edit anything**: every layer is ordinary editable data, and the scenarios are intended to
-  be adjusted. Correct the built fabric, adjust the extents, redraw green, or mark land
-  unbuildable wherever local knowledge or stakeholder feedback improves on the downloads.
-- **Seed the centres**: the urban-centres layer steers the simulation, and editing it is the
-  most direct way to express local intent. Add a point or area where a mixed-use centre is
-  planned or wanted and growth organises around it; remove one to examine a future without it.
-- **Review the terrain**: `steep.geojson` holds slope bands (15° / 20° / 25° / 30°) from the
-  Copernicus GLO-30 elevation model. Merge the bands at or above the scenario's maximum slope
-  into the unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
-- **Load the dials**: open **Isobenefit Urbanism**, press *Load parameters*, pick the
-  scenario's `params.json`, and every dial fills in. Dnipro ships one preset per pilot area.
-- **Run**: pick the layers in the *Input layers* group, confirm the suggested CRS, set an
-  output `.tif` path, press **Run**.
-- **Reproduce a website panel**: download that run's parameters from the explorer instead;
-  the same seed and dials give the same result at the scenario's full resolution.
+- **Layers**: drag the GeoJSON files onto the QGIS map.
+- **Local adjustment**: every layer is ordinary editable data, and the scenarios are prepared
+  on the assumption that they will be revised. The built fabric, the extents, the green areas
+  and the unbuildable land can each be corrected wherever local knowledge or stakeholder
+  feedback improves on the downloaded state.
+- **Centre seeding**: the urban-centres layer steers the simulation and is the most direct
+  expression of local intent. A point or area added where a mixed-use centre is planned draws
+  growth around it; removing one examines a future without it.
+- **Terrain**: `steep.geojson` holds slope bands (15° / 20° / 25° / 30°) from the Copernicus
+  GLO-30 elevation model. The bands at or above the scenario's maximum slope belong in the
+  unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
+- **Parameters**: in **Isobenefit Urbanism**, *Load parameters* with the scenario's
+  `params.json` fills every control. Dnipro provides one preset per pilot area.
+- **Running**: select the layers in the *Input layers* group, confirm the suggested CRS, set
+  an output `.tif` path, and press **Run**.
+- **Reproducing a published panel**: the explorer's per-run parameter files carry the exact
+  seed and settings, so a downloaded panel reproduces at the scenario's full resolution.
 
 ## The Extract from OpenStreetMap tool
 
@@ -98,7 +99,7 @@ layers and pre-selects them.
 
 ## The run dialog, group by group
 
-**Parameters.** *Load parameters* repopulates every dial from a previous run's
+**Parameters.** *Load parameters* repopulates every control from a previous run's
 `*_params.json` sidecar or from a scenario preset. Every run writes such a sidecar next to its
 output.
 
@@ -108,7 +109,7 @@ output.
 | --- | --- | --- |
 | Max iterations | 100 | Cap on growth steps; a run stops early at the target population |
 | Grid size (m) | 50 | Cell size of the simulation grid |
-| Target population | 100,000 | NEW residents to house; growth stops once reached (checked between iterations, so the final count can slightly overshoot) |
+| Target population | 100,000 | New residents to house; growth stops once reached (checked between iterations, so the final count can slightly overshoot) |
 | Build probability | 0.25 | Per-step chance an eligible cell develops (the growth rate) |
 | Dispersed development | Moderate | Leapfrog rate: Off / Moderate / Aggressive |
 | Random seed | 42 | The same seed reproduces the same run and the same ensemble, on any machine |
@@ -122,13 +123,13 @@ is scored against each separately.
 | Field | Default | What it does |
 | --- | --- | --- |
 | Optimise centre placement | on | Re-position centres central to their development, add where under-served, cull redundant ones; saves moderately- and tightly-clustered options. Off keeps the grown centres (one plan) |
-| Centre area (m² per person) | 20 | Mixed-use centre land provided per NEW resident served |
+| Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
 | Min settlement area (ha) | 2 | Detached new clusters smaller than this revert to green |
 | Min green span (m) | 400 | A green patch must span this to count as a park; also a build rule protecting corridors |
 
 **Development density.** Three densities (people per km²) for the high, medium and low tiers,
-each with a share. Guards: densities positive and strictly descending; each share in 0–1; shares
-summing to 1 (the feedback line shows the total and the mean). Every new block is built at one of
+each with a share. The dialog requires positive, strictly descending densities and shares
+between 0 and 1 that sum to 1; the feedback line shows the running total and the mean. Every new block is built at one of
 the three densities; post-processing arranges the highest nearest the mixed-use centres.
 
 **Output.** *Development likelihood* (the default) blends many runs; the *Detail* picker sets how
@@ -164,8 +165,8 @@ percentages include every home, existing and new.
 
 ## Troubleshooting
 
-- **"Install the engine?" then nothing works**: restart QGIS after the engine installs; the
-  check runs again on the next launch.
+- **The engine installed but the tools stay disabled**: restart QGIS; the check runs again on
+  the next launch.
 - **Run is greyed out**: read the red status line; it names the missing pieces (extents layer,
   output `.tif`, projected CRS, densities/shares).
 - **"Select a local projected CRS"**: geographic (degrees) CRSs are rejected. Accept the
@@ -174,7 +175,7 @@ percentages include every home, existing and new.
   directions; enlarge the extents polygon or shorten the walks.
 - **OSM fetch fails**: the Overpass servers are shared and sometimes busy; retry after a minute,
   or draw a smaller area.
-- **Where are the logs?** *View → Panels → Log Messages*, under the **Isobenefit** tab: grid
-  size, per-stage progress, per-option metrics and any warnings land there.
-- **Where did my settings go?** Next to the output raster, as `<name>_params.json`; load it back
-  with the dialog's *Load parameters* button.
+- **Finding the logs**: *View → Panels → Log Messages*, under the **Isobenefit** tab, records
+  grid size, per-stage progress, per-option metrics and any warnings.
+- **Recovering a run's settings**: they are saved next to the output raster as
+  `<name>_params.json`, and load back with the dialog's *Load parameters* button.
