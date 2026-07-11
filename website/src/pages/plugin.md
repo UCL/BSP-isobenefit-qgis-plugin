@@ -64,10 +64,15 @@ needs.
   `centres`, `unbuildable`, `streets`, `stops`, `stations`), the terrain bands
   (`steep.geojson`), and one or more `params*.json` presets.
 - **Add the layers**: drag the GeoJSON files onto the QGIS map.
+- **Edit anything**: every layer is ordinary editable data, and configuring it is the point.
+  Correct the built fabric, adjust the extents, redraw green, mark land unbuildable, wherever
+  local knowledge or stakeholder feedback improves on the downloads.
+- **Seed the centres**: the urban-centres layer steers the simulation. Add a point (or area)
+  where a mixed-use centre is planned or wanted, and growth organises around it; remove one to
+  test a future without it. This is the most direct way to turn local intent into a scenario.
 - **Review the terrain**: `steep.geojson` holds slope bands (15° / 20° / 25° / 30°) from the
-  Copernicus GLO-30 elevation model. Edit where local knowledge disagrees, then merge the bands
-  at or above the scenario's maximum slope into the unbuildable layer
-  (*Vector → Data Management Tools → Merge Vector Layers*).
+  Copernicus GLO-30 elevation model. Merge the bands at or above the scenario's maximum slope
+  into the unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
 - **Load the dials**: open **Isobenefit Urbanism**, press *Load parameters*, pick the
   scenario's `params.json`, and every dial fills in. Dnipro ships one preset per pilot area.
 - **Run**: pick the layers in the *Input layers* group, confirm the suggested CRS, set an
