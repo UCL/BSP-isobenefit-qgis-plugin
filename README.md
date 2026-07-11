@@ -42,7 +42,7 @@ shows the exact command to run yourself, which is simply:
 
 ## Usage
 
-Open the plugin and choose an output `.tif` path, a polygon **extents** layer, and a
+Open the plugin and choose an output folder and run name, a polygon **extents** layer, and a
 projected **CRS**. Optionally add layers for existing built areas, green space,
 unbuildable land, urban centres, public-transport stops, rail/tram stations, and a
 street network. No layers prepared? The companion **Extract from OpenStreetMap** tool

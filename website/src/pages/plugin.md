@@ -41,9 +41,8 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
 4. Open **Isobenefit Urbanism**. The dialog pre-fills its layer pickers from the OSM download,
    suggests a local projected CRS, and validates as you type; the status line under the form
    lists what is still missing.
-5. Set an **output file** (a `.tif` path). This is usually the only required field left. The
-   path acts as a stem: an ensemble run writes a family of files beside it, all sharing the
-   name (the plan options, the report and the parameter sidecar).
+5. Choose an **output folder** and give the run a **name**. All of the run's files take that
+   name.
 6. Set the **target population**: the number of new residents to house. Existing buildings are
    context only and are never counted.
 7. Check the **Development density** group: three densities (people per km²) and the share of
@@ -78,8 +77,8 @@ needs.
   unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
 - **Parameters**: in **Isobenefit Urbanism**, *Load parameters* with the scenario's
   `params.json` fills every control. Dnipro provides one preset per pilot area.
-- **Running**: select the layers in the *Input layers* group, confirm the suggested CRS, set
-  an output `.tif` path, and press **Run**.
+- **Running**: select the layers in the *Input layers* group, confirm the suggested CRS,
+  choose an output folder and run name, and press **Run**.
 - **Reproducing a published panel**: the explorer's per-run parameter files carry the exact
   seed and settings, so a downloaded panel reproduces at the scenario's full resolution.
 
@@ -136,7 +135,7 @@ the three densities; post-processing arranges the highest nearest the mixed-use 
 
 **Output.** *Development likelihood* (the default) blends many runs; the *Detail* picker sets how
 many (Quick 10 / Standard 50 / Thorough 100). Untick it for a single run written as a growth
-animation. The output `.tif` path is the stem for the run's whole output family (see Outputs
+animation. The output folder and run name determine where the run's files land (see Outputs
 below); the CRS must be a local projected CRS (a suggestion
 is made from the extents layer; geographic lat/lon CRSs are rejected so the model always works in
 metres).
@@ -146,13 +145,14 @@ unbuildable, urban centres (points or polygon areas), PT stops, rail/tram statio
 network (line layer; when given, walking distances are measured along it). All layers may be in
 any CRS; they are reprojected to the chosen run CRS.
 
-The **Run button stays disabled** until four things are set: an extents layer, an output `.tif`,
-a projected CRS, and valid densities and shares. The red status line names whichever are
+The **Run button stays disabled** until four things are set: an extents layer, an output folder
+and run name, a projected CRS, and valid densities and shares. The red status line names whichever are
 missing.
 
 ## Outputs and how to read them
 
-**Ensemble mode** writes a family of files sharing the chosen output name: `<name>.tif` (the
+**Ensemble mode** writes a family of files into the output folder, sharing the run name:
+`<name>.tif` (the
 built and green likelihood bands), `<name>_existing.tif` (the starting fabric),
 `<name>_pre.tif` (the chosen run before post-processing), `<name>_moderate.tif` and
 `<name>_tight.tif` (the two clustering options, each coloured by density tier: built as a
@@ -173,7 +173,7 @@ percentages include every home, existing and new.
 - **The engine installed but the tools stay disabled**: restart QGIS; the check runs again on
   the next launch.
 - **Run is greyed out**: read the red status line; it names the missing pieces (extents layer,
-  output `.tif`, projected CRS, densities/shares).
+  output folder and run name, projected CRS, densities/shares).
 - **"Select a local projected CRS"**: geographic (degrees) CRSs are rejected. Accept the
   suggested UTM zone, or pick the national grid for the area.
 - **"The extents are too small"**: the area must exceed twice the walking distance in both

@@ -11,7 +11,7 @@ qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
 description=Isobenefit Urbanism plugin for QGIS.
-version=0.12.4
+version=0.12.5
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -28,6 +28,7 @@ repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 # Recommended items:
 
 changelog=
+    0.12.5 The run dialog asks for an output folder and a run name instead of a single .tif path, since a run writes a family of files (plans, likelihood bands, report, parameter sidecar) that share the name.
     0.12.4 Anchor invariant for mixed-use centres: every contiguous settlement containing new development keeps at least one directly attached centre. Consolidation may thin centres within a settlement but never strips one bare (the cull spares a settlement's last anchor, and a backstop anchors any settlement left without one). Cambourne scenario target raised to 30,000.
     0.12.3 Contiguity rule: a mixed-use centre only exists attached to a contiguous built settlement of at least the minimum settlement size, whether or not centre optimisation is on; the threshold is floored at 4 cells so coarse grids cannot let orphan centres survive stranded in green.
     0.12.2 Run parameters are now cached: every run writes a <output>_params.json sidecar, and the dialog's new Load parameters button repopulates every dial from a sidecar or from a scenario preset. A scenarios folder in the repository ships seven worked scenarios (Cambourne, Dnipro, Crews Hill London, Celina Texas, Kigali, Medellin, and a Freiburg validation case), each with extents, parameters and pre-fetched OSM layers.

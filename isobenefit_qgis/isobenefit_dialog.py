@@ -222,11 +222,17 @@ class IsobenefitDialog(QtWidgets.QDialog):
         out.addRow("Detail", self.detail_mode)
         self.ensemble_check.toggled.connect(self.detail_mode.setEnabled)
         self.ensemble_check.toggled.connect(self.optimise_centres_check.setEnabled)
+        # The run writes a family of files (plans, report, parameter sidecar), so the dialog asks
+        # for a folder and a run name rather than pretending a single file is produced.
         self.file_output = QgsFileWidget(self)
-        self.file_output.setStorageMode(QgsFileWidget.StorageMode.SaveFile)
+        self.file_output.setStorageMode(QgsFileWidget.StorageMode.GetDirectory)
         self.file_output.fileChanged.connect(self.handle_output_path)  # type: ignore (connect works)
-        out.addRow("Output file (.tif)", self.file_output)
-        self.file_path_feedback = QtWidgets.QLabel("Select an output file path", self)
+        out.addRow("Output folder", self.file_output)
+        self.run_name = QtWidgets.QLineEdit("scenario", self)
+        self.run_name.setToolTip("Names the run's output files (plans, report, parameters).")
+        self.run_name.textChanged.connect(self.handle_output_path)
+        out.addRow("Run name", self.run_name)
+        self.file_path_feedback = QtWidgets.QLabel("Select an output folder", self)
         self.file_path_feedback.setWordWrap(True)
         out.addRow(self.file_path_feedback)
         self.crs_selection = QgsProjectionSelectionWidget(self)
@@ -339,7 +345,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         if self.extents_layer is None:
             missing.append("an extents layer")
         if self.out_file_name is None:
-            missing.append("an output file (.tif)")
+            missing.append("an output folder and run name")
         if self.selected_crs is None:
             missing.append("a projected CRS")
         if self.prob_sum is None or abs(self.prob_sum - 1.0) > 1e-3:
@@ -433,37 +439,28 @@ class IsobenefitDialog(QtWidgets.QDialog):
             self.reset_state()
 
     def handle_output_path(self) -> None:
-        """ """
-        # reset
+        """Validate the output folder and run name; the run's files all derive from the pair."""
         self.reset_state()
         self.out_dir_path = None
         self.out_file_name = None
-        # bail if no path provided
-        out_path_str: str = self.file_output.filePath().strip()
-        if out_path_str == "":
-            self.file_path_feedback.setText("Simulation requires an output filepath.")
-            return None
-        out_path: Path = Path(out_path_str)
-        # bail if parent is not valid
-        if not out_path.parent.exists():
-            self.file_path_feedback.setText("Filepath's parent directory does not exist.")
-            return None
-        # bail if a directory
-        if out_path.is_dir():
-            self.file_path_feedback.setText("Requires an output file name.")
-            return None
-        # don't save in root
-        if out_path.parent.absolute() == Path("/"):
-            self.file_path_feedback.setText("Select an output directory other than root.")
-            return None
-        # check that file path ends with .tif
-        if not out_path.name.endswith(".tif") and "." in out_path.name:
-            self.file_path_feedback.setText("Output extension must be .tif")
-            return None
-        # success
+        folder = self.file_output.filePath().strip()
+        if folder == "":
+            self.file_path_feedback.setText("Select an output folder.")
+            return
+        out_dir = Path(folder)
+        if not out_dir.is_dir():
+            self.file_path_feedback.setText("The output folder does not exist.")
+            return
+        if out_dir.absolute() == Path("/"):
+            self.file_path_feedback.setText("Select an output folder other than root.")
+            return
+        name = self.run_name.text().strip().removesuffix(".tif")
+        if name == "" or any(ch in name for ch in '/\\:*?"<>|'):
+            self.file_path_feedback.setText("Give the run a simple name (no slashes or special characters).")
+            return
         self.file_path_feedback.setText("")
-        self.out_dir_path = out_path.parent.absolute()
-        self.out_file_name = out_path.name.replace(".tif", "")
+        self.out_dir_path = out_dir.absolute()
+        self.out_file_name = name
         self.refresh_state()
 
     def handle_extents_layer(self) -> None:
