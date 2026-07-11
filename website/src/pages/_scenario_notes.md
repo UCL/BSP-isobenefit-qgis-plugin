@@ -21,15 +21,19 @@ repository, containing:
   it; the scenario's `slope_max_deg` parameter says which bands preclude development. Where it
   applies, review the layer, then merge the selected bands into the unbuildable layer for a run.
 
-| # | Scenario | Theme | Status |
-|---|---|---|---|
-| 1 | [Cambourne, UK](#cambourne) | New-settlement growth (the reference demo) | Worked |
-| 2 | [Dnipro, Ukraine](#dnipro) | Post-war regeneration and edge growth, DBN norms | Worked |
-| 3 | [Crews Hill, London](#crews-hill) | Green-belt release at the metropolitan edge | Draft |
-| 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | Draft |
-| 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | Draft |
-| 6 | [Medellín, Colombia](#medellin) | Planned hillside expansion on steep terrain | Draft |
-| 7 | [Freiburg, Germany](#freiburg) | Validation against celebrated walkable districts | Draft |
+Every scenario downloads as a single ZIP (extents, all input layers including the editable
+`steep.geojson`, and the parameter presets), or browse the folders on
+[GitHub](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios):
+
+| # | Scenario | Theme | Status | Download |
+|---|---|---|---|---|
+| 1 | [Cambourne, UK](#cambourne) | New-settlement growth (the reference demo) | Worked | [ZIP](cambourne.zip) |
+| 2 | [Dnipro, Ukraine](#dnipro) | Post-war regeneration and edge growth, DBN norms | Worked | [ZIP](dnipro.zip) (areas A + B) |
+| 3 | [Crews Hill, London](#crews-hill) | Green-belt release at the metropolitan edge | Draft | [ZIP](london_crews_hill.zip) |
+| 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | Draft | [ZIP](celina_tx.zip) |
+| 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | Draft | [ZIP](kigali_east.zip) |
+| 6 | [Medellín, Colombia](#medellin) | Planned hillside expansion on steep terrain | Draft | [ZIP](medellin_pajarito.zip) |
+| 7 | [Freiburg, Germany](#freiburg) | Validation against celebrated walkable districts | Draft | [ZIP](freiburg_rieselfeld.zip) |
 
 <h2 id="cambourne">1. Cambourne, UK: the reference demo</h2>
 

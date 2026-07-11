@@ -30,6 +30,10 @@ const base = import.meta.env.BASE_URL
         <img id="preset-image" alt="Precomputed scenario run" />
         <figcaption id="preset-caption"></figcaption>
       </figure>
+      <div class="download-bar" id="download-bar" style="display:none">
+        <a id="bar-zip" href="#">⬇ Download this scenario (ZIP)</a>
+        <a id="bar-params" href="#">⬇ This run's parameters</a>
+      </div>
       <div class="flex justify-center overflow-x-auto">
         <table id="metrics-table" style="display:none">
           <tr>
@@ -93,6 +97,13 @@ const base = import.meta.env.BASE_URL
     .preset-note {
       @apply text-center italic;
     }
+    /* the obvious downloads, right under the map */
+    .download-bar {
+      @apply mt-1 mb-2 flex flex-wrap justify-center gap-3;
+    }
+    .download-bar a {
+      @apply rounded border-1 border-theme px-3 py-1 text-sm font-semibold no-underline;
+    }
     #preset-image {
       @apply w-full max-w-3xl;
     }
@@ -129,6 +140,9 @@ const base = import.meta.env.BASE_URL
     const table = document.getElementById('metrics-table') as HTMLElement
     const row = document.getElementById('metrics-row') as HTMLElement
     const repro = document.getElementById('reproduce') as HTMLElement
+    const bar = document.getElementById('download-bar') as HTMLElement
+    const barZip = document.getElementById('bar-zip') as HTMLAnchorElement
+    const barParams = document.getElementById('bar-params') as HTMLAnchorElement
     const dlZip = document.getElementById('dl-zip') as HTMLAnchorElement
     const dlParams = document.getElementById('dl-params') as HTMLAnchorElement
     const ghLink = document.getElementById('gh-link') as HTMLAnchorElement
@@ -166,6 +180,15 @@ const base = import.meta.env.BASE_URL
       caption.textContent = `${entry.title}: ${preset.label}. ${entry.grid}, seed ${entry.seed}.`
       noteEl.textContent = preset.note
       const m = preset.metrics
+      barZip.href = `${base}${entry.zip}`
+      if (preset.params_file) {
+        barParams.href = `${base}gallery/${preset.params_file}`
+        barParams.setAttribute('download', `${entry.id}_${preset.id}_params.json`)
+        barParams.style.display = ''
+      } else {
+        barParams.style.display = 'none'  // the existing-state panel has no run parameters
+      }
+      bar.style.display = ''
       if (m === null) {
         table.style.display = 'none'
         repro.style.display = 'none'
