@@ -11,12 +11,12 @@ const base = import.meta.env.BASE_URL
 
   <section>
     <p>
-      Pick a scenario, then toggle between precomputed runs to see how the dials change the outcome.
-      Every panel is a real simulation through the full pipeline (growth, then post-processing), run at a
-      coarsened preview resolution with a fixed seed, so each one is exactly reproducible; formal runs
-      happen in QGIS at the scenario's own resolution using the folders linked below. Built land is
-      coloured by density tier (yellow to brown), mixed-use centres in reds, existing fabric muted,
-      nature green, unbuildable blue.
+      Pick a scenario, then move between the precomputed runs to see how each dial changes the outcome.
+      Every panel is a complete simulation (growth, then post-processing) at a coarsened preview
+      resolution with a fixed seed, so any panel can be reproduced; formal runs happen in QGIS at the
+      scenario's own resolution using the downloads below. Built land is coloured by density tier
+      (yellow to brown), mixed-use centres in reds, existing fabric muted, nature green, unbuildable
+      blue.
     </p>
     <div id="explorer" data-base={base}>
       <p class="chooser-label">Scenario</p>

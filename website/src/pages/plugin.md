@@ -5,9 +5,9 @@ title: Plugin guide
 
 # Plugin guide
 
-Everything needed to drive the plugin, from installation to reading the outputs. The
-[introduction](./) explains how the model thinks; this page explains how to use it. The
-[scenario library](./scenarios/) provides ready-made data and parameters to start from.
+This page covers installation, a first run, the data downloader, every dialog control, the
+outputs, and troubleshooting. The [introduction](./) explains the model itself, and the
+[scenario library](./scenarios/) provides prepared data and parameters to start from.
 
 ## Install
 
@@ -40,7 +40,7 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
    ordinary editable layers; adjust them if you want.
 4. Open **Isobenefit Urbanism**. The dialog pre-fills its layer pickers from the OSM download,
    suggests a local projected CRS, and validates as you type; the status line under the form
-   says exactly what is still missing.
+   lists what is still missing.
 5. Set an **output file** (a `.tif` path). This is usually the only required field left.
 6. Set the **target population**: how many NEW residents to house. Existing buildings are
    context only and are never counted.
@@ -53,7 +53,7 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
 9. The run's full settings are saved next to the output as `<name>_params.json`. To repeat or
    tweak the run later, use *Load parameters* at the top of the dialog.
 
-To start from a ready-made case instead, use a scenario download — the next section.
+To start from a prepared case instead, use a scenario download, described in the next section.
 
 <h2 id="use-a-scenario">Using a downloaded scenario</h2>
 
@@ -64,12 +64,12 @@ needs.
   `centres`, `unbuildable`, `streets`, `stops`, `stations`), the terrain bands
   (`steep.geojson`), and one or more `params*.json` presets.
 - **Add the layers**: drag the GeoJSON files onto the QGIS map.
-- **Edit anything**: every layer is ordinary editable data, and configuring it is the point.
-  Correct the built fabric, adjust the extents, redraw green, mark land unbuildable, wherever
-  local knowledge or stakeholder feedback improves on the downloads.
-- **Seed the centres**: the urban-centres layer steers the simulation. Add a point (or area)
-  where a mixed-use centre is planned or wanted, and growth organises around it; remove one to
-  test a future without it. This is the most direct way to turn local intent into a scenario.
+- **Edit anything**: every layer is ordinary editable data, and the scenarios are intended to
+  be adjusted. Correct the built fabric, adjust the extents, redraw green, or mark land
+  unbuildable wherever local knowledge or stakeholder feedback improves on the downloads.
+- **Seed the centres**: the urban-centres layer steers the simulation, and editing it is the
+  most direct way to express local intent. Add a point or area where a mixed-use centre is
+  planned or wanted and growth organises around it; remove one to examine a future without it.
 - **Review the terrain**: `steep.geojson` holds slope bands (15° / 20° / 25° / 30°) from the
   Copernicus GLO-30 elevation model. Merge the bands at or above the scenario's maximum slope
   into the unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
@@ -143,7 +143,7 @@ network (line layer; when given, walking distances are measured along it). All l
 any CRS; they are reprojected to the chosen run CRS.
 
 The **Run button stays disabled** until four things are set: an extents layer, an output `.tif`,
-a projected CRS, and valid densities and shares. The red status line lists exactly which are
+a projected CRS, and valid densities and shares. The red status line names whichever are
 missing.
 
 ## Outputs and how to read them

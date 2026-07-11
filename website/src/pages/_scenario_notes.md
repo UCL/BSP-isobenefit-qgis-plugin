@@ -33,7 +33,7 @@ Every scenario downloads as a single ZIP (extents, all input layers including th
 | 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | Draft | [ZIP](celina_tx.zip) |
 | 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | Draft | [ZIP](kigali_east.zip) |
 | 6 | [Medellín, Colombia](#medellin) | Planned hillside expansion on steep terrain | Draft | [ZIP](medellin_pajarito.zip) |
-| 7 | [Freiburg, Germany](#freiburg) | Validation against celebrated walkable districts | Draft | [ZIP](freiburg_rieselfeld.zip) |
+| 7 | [Freiburg, Germany](#freiburg) | Validation against built walkable districts | Draft | [ZIP](freiburg_rieselfeld.zip) |
 
 <h2 id="cambourne">1. Cambourne, UK: the reference demo</h2>
 
@@ -152,10 +152,11 @@ Folder: [`scenarios/celina_tx/`](https://github.com/UCL/BSP-isobenefit-qgis-plug
 
 <h2 id="kigali">5. Kigali, Rwanda: plan-guided rapid urbanisation (draft)</h2>
 
-Kigali is Africa's clearest case of plan-guided growth: a city-wide master plan steers rapid
-urbanisation into designated expansion zones with managed green networks, which is exactly the
-regime this model speaks to, simple rules guiding new growth while protecting green. The draft
-boundary covers the eastern expansion direction (toward Ndera and Masaka).
+Kigali manages rapid urbanisation through a city-wide master plan that steers growth into
+designated expansion zones while protecting a network of green corridors and wetlands. Because
+the model also works by guiding new growth with a small set of rules under green protection, the
+two fit naturally. The draft boundary covers the eastern expansion direction, toward Ndera and
+Masaka.
 Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/kigali_east).
 
 - **Tiers (indicative values, household 4.3):** 10,000 / 20,000 / 35,000 people/km²
@@ -171,9 +172,9 @@ Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-pl
 <h2 id="medellin">6. Medellín, Colombia: planned hillside expansion (draft)</h2>
 
 Pajarito and Ciudadela Nuevo Occidente on Medellín's northwestern slopes are a planned expansion
-of metrocable-served social housing at height. Steep terrain makes the model's green network and
-short walks decisive, and the slopes themselves belong in the unbuildable layer, so the scenario
-tests the rules where topography, not policy, is the binding constraint.
+of metrocable-served social housing at height. The scenario tests the growth rules where
+topography is the binding constraint: steep terrain sits in the unbuildable layer, and the green
+network and short walking distances have to work around it.
 Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/medellin_pajarito).
 
 - **Tiers (indicative values, household 3.1):** 8,000 / 18,000 / 35,000 people/km², shares
@@ -186,11 +187,12 @@ Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-q
 
 <h2 id="freiburg">7. Freiburg, Germany: a validation scenario (draft)</h2>
 
-Rieselfeld and Vauban in western Freiburg are among Europe's most celebrated walkable districts.
-This scenario runs the model where a known-good answer already exists: delete the two districts
-from the `built` layer (keeping a reference copy), let the model regrow the same land toward the
-districts' real population, and compare the result against what was actually built. Agreement
-strengthens confidence in the model; disagreement locates what the rules miss.
+Rieselfeld and Vauban in western Freiburg are two widely studied walkable districts, planned in
+the 1990s and often cited as models of the form this plugin aims for. The scenario runs the
+model where a good answer already exists: delete the two districts from the `built` layer
+(keeping a reference copy), let the model regrow the same land toward the districts' real
+population, and compare the result against what was built. The comparison shows which behaviours
+the growth rules capture and which they miss.
 Folder: [`scenarios/freiburg_rieselfeld/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/freiburg_rieselfeld).
 
 - **Tiers (indicative values, household 2.0, centred on the districts' real densities):**
