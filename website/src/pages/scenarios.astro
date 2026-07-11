@@ -19,9 +19,13 @@ const base = import.meta.env.BASE_URL
       nature green, unbuildable blue.
     </p>
     <div id="explorer" data-base={base}>
+      <p class="chooser-label">Scenario</p>
       <div class="chooser" id="scenario-buttons"></div>
-      <div class="chooser presets" id="preset-buttons"></div>
-      <p class="preset-note" id="preset-note"></p>
+      <div class="preset-block">
+        <p class="chooser-label">Precomputed run</p>
+        <div class="chooser presets" id="preset-buttons"></div>
+        <p class="preset-note" id="preset-note"></p>
+      </div>
       <figure>
         <img id="preset-image" alt="Precomputed scenario run" />
         <figcaption id="preset-caption"></figcaption>
@@ -66,6 +70,15 @@ const base = import.meta.env.BASE_URL
        scoped-style attributes never reach them */
     .chooser {
       @apply my-2 flex flex-wrap justify-center gap-2;
+    }
+    .chooser-label {
+      @apply mt-3 mb-0 text-center text-xs font-semibold uppercase tracking-wide;
+      color: #8a8a8a;
+    }
+    /* a light rule between the scenario row and the run row, so the two choices read apart */
+    .preset-block {
+      @apply mt-4 pt-2;
+      border-top: 1px solid #c9c9c9;
     }
     .chooser button {
       @apply rounded border-1 border-light-grey bg-white px-3 py-1 text-sm;
