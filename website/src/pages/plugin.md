@@ -41,7 +41,9 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
 4. Open **Isobenefit Urbanism**. The dialog pre-fills its layer pickers from the OSM download,
    suggests a local projected CRS, and validates as you type; the status line under the form
    lists what is still missing.
-5. Set an **output file** (a `.tif` path). This is usually the only required field left.
+5. Set an **output file** (a `.tif` path). This is usually the only required field left. The
+   path acts as a stem: an ensemble run writes a family of files beside it, all sharing the
+   name (the plan options, the report and the parameter sidecar).
 6. Set the **target population**: the number of new residents to house. Existing buildings are
    context only and are never counted.
 7. Check the **Development density** group: three densities (people per km²) and the share of
@@ -134,7 +136,8 @@ the three densities; post-processing arranges the highest nearest the mixed-use 
 
 **Output.** *Development likelihood* (the default) blends many runs; the *Detail* picker sets how
 many (Quick 10 / Standard 50 / Thorough 100). Untick it for a single run written as a growth
-animation. The output file must be a `.tif`; the CRS must be a local projected CRS (a suggestion
+animation. The output `.tif` path is the stem for the run's whole output family (see Outputs
+below); the CRS must be a local projected CRS (a suggestion
 is made from the extents layer; geographic lat/lon CRSs are rejected so the model always works in
 metres).
 
@@ -149,11 +152,13 @@ missing.
 
 ## Outputs and how to read them
 
-**Ensemble mode** loads, top to bottom: existing development; the raw chosen run (before
-post-processing); the moderately and tightly clustered scenario options (each coloured by
-density tier: built as a yellow-to-brown ramp, mixed-use centres as a reds ramp, existing fabric
-muted); and the built/green likelihood bands. A `_report.txt` records the parameters and
-per-option statistics.
+**Ensemble mode** writes a family of files sharing the chosen output name: `<name>.tif` (the
+built and green likelihood bands), `<name>_existing.tif` (the starting fabric),
+`<name>_pre.tif` (the chosen run before post-processing), `<name>_moderate.tif` and
+`<name>_tight.tif` (the two clustering options, each coloured by density tier: built as a
+yellow-to-brown ramp, mixed-use centres as a reds ramp, existing fabric muted),
+`<name>_report.txt` (parameters and per-option statistics) and `<name>_params.json` (the
+reloadable settings). QGIS loads them as a layer group in that order.
 
 Every population figure counts **new residents only**; existing fabric is assumed served by its
 own centres. The per-person readouts follow: m² of mixed-use centre per person is new centre
