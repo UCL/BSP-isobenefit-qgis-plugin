@@ -108,7 +108,7 @@ Every artefact rebuilds from committed sources. Setup once with `uv sync` (dev e
 engine) and `npm install` in `website/`. Then there are four commands:
 
 ```bash
-bash scripts/verify.sh                                        # full local verification (mirrors CI)
+.venv/bin/python scripts/verify.py                            # full local verification (mirrors CI)
 .venv/bin/python scripts/fetch_scenario.py scenarios/<name>   # rebuild a scenario's layers (OSM + terrain)
 .venv/bin/python scripts/render_scenario_gallery.py           # rebuild the website gallery, ZIPs and presets
 cd website && npm run dev                                     # preview the site (npm run build for production)

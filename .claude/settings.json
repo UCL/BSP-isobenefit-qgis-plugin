@@ -11,7 +11,8 @@
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/slope_batch.sh)",
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/rerender_batch.sh)",
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/dlbar_batch.sh)",
-      "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/wrap_batch.sh)"
+      "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/wrap_batch.sh)",
+      "Bash(/Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/.venv/bin/python /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/wrap.py)"
     ]
   }
 }
