@@ -133,6 +133,7 @@ def substrate(extent, layers, gran):
     inside = shapely.contains_xy(extent, gx, gy)
     state = np.full((rows, cols), -1, np.int16)
     state[inside] = 0
+    inside_mask = inside.copy()
     origin = np.full((rows, cols), -1, np.int16)
     built = mask(layers.get("built", [])) & inside
     green = mask(layers.get("green", [])) & inside
@@ -148,7 +149,7 @@ def substrate(extent, layers, gran):
         if 0 <= r < rows and 0 <= c < cols and built[r, c]:
             seeds.append((r, c))
     return {"state": state, "origin": origin, "seeds": sorted(set(seeds)), "gt": gt,
-            "rows": rows, "cols": cols, "extent": extent}
+            "rows": rows, "cols": cols, "extent": extent, "inside": inside_mask}
 
 
 def _rgb(hexcol):
@@ -212,12 +213,19 @@ def render_png(codes, layers, sub, gran, path):
             ]
             if len(pts) >= 2:
                 draw.line(pts, fill=_rgb(STREET), width=2)
+    inside = sub["inside"]
+    unbuildable = (sub["state"] == -1) & inside
     for r in range(H):
         for c in range(W):
             v = int(codes[r, c])
-            if v not in TIER_STYLE:
-                continue
-            col, radf = TIER_STYLE[v]
+            if v in TIER_STYLE:
+                col, radf = TIER_STYLE[v]
+            elif unbuildable[r, c]:
+                col, radf = UNBUILDABLE, 0.3  # water, barriers, steep terrain: visibly excluded
+            elif inside[r, c]:
+                col, radf = GREEN, 0.18  # untouched land inside the extents
+            else:
+                continue  # outside the study area: blank
             cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
             rad = P * radf
             draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(col))
