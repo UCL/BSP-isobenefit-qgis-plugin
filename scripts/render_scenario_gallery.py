@@ -93,6 +93,17 @@ def load_scenario(folder: str):
             with open(path, encoding="utf-8") as fh:
                 fc = json.load(fh)
             layers[name] = [shapely.make_valid(shapely.geometry.shape(f["geometry"])) for f in fc["features"]]
+    # terrain: steep.geojson bands at/above the scenario's slope_max_deg preclude development
+    steep_path = os.path.join(folder, "steep.geojson")
+    slope_max = params.get("slope_max_deg")
+    if slope_max is not None and os.path.exists(steep_path):
+        with open(steep_path, encoding="utf-8") as fh:
+            fc = json.load(fh)
+        layers.setdefault("unbuildable", []).extend(
+            shapely.make_valid(shapely.geometry.shape(f["geometry"]))
+            for f in fc["features"]
+            if float(f["properties"].get("min_slope_deg", 0)) >= float(slope_max)
+        )
     extents = {}
     for name in sorted(os.listdir(folder)):
         if name.startswith("extents") and name.endswith(".geojson"):

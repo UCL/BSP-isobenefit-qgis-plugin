@@ -15,7 +15,11 @@ repository, containing:
 - the OSM input layers (`built`, `green`, `centres`, `unbuildable`, `streets`, `stops`,
   `stations`, `railways`, `industrial`), pre-fetched with the plugin's own extraction rules by
   `scripts/fetch_scenario.py`. The download window is the convex hull of the extents features, so
-  one fetch covers every pilot area; the hull is kept as `osm_download_extent.geojson`.
+  one fetch covers every pilot area; the hull is kept as `osm_download_extent.geojson`;
+- `steep.geojson`, terrain slope bands (15° / 20° / 25° / 30°) from the Copernicus GLO-30
+  elevation model. This ships as a separate, editable layer so local knowledge can trim or extend
+  it; the scenario's `slope_max_deg` parameter says which bands preclude development. Where it
+  applies, review the layer, then merge the selected bands into the unbuildable layer for a run.
 
 | # | Scenario | Theme | Status |
 |---|---|---|---|
@@ -154,6 +158,9 @@ Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-pl
   (roughly 25 / 45 / 80 dwellings/ha), shares 0.4 / 0.4 / 0.2 (low / medium / high).
 - **Target:** about 60,000 new residents for one expansion area. **Walks:** 400 m.
   **Grid:** 25 m, EPSG:32736. **Dispersal:** moderate.
+- **Terrain:** slopes over 15° preclude development (`slope_max_deg: 15`, matching Rwanda's
+  percent-slope planning limits; a few percent of the window). Bands in the editable
+  `steep.geojson`, from Copernicus GLO-30.
 - **Status:** draft boundary and indicative numbers, to be confirmed against the Kigali master
   plan zoning.
 
@@ -169,8 +176,9 @@ Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-q
   0.3 / 0.4 / 0.3 (low / medium / high); the high tier reflects the area's housing towers.
 - **Target:** about 40,000 new residents. **Walks:** 400 m. **Grid:** 25 m, EPSG:32618.
   **Dispersal:** moderate.
-- **Status:** draft boundary and indicative numbers, to be confirmed against the POT zoning; a
-  slope layer should be added to unbuildable from a DEM.
+- **Terrain:** slopes over 20° preclude development (`slope_max_deg: 20`; about 30% of the study
+  window). The bands are in the editable `steep.geojson`, from Copernicus GLO-30.
+- **Status:** draft boundary and indicative numbers, to be confirmed against the POT zoning.
 
 <h2 id="freiburg">7. Freiburg, Germany: a validation scenario (draft)</h2>
 

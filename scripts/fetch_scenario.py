@@ -34,6 +34,90 @@ SIMPLIFY_M = 6.0
 MIN_AREA_M2 = 1500.0
 MIN_LINE_M = 60.0
 BARRIER_BUFFER_M = 30.0
+DEM_SAMPLE_M = 30.0  # slope analysis grid (matches the 30 m source DEM)
+SLOPE_BANDS = (15.0, 20.0, 25.0, 30.0)  # steep.geojson bands; edit locally, threshold via params
+GLO30 = "https://copernicus-dem-30m.s3.amazonaws.com/{name}/{name}.tif"
+
+
+def _glo30_name(lat: int, lon: int) -> str:
+    ns = f"N{lat:02d}" if lat >= 0 else f"S{-lat:02d}"
+    ew = f"E{lon:03d}" if lon >= 0 else f"W{-lon:03d}"
+    return f"Copernicus_DSM_COG_10_{ns}_00_{ew}_00_DEM"
+
+
+def slope_bands(hull, to_wgs):
+    """Slope-band polygons within ``hull`` from the Copernicus GLO-30 DSM (ESA; the open global
+    30 m elevation model, read straight from its public bucket). Returns ``[(polygon, band_deg)]``
+    where ``band_deg`` is the band's lower slope bound (SLOPE_BANDS) — terrain steeper than that.
+
+    Elevation is sampled onto a DEM_SAMPLE_M grid in the scenario's metric CRS and slope taken by
+    finite differences. The bands ship as an EDITABLE layer: local knowledge trims or extends the
+    polygons, and the scenario's ``slope_max_deg`` picks which bands preclude development.
+    """
+    import math
+
+    import numpy as np
+    import rasterio
+    from shapely import box, simplify, union_all
+
+    xmin, ymin, xmax, ymax = hull.bounds
+    nx = max(2, int((xmax - xmin) / DEM_SAMPLE_M) + 1)
+    ny = max(2, int((ymax - ymin) / DEM_SAMPLE_M) + 1)
+    xs = xmin + (np.arange(nx) + 0.5) * DEM_SAMPLE_M
+    ys = ymax - (np.arange(ny) + 0.5) * DEM_SAMPLE_M
+    gx, gy = np.meshgrid(xs, ys)
+    lon, lat = to_wgs.transform(gx.ravel(), gy.ravel())
+    lon = np.asarray(lon).reshape(gx.shape)
+    lat = np.asarray(lat).reshape(gx.shape)
+
+    elev = np.zeros(gx.shape, dtype=np.float64)
+    tiles = {(int(math.floor(la)), int(math.floor(lo))) for la, lo in
+             ((lat.min(), lon.min()), (lat.min(), lon.max()), (lat.max(), lon.min()), (lat.max(), lon.max()))}
+    for tlat, tlon in sorted(tiles):
+        name = _glo30_name(tlat, tlon)
+        sel = (lat >= tlat) & (lat < tlat + 1) & (lon >= tlon) & (lon < tlon + 1)
+        if not sel.any():
+            continue
+        with rasterio.open(GLO30.format(name=name)) as ds:
+            window = rasterio.windows.from_bounds(
+                float(lon[sel].min()), float(lat[sel].min()), float(lon[sel].max()), float(lat[sel].max()),
+                transform=ds.transform,
+            ).round_offsets().round_lengths()
+            arr = ds.read(1, window=window)
+            wt = ds.window_transform(window)
+        rows, cols = rasterio.transform.rowcol(wt, lon[sel].tolist(), lat[sel].tolist())
+        rows = np.clip(np.asarray(rows), 0, arr.shape[0] - 1)
+        cols = np.clip(np.asarray(cols), 0, arr.shape[1] - 1)
+        elev[sel] = arr[rows, cols]
+        print(f"  GLO-30 {name}: window {arr.shape[1]}x{arr.shape[0]} px")
+
+    dzy, dzx = np.gradient(elev, DEM_SAMPLE_M)
+    slope_deg = np.degrees(np.arctan(np.hypot(dzx, dzy)))
+    print(f"  slope: elevation {elev.min():.0f}-{elev.max():.0f} m, "
+          + ", ".join(f"{(slope_deg > b).mean():.1%} > {b:g} deg" for b in SLOPE_BANDS))
+
+    out = []
+    half = DEM_SAMPLE_M / 2.0
+    for band in SLOPE_BANDS:
+        steep = slope_deg > band
+        if not steep.any():
+            continue
+        rects = []  # run-length rectangles per row, then one union
+        for r in range(ny):
+            c = 0
+            while c < nx:
+                if steep[r, c]:
+                    c0 = c
+                    while c < nx and steep[r, c]:
+                        c += 1
+                    rects.append(box(xs[c0] - half, ys[r] - half, xs[c - 1] + half, ys[r] + half))
+                else:
+                    c += 1
+        merged = simplify(union_all(rects), DEM_SAMPLE_M / 3.0).intersection(hull)
+        for p in getattr(merged, "geoms", [merged]):
+            if p.geom_type == "Polygon" and p.area >= MIN_AREA_M2:
+                out.append((p, band))
+    return out
 
 
 def fetch(folder: str) -> None:
@@ -161,6 +245,28 @@ def fetch(folder: str) -> None:
 
     meta = {"crs": crs, "source": "OpenStreetMap via Overpass (ODbL)",
             "queries": "isobenefit_qgis.osm_queries.build_combined_query"}
+
+    # Terrain: slope bands from the Copernicus GLO-30 DSM, written as a SEPARATE editable layer
+    # (steep.geojson) rather than baked into unbuildable — trim or extend with local knowledge,
+    # then the scenario's slope_max_deg picks which bands preclude development downstream.
+    steep_features = []
+    for p, band in slope_bands(hull, to_wgs):
+        g = shapely.set_precision(p, 0.1)
+        if g.is_empty:
+            continue
+        steep_features.append({
+            "type": "Feature",
+            "properties": {"min_slope_deg": band, "name": f"terrain steeper than {band:g} deg"},
+            "geometry": json.loads(json.dumps(mapping(g), default=float)),
+        })
+    steep_meta = dict(meta, source="Copernicus GLO-30 DSM (ESA / Copernicus programme, AWS Open Data)",
+                      note="slope bands; edit with local knowledge; slope_max_deg in params.json "
+                           "selects which bands preclude development")
+    steep_path = os.path.join(folder, "steep.geojson")
+    with open(steep_path, "w", encoding="utf-8") as fh:
+        json.dump({"type": "FeatureCollection", "metadata": steep_meta, "features": steep_features}, fh,
+                  separators=(",", ":"))
+    print(f"  steep: {len(steep_features)} features -> {steep_path} ({os.path.getsize(steep_path) // 1024} kB)")
 
     for ds, feats in out.items():
         features = []

@@ -1,7 +1,7 @@
 {
   "schema": "isobenefit-params/1",
   "name": "kigali_east",
-  "notes": "Plan-guided rapid urbanisation: Kigali's master plan steers growth to designated expansion zones on the eastern fringe. Densities are indicative tiers at household 4.3 (roughly 25/45/80 dwellings/ha); confirm against the Kigali master plan zoning. Target population is indicative for one expansion area.",
+  "notes": "Plan-guided rapid urbanisation: Kigali's master plan steers growth to designated expansion zones on the eastern fringe. Densities are indicative tiers at household 4.3 (roughly 25/45/80 dwellings/ha); confirm against the Kigali master plan zoning. Target population is indicative for one expansion area. Terrain steeper than 15 degrees is fetched into the unbuildable layer from the open global DEM.",
   "random_seed": 42,
   "optimise_centres": true,
   "centre_m2_per_person": 20,
@@ -27,5 +27,6 @@
     "medium": 0.4,
     "low": 0.4
   },
-  "fetch_buffer_m": 400
+  "fetch_buffer_m": 400,
+  "slope_max_deg": 15
 }

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","metadata":{"crs":"EPSG:32614","source":"Copernicus GLO-30 DSM (ESA / Copernicus programme, AWS Open Data)","note":"slope bands; edit with local knowledge; slope_max_deg in params.json selects which bands preclude development"},"features":[]}

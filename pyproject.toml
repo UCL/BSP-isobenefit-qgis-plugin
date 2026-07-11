@@ -30,6 +30,7 @@ dev = [
     "shapely>=2",
     "pyproj>=3.6",         # scripts/fetch_scenario.py + website/scripts/fetch_data.py reprojection
     "pillow>=10",          # scripts/render_scenario_gallery.py PNG output
+    "rasterio>=1.3",       # scripts/fetch_scenario.py Copernicus GLO-30 slope analysis (dev only)
     "isobenefit",          # built from core/ so `pytest tests` can import the engine
 ]
 
