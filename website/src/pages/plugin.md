@@ -53,9 +53,30 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
 9. The run's full settings are saved next to the output as `<name>_params.json`. To repeat or
    tweak the run later, use *Load parameters* at the top of the dialog.
 
-To start from a ready-made case instead, download a folder from the
-[scenario library](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios), load
-its layers into QGIS, and load its `params.json` via the dialog's *Load parameters* button.
+To start from a ready-made case instead, use a scenario download — the next section.
+
+<h2 id="use-a-scenario">Using a downloaded scenario</h2>
+
+Each entry in the [scenario library](./scenarios/) downloads as one ZIP holding everything a run
+needs. To go from the ZIP to a finished simulation:
+
+1. Unzip it. Inside are `extents*.geojson` (the formal study boundary), the input layers
+   (`built`, `green`, `centres`, `unbuildable`, `streets`, `stops`, `stations`), the terrain
+   bands (`steep.geojson`), and one or more `params*.json` parameter presets.
+2. In QGIS, drag the GeoJSON files onto the map (or *Layer → Add Layer → Add Vector Layer*).
+3. Review the terrain: `steep.geojson` holds slope bands (15° / 20° / 25° / 30°) from the
+   Copernicus GLO-30 elevation model. Where the scenario's parameters set a maximum slope,
+   select the bands at or above it and merge them into the unbuildable layer
+   (*Vector → Data Management Tools → Merge Vector Layers*), editing first where local
+   knowledge disagrees.
+4. Open **Isobenefit Urbanism** and press ***Load parameters***, picking the scenario's
+   `params.json`: every dial (target population, walks, density tiers and shares, grid, seed)
+   fills in. Dnipro ships two presets, one per pilot area.
+5. Choose the layers in the *Input layers* group (extents, built, green, unbuildable, centres,
+   streets), confirm the suggested CRS, set an output `.tif` path, and press **Run**.
+6. To reproduce one of the website's precomputed panels exactly, download that run's parameters
+   from the explorer instead: the same seed and dials give the same result at the scenario's
+   full resolution.
 
 ## The Extract from OpenStreetMap tool
 

@@ -303,7 +303,7 @@ def fetch(folder: str) -> None:
 
 
 if __name__ == "__main__":
-    for folder in sys.argv[1:] or [None]:
-        if folder is None:
-            raise SystemExit("usage: fetch_scenario.py scenarios/<scenario> [more…]")
+    if not sys.argv[1:]:
+        raise SystemExit("usage: fetch_scenario.py scenarios/<scenario> [more…]")
+    for folder in sys.argv[1:]:
         fetch(folder)

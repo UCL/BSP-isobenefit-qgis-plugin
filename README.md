@@ -102,6 +102,24 @@ ln -s "$(pwd)/isobenefit_qgis" "$HOME/Library/Application Support/QGIS/QGIS4/pro
 On Windows, copy/paste the `isobenefit_qgis` folder into
 `%APPDATA%/QGIS/QGIS4/profiles/default/python/plugins`. Restart QGIS after linking.
 
+### Regenerating everything
+
+Every artefact rebuilds from committed sources. Setup once with `uv sync` (dev environment +
+engine) and `npm install` in `website/`. Then there are four commands:
+
+```bash
+bash scripts/verify.sh                                        # full local verification (mirrors CI)
+.venv/bin/python scripts/fetch_scenario.py scenarios/<name>   # rebuild a scenario's layers (OSM + terrain)
+.venv/bin/python scripts/render_scenario_gallery.py           # rebuild the website gallery, ZIPs and presets
+cd website && npm run dev                                     # preview the site (npm run build for production)
+```
+
+The website's schematic figures regenerate with `website/scripts/diagrams.py` and
+`demonstrators.py`. Scenario data is committed, so the network is only needed for a
+deliberate re-fetch; gallery runs use fixed seeds, so regeneration is deterministic.
+A release bumps the version in `core/Cargo.toml`, `pyproject.toml` and
+`isobenefit_qgis/metadata.txt` in lockstep, then a `v*` tag publishes.
+
 ### CI
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the Rust tests,

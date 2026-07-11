@@ -10,7 +10,8 @@
       "Bash(.venv/bin/python scripts/render_scenario_gallery.py)",
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/slope_batch.sh)",
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/rerender_batch.sh)",
-      "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/dlbar_batch.sh)"
+      "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/dlbar_batch.sh)",
+      "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/wrap_batch.sh)"
     ]
   }
 }
