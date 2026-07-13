@@ -307,7 +307,7 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
                             "params_file": params_rel})
         print(f"  {preset['id']}: served {keep['served_coverage']:.0%}, pop {keep['population']:,.0f}")
     return {"id": name, "title": title, "subtitle": subtitle,
-            "grid": f"{sub['cols']}x{sub['rows']} cells at {gran:.0f} m (preview resolution)",
+            "grid": f"{sub['cols']}×{sub['rows']} cells at {gran:.0f} m (preview resolution)",
             "seed": int(params.get("random_seed", 42)),
             "folder": os.path.basename(folder),
             "github": f"https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/{os.path.basename(folder)}",

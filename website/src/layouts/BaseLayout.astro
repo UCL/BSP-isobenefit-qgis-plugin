@@ -2,6 +2,14 @@
 import '../styles/tailwind.css'
 
 const base = import.meta.env.BASE_URL
+// pages pass title/description directly; markdown pages pass them via frontmatter
+const { frontmatter } = Astro.props
+const pageTitle = Astro.props.title ?? frontmatter?.title
+const title = pageTitle ? `${pageTitle} · Isobenefit Urbanism QGIS Plugin` : 'Isobenefit Urbanism QGIS Plugin'
+const description =
+  Astro.props.description ??
+  frontmatter?.description ??
+  'Isobenefit Urbanism plugin for QGIS: walkable urban growth scenarios on real-world data'
 ---
 
 <html lang="en-GB">
@@ -10,9 +18,8 @@ const base = import.meta.env.BASE_URL
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="author" content="Gareth Simons" />
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>Isobenefit Urbanism QGIS Plugin</title>
-    <meta set:html name="description" content="Isobenefit Urbanism plugin for QGIS" />
-    <meta set:html name="keywords" content="" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -32,6 +39,7 @@ const base = import.meta.env.BASE_URL
           <a href={base}>Introduction</a>
           <a href={`${base}plugin/`}>Plugin guide</a>
           <a href={`${base}scenarios/`}>Scenarios</a>
+          <a href={`${base}theory/`}>Theory</a>
         </nav>
         <slot />
       </div>

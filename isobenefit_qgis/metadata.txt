@@ -10,16 +10,16 @@ qgisMinimumVersion=3.40
 qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
-description=Isobenefit Urbanism plugin for QGIS.
-version=0.12.5
+description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
+version=0.12.6
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
-about=The Isobenefit Urbanism QGIS plugin is a tool for brainstorming walkable urban development against real-world datasets. The algorithm is based on walkable access to centralities (shops, services) and green spaces. Please see the homepage link for more background information.
-    Please refer to the repository for the source code and the README.md file for additional information.
-    A demo project and worked scenarios are provided in the project repository in the "scenarios" folder.
-    This plugin is currently marked as experimental. To see the plugin in the plugin repository, it is necessary to select the option for showing experimental plugins in the plugin settings dialogue box.
-    On first use, the plugin offers to install its simulation engine (the "isobenefit" package) into the QGIS Python environment; this needs an internet connection and a QGIS restart. No manual package installation is required.
+about=The Isobenefit Urbanism QGIS plugin explores walkable urban development against real-world datasets. It grows settlements by simple rules: every new home must sit within a walking distance of a mixed-use centre (shops, services) and of green space. The model follows Luca D'Acci's Isobenefit Urbanism (D'Acci 2019, Journal of Environmental Management; D'Acci & Voto 2023, SoftwareX) and reimplements the cellular automaton originally coded by Michele Voto, with documented departures and extensions (existing-fabric freezing, OSM inputs, street-network routing, centre post-processing). See the homepage for the full guide and worked scenarios.
+    The plugin bundles an OpenStreetMap extraction tool, ships seven worked scenarios in the repository's "scenarios" folder, and writes reproducible runs (each run saves a parameters sidecar that the dialog can reload).
+    This plugin is marked experimental: enable "Show also Experimental Plugins" in the plugin manager settings to see it.
+    On first use, the plugin offers to install its simulation engine (the "isobenefit" package from PyPI) into the QGIS Python environment; this needs an internet connection and a QGIS restart. No manual package installation is required.
+    Licensed under the GNU AGPL-3.0-or-later (see the LICENSE file).
 
 tracker=https://github.com/UCL/BSP-isobenefit-qgis-plugin/issues
 repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
@@ -28,6 +28,7 @@ repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 # Recommended items:
 
 changelog=
+    0.12.6 Correctness release ahead of the beta submission. Engine: green-access accounting fixed so unbuildable cells (water, carved road/rail corridors) are never counted as green periphery and isolated centres are tracked correctly; green access and green-corridor checks now treat unbuildable land as a barrier, matching centre access; a new build must itself keep green access; parameter validation hardened (NaN, ranges); centre seeds on unbuildable land are rejected by the engine and snapped to the nearest buildable cell by the plugin. Plugin: input layers are snapshotted before the background run (live-layer thread safety); the engine install runs as a background task instead of freezing the UI; the run dialog's confirm button is labelled Run; re-fetching OSM data first releases the layers loaded from the previous GeoPackage; assorted small fixes (grid edge rounding, plugin load without a locale setting, temporal setup on leap days).
     0.12.5 The run dialog asks for an output folder and a run name instead of a single .tif path, since a run writes a family of files (plans, likelihood bands, report, parameter sidecar) that share the name.
     0.12.4 Anchor invariant for mixed-use centres: every contiguous settlement containing new development keeps at least one directly attached centre. Consolidation may thin centres within a settlement but never strips one bare (the cull spares a settlement's last anchor, and a backstop anchors any settlement left without one). Cambourne scenario target raised to 30,000.
     0.12.3 Contiguity rule: a mixed-use centre only exists attached to a contiguous built settlement of at least the minimum settlement size, whether or not centre optimisation is on; the threshold is floored at 4 cells so coarse grids cannot let orphan centres survive stranded in green.
@@ -40,9 +41,9 @@ changelog=
     0.8.0 Recommended plan rebuilt: best single run (not the averaged consensus), population-aware green network funded by densification (housing held), facility-location centres (fewest for full coverage, central to their catchment), honest within-a-walk coverage scoring reporting walk-to-centre and walk-to-green separately.
 
 # Tags are comma separated with spaces allowed
-tags=pyqgis simulation planning
+tags=pyqgis,simulation,planning,urban planning,urbanism,walkability,cellular automaton,openstreetmap,scenario,green space
 
-homepage=https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism/
+homepage=https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/
 icon=icon.png
 # experimental flag
 experimental=True
@@ -55,7 +56,7 @@ deprecated=False
 # Check the documentation for more information.
 # plugin_dependencies=
 
-Category of the plugin: Raster, Vector, Database or Web
+# Category of the plugin: Raster, Vector, Database or Web
 # category=
 
 # If the plugin can run on QGIS Server.

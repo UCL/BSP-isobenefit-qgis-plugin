@@ -81,16 +81,18 @@ pub fn count_cont_nbs(state: &Array2<i16>, y: usize, x: usize, targets: &[i16]) 
     (total, longest, adds.len() as i64)
 }
 
-/// Length of the run of non-built (`<= 0`) cells from `start` along a 1-D line,
-/// in the positive or negative direction, stopping at the first built (`> 0`) cell
-/// or the array edge.
+/// Length of the run of green (`== 0`) cells from `start` along a 1-D line, in
+/// the positive or negative direction, stopping at the first non-green cell
+/// (built `> 0` or unbuildable `< 0`) or the array edge. Unbuildable land is not
+/// usable green, so water or a carved corridor terminates a span rather than
+/// extending it.
 pub fn green_span(line: ArrayView1<i16>, start: usize, positive: bool) -> i64 {
     let n = line.len();
     let mut span: i64 = 0;
     if positive {
         let mut i = start + 1;
         while i < n {
-            if line[i] > 0 {
+            if line[i] != 0 {
                 break;
             }
             span += 1;
@@ -102,7 +104,7 @@ pub fn green_span(line: ArrayView1<i16>, start: usize, positive: bool) -> i64 {
         }
         let mut i = start as i64 - 1;
         while i >= 0 {
-            if line[i as usize] > 0 {
+            if line[i as usize] != 0 {
                 break;
             }
             span += 1;
@@ -206,6 +208,14 @@ mod tests {
         assert_eq!(green_span(line.view(), 0, true), 2);
         // from index 4 going negative: index 3 is built immediately -> 0
         assert_eq!(green_span(line.view(), 4, false), 0);
+    }
+
+    #[test]
+    fn green_span_stops_at_unbuildable() {
+        // water/carved corridors terminate a green span; they do not extend it
+        let line = array![0i16, 0, -1, 0, 0];
+        assert_eq!(green_span(line.view(), 0, true), 1);
+        assert_eq!(green_span(line.view(), 4, false), 1);
     }
 
     #[test]

@@ -197,8 +197,6 @@ def read_osm_datasets(
     combined query emits nodes before ways, which GDAL's forward-pass assembly needs.
     """
     aoi = ogr.CreateGeometryFromWkt(aoi_wkt) if aoi_wkt else None
-    gdal.SetConfigOption("OSM_USE_CUSTOM_INDEXING", "NO")
-    gdal.SetConfigOption("OGR_INTERLEAVED_READING", "NO")
     by_layer: dict[str, list[str]] = {}
     for dataset in datasets:
         by_layer.setdefault(osm_queries.DATASETS[dataset]["osm_layer"], []).append(dataset)
@@ -211,7 +209,13 @@ def read_osm_datasets(
     vsipath = "/vsimem/overpass_combined.osm"
     gdal.FileFromMemBuffer(vsipath, xml_bytes)
     try:
-        ds = gdal.OpenEx(vsipath, gdal.OF_VECTOR)
+        # per-dataset options, not gdal.SetConfigOption: the latter mutates
+        # process-global GDAL state for the rest of the QGIS session
+        ds = gdal.OpenEx(
+            vsipath,
+            gdal.OF_VECTOR,
+            open_options=["INTERLEAVED_READING=NO", "USE_CUSTOM_INDEXING=NO"],
+        )
         if ds is None:
             raise OsmError("GDAL could not parse the Overpass response as OSM data")
         for layer_name, dsets in by_layer.items():

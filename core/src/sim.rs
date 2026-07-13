@@ -18,8 +18,9 @@ pub struct Params {
     pub granularity_m: f64,
     pub max_distance_m: f64,
     pub max_populat: f64,
-    /// Minimum green span / min-park side length, in **metres** (consistent
-    /// throughout — this is the fix for the original metres-vs-km units bug).
+    /// Minimum green span / min-park side length, in **metres**, consistent
+    /// throughout. (An earlier numba port of this project mixed metres and km
+    /// here; the published simulator works in cells and never had the bug.)
     pub min_green_span_m: f64,
     pub build_prob: f64,
     pub cent_prob_nb: f64,
@@ -47,16 +48,60 @@ impl Params {
         prob_distribution: (f64, f64, f64),
         density_factors_km2: (f64, f64, f64),
     ) -> Result<Params, String> {
+        let all_inputs = [
+            granularity_m,
+            max_distance_m,
+            max_populat,
+            min_green_span_m,
+            build_prob,
+            cent_prob_nb,
+            cent_prob_isol,
+            pop_target_cent_threshold,
+            prob_distribution.0,
+            prob_distribution.1,
+            prob_distribution.2,
+            density_factors_km2.0,
+            density_factors_km2.1,
+            density_factors_km2.2,
+        ];
+        if all_inputs.iter().any(|v| !v.is_finite()) {
+            return Err("All parameters must be finite numbers".to_string());
+        }
+        if granularity_m <= 0.0 {
+            return Err("granularity_m must be positive".to_string());
+        }
+        if max_distance_m < granularity_m {
+            return Err("max_distance_m must be at least one block (granularity_m)".to_string());
+        }
+        if min_green_span_m < 0.0 {
+            return Err("min_green_span_m must not be negative".to_string());
+        }
+        for (name, p) in [
+            ("build_prob", build_prob),
+            ("cent_prob_nb", cent_prob_nb),
+            ("cent_prob_isol", cent_prob_isol),
+            ("pop_target_cent_threshold", pop_target_cent_threshold),
+        ] {
+            if !(0.0..=1.0).contains(&p) {
+                return Err(format!("{name} must lie in [0, 1]"));
+            }
+        }
+        if prob_distribution.0 < 0.0 || prob_distribution.1 < 0.0 || prob_distribution.2 < 0.0 {
+            return Err("prob_distribution components must not be negative".to_string());
+        }
         let prob_sum = ((prob_distribution.0 + prob_distribution.1 + prob_distribution.2) * 100.0)
             .round()
             / 100.0;
         if (prob_sum - 1.0).abs() > f64::EPSILON {
             return Err("The prob_distribution parameter must sum to 1.".to_string());
         }
-        if density_factors_km2.0 <= density_factors_km2.1
-            || density_factors_km2.1 <= density_factors_km2.2
+        if !(density_factors_km2.0 > density_factors_km2.1
+            && density_factors_km2.1 > density_factors_km2.2)
         {
             return Err("Density factors should be in descending order".to_string());
+        }
+        if density_factors_km2.2 <= 0.0 {
+            return Err("Density factors must be positive".to_string());
         }
         if max_populat <= 0.0 {
             return Err("The population target must be positive".to_string());
@@ -98,11 +143,11 @@ pub fn green_to_built(
     let mut new_itx = old_itx.clone();
     let mut new_acc = old_acc.clone();
 
-    let (_tot, cont_urban, urban_regions) = count_cont_nbs(state, y, x, &[1, 2]);
+    let (_tot, longest_urban_run, urban_regions) = count_cont_nbs(state, y, x, &[1, 2]);
     // a single urban neighbour is only allowed if that neighbour is a centrality
-    if cont_urban == 1 {
-        let (_t, cent_cont, _r) = count_cont_nbs(state, y, x, &[2]);
-        if cent_cont != 1 {
+    if longest_urban_run == 1 {
+        let (_t, longest_cent_run, _r) = count_cont_nbs(state, y, x, &[2]);
+        if longest_cent_run != 1 {
             return None;
         }
     }
@@ -133,21 +178,29 @@ pub fn green_to_built(
     }
 
     let acc_opts = DijkstraOpts::new(max_distance_m, granularity_m);
-    // if the cell is currently periphery, demote it and decrement its access footprint
+    // the cell becomes built; if it was periphery, its access footprint goes with it
+    // (an isolated centre plants on plain green, itx 0, and has no footprint to remove)
     if new_itx[[y, x]] == 2 {
         new_itx[[y, x]] = 1;
         let dec = agg_dijkstra_cont(&new_itx, y, x, &[0, 1, 2], &[0, 1, 2], &acc_opts);
         new_acc = new_acc - dec;
+    } else {
+        new_itx[[y, x]] = 1;
     }
-    // newly exposed green neighbours become periphery; add their access footprint
+    // newly exposed green neighbours become periphery; add their access footprint.
+    // only true green qualifies: unbuildable neighbours keep itx -1 and stay barriers.
     for (ny, nx) in iter_nbs(rows, cols, y, x, true) {
-        if new_itx[[ny, nx]] == 0 {
+        if state[[ny, nx]] == 0 && new_itx[[ny, nx]] == 0 {
             new_itx[[ny, nx]] = 2;
             let inc = agg_dijkstra_cont(&new_itx, ny, nx, &[0, 1, 2], &[0, 1, 2], &acc_opts);
             new_acc = new_acc + inc;
         }
     }
 
+    // reject if the new cell itself would have no green access
+    if new_acc[[y, x]] <= 0 {
+        return None;
+    }
     // reject if any existing built cell would lose all green access
     for y2 in 0..rows {
         for x2 in 0..cols {
@@ -206,6 +259,9 @@ impl Simulation {
         for &(r, c) in centre_seeds {
             if r >= dim.0 || c >= dim.1 {
                 return Err("centre seed falls outside the grid".to_string());
+            }
+            if state[[r, c]] < 0 {
+                return Err("centre seed falls on unbuildable land".to_string());
             }
             state[[r, c]] = 2;
             origin[[r, c]] = 2;
@@ -697,6 +753,104 @@ mod tests {
             (3.0, 2.0, 1.0),
         );
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn incremental_green_arrays_match_fresh_rebuild() {
+        // golden consistency: after growth over a grid with an unbuildable strip
+        // and isolated-centre seeding, the incrementally maintained green arrays
+        // must equal a fresh rebuild on the final state, cell for cell
+        let grid = 24;
+        let mut state = Array2::<i16>::zeros((grid, grid));
+        for y in 0..grid {
+            state[[y, 10]] = -1; // a river/motorway strip
+        }
+        let origin = Array2::<i16>::from_elem((grid, grid), -1);
+        let density = Array2::<f32>::zeros((grid, grid));
+        let params = Params::from_raw(
+            100.0,
+            600.0,
+            1_000_000.0,
+            100.0,
+            0.6,
+            0.1,
+            0.01, // isolated centres ON: exercises the itx-0 planting branch
+            0.8,
+            (0.4, 0.4, 0.2),
+            (6000.0, 3000.0, 1000.0),
+        )
+        .unwrap();
+        let mut sim = Simulation::new(state, origin, density, &[(12, 4)], params, 40, 42).unwrap();
+        sim.run();
+        assert!(sim.population() > 0.0, "expected growth");
+        let (fresh_itx, fresh_acc) =
+            prepare_green_arrs(&sim.state, params.max_distance_m, params.granularity_m);
+        assert_eq!(sim.green_itx, fresh_itx);
+        assert_eq!(sim.green_acc, fresh_acc);
+        // the strip itself must never be marked as periphery or built
+        for y in 0..grid {
+            assert_eq!(sim.state[[y, 10]], -1);
+            assert_eq!(sim.green_itx[[y, 10]], -1);
+        }
+    }
+
+    #[test]
+    fn rejects_build_that_leaves_itself_without_green_access() {
+        // 1x5 row: periphery green | built | built | centre | candidate green.
+        // the only other periphery (index 0) is 400m from the candidate, beyond the
+        // 300m walk, so building index 4 leaves it with no green access
+        let state = Array2::from_shape_vec((1, 5), vec![0i16, 1, 1, 2, 0]).unwrap();
+        let (itx, acc) = prepare_green_arrs(&state, 300.0, 100.0);
+        let result = green_to_built(0, 4, &state, &itx, &acc, 100.0, 300.0, 100.0);
+        assert!(result.is_none());
+        // the built cells themselves keep access via index 0, so only the
+        // candidate's own check can have rejected this move
+        let dec = agg_dijkstra_cont(
+            &itx,
+            0,
+            4,
+            &[0, 1, 2],
+            &[0, 1, 2],
+            &DijkstraOpts::new(300.0, 100.0),
+        );
+        let after = &acc - &dec;
+        for x in 1..4 {
+            assert!(after[[0, x]] > 0);
+        }
+    }
+
+    #[test]
+    fn rejects_seed_on_unbuildable() {
+        let grid = 8;
+        let mut state = Array2::<i16>::zeros((grid, grid));
+        state[[4, 4]] = -1;
+        let origin = Array2::<i16>::from_elem((grid, grid), -1);
+        let density = Array2::<f32>::zeros((grid, grid));
+        let err = Simulation::new(state, origin, density, &[(4, 4)], growth_params(), 5, 1);
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn rejects_non_finite_and_out_of_range_params() {
+        let base = |build_prob: f64, granularity_m: f64, high: f64| {
+            Params::from_raw(
+                granularity_m,
+                600.0,
+                1000.0,
+                100.0,
+                build_prob,
+                0.1,
+                0.0,
+                0.8,
+                (0.4, 0.4, 0.2),
+                (high, 3000.0, 1000.0),
+            )
+        };
+        assert!(base(f64::NAN, 100.0, 6000.0).is_err()); // NaN probability
+        assert!(base(1.5, 100.0, 6000.0).is_err()); // probability out of range
+        assert!(base(0.5, 0.0, 6000.0).is_err()); // zero granularity
+        assert!(base(0.5, 100.0, f64::NAN).is_err()); // NaN density passes no check silently
+        assert!(base(0.5, 100.0, 6000.0).is_ok());
     }
 
     #[test]

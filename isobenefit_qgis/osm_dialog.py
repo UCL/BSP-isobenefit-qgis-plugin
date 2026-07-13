@@ -29,12 +29,7 @@ from qgis.PyQt.QtGui import QColor
 
 from . import osm_queries
 
-try:
-    _POLYGON_FILTER = Qgis.LayerFilter.PolygonLayer
-except Exception:  # pragma: no cover - fallback for older QGIS enum location
-    from qgis.core import QgsMapLayerProxyModel
-
-    _POLYGON_FILTER = QgsMapLayerProxyModel.Filter.PolygonLayers
+_POLYGON_FILTER = Qgis.LayerFilter.PolygonLayer  # present since 3.34; qgisMinimumVersion is 3.40
 
 WGS84 = QgsCoordinateReferenceSystem("EPSG:4326")
 
@@ -53,6 +48,7 @@ class PolygonMapTool(QgsMapTool):
     def __init__(self, canvas):
         super().__init__(canvas)
         self.canvas = canvas
+        self._done = False  # set once completed/cancelled has been emitted
         self.points: list[QgsPointXY] = []
         self.rubber = QgsRubberBand(canvas, QgsWkbTypes.GeometryType.PolygonGeometry)
         self.rubber.setColor(QColor(220, 30, 30, 60))
@@ -72,6 +68,7 @@ class PolygonMapTool(QgsMapTool):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
+            self._done = True
             self._cleanup()
             self.cancelled.emit()
 
@@ -82,6 +79,7 @@ class PolygonMapTool(QgsMapTool):
             self.rubber.addPoint(p, i == len(pts) - 1)
 
     def _finish(self):
+        self._done = True
         if len(self.points) >= 3:
             geom = QgsGeometry.fromPolygonXY([list(self.points)])
             self._cleanup()
@@ -95,8 +93,13 @@ class PolygonMapTool(QgsMapTool):
         self.points = []
 
     def deactivate(self):
+        # switching map tools mid-draw must count as a cancel, or the hidden
+        # dialog stays hidden until the toolbar button is clicked again
         self._cleanup()
         super().deactivate()
+        if not self._done:
+            self._done = True
+            self.cancelled.emit()
 
 
 class OsmDialog(QtWidgets.QDialog):
@@ -107,6 +110,7 @@ class OsmDialog(QtWidgets.QDialog):
         self.iface = iface
         self.dataset_checks: dict[str, QtWidgets.QCheckBox] = {}
         self._aoi_geom: QgsGeometry | None = None  # always stored in EPSG:4326
+        self._aoi_from_layer = False  # whether the current AOI came from the layer picker
         self._draw_tool: PolygonMapTool | None = None
         self._prev_tool = None
         self.setupUi()
@@ -217,6 +221,7 @@ class OsmDialog(QtWidgets.QDialog):
             self._restore_after_draw()
             return
         self.aoi_layer_box.setCurrentIndex(0)  # a fresh drawing supersedes any chosen layer
+        self._aoi_from_layer = False
         self._set_aoi(g, "drawn polygon")
         self._restore_after_draw()
 
@@ -233,6 +238,11 @@ class OsmDialog(QtWidgets.QDialog):
     def _on_layer_chosen(self) -> None:
         layer = self.aoi_layer_box.currentLayer()
         if layer is None:
+            # "— none —": clear a layer-sourced AOI; a drawn AOI is unaffected (drawing
+            # resets this combo to none itself, and must not wipe its own polygon)
+            if self._aoi_from_layer:
+                self._aoi_from_layer = False
+                self._set_aoi(None, "")
             return
         geoms = [f.geometry() for f in layer.getFeatures() if f.hasGeometry()]
         if not geoms:
@@ -247,6 +257,7 @@ class OsmDialog(QtWidgets.QDialog):
             self._set_aoi(None, "")
             self.aoi_feedback.setText(f"Could not reproject “{layer.name()}” to EPSG:4326 — check the layer's CRS.")
             return
+        self._aoi_from_layer = True
         self._set_aoi(g, f"layer “{layer.name()}”")
 
     def _set_aoi(self, geom: QgsGeometry | None, source: str) -> None:

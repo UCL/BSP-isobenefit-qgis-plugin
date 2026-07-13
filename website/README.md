@@ -2,14 +2,17 @@
 
 ## Overview
 
-This repo contains the code for the BSP Isobenefit Urbanism website [BSP-isobenefit-urbanism](https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism).
+This folder contains the code for the Isobenefit Urbanism plugin website, published at
+[github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin](https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/).
 
-The Isobenefit QGIS plugin repository can be found at [BSP-isobenefit-qgis-plugin](https://github.com/UCL/BSP-isobenefit-qgis-plugin).
+The plugin itself lives in the same repository:
+[BSP-isobenefit-qgis-plugin](https://github.com/UCL/BSP-isobenefit-qgis-plugin).
 
 ## Development setup
 
-This static page website is created using the [astro](https://astro.build/) framework.
+This static website is built with the [Astro](https://astro.build/) framework.
 
-For local development, use the NPM package manager to install package dependencies per `npm install`.
+For local development, install the dependencies with `npm install`, then run `npm run dev`.
 
-When pushing commits to the Github remote repository, a Github action will run to build and publish the website using Github pages as a host.
+Pushing commits to the GitHub remote triggers an action that builds and publishes the website
+to GitHub Pages.

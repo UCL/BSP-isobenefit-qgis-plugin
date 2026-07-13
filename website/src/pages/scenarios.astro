@@ -5,15 +5,15 @@ import { Content as ScenarioNotes } from './_scenario_notes.md'
 const base = import.meta.env.BASE_URL
 ---
 
-<BaseLayout>
+<BaseLayout title="Scenario library" description="Seven worked isobenefit scenarios with prepared data, parameters and precomputed runs">
   <h1>Scenario library</h1>
-  <h6>Case studies with prepared data and precomputed runs</h6>
+  <p class="lede">Case studies with prepared data and precomputed runs</p>
 
   <section>
     <p>
       Pick a scenario, then move between the precomputed runs to see how each parameter changes the outcome.
       Every panel is a complete simulation (growth, then post-processing) at a coarsened preview
-      resolution with a fixed seed, so any panel can be reproduced; formal runs happen in QGIS at the
+      resolution, with a fixed seed and downloadable parameters; formal runs happen in QGIS at the
       scenario's own resolution using the downloads below. Built land is coloured by density tier
       (yellow to brown), mixed-use centres in reds, existing fabric muted, nature green, unbuildable
       blue.
@@ -31,9 +31,9 @@ const base = import.meta.env.BASE_URL
         <figcaption id="preset-caption"></figcaption>
       </figure>
       <div class="download-bar" id="download-bar" style="display:none">
-        <a id="bar-zip" href="#">⬇ Download this scenario (ZIP)</a>
-        <a id="bar-params" href="#">⬇ This run's parameters</a>
-        <a class="how-to" href={`${base}plugin/#use-a-scenario`}>How to use these in QGIS →</a>
+        <a id="bar-zip" href="#">Download this scenario (ZIP)</a>
+        <a id="bar-params" href="#">Download this run's parameters</a>
+        <a class="how-to" href={`${base}plugin/#use-a-scenario`}>How to use these in QGIS</a>
       </div>
       <div class="flex justify-center overflow-x-auto">
         <table id="metrics-table" style="display:none">
@@ -71,11 +71,24 @@ const base = import.meta.env.BASE_URL
 
   <ScenarioNotes />
 
+  <section>
+    <p>
+      The scenario ZIPs contain map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>
+      contributors, available under the Open Database License (ODbL), and slope bands derived from the
+      Copernicus GLO-30 digital elevation model: produced using Copernicus WorldDEM-30 © DLR e.V. 2010–2014
+      and © Airbus Defence and Space GmbH, provided under COPERNICUS by the European Union and ESA; all
+      rights reserved.
+    </p>
+  </section>
+
   <style is:global>
     /* is:global because the buttons are created at runtime by the script below, so Astro's
        scoped-style attributes never reach them */
     .chooser {
       @apply my-2 flex flex-wrap justify-center gap-2;
+    }
+    .lede {
+      @apply mt-1 text-sm font-light italic;
     }
     .chooser-label {
       @apply mt-3 mb-0 text-center text-xs font-semibold uppercase tracking-wide;
@@ -179,6 +192,7 @@ const base = import.meta.env.BASE_URL
 
     function selectPreset(entry: Entry, preset: Preset) {
       img.src = `${base}gallery/${preset.image}`
+      img.alt = `${entry.title}: ${preset.label}`
       caption.textContent = `${entry.title}: ${preset.label}. ${entry.grid}, seed ${entry.seed}.`
       noteEl.textContent = preset.note
       const m = preset.metrics

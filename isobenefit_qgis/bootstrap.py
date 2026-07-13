@@ -19,13 +19,19 @@ import shutil
 import subprocess
 import sys
 
+from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsTask
 from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 CORE_IMPORT = "isobenefit"
 CORE_PACKAGE = "isobenefit"
-MIN_VERSION = (0, 12, 0)
+# the floor tracks the oldest core this plugin can drive: 0.12.6 fixed the
+# green-access accounting and added run_ensemble(member_offset=...) validation
+MIN_VERSION = (0, 12, 6)
 MAX_VERSION_EXCLUSIVE = (0, 13, 0)
-PIP_SPEC = "isobenefit>=0.12,<0.13"
+PIP_SPEC = "isobenefit>=0.12.6,<0.13"
+
+# module-level so the running install survives ensure_core returning
+_install_task: QgsTask | None = None
 
 
 def _parse_version(version: str) -> tuple[int, int, int]:
@@ -179,17 +185,28 @@ def ensure_core(parent: QWidget | None = None) -> bool:
     """Ensure the core is importable and compatible.
 
     Returns True if it is usable right now. If it is missing or out of range,
-    prompt the user to install/upgrade and return False (a QGIS restart is needed
-    before a freshly installed extension can be imported).
+    offer to install/upgrade it as a background task and return False (a QGIS
+    restart is needed before a freshly installed extension can be imported). The
+    pip subprocess runs in a QgsTask so the UI stays responsive on slow networks.
     """
+    global _install_task
     ok, version = core_status()
     if ok:
         return True
 
+    if _install_task is not None:
+        QgsMessageLog.logMessage(
+            "The engine install is still running; watch the task bar / message log.",
+            level=Qgis.MessageLevel.Info,
+            notifyUser=True,
+        )
+        return False
+
     if version is None:
         question = (
             f"The Isobenefit plugin needs the '{CORE_PACKAGE}' simulation engine, "
-            "which is not installed.\n\nInstall it now into the QGIS Python environment?"
+            "which is not installed.\n\nDownload and install it now into the QGIS "
+            "Python environment?"
         )
     else:
         question = (
@@ -199,26 +216,37 @@ def ensure_core(parent: QWidget | None = None) -> bool:
     choice = QMessageBox.question(
         parent,
         "Isobenefit: engine required",
-        question + "\n\n(Requires an internet connection; QGIS must be restarted afterwards.)",
+        question
+        + "\n\n(Requires an internet connection. The download runs in the background "
+        "and you will be notified; QGIS must be restarted afterwards.)",
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
     )
     if choice != QMessageBox.StandardButton.Yes:
         return False
 
-    success, output = _pip_install(PIP_SPEC)
-    if success:
-        QMessageBox.information(
-            parent,
-            "Isobenefit: engine installed",
-            f"'{CORE_PACKAGE}' was installed. Please restart QGIS, then run the plugin again.",
-        )
-    else:
-        python = _python_executable()
-        QMessageBox.critical(
-            parent,
-            "Isobenefit: install failed",
-            "Automatic installation failed. Install it manually from a terminal:\n\n"
-            f'    "{python}" -m pip install "{PIP_SPEC}"\n\n'
-            "Then restart QGIS.\n\nDetails:\n" + (output[-1500:] if output else "(no output)"),
-        )
+    def _install(_task: QgsTask):
+        return _pip_install(PIP_SPEC)
+
+    def _done(exception, result=None):
+        global _install_task
+        _install_task = None
+        success, output = (False, str(exception)) if exception is not None else result
+        if success:
+            QMessageBox.information(
+                parent,
+                "Isobenefit: engine installed",
+                f"'{CORE_PACKAGE}' was installed. Please restart QGIS, then run the plugin again.",
+            )
+        else:
+            python = _python_executable()
+            QMessageBox.critical(
+                parent,
+                "Isobenefit: install failed",
+                "Automatic installation failed. Install it manually from a terminal:\n\n"
+                f'    "{python}" -m pip install "{PIP_SPEC}"\n\n'
+                "Then restart QGIS.\n\nDetails:\n" + (output[-1500:] if output else "(no output)"),
+            )
+
+    _install_task = QgsTask.fromFunction("Installing the Isobenefit engine", _install, on_finished=_done)
+    QgsApplication.taskManager().addTask(_install_task)
     return False

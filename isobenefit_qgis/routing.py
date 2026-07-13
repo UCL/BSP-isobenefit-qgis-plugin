@@ -134,7 +134,7 @@ def _build_network(streets_layer, target_crs):
     Reads geometries only (worker-thread safe, as ``gis_io`` does). Coincident endpoints are
     merged on a 0.1 m grid so connected segments share nodes. Returns ``(nodes N×2, adjacency)``.
     """
-    from qgis.core import QgsCoordinateTransform, QgsGeometry, QgsProject
+    from qgis.core import Qgis, QgsCoordinateTransform, QgsGeometry, QgsProject
 
     xform = QgsCoordinateTransform(streets_layer.crs(), target_crs, QgsProject.instance())
     has_highway = streets_layer.fields().indexFromName("highway") >= 0
@@ -158,7 +158,8 @@ def _build_network(streets_layer, target_crs):
         geom = QgsGeometry(feat.geometry())
         if geom.isEmpty():
             continue
-        geom.transform(xform)
+        if geom.transform(xform) != Qgis.GeometryOperationResult.Success:
+            continue  # a misplaced segment distorts every routed distance
         parts = geom.asMultiPolyline() if geom.isMultipart() else [geom.asPolyline()]
         for part in parts:
             prev = None

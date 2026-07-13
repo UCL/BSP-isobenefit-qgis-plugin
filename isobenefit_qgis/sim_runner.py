@@ -18,6 +18,7 @@ import numpy as np
 from qgis.core import (
     Qgis,
     QgsDateTimeRange,
+    QgsFeatureRequest,
     QgsInterval,
     QgsMessageLog,
     QgsProject,
@@ -29,6 +30,19 @@ from qgis.core import (
 from . import gis_io, grid
 
 LOG_TAG = "Isobenefit"
+
+
+def _snapshot(layer):
+    """Detached in-memory copy of a vector layer, taken on the MAIN thread.
+
+    The task's ``run()`` executes on a worker thread, and reading a live project
+    layer there is unsafe: the user can edit, reproject or remove it while the
+    run is in flight, and QgsVectorLayer is not thread-safe. Each input layer is
+    copied up front in the constructor; the copies belong to the task alone.
+    """
+    if layer is None:
+        return None
+    return layer.materialize(QgsFeatureRequest())
 
 
 class IsobenefitTask(QgsTask):
@@ -77,14 +91,15 @@ class IsobenefitTask(QgsTask):
         self.existing_path = str(Path(out_dir_path) / f"{out_file_name}_existing.tif")  # pre-simulation fabric
         self.report_path = str(Path(out_dir_path) / f"{out_file_name}_report.txt")  # human-readable run record
         self.target_crs = target_crs
-        self.extents_layer = extents_layer
-        self.built_layer = built_layer
-        self.green_layer = green_layer
-        self.unbuildable_layer = unbuildable_layer
-        self.centre_seeds_layer = centre_seeds_layer
-        self.transit_stops_layer = transit_stops_layer
-        self.stations_layer = stations_layer
-        self.streets_layer = streets_layer
+        # snapshot every input layer while still on the main thread (see _snapshot)
+        self.extents_layer = _snapshot(extents_layer)
+        self.built_layer = _snapshot(built_layer)
+        self.green_layer = _snapshot(green_layer)
+        self.unbuildable_layer = _snapshot(unbuildable_layer)
+        self.centre_seeds_layer = _snapshot(centre_seeds_layer)
+        self.transit_stops_layer = _snapshot(transit_stops_layer)
+        self.stations_layer = _snapshot(stations_layer)
+        self.streets_layer = _snapshot(streets_layer)
         self.total_iters = int(total_iters)
         self.granularity_m = float(granularity_m)
         self.max_distance_m = float(max_distance_m)
@@ -312,6 +327,16 @@ class IsobenefitTask(QgsTask):
                 else:
                     seeds = gis_io.point_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
                     self._log(f"Placed {len(seeds)} centre seed(s).")
+                # rasterisation can strand a seed on a carved corridor or water cell, which the
+                # core rejects; snap those to the nearest buildable cell within two blocks
+                seeds, n_snapped, n_dropped = grid.sanitise_seeds(
+                    seeds, state, self.granularity_m, 2 * self.granularity_m
+                )
+                if n_snapped or n_dropped:
+                    self._log(
+                        f"Seeds on unbuildable land: {n_snapped} snapped to the nearest buildable "
+                        f"cell, {n_dropped} dropped (no buildable cell within two blocks)."
+                    )
 
             # Public-transport access: ordinary stops and rail/tram stations are two layers
             # (each edited/swapped on its own). The scored transit dimension uses BOTH — every
@@ -639,8 +664,9 @@ class IsobenefitTask(QgsTask):
         gis_io.apply_palette(layer)
 
         # Each band is one yearly step; FixedRangePerBand animates through the bands.
+        # Anchor at Jan 1 so year arithmetic below can never hit Feb 29.
         n = len(self.frames)
-        start = datetime.now()
+        start = datetime(datetime.now().year, 1, 1)
         ranges = {
             band: QgsDateTimeRange(
                 start.replace(year=start.year + band - 1),

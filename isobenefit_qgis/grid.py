@@ -185,6 +185,45 @@ def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
     return y, x
 
 
+def sanitise_seeds(seeds, state, granularity_m, max_snap_m):
+    """Re-home or drop centre seeds that fall on unbuildable land (state -1).
+
+    Rasterisation can strand a legitimate seed on a carved corridor or water cell (a town-centre
+    polygon's representative point can land on a buffered road, say). The core rejects such seeds
+    outright, so each is snapped to the nearest buildable cell within ``max_snap_m``; a seed with
+    no buildable cell in range is dropped. Returns ``(kept, n_snapped, n_dropped)``; ``kept``
+    preserves input order and is deduplicated after snapping.
+    """
+    rows, cols = state.shape
+    buildable = state >= 0
+    max_r = max(0, int(max_snap_m / granularity_m))
+    kept: list[tuple[int, int]] = []
+    seen: set[tuple[int, int]] = set()
+    n_snapped = n_dropped = 0
+    for y, x in seeds:
+        if buildable[y, x]:
+            target = (y, x)
+        else:
+            target = None
+            for r in range(1, max_r + 1):
+                y0, y1 = max(0, y - r), min(rows, y + r + 1)
+                x0, x1 = max(0, x - r), min(cols, x + r + 1)
+                sub = buildable[y0:y1, x0:x1]
+                if sub.any():
+                    ys, xs = np.nonzero(sub)
+                    i = int(np.argmin((y0 + ys - y) ** 2 + (x0 + xs - x) ** 2))
+                    target = (int(y0 + ys[i]), int(x0 + xs[i]))
+                    n_snapped += 1
+                    break
+            if target is None:
+                n_dropped += 1
+                continue
+        if target not in seen:
+            seen.add(target)
+            kept.append(target)
+    return kept, n_snapped, n_dropped
+
+
 def _interior_point(region: np.ndarray):
     """The cell most INTERIOR to a bool region — the one farthest (8-connected) from any non-region
     cell, i.e. its "pole of inaccessibility". It is always inside the region, and naturally lands in
@@ -528,58 +567,13 @@ def _components(mask):
     return comps
 
 
-def recommended_plan(
-    p_built,
-    p_green,
-    granularity_m,
-    min_green_span_m,
-    max_distance_m,
-    green_thresh: float = 0.5,
-    built_thresh: float = 0.5,
-    min_built_cells: int = 6,
-    max_centres: int = 200,
-    existing_centres=None,
-) -> np.ndarray:
-    """Constraint-aware plan from the per-class probability surfaces.
-
-    - built: ``P(built) >= built_thresh``, kept only as connected components of at
-      least ``min_built_cells`` cells (slivers / leftover drips dropped);
-    - green network: ``P(green) >= green_thresh`` kept as connected components of at
-      least the min-green-span area;
-    - centres: seeded by proximity then optimised onto new land and culled (see
-      ``_seed_centres_proximity`` / ``_refine_centres``).
-
-    Returns a uint8 categorical grid using the ``PLAN_*`` codes. ``P(centre)`` is no
-    longer used for placement (centres are derived from access to built fabric) but
-    is still emitted as a likelihood layer by the plugin.
-    """
-    plan = np.zeros(p_built.shape, dtype=np.uint8)
-    built = _keep_large_components(np.asarray(p_built) >= built_thresh, min_built_cells)
-    plan[built] = PLAN_BUILT
-    green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
-    green = _keep_large_components(np.asarray(p_green) >= green_thresh, green_min)
-    plan[green] = PLAN_GREEN
-    existing_on_built = [
-        (int(ey), int(ex))
-        for ey, ex in (existing_centres or [])
-        if 0 <= ey < plan.shape[0] and 0 <= ex < plan.shape[1] and plan[ey, ex] == PLAN_BUILT
-    ]
-    for ey, ex in existing_on_built:
-        plan[ey, ex] = PLAN_CENTRE
-    # seed centres by proximity (no CA run here), then optimise + cull
-    seed_new = _seed_centres_proximity(built, granularity_m, max_distance_m, existing_centres)
-    for y, x in _refine_centres(seed_new, existing_on_built, built, built, granularity_m, max_distance_m):
-        plan[y, x] = PLAN_CENTRE
-    return plan
-
-
 # --- plan evaluator: the "isobenefit" objective, method-agnostic ----------------
 #
 # Scores any PLAN_* layout on the same yardstick so extraction methods can be
 # compared. The standard is a THRESHOLD, not a gradient: being within a walk
-# (<= max_distance) of an amenity is "okay", full stop — 800 m is fine, not "almost
-# zero". So the score is COVERAGE — is each home within a walk of a centre and of a
-# real park? — and the equity headline is simply how many homes are left out.
+# (<= max_distance) of an amenity counts as served, whether 80 m or 800 m. So the
+# score is COVERAGE — is each home within a walk of a centre and of a real park? —
+# and the equity headline is simply how many homes are left out.
 
 
 def _walk_distance(
@@ -820,9 +814,7 @@ def optimise_plan(
     granularity_m: float,
     min_green_span_m: float,
     max_distance_m: float,
-    max_centres: int = 200,
     existing_centres=None,
-    centre_cost_frac: float = 0.0,
     existing_built=None,
     ca_centres=None,
     optimise_centres: bool = True,
@@ -1012,7 +1004,6 @@ def select_plan(
     min_green_span_m,
     max_distance_m,
     existing_centres=None,
-    centre_cost_frac=0.0,
     max_eval=None,
     existing_built=None,
     existing_green=None,
@@ -1049,7 +1040,7 @@ def select_plan(
         opt = optimise_plan(
             _state_to_plan(st, min_green_span_m, granularity_m, existing_green=existing_green),
             granularity_m, min_green_span_m, max_distance_m,
-            existing_centres=existing_centres, centre_cost_frac=centre_cost_frac,
+            existing_centres=existing_centres,
             existing_built=existing_built, ca_centres=ca_centres,
             optimise_centres=optimise_centres, centre_anchors=centre_anchors,
             router=router,

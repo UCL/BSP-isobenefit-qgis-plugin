@@ -38,7 +38,7 @@ Every scenario downloads as a single ZIP (extents, all input layers including th
 <h2 id="cambourne">1. Cambourne, UK: the reference demo</h2>
 
 Cambourne is a fast-growing Cambridgeshire new settlement, and the worked example used
-throughout the [overview page](./). The scenario folder is the demo project
+throughout the [overview page](../). The scenario folder is the demo project
 ([`scenarios/cambourne/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/cambourne),
 with `cambourne.qgz`): a 30,000-person target across the demo extents, 50 m cells, EPSG:27700,
 400 m walks, and tiers of 6,000 / 3,000 / 1,500 people/km² at shares 0.2 / 0.3 / 0.5. The
@@ -58,8 +58,10 @@ Area B.
 
 Residential densities follow the national planning norms, assuming an average household of
 **2.55 persons per dwelling**. The DBN net residential density band is 150–450 persons/ha, up to
-+20% in large cities under conditions; Dnipro qualifies as a large city. The three built forms map directly onto
-the plugin's three density tiers (1 person/ha = 100 people/km²):
++20% in large cities under conditions; Dnipro qualifies as a large city. The band applies to
+multi-storey residential fabric, so the low tier below sits under it: the 1–4 storey form is set
+from typical net densities for that fabric instead. The three built forms map onto the plugin's
+three density tiers (1 person/ha = 100 people/km²):
 
 | Tier | Built form (Ukraine) | DBN storeys | Net density (persons/ha) | Avg dwelling (m²) | Plugin density (people/km²) | Persons per 25 m cell |
 |---|---|---|---|---|---|---|
@@ -88,12 +90,12 @@ times net density, and is itself a scenario choice:
 | Parameter | Meaning in the model | Area A | Area B | Plugin control | Notes |
 |---|---|---|---|---|---|
 | Walkable distance (m) | Max distance from a new home to the nearest centre | 400 | 400 | Centre walk / Green walk | Also run 800 m for comparison |
-| Minimum green span | Smallest protected green corridor kept | tune | tune | Min green span (m) | So existing parks and the river edge survive |
+| Minimum green span | Smallest protected green corridor kept | tune per run | tune per run | Min green span (m) | So existing parks and the river edge survive |
 | Density level | People per built cell (see the tiers above) | Medium | Low–Med | Density tiers + shares | High for compact reconstruction |
-| Centrality seeding | Chance the model adds a new local centre | 0.8 | 0.8 | Dispersed development | 0 disables new centres; the sheet's 0.8 maps to the Moderate/Aggressive end of the dial |
+| Centrality seeding | Chance the model adds a new local centre | 0.8 | 0.8 | Dispersed development | 0 disables new centres; the project worksheet's 0.8 maps to the Moderate/Aggressive end of the dial |
 | Cell resolution (m) | Grid cell size (spatial precision) | 25 | 25–30 | Grid size (m) | Coarser for large districts |
 | CRS | Coordinate system (metres) | EPSG:32636 | EPSG:32636 | CRS picker | UTM 36N, Dnipro |
-| Time steps | Iterations until the target population is reached | model | model | Max iterations | The run stops at the target |
+| Time steps | Iterations until the target population is reached | set by the model | set by the model | Max iterations | The run stops at the target |
 
 ### Curated centralities
 
@@ -139,8 +141,8 @@ Folder: [`scenarios/london_crews_hill/`](https://github.com/UCL/BSP-isobenefit-q
 
 Celina, on the Dallas–Fort Worth northern fringe, has repeatedly been the fastest-growing city in
 the United States, converting ranchland into master-planned subdivisions at speed. The scenario
-examines what walkable-access rules change where the low density tier dominates and the street
-grid is coarse.
+examines what the walkable-access rules change where the low density tier dominates and the
+street grid is coarse.
 Folder: [`scenarios/celina_tx/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/celina_tx).
 
 - **Tiers (indicative suburban values, household 2.5):** 1,500 / 7,500 / 18,500 people/km²
@@ -172,7 +174,7 @@ Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-pl
 <h2 id="medellin">6. Medellín, Colombia: planned hillside expansion (draft)</h2>
 
 Pajarito and Ciudadela Nuevo Occidente on Medellín's northwestern slopes are a planned expansion
-of metrocable-served social housing at height. The scenario tests the growth rules where
+of high-rise social housing served by the Metrocable. The scenario tests the growth rules where
 topography is the binding constraint: steep terrain sits in the unbuildable layer, and the green
 network and short walking distances have to work around it.
 Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/medellin_pajarito).

@@ -32,6 +32,7 @@ impl PySimulation {
         total_iters, random_seed,
     ))]
     fn new(
+        py: Python<'_>,
         state: PyReadonlyArray2<i16>,
         origin: PyReadonlyArray2<i16>,
         density: PyReadonlyArray2<f32>,
@@ -62,22 +63,30 @@ impl PySimulation {
             density_factors_km2,
         )
         .map_err(PyValueError::new_err)?;
-        let inner = Simulation::new(
-            state.as_array().to_owned(),
-            origin.as_array().to_owned(),
-            density.as_array().to_owned(),
-            &centre_seeds,
-            params,
-            total_iters,
-            random_seed,
-        )
-        .map_err(PyValueError::new_err)?;
+        let state = state.as_array().to_owned();
+        let origin = origin.as_array().to_owned();
+        let density = density.as_array().to_owned();
+        // the constructor's green-access build is the heaviest single call; run it
+        // (and its rayon fan-out) without holding the GIL
+        let inner = py
+            .allow_threads(|| {
+                Simulation::new(
+                    state,
+                    origin,
+                    density,
+                    &centre_seeds,
+                    params,
+                    total_iters,
+                    random_seed,
+                )
+            })
+            .map_err(PyValueError::new_err)?;
         Ok(Self { inner })
     }
 
     /// Run one iteration.
-    fn step(&mut self) {
-        self.inner.step();
+    fn step(&mut self, py: Python<'_>) {
+        py.allow_threads(|| self.inner.step());
     }
 
     /// Run to completion (or until the population target is reached).

@@ -283,6 +283,8 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.button_box.setStandardButtons(
             QtWidgets.QDialogButtonBox.StandardButton.Cancel | QtWidgets.QDialogButtonBox.StandardButton.Ok
         )
+        # the guide and the status line both speak of "Run"; the stock OK label does not
+        self.button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setText("Run")
         self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
         main_layout.addWidget(self.button_box)

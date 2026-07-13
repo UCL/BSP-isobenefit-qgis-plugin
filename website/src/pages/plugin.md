@@ -6,8 +6,9 @@ title: Plugin guide
 # Plugin guide
 
 This page covers installation, a first run, the data downloader, the run dialog, the outputs,
-and troubleshooting. The [introduction](./) explains the model itself, and the
-[scenario library](./scenarios/) provides prepared data and parameters to start from.
+and troubleshooting. The [introduction](../) explains the model itself, the
+[theory page](../theory/) relates it to the published model, and the
+[scenario library](../scenarios/) provides prepared data and parameters to start from.
 
 ## Install
 
@@ -24,20 +25,19 @@ If the automatic install is blocked (a locked-down environment), run the shown c
 with the QGIS Python:
 
 ```
-<qgis-python> -m pip install "isobenefit>=0.12,<0.13"
+<qgis-python> -m pip install "isobenefit>=0.12.6,<0.13"
 ```
 
 ## Quick start: your first run
 
 The fastest route uses the OSM downloader for the data and accepts most defaults.
 
-1. Zoom the map to a place you want to test (a town and its surroundings; the area must be at
-   least twice the walking distance across, so 2 km or more).
+1. Zoom the map to a place you want to test (a town and its surroundings; the area must be more
+   than twice the walking distance across, and a window of a few kilometres works well).
 2. Open **Extract from OpenStreetMap**. Click *Draw area on map…*: the dialog hides,
    left-clicks add corners, a right-click finishes the polygon (Esc cancels).
 3. Leave all datasets ticked, choose an output GeoPackage path, and press **Fetch**. The layers
-   are saved to the GeoPackage and added to the project as an "OSM" group. They are ordinary
-   editable layers and can be adjusted before any run.
+   are saved to the GeoPackage and added to the project as an "OSM" group.
 4. Open **Isobenefit Urbanism**. The dialog pre-fills its layer pickers from the OSM download,
    suggests a local projected CRS, and validates as you type; the status line under the form
    lists what is still missing.
@@ -58,12 +58,12 @@ To start from a prepared case instead, use a scenario download, described in the
 
 <h2 id="use-a-scenario">Using a downloaded scenario</h2>
 
-Each entry in the [scenario library](./scenarios/) downloads as one ZIP with the data and
+Each entry in the [scenario library](../scenarios/) downloads as one ZIP with the data and
 parameters for a run.
 
 - **Contents**: `extents*.geojson` (the study boundary), the input layers (`built`, `green`,
-  `centres`, `unbuildable`, `streets`, `stops`, `stations`), the terrain bands
-  (`steep.geojson`), and one or more `params*.json` presets.
+  `centres`, `unbuildable`, `industrial`, `streets`, `railways`, `stops`, `stations`), the
+  terrain bands (`steep.geojson`), and one or more `params*.json` presets.
 - **Layers**: drag the GeoJSON files onto the QGIS map.
 - **Local adjustment**: the layers are ordinary editable data, and the scenarios are prepared
   on the assumption that they will be revised. The built fabric, the extents, the green areas
@@ -80,7 +80,9 @@ parameters for a run.
 - **Running**: select the layers in the *Input layers* group, confirm the suggested CRS,
   choose an output folder and run name, and press **Run**.
 - **Reproducing a published panel**: the explorer's per-run parameter files carry the exact
-  seed and settings, so a downloaded panel reproduces at the scenario's full resolution.
+  seed and settings at the scenario's full resolution. The gallery previews are computed on a
+  coarser grid, so a rerun gives a finer, slower result of the same kind rather than an
+  identical image.
 
 ## The Extract from OpenStreetMap tool
 
@@ -113,7 +115,7 @@ output.
 | Target population | 100,000 | New residents to house; growth stops once reached (checked between iterations, so the final count can slightly overshoot) |
 | Build probability | 0.25 | Per-step chance an eligible cell develops (the growth rate) |
 | Dispersed development | Moderate | Leapfrog rate: Off / Moderate / Aggressive |
-| Random seed | 42 | The same seed reproduces the same run and the same ensemble, on any machine |
+| Random seed | 42 | The same seed reproduces the same run and the same ensemble, independent of core count |
 
 **Walkable access.** Centre walk (400 m) and Green walk (400 m): how far people walk to a
 mixed-use centre and to a park. The simulation grows by the larger of the two; the finished plan
@@ -123,7 +125,7 @@ is scored against each separately.
 
 | Field | Default | What it does |
 | --- | --- | --- |
-| Optimise centre placement | on | Re-position centres central to their development, add where under-served, cull redundant ones; saves moderately- and tightly-clustered options. Off keeps the grown centres (one plan) |
+| Optimise centre placement | on | Re-position centres central to their development, add where under-served, cull redundant ones; saves moderately and tightly clustered options. Off keeps the grown centres (one plan) |
 | Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
 | Min settlement area (ha) | 2 | Detached new clusters smaller than this revert to green |
 | Min green span (m) | 400 | A green patch must span this to count as a park; also a build rule protecting corridors |

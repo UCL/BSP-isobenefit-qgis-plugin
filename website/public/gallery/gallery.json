@@ -4,7 +4,7 @@
    "id": "cambourne",
    "title": "Cambourne, UK",
    "subtitle": "New-settlement growth: the reference demo",
-   "grid": "144x116 cells at 90 m (preview resolution)",
+   "grid": "144\u00d7116 cells at 90 m (preview resolution)",
    "seed": 42,
    "folder": "cambourne",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/cambourne",
@@ -26,13 +26,13 @@
      "overrides": {},
      "image": "cambourne/baseline.png",
      "metrics": {
-      "served_coverage": 0.822,
-      "centre_access": 307.65,
-      "green_access": 148.258,
-      "population": 29248.695,
-      "centre_m2_per_person": 20.77,
-      "green_m2_per_person": 1889.53,
-      "built_cells": 1795.0
+      "served_coverage": 0.863,
+      "centre_access": 280.97,
+      "green_access": 130.28,
+      "population": 26524.665,
+      "centre_m2_per_person": 23.209,
+      "green_m2_per_person": 2126.334,
+      "built_cells": 1679.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -74,13 +74,13 @@
      },
      "image": "cambourne/walk800.png",
      "metrics": {
-      "served_coverage": 0.958,
-      "centre_access": 386.786,
-      "green_access": 135.202,
-      "population": 30287.52,
-      "centre_m2_per_person": 18.721,
-      "green_m2_per_person": 1815.362,
-      "built_cells": 1842.0
+      "served_coverage": 0.96,
+      "centre_access": 379.576,
+      "green_access": 135.352,
+      "population": 29918.16,
+      "centre_m2_per_person": 21.659,
+      "green_m2_per_person": 1846.437,
+      "built_cells": 1824.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -121,13 +121,13 @@
      },
      "image": "cambourne/compact.png",
      "metrics": {
-      "served_coverage": 0.851,
-      "centre_access": 292.187,
-      "green_access": 141.682,
-      "population": 26870.94,
-      "centre_m2_per_person": 21.101,
-      "green_m2_per_person": 2085.067,
-      "built_cells": 1693.0
+      "served_coverage": 0.874,
+      "centre_access": 275.611,
+      "green_access": 132.601,
+      "population": 25739.775,
+      "centre_m2_per_person": 23.916,
+      "green_m2_per_person": 2202.816,
+      "built_cells": 1645.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -168,13 +168,13 @@
      },
      "image": "cambourne/dispersed.png",
      "metrics": {
-      "served_coverage": 0.787,
-      "centre_access": 330.608,
-      "green_access": 127.391,
-      "population": 29756.565,
-      "centre_m2_per_person": 19.327,
-      "green_m2_per_person": 1856.736,
-      "built_cells": 1819.0
+      "served_coverage": 0.78,
+      "centre_access": 324.648,
+      "green_access": 114.93,
+      "population": 27286.47,
+      "centre_m2_per_person": 22.561,
+      "green_m2_per_person": 2056.58,
+      "built_cells": 1712.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -219,13 +219,13 @@
      },
      "image": "cambourne/denser.png",
      "metrics": {
-      "served_coverage": 0.797,
-      "centre_access": 323.554,
-      "green_access": 134.18,
-      "population": 27896.4,
-      "centre_m2_per_person": 19.164,
-      "green_m2_per_person": 2116.725,
-      "built_cells": 1348.0
+      "served_coverage": 0.803,
+      "centre_access": 314.708,
+      "green_access": 126.862,
+      "population": 28951.02,
+      "centre_m2_per_person": 20.984,
+      "green_m2_per_person": 2030.944,
+      "built_cells": 1381.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -266,13 +266,13 @@
      },
      "image": "cambourne/tight.png",
      "metrics": {
-      "served_coverage": 0.776,
-      "centre_access": 340.418,
-      "green_access": 148.258,
-      "population": 29248.695,
-      "centre_m2_per_person": 20.216,
-      "green_m2_per_person": 1889.53,
-      "built_cells": 1795.0
+      "served_coverage": 0.745,
+      "centre_access": 365.418,
+      "green_access": 130.28,
+      "population": 26524.665,
+      "centre_m2_per_person": 20.766,
+      "green_m2_per_person": 2126.334,
+      "built_cells": 1679.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -310,7 +310,7 @@
    "id": "celina_tx",
    "title": "Celina, Texas",
    "subtitle": "US suburbia at the metropolitan fringe",
-   "grid": "144x126 cells at 50 m (preview resolution)",
+   "grid": "144\u00d7126 cells at 50 m (preview resolution)",
    "seed": 42,
    "folder": "celina_tx",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/celina_tx",
@@ -332,13 +332,13 @@
      "overrides": {},
      "image": "celina_tx/baseline.png",
      "metrics": {
-      "served_coverage": 0.941,
-      "centre_access": 419.533,
-      "green_access": 157.174,
-      "population": 50862.5,
-      "centre_m2_per_person": 18.039,
-      "green_m2_per_person": 383.927,
-      "built_cells": 6970.0
+      "served_coverage": 0.899,
+      "centre_access": 473.877,
+      "green_access": 165.071,
+      "population": 42200.0,
+      "centre_m2_per_person": 18.602,
+      "green_m2_per_person": 507.642,
+      "built_cells": 6282.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -380,13 +380,13 @@
      },
      "image": "celina_tx/walk800.png",
      "metrics": {
-      "served_coverage": 0.941,
-      "centre_access": 419.533,
-      "green_access": 157.174,
-      "population": 50862.5,
-      "centre_m2_per_person": 18.039,
-      "green_m2_per_person": 383.927,
-      "built_cells": 6970.0
+      "served_coverage": 0.899,
+      "centre_access": 473.877,
+      "green_access": 165.071,
+      "population": 42200.0,
+      "centre_m2_per_person": 18.602,
+      "green_m2_per_person": 507.642,
+      "built_cells": 6282.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -427,13 +427,13 @@
      },
      "image": "celina_tx/compact.png",
      "metrics": {
-      "served_coverage": 0.931,
-      "centre_access": 439.375,
-      "green_access": 172.386,
-      "population": 49587.5,
-      "centre_m2_per_person": 17.595,
-      "green_m2_per_person": 397.278,
-      "built_cells": 6876.0
+      "served_coverage": 0.846,
+      "centre_access": 541.416,
+      "green_access": 164.492,
+      "population": 42587.5,
+      "centre_m2_per_person": 18.667,
+      "green_m2_per_person": 501.145,
+      "built_cells": 6314.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -474,13 +474,13 @@
      },
      "image": "celina_tx/dispersed.png",
      "metrics": {
-      "served_coverage": 0.888,
-      "centre_access": 484.81,
-      "green_access": 143.455,
-      "population": 46075.0,
-      "centre_m2_per_person": 18.123,
-      "green_m2_per_person": 443.625,
-      "built_cells": 6601.0
+      "served_coverage": 0.905,
+      "centre_access": 446.718,
+      "green_access": 143.081,
+      "population": 40762.5,
+      "centre_m2_per_person": 19.319,
+      "green_m2_per_person": 532.045,
+      "built_cells": 6176.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -525,13 +525,13 @@
      },
      "image": "celina_tx/denser.png",
      "metrics": {
-      "served_coverage": 0.856,
-      "centre_access": 538.037,
-      "green_access": 164.682,
-      "population": 50091.0,
-      "centre_m2_per_person": 16.42,
-      "green_m2_per_person": 510.321,
-      "built_cells": 4612.0
+      "served_coverage": 0.878,
+      "centre_access": 512.699,
+      "green_access": 164.12,
+      "population": 50061.5,
+      "centre_m2_per_person": 17.129,
+      "green_m2_per_person": 511.97,
+      "built_cells": 4599.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -572,13 +572,13 @@
      },
      "image": "celina_tx/tight.png",
      "metrics": {
-      "served_coverage": 0.782,
-      "centre_access": 639.34,
-      "green_access": 157.174,
-      "population": 50762.5,
-      "centre_m2_per_person": 17.385,
-      "green_m2_per_person": 384.684,
-      "built_cells": 6970.0
+      "served_coverage": 0.72,
+      "centre_access": 691.473,
+      "green_access": 165.071,
+      "population": 42162.5,
+      "centre_m2_per_person": 17.729,
+      "green_m2_per_person": 508.094,
+      "built_cells": 6282.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -616,7 +616,7 @@
    "id": "dnipro_A",
    "title": "Dnipro, Ukraine: Area A",
    "subtitle": "Central right-bank regeneration (DBN norms)",
-   "grid": "143x120 cells at 100 m (preview resolution)",
+   "grid": "143\u00d7120 cells at 100 m (preview resolution)",
    "seed": 42,
    "folder": "dnipro",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/dnipro",
@@ -638,13 +638,13 @@
      "overrides": {},
      "image": "dnipro_A/baseline.png",
      "metrics": {
-      "served_coverage": 0.322,
-      "centre_access": 506.989,
-      "green_access": 480.338,
-      "population": 136398.0,
-      "centre_m2_per_person": 16.129,
-      "green_m2_per_person": 87.905,
-      "built_cells": 4071.0
+      "served_coverage": 0.31,
+      "centre_access": 510.626,
+      "green_access": 473.73,
+      "population": 67564.0,
+      "centre_m2_per_person": 17.169,
+      "green_m2_per_person": 228.228,
+      "built_cells": 3809.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -686,13 +686,13 @@
      },
      "image": "dnipro_A/walk800.png",
      "metrics": {
-      "served_coverage": 0.416,
-      "centre_access": 772.678,
-      "green_access": 483.312,
-      "population": 148082.0,
-      "centre_m2_per_person": 12.29,
-      "green_m2_per_person": 80.969,
-      "built_cells": 4100.0
+      "served_coverage": 0.349,
+      "centre_access": 905.126,
+      "green_access": 478.362,
+      "population": 76454.0,
+      "centre_m2_per_person": 10.071,
+      "green_m2_per_person": 200.644,
+      "built_cells": 3834.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -733,13 +733,13 @@
      },
      "image": "dnipro_A/compact.png",
      "metrics": {
-      "served_coverage": 0.323,
-      "centre_access": 500.574,
-      "green_access": 481.465,
-      "population": 135890.0,
-      "centre_m2_per_person": 15.822,
-      "green_m2_per_person": 89.926,
-      "built_cells": 4066.0
+      "served_coverage": 0.309,
+      "centre_access": 511.209,
+      "green_access": 474.195,
+      "population": 66040.0,
+      "centre_m2_per_person": 16.959,
+      "green_m2_per_person": 234.252,
+      "built_cells": 3804.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -780,13 +780,13 @@
      },
      "image": "dnipro_A/dispersed.png",
      "metrics": {
-      "served_coverage": 0.247,
-      "centre_access": 573.262,
-      "green_access": 484.095,
-      "population": 115062.0,
-      "centre_m2_per_person": 16.513,
-      "green_m2_per_person": 103.336,
-      "built_cells": 4002.0
+      "served_coverage": 0.311,
+      "centre_access": 509.601,
+      "green_access": 470.959,
+      "population": 80518.0,
+      "centre_m2_per_person": 17.139,
+      "green_m2_per_person": 182.444,
+      "built_cells": 3859.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -831,13 +831,13 @@
      },
      "image": "dnipro_A/denser.png",
      "metrics": {
-      "served_coverage": 0.307,
-      "centre_access": 525.805,
-      "green_access": 482.717,
-      "population": 137540.0,
-      "centre_m2_per_person": 14.323,
-      "green_m2_per_person": 93.791,
-      "built_cells": 3992.0
+      "served_coverage": 0.311,
+      "centre_access": 508.964,
+      "green_access": 473.73,
+      "population": 80132.0,
+      "centre_m2_per_person": 15.35,
+      "green_m2_per_person": 192.432,
+      "built_cells": 3809.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -878,13 +878,13 @@
      },
      "image": "dnipro_A/tight.png",
      "metrics": {
-      "served_coverage": 0.257,
-      "centre_access": 589.615,
-      "green_access": 480.338,
-      "population": 137414.0,
-      "centre_m2_per_person": 13.827,
-      "green_m2_per_person": 87.255,
-      "built_cells": 4071.0
+      "served_coverage": 0.183,
+      "centre_access": 643.369,
+      "green_access": 473.73,
+      "population": 68834.0,
+      "centre_m2_per_person": 11.622,
+      "green_m2_per_person": 224.017,
+      "built_cells": 3809.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -922,7 +922,7 @@
    "id": "dnipro_B",
    "title": "Dnipro, Ukraine: Area B",
    "subtitle": "Left-bank edge growth (DBN norms)",
-   "grid": "151x93 cells at 85 m (preview resolution)",
+   "grid": "151\u00d793 cells at 85 m (preview resolution)",
    "seed": 42,
    "folder": "dnipro",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/dnipro",
@@ -944,13 +944,13 @@
      "overrides": {},
      "image": "dnipro_B/baseline.png",
      "metrics": {
-      "served_coverage": 0.275,
-      "centre_access": 479.723,
-      "green_access": 538.027,
-      "population": 72828.0,
-      "centre_m2_per_person": 17.956,
-      "green_m2_per_person": 89.087,
-      "built_cells": 3175.0
+      "served_coverage": 0.218,
+      "centre_access": 518.656,
+      "green_access": 540.963,
+      "population": 29189.0,
+      "centre_m2_per_person": 18.812,
+      "green_m2_per_person": 296.535,
+      "built_cells": 2879.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -992,13 +992,13 @@
      },
      "image": "dnipro_B/walk800.png",
      "metrics": {
-      "served_coverage": 0.365,
-      "centre_access": 799.668,
-      "green_access": 533.487,
-      "population": 78030.0,
-      "centre_m2_per_person": 15.37,
-      "green_m2_per_person": 83.611,
-      "built_cells": 3194.0
+      "served_coverage": 0.277,
+      "centre_access": 1157.695,
+      "green_access": 537.205,
+      "population": 34102.0,
+      "centre_m2_per_person": 10.169,
+      "green_m2_per_person": 248.517,
+      "built_cells": 2917.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1039,13 +1039,13 @@
      },
      "image": "dnipro_B/compact.png",
      "metrics": {
-      "served_coverage": 0.275,
-      "centre_access": 493.261,
-      "green_access": 536.095,
-      "population": 63724.5,
-      "centre_m2_per_person": 17.46,
-      "green_m2_per_person": 108.503,
-      "built_cells": 3115.0
+      "served_coverage": 0.218,
+      "centre_access": 518.656,
+      "green_access": 540.963,
+      "population": 29189.0,
+      "centre_m2_per_person": 18.812,
+      "green_m2_per_person": 296.535,
+      "built_cells": 2879.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1086,13 +1086,13 @@
      },
      "image": "dnipro_B/dispersed.png",
      "metrics": {
-      "served_coverage": 0.291,
-      "centre_access": 476.47,
-      "green_access": 532.834,
-      "population": 71238.5,
-      "centre_m2_per_person": 17.951,
-      "green_m2_per_person": 89.858,
-      "built_cells": 3166.0
+      "served_coverage": 0.228,
+      "centre_access": 509.712,
+      "green_access": 532.196,
+      "population": 35547.0,
+      "centre_m2_per_person": 19.309,
+      "green_m2_per_person": 234.553,
+      "built_cells": 2926.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1137,13 +1137,13 @@
      },
      "image": "dnipro_B/denser.png",
      "metrics": {
-      "served_coverage": 0.266,
-      "centre_access": 506.835,
-      "green_access": 536.72,
-      "population": 88571.275,
-      "centre_m2_per_person": 16.396,
-      "green_m2_per_person": 83.53,
-      "built_cells": 3068.0
+      "served_coverage": 0.228,
+      "centre_access": 503.555,
+      "green_access": 540.963,
+      "population": 47742.077,
+      "centre_m2_per_person": 15.587,
+      "green_m2_per_person": 181.298,
+      "built_cells": 2879.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1184,13 +1184,13 @@
      },
      "image": "dnipro_B/tight.png",
      "metrics": {
-      "served_coverage": 0.17,
-      "centre_access": 595.896,
-      "green_access": 538.027,
-      "population": 74706.5,
-      "centre_m2_per_person": 16.538,
-      "green_m2_per_person": 86.847,
-      "built_cells": 3175.0
+      "served_coverage": 0.131,
+      "centre_access": 676.252,
+      "green_access": 540.963,
+      "population": 28322.0,
+      "centre_m2_per_person": 11.224,
+      "green_m2_per_person": 305.612,
+      "built_cells": 2879.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1228,7 +1228,7 @@
    "id": "freiburg_rieselfeld",
    "title": "Freiburg, Germany",
    "subtitle": "Validation against Rieselfeld and Vauban",
-   "grid": "137x92 cells at 50 m (preview resolution)",
+   "grid": "137\u00d792 cells at 50 m (preview resolution)",
    "seed": 42,
    "folder": "freiburg_rieselfeld",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/freiburg_rieselfeld",
@@ -1250,13 +1250,13 @@
      "overrides": {},
      "image": "freiburg_rieselfeld/baseline.png",
      "metrics": {
-      "served_coverage": 0.248,
-      "centre_access": 498.336,
-      "green_access": 515.921,
-      "population": 1512.0,
-      "centre_m2_per_person": 18.188,
-      "green_m2_per_person": 1731.151,
-      "built_cells": 5488.0
+      "served_coverage": 0.253,
+      "centre_access": 498.669,
+      "green_access": 516.382,
+      "population": 900.0,
+      "centre_m2_per_person": 19.444,
+      "green_m2_per_person": 2975.0,
+      "built_cells": 5471.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1298,13 +1298,13 @@
      },
      "image": "freiburg_rieselfeld/walk800.png",
      "metrics": {
-      "served_coverage": 0.374,
-      "centre_access": 566.55,
-      "green_access": 515.965,
-      "population": 1800.0,
-      "centre_m2_per_person": 8.333,
-      "green_m2_per_person": 1454.167,
-      "built_cells": 5493.0
+      "served_coverage": 0.371,
+      "centre_access": 588.053,
+      "green_access": 516.684,
+      "population": 1260.0,
+      "centre_m2_per_person": 3.968,
+      "green_m2_per_person": 2125.0,
+      "built_cells": 5481.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1345,13 +1345,13 @@
      },
      "image": "freiburg_rieselfeld/moderate.png",
      "metrics": {
-      "served_coverage": 0.253,
-      "centre_access": 496.317,
-      "green_access": 511.394,
-      "population": 3564.0,
-      "centre_m2_per_person": 18.939,
-      "green_m2_per_person": 694.444,
-      "built_cells": 5545.0
+      "served_coverage": 0.259,
+      "centre_access": 492.799,
+      "green_access": 516.434,
+      "population": 936.0,
+      "centre_m2_per_person": 21.368,
+      "green_m2_per_person": 2860.577,
+      "built_cells": 5472.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1392,13 +1392,13 @@
      },
      "image": "freiburg_rieselfeld/dispersed.png",
      "metrics": {
-      "served_coverage": 0.236,
-      "centre_access": 500.62,
-      "green_access": 508.098,
-      "population": 5148.0,
-      "centre_m2_per_person": 19.425,
-      "green_m2_per_person": 455.031,
-      "built_cells": 5589.0
+      "served_coverage": 0.261,
+      "centre_access": 482.032,
+      "green_access": 511.752,
+      "population": 3096.0,
+      "centre_m2_per_person": 20.995,
+      "green_m2_per_person": 817.183,
+      "built_cells": 5532.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1443,13 +1443,13 @@
      },
      "image": "freiburg_rieselfeld/denser.png",
      "metrics": {
-      "served_coverage": 0.248,
-      "centre_access": 498.336,
-      "green_access": 515.921,
-      "population": 1764.0,
-      "centre_m2_per_person": 15.59,
-      "green_m2_per_person": 1483.844,
-      "built_cells": 5488.0
+      "served_coverage": 0.253,
+      "centre_access": 498.669,
+      "green_access": 516.382,
+      "population": 1050.0,
+      "centre_m2_per_person": 16.667,
+      "green_m2_per_person": 2550.0,
+      "built_cells": 5471.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1490,13 +1490,13 @@
      },
      "image": "freiburg_rieselfeld/tight.png",
      "metrics": {
-      "served_coverage": 0.213,
-      "centre_access": 530.134,
-      "green_access": 515.921,
-      "population": 1548.0,
-      "centre_m2_per_person": 9.69,
-      "green_m2_per_person": 1690.891,
-      "built_cells": 5488.0
+      "served_coverage": 0.232,
+      "centre_access": 517.552,
+      "green_access": 516.382,
+      "population": 900.0,
+      "centre_m2_per_person": 13.889,
+      "green_m2_per_person": 2975.0,
+      "built_cells": 5471.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1534,7 +1534,7 @@
    "id": "kigali_east",
    "title": "Kigali, Rwanda",
    "subtitle": "Plan-guided rapid urbanisation",
-   "grid": "149x137 cells at 45 m (preview resolution)",
+   "grid": "149\u00d7137 cells at 45 m (preview resolution)",
    "seed": 42,
    "folder": "kigali_east",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/kigali_east",
@@ -1556,13 +1556,13 @@
      "overrides": {},
      "image": "kigali_east/baseline.png",
      "metrics": {
-      "served_coverage": 0.267,
-      "centre_access": 614.439,
-      "green_access": 471.814,
-      "population": 60905.925,
-      "centre_m2_per_person": 19.882,
-      "green_m2_per_person": 307.843,
-      "built_cells": 9237.0
+      "served_coverage": 0.264,
+      "centre_access": 611.581,
+      "green_access": 472.041,
+      "population": 60367.275,
+      "centre_m2_per_person": 20.06,
+      "green_m2_per_person": 310.389,
+      "built_cells": 9231.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1604,13 +1604,13 @@
      },
      "image": "kigali_east/walk800.png",
      "metrics": {
-      "served_coverage": 0.405,
-      "centre_access": 898.133,
-      "green_access": 481.184,
-      "population": 61521.525,
-      "centre_m2_per_person": 19.552,
-      "green_m2_per_person": 305.586,
-      "built_cells": 9231.0
+      "served_coverage": 0.401,
+      "centre_access": 908.155,
+      "green_access": 477.794,
+      "population": 60752.025,
+      "centre_m2_per_person": 19.799,
+      "green_m2_per_person": 309.123,
+      "built_cells": 9228.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1651,13 +1651,13 @@
      },
      "image": "kigali_east/compact.png",
      "metrics": {
-      "served_coverage": 0.267,
-      "centre_access": 615.994,
-      "green_access": 484.061,
-      "population": 57173.85,
-      "centre_m2_per_person": 19.799,
-      "green_m2_per_person": 331.586,
-      "built_cells": 9134.0
+      "served_coverage": 0.274,
+      "centre_access": 606.157,
+      "green_access": 487.192,
+      "population": 51248.7,
+      "centre_m2_per_person": 19.836,
+      "green_m2_per_person": 375.612,
+      "built_cells": 8981.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1698,13 +1698,13 @@
      },
      "image": "kigali_east/dispersed.png",
      "metrics": {
-      "served_coverage": 0.186,
-      "centre_access": 665.831,
-      "green_access": 466.285,
-      "population": 60905.925,
-      "centre_m2_per_person": 19.916,
-      "green_m2_per_person": 306.713,
-      "built_cells": 9244.0
+      "served_coverage": 0.197,
+      "centre_access": 661.01,
+      "green_access": 469.016,
+      "population": 59097.6,
+      "centre_m2_per_person": 19.908,
+      "green_m2_per_person": 318.12,
+      "built_cells": 9196.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1749,13 +1749,13 @@
      },
      "image": "kigali_east/denser.png",
      "metrics": {
-      "served_coverage": 0.239,
-      "centre_access": 632.102,
-      "green_access": 488.047,
-      "population": 61965.0,
-      "centre_m2_per_person": 19.641,
-      "green_m2_per_person": 315.621,
-      "built_cells": 8838.0
+      "served_coverage": 0.221,
+      "centre_access": 638.744,
+      "green_access": 487.892,
+      "population": 61190.438,
+      "centre_m2_per_person": 19.624,
+      "green_m2_per_person": 319.616,
+      "built_cells": 8826.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1796,13 +1796,13 @@
      },
      "image": "kigali_east/tight.png",
      "metrics": {
-      "served_coverage": 0.247,
-      "centre_access": 627.085,
-      "green_access": 471.814,
-      "population": 60944.4,
-      "centre_m2_per_person": 19.803,
-      "green_m2_per_person": 307.649,
-      "built_cells": 9237.0
+      "served_coverage": 0.228,
+      "centre_access": 634.183,
+      "green_access": 472.041,
+      "population": 60444.225,
+      "centre_m2_per_person": 19.934,
+      "green_m2_per_person": 309.994,
+      "built_cells": 9231.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1840,7 +1840,7 @@
    "id": "london_crews_hill",
    "title": "Crews Hill, London",
    "subtitle": "Green-belt release at the metropolitan edge",
-   "grid": "131x130 cells at 30 m (preview resolution)",
+   "grid": "131\u00d7130 cells at 30 m (preview resolution)",
    "seed": 42,
    "folder": "london_crews_hill",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/london_crews_hill",
@@ -1862,13 +1862,13 @@
      "overrides": {},
      "image": "london_crews_hill/baseline.png",
      "metrics": {
-      "served_coverage": 0.954,
-      "centre_access": 334.645,
-      "green_access": 142.218,
-      "population": 13580.1,
-      "centre_m2_per_person": 15.11,
-      "green_m2_per_person": 313.672,
-      "built_cells": 3174.0
+      "served_coverage": 0.955,
+      "centre_access": 360.286,
+      "green_access": 136.214,
+      "population": 5503.14,
+      "centre_m2_per_person": 12.593,
+      "green_m2_per_person": 874.628,
+      "built_cells": 2625.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1910,13 +1910,13 @@
      },
      "image": "london_crews_hill/walk800.png",
      "metrics": {
-      "served_coverage": 0.954,
-      "centre_access": 334.645,
-      "green_access": 142.218,
-      "population": 13580.1,
-      "centre_m2_per_person": 15.11,
-      "green_m2_per_person": 313.672,
-      "built_cells": 3174.0
+      "served_coverage": 0.955,
+      "centre_access": 360.286,
+      "green_access": 136.214,
+      "population": 5503.14,
+      "centre_m2_per_person": 12.593,
+      "green_m2_per_person": 874.628,
+      "built_cells": 2625.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1957,13 +1957,13 @@
      },
      "image": "london_crews_hill/moderate.png",
      "metrics": {
-      "served_coverage": 0.97,
-      "centre_access": 329.441,
-      "green_access": 122.366,
-      "population": 13309.92,
-      "centre_m2_per_person": 13.929,
-      "green_m2_per_person": 325.517,
-      "built_cells": 3159.0
+      "served_coverage": 0.96,
+      "centre_access": 352.326,
+      "green_access": 135.211,
+      "population": 5943.96,
+      "centre_m2_per_person": 12.87,
+      "green_m2_per_person": 805.524,
+      "built_cells": 2653.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -2004,13 +2004,13 @@
      },
      "image": "london_crews_hill/dispersed.png",
      "metrics": {
-      "served_coverage": 0.964,
-      "centre_access": 326.501,
-      "green_access": 121.109,
-      "population": 12712.68,
-      "centre_m2_per_person": 17.062,
-      "green_m2_per_person": 341.163,
-      "built_cells": 3129.0
+      "served_coverage": 0.96,
+      "centre_access": 344.233,
+      "green_access": 132.331,
+      "population": 6569.64,
+      "centre_m2_per_person": 13.836,
+      "green_m2_per_person": 722.779,
+      "built_cells": 2697.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -2055,13 +2055,13 @@
      },
      "image": "london_crews_hill/denser.png",
      "metrics": {
-      "served_coverage": 0.942,
-      "centre_access": 355.052,
-      "green_access": 146.404,
-      "population": 13759.29,
-      "centre_m2_per_person": 13.147,
-      "green_m2_per_person": 321.361,
-      "built_cells": 2994.0
+      "served_coverage": 0.955,
+      "centre_access": 356.691,
+      "green_access": 136.214,
+      "population": 6879.645,
+      "centre_m2_per_person": 12.036,
+      "green_m2_per_person": 699.629,
+      "built_cells": 2625.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -2102,13 +2102,13 @@
      },
      "image": "london_crews_hill/tight.png",
      "metrics": {
-      "served_coverage": 0.824,
-      "centre_access": 523.317,
-      "green_access": 142.218,
-      "population": 13466.34,
-      "centre_m2_per_person": 11.362,
-      "green_m2_per_person": 316.322,
-      "built_cells": 3174.0
+      "served_coverage": 0.79,
+      "centre_access": 587.091,
+      "green_access": 136.214,
+      "population": 5574.24,
+      "centre_m2_per_person": 8.88,
+      "green_m2_per_person": 863.472,
+      "built_cells": 2625.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -2146,7 +2146,7 @@
    "id": "medellin_pajarito",
    "title": "Medell\u00edn, Colombia",
    "subtitle": "Planned hillside expansion",
-   "grid": "149x149 cells at 45 m (preview resolution)",
+   "grid": "149\u00d7149 cells at 45 m (preview resolution)",
    "seed": 42,
    "folder": "medellin_pajarito",
    "github": "https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/medellin_pajarito",
@@ -2168,13 +2168,13 @@
      "overrides": {},
      "image": "medellin_pajarito/baseline.png",
      "metrics": {
-      "served_coverage": 0.697,
-      "centre_access": 275.133,
-      "green_access": 222.647,
-      "population": 39318.615,
-      "centre_m2_per_person": 19.365,
-      "green_m2_per_person": 262.919,
-      "built_cells": 1827.0
+      "served_coverage": 0.648,
+      "centre_access": 306.804,
+      "green_access": 284.86,
+      "population": 1424.587,
+      "centre_m2_per_person": 22.743,
+      "green_m2_per_person": 9149.964,
+      "built_cells": 903.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2216,13 +2216,13 @@
      },
      "image": "medellin_pajarito/walk800.png",
      "metrics": {
-      "served_coverage": 0.851,
-      "centre_access": 233.652,
-      "green_access": 222.717,
-      "population": 40254.772,
-      "centre_m2_per_person": 18.613,
-      "green_m2_per_person": 259.37,
-      "built_cells": 1843.0
+      "served_coverage": 0.768,
+      "centre_access": 320.712,
+      "green_access": 284.616,
+      "population": 1546.695,
+      "centre_m2_per_person": 19.639,
+      "green_m2_per_person": 8427.599,
+      "built_cells": 904.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2263,13 +2263,13 @@
      },
      "image": "medellin_pajarito/compact.png",
      "metrics": {
-      "served_coverage": 0.726,
-      "centre_access": 234.279,
-      "green_access": 285.945,
-      "population": 23892.368,
-      "centre_m2_per_person": 18.646,
-      "green_m2_per_person": 481.494,
-      "built_cells": 1443.0
+      "served_coverage": 0.648,
+      "centre_access": 306.804,
+      "green_access": 284.86,
+      "population": 1424.587,
+      "centre_m2_per_person": 22.743,
+      "green_m2_per_person": 9149.964,
+      "built_cells": 903.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2310,13 +2310,13 @@
      },
      "image": "medellin_pajarito/dispersed.png",
      "metrics": {
-      "served_coverage": 0.562,
-      "centre_access": 319.54,
-      "green_access": 249.113,
-      "population": 38626.673,
-      "centre_m2_per_person": 19.45,
-      "green_m2_per_person": 265.952,
-      "built_cells": 1816.0
+      "served_coverage": 0.653,
+      "centre_access": 302.643,
+      "green_access": 281.525,
+      "population": 1994.422,
+      "centre_m2_per_person": 22.337,
+      "green_m2_per_person": 6521.474,
+      "built_cells": 917.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2361,13 +2361,13 @@
      },
      "image": "medellin_pajarito/denser.png",
      "metrics": {
-      "served_coverage": 0.671,
-      "centre_access": 292.519,
-      "green_access": 221.014,
-      "population": 39243.487,
-      "centre_m2_per_person": 19.092,
-      "green_m2_per_person": 275.962,
-      "built_cells": 1651.0
+      "served_coverage": 0.648,
+      "centre_access": 306.804,
+      "green_access": 284.86,
+      "population": 1736.438,
+      "centre_m2_per_person": 18.659,
+      "green_m2_per_person": 7506.706,
+      "built_cells": 903.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2408,13 +2408,13 @@
      },
      "image": "medellin_pajarito/tight.png",
      "metrics": {
-      "served_coverage": 0.623,
-      "centre_access": 307.329,
-      "green_access": 222.647,
-      "population": 39318.615,
-      "centre_m2_per_person": 18.644,
-      "green_m2_per_person": 262.919,
-      "built_cells": 1827.0
+      "served_coverage": 0.578,
+      "centre_access": 372.962,
+      "green_access": 284.86,
+      "population": 1505.992,
+      "centre_m2_per_person": 20.169,
+      "green_m2_per_person": 8655.372,
+      "built_cells": 903.0
      },
      "settings": {
       "crs": "EPSG:32618",

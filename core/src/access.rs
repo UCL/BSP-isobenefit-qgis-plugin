@@ -186,9 +186,11 @@ pub fn agg_dijkstra_dist(
 
 /// Builds the green-periphery (`green_itx`) and green-access (`green_acc`) arrays.
 ///
-/// `green_itx`: built/centre cells -> 1; their rook-adjacent green cells -> 2
-/// (the developable periphery). `green_acc`: for every periphery (==2) cell, the
-/// accessibility footprint summed together — computed in parallel.
+/// `green_itx`: unbuildable cells -> -1; built/centre cells -> 1; green cells
+/// rook-adjacent to built -> 2 (the developable periphery). `green_acc`: for every
+/// periphery (==2) cell, the accessibility footprint summed together — computed in
+/// parallel. Footprints traverse `[0, 1, 2]` only, so unbuildable cells (water,
+/// carved corridors) block green access exactly as they block centre access.
 pub fn prepare_green_arrs(
     state: &Array2<i16>,
     max_distance_m: f64,
@@ -198,7 +200,9 @@ pub fn prepare_green_arrs(
     let mut green_itx = Array2::<i16>::zeros((rows, cols));
     for y in 0..rows {
         for x in 0..cols {
-            if state[[y, x]] > 0 {
+            if state[[y, x]] < 0 {
+                green_itx[[y, x]] = -1;
+            } else if state[[y, x]] > 0 {
                 green_itx[[y, x]] = 1;
                 for (ny, nx) in iter_nbs(rows, cols, y, x, true) {
                     if state[[ny, nx]] == 0 {
@@ -283,6 +287,25 @@ mod tests {
         assert!(dist[[0, 2]] < dist[[0, 3]]);
         // index 4 is 4m away -> beyond max_distance -> infinite
         assert!(dist[[0, 4]].is_infinite());
+    }
+
+    #[test]
+    fn unbuildable_blocks_green_access() {
+        // built column at x=0, unbuildable column at x=2: periphery footprints
+        // from x=1 must not cross the barrier to reach x>=3
+        let mut state = Array2::<i16>::zeros((5, 5));
+        for y in 0..5 {
+            state[[y, 0]] = 1;
+            state[[y, 2]] = -1;
+        }
+        let (itx, acc) = prepare_green_arrs(&state, 300.0, 100.0);
+        for y in 0..5 {
+            assert_eq!(itx[[y, 2]], -1);
+            assert_eq!(itx[[y, 1]], 2);
+            assert_eq!(acc[[y, 3]], 0);
+            assert_eq!(acc[[y, 4]], 0);
+            assert!(acc[[y, 1]] > 0);
+        }
     }
 
     #[test]

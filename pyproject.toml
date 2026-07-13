@@ -1,6 +1,6 @@
 [project]
 name = "isobenefit-qgis-plugin"
-version = "0.12.5"
+version = "0.12.6"
 description = "QGIS plugin for Isobenefit Urbanism simulation (thin wrapper over the isobenefit engine)."
 authors = [{ name = "Gareth Simons", email = "gareth.simons@ucl.ac.uk" }]
 requires-python = ">=3.9"
@@ -12,7 +12,7 @@ classifiers = [
 ]
 
 [project.urls]
-homepage = "https://github-pages.ucl.ac.uk/BSP-isobenefit-urbanism/"
+homepage = "https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/"
 repository = "https://github.com/UCL/BSP-isobenefit-qgis-plugin"
 
 # This repo is not itself a Python package — QGIS loads the `isobenefit_qgis/`

@@ -6,9 +6,9 @@ import os.path
 from pathlib import Path
 from typing import Any, Callable
 
-from qgis.core import Qgis, QgsApplication, QgsMessageLog
+from qgis.core import Qgis, QgsApplication, QgsMessageLog, QgsProject
 from qgis.gui import QgisInterface
-from qgis.PyQt.QtCore import QCoreApplication, QSettings, QTranslator, qVersion
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QMessageBox, QToolBar, QWidget
 
@@ -53,15 +53,8 @@ class Isobenefit:
         self.iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
-        # initialize locale
-        locale = QSettings().value("locale/userLocale")[0:2]
-        locale_path = os.path.join(self.plugin_dir, "i18n", "isobenefit_{}.qm".format(locale))
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-            if qVersion() > "4.3.3":
-                QCoreApplication.installTranslator(self.translator)
-        # Create the dialog (after translation) and keep reference
+        # Create the dialog and keep reference (no translations are shipped yet; the
+        # usual Plugin Builder locale block crashes on profiles with no locale set)
         self.dlg = IsobenefitDialog()
         # the OSM extraction dialog is created lazily (it needs the iface)
         self.osm_dlg: OsmDialog | None = None
@@ -180,6 +173,14 @@ class Isobenefit:
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
+        # cancel any running tasks and close dialogs, else a task finishing after a
+        # plugin reload calls back into this stale instance
+        for task in (self._task, self._osm_task):
+            if task is not None:
+                task.cancel()
+        self.dlg.close()
+        if self.osm_dlg is not None:
+            self.osm_dlg.close()
         for action in self.actions:
             # must match the menu the actions were added under (self.menu), or the
             # entries survive the unload with dead callbacks
@@ -218,6 +219,18 @@ class Isobenefit:
                 "Define an area of interest, at least one dataset, and an output GeoPackage.",
             )
             return
+        # A re-fetch rewrites the GeoPackage. Layers still loaded from it hold the file
+        # open (a hard lock on Windows) and would silently break on rewrite, so drop
+        # them from the project first — the task re-adds the fresh layers when done.
+        project = QgsProject.instance()
+        stale = [lyr.id() for lyr in project.mapLayers().values() if lyr.source().split("|")[0] == gpkg_path]
+        if stale:
+            project.removeMapLayers(stale)
+            QgsMessageLog.logMessage(
+                f"Removed {len(stale)} layer(s) loaded from the previous {Path(gpkg_path).name}; "
+                "the refreshed layers will be re-added.",
+                level=Qgis.MessageLevel.Info,
+            )
         task = osm_fetcher.OsmFetchTask(
             iface=self.iface,
             bbox=bbox,

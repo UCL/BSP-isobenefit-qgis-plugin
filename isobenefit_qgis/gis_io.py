@@ -9,9 +9,12 @@ layer whose CRS differed from the chosen one), raster writing, and renderers.
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from osgeo import gdal, ogr, osr
 from qgis.core import (
+    Qgis,
     QgsColorRampShader,
     QgsCoordinateTransform,
     QgsGeometry,
@@ -64,7 +67,8 @@ def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=Fal
         geom = QgsGeometry(feat.geometry())
         if geom.isEmpty():
             continue
-        geom.transform(xform)
+        if geom.transform(xform) != Qgis.GeometryOperationResult.Success:
+            continue  # a silently misplaced burn is worse than a skipped feature
         og = ogr.CreateGeometryFromWkt(geom.asWkt())
         if og is None:
             continue
@@ -87,16 +91,19 @@ def point_cells(layer, target_crs, geotransform, rows, cols):
         geom = QgsGeometry(feat.geometry())
         if geom.isEmpty():
             continue
-        geom.transform(xform)
+        if geom.transform(xform) != Qgis.GeometryOperationResult.Success:
+            continue
         # asPoint() raises on MultiPoint geometry, which the PointLayer combo filter
         # admits (common in GeoPackage/shapefile exports) — take every part
         pts = geom.asMultiPoint() if geom.isMultipart() else [geom.asPoint()]
         for pt in pts:
             px, py = gdal.ApplyGeoTransform(inv, pt.x(), pt.y())
-            col = int(px)
-            row = int(py)
+            # floor, not int(): truncation pulls points just west/north of the grid
+            # (fractional pixel in (-1, 0)) into row/col 0
+            col = math.floor(px)
+            row = math.floor(py)
             if 0 <= row < rows and 0 <= col < cols:
-                seeds.append((row, col))
+                seeds.append((int(row), int(col)))
     return seeds
 
 

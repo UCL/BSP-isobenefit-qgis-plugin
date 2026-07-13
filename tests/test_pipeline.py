@@ -36,7 +36,6 @@ from isobenefit_qgis.grid import (
     classify,
     evaluate_plan,
     optimise_plan,
-    recommended_plan,
     select_plan,
 )
 
@@ -110,6 +109,10 @@ def grid():
         c, r = int((pt.x - gt[0]) / GRAN), int((gt[3] - pt.y) / GRAN)
         if 0 <= r < rows and 0 <= c < cols:
             seeds.append((r, c))
+    # as in sim_runner: snap seeds stranded on carved/unbuildable cells (the core rejects them)
+    from isobenefit_qgis.grid import sanitise_seeds
+
+    seeds, _, _ = sanitise_seeds(seeds, state, GRAN, 2 * GRAN)
     return {
         "rows": rows,
         "cols": cols,
@@ -167,37 +170,6 @@ def test_ensemble_probability_on_demo(grid):
     assert bool(((prob > 0.0) & (prob < 1.0)).any())
 
 
-def test_recommended_plan_synthetic():
-    g = 20
-    p_green = np.zeros((g, g), np.float32)
-    p_built = np.zeros((g, g), np.float32)
-    p_green[2:12, 2:12] = 1.0  # large green block (100 cells) -> kept
-    p_green[0, 18] = 1.0  # 1-cell sliver -> dropped (min area 9 cells)
-    p_built[14:18, 2:8] = 1.0  # built region (24 cells) -> kept
-    p_built[19, 19] = 1.0  # 1-cell built drip -> dropped (min 6 cells)
-    plan = recommended_plan(p_built, p_green, granularity_m=100.0, min_green_span_m=300.0, max_distance_m=300.0)
-    assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
-    assert plan[5, 5] == PLAN_GREEN  # inside the large block
-    assert plan[0, 18] == PLAN_NONE  # green sliver dropped by the min-area rule
-    assert plan[19, 19] == PLAN_NONE  # built drip dropped by the min-area rule
-    assert plan[15, 5] in (PLAN_BUILT, PLAN_CENTRE)  # built region survives
-    # a centre is placed by the gravity model, sitting inside the built fabric
-    centres = np.argwhere(plan == PLAN_CENTRE)
-    assert len(centres) >= 1
-    for cy, cx in centres:
-        assert 14 <= cy < 18 and 2 <= cx < 8
-
-
-def test_recommended_plan_on_demo(grid):
-    n = 8
-    built, green, _centre = isobenefit.ensemble_class_counts(_make(grid), 2024, n)
-    plan = recommended_plan(built / n, green / n, GRAN, 100.0, 800.0)
-    assert plan.shape == (grid["rows"], grid["cols"])
-    assert set(np.unique(plan)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
-    assert (plan == PLAN_GREEN).any() and (plan == PLAN_BUILT).any()
-    assert int((plan == PLAN_CENTRE).sum()) >= 1
-
-
 def test_evaluate_plan_coverage_in_range():
     g = 24
     plan = np.zeros((g, g), np.uint8)
@@ -228,6 +200,25 @@ def test_evaluate_plan_only_real_parks_count():
 
 def test_evaluate_empty_plan():
     assert evaluate_plan(np.zeros((10, 10), np.uint8), 100.0, 800.0) == {"built_cells": 0}
+
+
+def test_sanitise_seeds_snaps_and_drops():
+    from isobenefit_qgis.grid import sanitise_seeds
+
+    state = np.zeros((6, 6), dtype=np.int16)
+    state[:, 2] = -1  # a carved corridor
+    state[5, 5] = 1  # existing built is a valid seed target
+    # in-place seed kept; stranded seed snapped to an adjacent buildable cell;
+    # a duplicate collapsing onto the same cell is deduplicated
+    kept, n_snapped, n_dropped = sanitise_seeds([(0, 0), (3, 2), (3, 1), (5, 5)], state, 100.0, 200.0)
+    assert (0, 0) in kept and (5, 5) in kept
+    assert n_snapped == 1 and n_dropped == 0
+    assert len(kept) == 3  # (3, 2) snapped onto (3, 1), which deduplicates
+    assert all(state[y, x] >= 0 for y, x in kept)
+    # an all-unbuildable grid drops every seed
+    all_blocked = np.full((4, 4), -1, dtype=np.int16)
+    kept, n_snapped, n_dropped = sanitise_seeds([(1, 1)], all_blocked, 100.0, 200.0)
+    assert kept == [] and n_dropped == 1
 
 
 def test_seed_centres_proximity_covers_built():

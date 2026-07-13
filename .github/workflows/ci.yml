@@ -140,6 +140,8 @@ jobs:
       - name: Build plugin zip
         run: |
           mkdir -p dist
+          # the plugin repository requires a licence file inside the zip
+          cp LICENSE isobenefit_qgis/LICENSE
           zip -r dist/isobenefit_qgis.zip isobenefit_qgis \
             -x '*/__pycache__/*' '*.pyc'
       - uses: actions/upload-artifact@v4
