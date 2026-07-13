@@ -12,7 +12,23 @@
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/rerender_batch.sh)",
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/dlbar_batch.sh)",
       "Bash(bash /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/wrap_batch.sh)",
-      "Bash(/Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/.venv/bin/python /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/wrap.py)"
+      "Bash(/Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/.venv/bin/python /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/temp/wrap.py)",
+      "Bash(git -C /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin log --oneline -15)",
+      "Bash(git -C /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin tag)",
+      "Bash(gh api *)",
+      "Bash(cargo test *)",
+      "Bash(git -C /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin log --oneline -S \"member_offset\" -- core)",
+      "Bash(unzip -l /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/website/public/scenarios/cambourne.zip)",
+      "Bash(curl -s \"https://api.github.com/repos/mitochevole/isobenefit-cities/git/trees/master?recursive=1\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/mitochevole/isobenefit-cities/master/src/land_map.py\" -o /private/tmp/claude-502/-Users-dev-repos-ucl-BSP-isobenefit-qgis-plugin/f25e95a8-8860-4c14-a856-d62e715444a1/scratchpad/land_map.py)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/mitochevole/isobenefit-cities/master/src/simulation.py\" -o /private/tmp/claude-502/-Users-dev-repos-ucl-BSP-isobenefit-qgis-plugin/f25e95a8-8860-4c14-a856-d62e715444a1/scratchpad/simulation.py)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/mitochevole/isobenefit-cities/master/README.md\" -o /private/tmp/claude-502/-Users-dev-repos-ucl-BSP-isobenefit-qgis-plugin/f25e95a8-8860-4c14-a856-d62e715444a1/scratchpad/orig_README.md)",
+      "Bash(.venv/bin/python -m pytest core/tests_py -q)",
+      "Read(//Users/dev/.local/share/uv/python/cpython-3.10.20-macos-aarch64-none/bin/**)",
+      "Bash(/Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/.venv/bin/python -c \"import isobenefit; print\\(isobenefit.__version__\\)\")",
+      "Bash(git -C /Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin tag --sort=-creatordate)",
+      "Bash(/Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/.venv/bin/python /private/tmp/claude-502/-Users-dev-repos-ucl-BSP-isobenefit-qgis-plugin/f25e95a8-8860-4c14-a856-d62e715444a1/scratchpad/check_periphery.py)",
+      "WebFetch(domain:pubmed.ncbi.nlm.nih.gov)"
     ]
   }
 }
