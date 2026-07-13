@@ -11,7 +11,7 @@ qgisMaximumVersion=4.99
 
 # Provide a brief description of the plugin
 description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
-version=0.12.6
+version=0.12.7
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -28,6 +28,7 @@ repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
 # Recommended items:
 
 changelog=
+    0.12.7 Release automation: every version tag now publishes a GitHub release carrying the ready-to-install plugin zip and the engine wheels, and the README points at it. Website text fine-tuned. No engine or plugin behaviour changes.
     0.12.6 Correctness release ahead of the beta submission. Engine: green-access accounting fixed so unbuildable cells (water, carved road/rail corridors) are never counted as green periphery and isolated centres are tracked correctly; green access and green-corridor checks now treat unbuildable land as a barrier, matching centre access; a new build must itself keep green access; parameter validation hardened (NaN, ranges); centre seeds on unbuildable land are rejected by the engine and snapped to the nearest buildable cell by the plugin. Plugin: input layers are snapshotted before the background run (live-layer thread safety); the engine install runs as a background task instead of freezing the UI; the run dialog's confirm button is labelled Run; re-fetching OSM data first releases the layers loaded from the previous GeoPackage; assorted small fixes (grid edge rounding, plugin load without a locale setting, temporal setup on leap days).
     0.12.5 The run dialog asks for an output folder and a run name instead of a single .tif path, since a run writes a family of files (plans, likelihood bands, report, parameter sidecar) that share the name.
     0.12.4 Anchor invariant for mixed-use centres: every contiguous settlement containing new development keeps at least one directly attached centre. Consolidation may thin centres within a settlement but never strips one bare (the cull spares a settlement's last anchor, and a backstop anchors any settlement left without one). Cambourne scenario target raised to 30,000.
