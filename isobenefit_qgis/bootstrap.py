@@ -121,8 +121,12 @@ def _subprocess_env() -> dict:
         home = os.path.dirname(os.path.dirname(stdlib))  # <prefix>
         if os.path.isdir(stdlib) and "PYTHONHOME" not in env:
             env["PYTHONHOME"] = home
-    except Exception:
-        pass
+    except Exception as exc:  # unusual layout; pip may still boot without PYTHONHOME
+        QgsMessageLog.logMessage(
+            f"Could not derive PYTHONHOME for the pip subprocess: {exc}",
+            "Isobenefit",
+            Qgis.MessageLevel.Warning,
+        )
     return env
 
 
@@ -134,13 +138,15 @@ def _profile_python_dir() -> str | None:
     here. Returns None if it can't be determined.
     """
     try:
-        from qgis.core import QgsApplication
-
         profile = QgsApplication.qgisSettingsDirPath()
         if profile:
             return os.path.join(profile, "python")
-    except Exception:
-        pass
+    except Exception as exc:  # falls back to a plain pip install below
+        QgsMessageLog.logMessage(
+            f"Could not determine the QGIS profile python/ directory: {exc}",
+            "Isobenefit",
+            Qgis.MessageLevel.Warning,
+        )
     return None
 
 
@@ -158,8 +164,12 @@ def _pip_install(spec: str) -> tuple[bool, str]:
             for name in os.listdir(target):
                 if name == CORE_PACKAGE or (name.startswith(CORE_PACKAGE + "-") and name.endswith(".dist-info")):
                     shutil.rmtree(os.path.join(target, name), ignore_errors=True)
-        except Exception:
-            pass
+        except Exception as exc:  # pip --target --upgrade will still overwrite in place
+            QgsMessageLog.logMessage(
+                f"Could not clear a previous engine copy from {target}: {exc}",
+                "Isobenefit",
+                Qgis.MessageLevel.Warning,
+            )
         attempts = [
             [python, "-m", "pip", "install", "--target", target, "--upgrade", "--no-deps", spec],
         ]
@@ -171,7 +181,11 @@ def _pip_install(spec: str) -> tuple[bool, str]:
     last_output = ""
     for cmd in attempts:
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
+            # a fixed argument list (resolved interpreter, -m pip install, constant
+            # version spec), no shell, no user-supplied input
+            result = subprocess.run(  # nosec B603
+                cmd, capture_output=True, text=True, timeout=600, env=env
+            )
         except Exception as exc:  # network, permissions, missing pip, ...
             last_output = str(exc)
             continue

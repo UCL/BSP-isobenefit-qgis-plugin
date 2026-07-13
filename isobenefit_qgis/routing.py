@@ -46,13 +46,20 @@ class RoutingError(RuntimeError):
     """Raised when a street-network graph cannot be built (no silent fallback)."""
 
 
+# flips False on the first failed QGIS import so headless runs stop retrying
+_log_available = True
+
+
 def _log(message: str) -> None:
+    global _log_available
+    if not _log_available:
+        return
     try:
         from qgis.core import Qgis, QgsMessageLog
 
         QgsMessageLog.logMessage(message, LOG_TAG, Qgis.MessageLevel.Info)
     except Exception:  # noqa: BLE001 — logging is best-effort / absent off-QGIS
-        pass
+        _log_available = False
 
 
 class NetworkRouter:

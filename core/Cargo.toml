@@ -1,6 +1,6 @@
 [package]
 name = "isobenefit"
-version = "0.12.9"
+version = "0.12.10"
 edition = "2021"
 license = "AGPL-3.0-or-later"
 description = "Rust simulation core for the Isobenefit Urbanism QGIS plugin"
