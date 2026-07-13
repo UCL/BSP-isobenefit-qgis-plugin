@@ -29,7 +29,7 @@ from qgis.PyQt.QtGui import QColor
 
 from . import osm_queries
 
-_POLYGON_FILTER = Qgis.LayerFilter.PolygonLayer  # present since 3.34; qgisMinimumVersion is 3.40
+_POLYGON_FILTER = Qgis.LayerFilter.PolygonLayer
 
 WGS84 = QgsCoordinateReferenceSystem("EPSG:4326")
 

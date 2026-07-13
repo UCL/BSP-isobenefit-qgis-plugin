@@ -29,7 +29,7 @@ binaries: the compiled engine is installed from PyPI rather than bundled.
 ## Installation
 
 1. Either install from the plugin manager, once the repository listing is live
-   (QGIS 4.x or the 3.40 LTR: *Plugins → Manage and Install Plugins → Settings →
+   (QGIS 4: *Plugins → Manage and Install Plugins → Settings →
    "Show also experimental plugins"*, then search for **isobenefit**), or download
    `isobenefit_qgis.zip` from the
    [latest release](https://github.com/UCL/BSP-isobenefit-qgis-plugin/releases/latest)

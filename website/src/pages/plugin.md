@@ -12,7 +12,7 @@ and troubleshooting. The [introduction](../) explains the model itself, the
 
 ## Install
 
-1. In QGIS (4.x; the 3.40 LTR should also work, but is untested): *Plugins → Manage and Install
+1. In QGIS 4: *Plugins → Manage and Install
    Plugins → Settings*, tick *"Show also experimental plugins"*, then search for
    **isobenefit** and install it.
 2. Two toolbar buttons appear: **Isobenefit Urbanism** (the simulation) and **Extract from

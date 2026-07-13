@@ -1,17 +1,9 @@
-# This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.
-
-# Mandatory items:
-
 [general]
 name=isobenefit
-qgisMinimumVersion=3.40
+qgisMinimumVersion=4.0
 qgisMaximumVersion=4.99
-
-# Provide a brief description of the plugin
 description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
-version=0.12.7
+version=0.12.8
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -23,43 +15,13 @@ about=The Isobenefit Urbanism QGIS plugin explores walkable urban development ag
 
 tracker=https://github.com/UCL/BSP-isobenefit-qgis-plugin/issues
 repository=https://github.com/UCL/BSP-isobenefit-qgis-plugin
-# End of mandatory metadata
-
-# Recommended items:
-
-changelog=
-    0.12.7 Release automation: every version tag now publishes a GitHub release carrying the ready-to-install plugin zip and the engine wheels, and the README points at it. Website text fine-tuned. No engine or plugin behaviour changes.
-    0.12.6 Correctness release ahead of the beta submission. Engine: green-access accounting fixed so unbuildable cells (water, carved road/rail corridors) are never counted as green periphery and isolated centres are tracked correctly; green access and green-corridor checks now treat unbuildable land as a barrier, matching centre access; a new build must itself keep green access; parameter validation hardened (NaN, ranges); centre seeds on unbuildable land are rejected by the engine and snapped to the nearest buildable cell by the plugin. Plugin: input layers are snapshotted before the background run (live-layer thread safety); the engine install runs as a background task instead of freezing the UI; the run dialog's confirm button is labelled Run; re-fetching OSM data first releases the layers loaded from the previous GeoPackage; assorted small fixes (grid edge rounding, plugin load without a locale setting, temporal setup on leap days).
-    0.12.5 The run dialog asks for an output folder and a run name instead of a single .tif path, since a run writes a family of files (plans, likelihood bands, report, parameter sidecar) that share the name.
-    0.12.4 Anchor invariant for mixed-use centres: every contiguous settlement containing new development keeps at least one directly attached centre. Consolidation may thin centres within a settlement but never strips one bare (the cull spares a settlement's last anchor, and a backstop anchors any settlement left without one). Cambourne scenario target raised to 30,000.
-    0.12.3 Contiguity rule: a mixed-use centre only exists attached to a contiguous built settlement of at least the minimum settlement size, whether or not centre optimisation is on; the threshold is floored at 4 cells so coarse grids cannot let orphan centres survive stranded in green.
-    0.12.2 Run parameters are now cached: every run writes a <output>_params.json sidecar, and the dialog's new Load parameters button repopulates every dial from a sidecar or from a scenario preset. A scenarios folder in the repository ships seven worked scenarios (Cambourne, Dnipro, Crews Hill London, Celina Texas, Kigali, Medellin, and a Freiburg validation case), each with extents, parameters and pre-fetched OSM layers.
-    0.12.1 Per-person readouts now report NEW amenity per NEW resident only (new mixed-use centre land and new green over the new population; existing fabric and pre-existing amenities are excluded), and mixed-use centres are sized by the new residents they serve. Ensembles are reproducible across machines: the same random seed now yields the same ensemble regardless of core count.
-    0.12.0 Density returns to three explicit tiers (low/medium/high people/km2), each built at a user-set probability that must sum to 1. Post-processing arranges the drawn densities so the highest sit nearest the final mixed-use centres. Population now counts NEW development only — the existing-density input is removed and existing fabric is context (assumed served by its own centres). Plans are coloured per density tier: built as a yellow-to-brown ramp, mixed-use centres as a reds ramp, existing muted.
-    0.11.0 Density is now derived in post-processing as a gradient toward the FINAL (post-processed) mixed-use centres, written as a density layer per scenario option; in-run density is flat population accounting (the mean of the range). Centre areas sized per person served (m2/person dial). User-facing outputs renamed to idealised scenarios.
-    0.10.0 Density now follows a gradient toward centres: each new home is denser the closer it is to its nearest centre and sparser out at the walkable edge, replacing the previous random high/medium/low tier draw. The growth pattern is unchanged from 0.9.0 (identical run-to-run); only the density values assigned to new homes differ.
-    0.9.0 Centres rebuilt around the simulation's own grown centres: each is re-positioned central to the new development it anchors, extra centres are added where new development is under-served, and redundant/tiny ones are culled. Centre optimisation is now an optional step (on by default). Removed the centre likelihood layer (not meaningful across runs).
-    0.8.0 Recommended plan rebuilt: best single run (not the averaged consensus), population-aware green network funded by densification (housing held), facility-location centres (fewest for full coverage, central to their catchment), honest within-a-walk coverage scoring reporting walk-to-centre and walk-to-green separately.
-
-# Tags are comma separated with spaces allowed
-tags=pyqgis,simulation,planning,urban planning,urbanism,walkability,cellular automaton,openstreetmap,scenario,green space
-
 homepage=https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/
 icon=icon.png
-# experimental flag
 experimental=True
-
-# deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
-
-# Since QGIS 3.8, a comma separated list of plugins to be installed
-# (or upgraded) can be specified.
-# Check the documentation for more information.
-# plugin_dependencies=
-
-# Category of the plugin: Raster, Vector, Database or Web
-# category=
-
-# If the plugin can run on QGIS Server.
 server=False
 
+changelog=
+    0.12.8 First public beta, for QGIS 4. Earlier development history is recorded in the repository.
+
+tags=pyqgis,simulation,planning,urban planning,urbanism,walkability,cellular automaton,openstreetmap,scenario,green space
