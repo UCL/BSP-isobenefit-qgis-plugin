@@ -1,10 +1,15 @@
 # BSP Isobenefit Urbanism QGIS Plugin
 
-QGIS plugin for Isobenefit Urbanism — a tool for brainstorming walkable urban
-development against real-world datasets, based on walkable access to centralities
-(shops, services) and green spaces.
+A QGIS plugin for exploring walkable urban development on real-world datasets,
+after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use
+centre (shops, services) and of green space.
 
 📖 **Documentation & overview website:** <https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/>
+
+⬇ **Get the plugin:** the ready-to-install `isobenefit_qgis.zip` is attached to every
+[GitHub release](https://github.com/UCL/BSP-isobenefit-qgis-plugin/releases/latest)
+(QGIS: *Plugins → Manage and Install Plugins → Install from ZIP*). A listing in the
+official QGIS plugin repository as an experimental plugin is in progress.
 
 ## Repository layout
 
@@ -23,15 +28,16 @@ binaries: the compiled engine is installed from PyPI rather than bundled.
 
 ## Installation
 
-1. In QGIS (4.x; the 3.40 LTR should also work, but is untested), enable experimental plugins (Plugins → Manage and Install Plugins →
-   Settings → "Show also experimental plugins"), then search for **isobenefit**
-   and install it.
+1. Either install from the plugin manager, once the repository listing is live
+   (QGIS 4.x or the 3.40 LTR: *Plugins → Manage and Install Plugins → Settings →
+   "Show also experimental plugins"*, then search for **isobenefit**), or download
+   `isobenefit_qgis.zip` from the
+   [latest release](https://github.com/UCL/BSP-isobenefit-qgis-plugin/releases/latest)
+   and use *Plugins → Manage and Install Plugins → Install from ZIP*.
 2. The first time you run the plugin it will check for the `isobenefit`
    engine and, if it is missing, offer to install it into the QGIS Python
    environment for you. This needs an internet connection; **restart QGIS** once
    it finishes.
-
-That's it — there is no longer any manual `pip install numba/rasterio` step.
 
 If the automatic install is blocked (e.g. a locked-down environment), the dialog
 shows the exact command to run yourself, which is simply:
@@ -51,8 +57,8 @@ downloads them for an area of interest.
 Set the parameters and run. A single run is written iteration-by-iteration as a
 categorical GeoTIFF and loaded as a temporal animation (press play in the Temporal
 Controller). An **ensemble** of runs instead produces development-likelihood layers
-plus **idealised planning scenarios** to compare — the existing fabric, the raw
-(as-grown) state, and moderately- vs tightly-clustered centre arrangements —
+plus **idealised planning scenarios** to compare (the existing fabric, the raw
+as-grown state, and moderately and tightly clustered centre arrangements),
 alongside a `_report.txt` summarising the run. A demo project is in
 [`scenarios/cambourne/`](scenarios/cambourne/) (`cambourne.qgz`), and further worked scenarios sit alongside it in [`scenarios/`](scenarios/).
 
