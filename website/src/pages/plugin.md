@@ -96,9 +96,9 @@ parameters for a run.
 - **Output**: one GeoPackage; every dataset becomes a layer in it, added to the project under an
   "OSM" group.
 
-Downloading is deliberately separate from simulating: the layers are on disk, so they can be
-edited, corrected, or swapped before any run. The simulation dialog recognises the downloaded
-layers and pre-selects them.
+Downloading and simulating are separate steps. The layers are on disk and can be edited or
+swapped before any run. The simulation dialog recognises the downloaded layers and pre-selects
+them.
 
 ## The run dialog, group by group
 
@@ -163,7 +163,7 @@ yellow-to-brown ramp, mixed-use centres as a reds ramp, existing fabric muted),
 reloadable settings). QGIS loads them as a layer group in that order.
 
 Every population figure counts **new residents only**; existing fabric is assumed served by its
-own centres. The per-person readouts follow: m² of mixed-use centre per person is new centre
+own centres. The per-person readouts follow the same convention: m² of mixed-use centre per person is new centre
 land over new residents, and m² of green per person is new green over new residents. Coverage
 percentages include every home, existing and new.
 

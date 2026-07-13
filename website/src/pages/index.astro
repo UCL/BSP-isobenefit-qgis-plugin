@@ -14,8 +14,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       The <strong>Isobenefit Urbanism</strong> plugin for QGIS simulates how a place could grow so that
       everyone keeps walkable access to <strong>both</strong> mixed-use local centres (shops and services
       among homes) <strong>and</strong> green space. From the simulation it generates <strong>idealised planning scenarios</strong> for further discussion
-      with planning experts. It runs on your own GIS layers, and it is meant for exploring options rather than
-      prescribing them.
+      with planning experts. It runs on your own GIS layers.
     </p>
     <figure id="hero-plan">
       <img class="hero" src={dg('demo_recommended_plan')} alt="An idealised scenario for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
@@ -51,7 +50,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <p>
       It also sits between master-planning and laissez-faire growth: a few simple rules <em>guide</em>
-      development, while the detailed form is left to emerge. The plugin works the same way: a
+      development, while the detailed form is left to emerge. The plugin works the same way. A
       <strong>cellular-automaton</strong> simulation grows a grid of land cells step by step under rules that
       keep new development within a walk of a centre and protect green corridors. The rules include randomness, so there
       is no single answer; the plugin runs many simulations and reports the <strong>variation</strong>
@@ -183,7 +182,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </figure>
     <p>
       Two further settings shape growth. The <strong>build probability</strong> is the per-step growth rate;
-      lower values grow tighter and more compact, higher values faster and looser. The <strong>development
+      lower values give compact growth, higher values looser growth. The <strong>development
       density</strong> is set as three tiers (low, medium and high, each a density in people per km²), each
       with a share, and the three shares sum to 1. Every new cell is built at one of the three densities,
       drawn at those shares, so the shares set the mix. Growth counts new development only, and stops
@@ -203,7 +202,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <figure>
       <img class="hero" src={dg('demo_likelihood')} alt="Development likelihood over Cambourne from 24 blended runs" />
       <figcaption>Each cell's shade is the share of runs in which it ends up built: dark where most runs
-      build the cell, faint where few do. This is an uncertainty map, not itself a buildable layout.</figcaption>
+      build the cell, faint where few do.</figcaption>
     </figure>
     <p>
       Because a probability surface is not a buildable layout, the plugin also picks out the single best
@@ -295,7 +294,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <h3>Build probability</h3>
     <p>This is the per-step growth rate. Over the same number of steps, faster growth reaches much further.</p>
     <div class="demo-row">
-      <figure><img class="demo" src={dg('demo_buildprob_slow')} alt="" /><figcaption><strong>Slow (0.08).</strong> Growth stays tight and compact.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_buildprob_slow')} alt="" /><figcaption><strong>Slow (0.08).</strong> Growth stays compact.</figcaption></figure>
       <figure><img class="demo" src={dg('demo_buildprob_fast')} alt="" /><figcaption><strong>Fast (0.6).</strong> Far more is grown in the same time.</figcaption></figure>
     </div>
   </section>
@@ -316,11 +315,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
         shortest average walk to amenities.
       </li>
       <li>
-        <strong>Post-processing of the chosen run.</strong> The original keeps centres exactly where they
-        seeded. The plugin adds a limited cleanup (stranded fragments below a minimum settlement size revert
+        <strong>Post-processing of the chosen run.</strong> The original keeps centres where they seeded.
+        The plugin adds a limited cleanup (stranded fragments below a minimum settlement size revert
         to green) and re-positions the mixed-use centres to the interior of the development they serve,
         sized by the population in their catchment at a m²-per-person rule of thumb, and offered at two
-        clustering strengths. The raw grown state is always saved alongside, so the edit stays visible.
+        clustering strengths. The raw grown state is saved alongside.
       </li>
       <li>
         <strong>Density tiers arranged toward centres.</strong> The original draws each block's density
@@ -330,14 +329,14 @@ const dg = (name: string) => `${base}images/${name}.svg`
         the placement is organised. Growth counts new development only.
       </li>
       <li>
-        <strong>Walks, not radii, and each amenity has its own.</strong> The original measures straight-line
-        distance within one walkable radius of roughly a kilometre (a 15-minute walk; D'Acci's later
-        summaries use 1 to 2 km). The plugin measures a bounded walk over the grid that cannot cross
-        unbuildable land, gives centres and green each their own distance, and defaults both to 400 m,
-        deliberately below the published radius; both are settings the user can change.
+        <strong>Walking distances rather than radii, one per amenity.</strong> The original measures
+        straight-line distance within one walkable radius of roughly a kilometre (a 15-minute walk;
+        D'Acci's later summaries use 1 to 2 km). The plugin measures a bounded walk over the grid that
+        cannot cross unbuildable land, gives centres and green each their own distance, and defaults both
+        to 400 m, below the published radius; both are settings the user can change.
       </li>
       <li>
-        <strong>Green connectivity is enforced locally, not globally.</strong> The published model keeps all
+        <strong>Green connectivity is enforced locally rather than globally.</strong> The published model keeps all
         nature as one connected region. Real landscapes arrive already fragmented by rivers, roads and
         towns, so that rule cannot hold on real data. The plugin instead refuses to pinch any green corridor
         below the minimum green span and, where a build would split green, requires each resulting fragment

@@ -6,13 +6,12 @@ description: How the plugin's growth rules relate to D'Acci's published Isobenef
 
 # Theory: the published model and this implementation
 
-This page sets D'Acci's published Isobenefit Urbanism model beside the plugin's
-implementation, rule by rule: what is reproduced, what is reparameterised, what is
-modified, and what is added. The [introduction](../) explains
-the pipeline itself; the Departures section there summarises the differences, and this
-page is the full account.
+This page compares D'Acci's published Isobenefit Urbanism model with the plugin's
+implementation, rule by rule. The [introduction](../) explains the pipeline itself;
+the Departures section there summarises the differences, and this page gives the
+detail.
 
-## Isobenefit Urbanism in brief
+## The published model
 
 Isobenefit Urbanism (D'Acci 2019) proposes settlements whose benefits are distributed
 evenly: wherever one lives, a local centre with shops and services, and open green
@@ -46,7 +45,7 @@ in the published model). Parameter names in brackets are the plugin's dials.
 | Every built cell keeps nature within T* | Same, as a bounded walk; the check also applies to the newly built cell itself [Green walk] | Faithful in substance |
 | New centralities seed near built land that has outgrown its centres, with probability 0.005 | Same trigger; the probability is fixed at 0.01, at most one new centre seeds per iteration, and seeding stops at 80% of the population target | Modified: added guards |
 | Isolated centralities seed on open land with probability 0.1 scaled by grid area | A per-cell probability without area scaling, exposed as Off, Moderate or Aggressive [Dispersed development] | Reparameterised |
-| One walkable radius T* = 5 cells, cell side 1000/T* m, so T* ≈ 1 km | Explicit metres throughout: cell size [Grid size] and two walking distances, each defaulting to 400 m, below the published radius by design | Reparameterised |
+| One walkable radius T* = 5 cells, cell side 1000/T* m, so T* ≈ 1 km | Explicit metres throughout: cell size [Grid size] and two walking distances, each defaulting to 400 m, below the published radius | Reparameterised |
 | Each built block draws a density from three tiers at fixed probabilities (0.7, 0.3, 0) | Same draw; tiers and shares are dials, and post-processing then arranges the drawn values so the highest sit nearest the final centres [Development density] | Faithful draw, extended placement |
 | Run stops at a population cap (500,000 default) | Same stop; the target counts new residents only, since existing fabric is treated as served by its own centres [Target population] | Modified: new-only accounting |
 | Cells are scanned in a fixed raster order against a frozen copy of the grid | Cells are visited in a shuffled order each iteration, which removes the scan-direction bias | Modified |
