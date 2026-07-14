@@ -173,7 +173,7 @@ missing.
   walk follows streets a pedestrian can use (motorways, trunk roads and their slip roads are
   excluded), each cell attaches to its nearest street node, and a cell with no street within
   reach counts as unreachable. Barriers hold in both models: a carved corridor has no walkable
-  street across it and blocks the grid walk alike.
+  street across it, and the grid walk treats it as impassable.
 - **Rail and tram stations** on built land anchor a mixed-use centre: the centre is pinned at
   the station, never moved or culled, and grows and is sized like any other centre. **Bus and
   tram stops** do not steer the simulation or the centres; the report states how many homes end

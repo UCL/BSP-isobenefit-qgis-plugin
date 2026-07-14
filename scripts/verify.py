@@ -22,6 +22,7 @@ STEPS: list[tuple[str, list[str], str]] = [
      REPO),
     ("cargo test", ["cargo", "test", "--manifest-path", "core/Cargo.toml"], REPO),
     ("ruff", [RUFF, "check", "isobenefit_qgis", "tests", "scripts"], REPO),
+    ("prose lint", [PY, "scripts/prose_lint.py", "--all"], REPO),
     ("pytest", [PY, "-m", "pytest", "tests", "core/tests_py", "-q"], REPO),
     ("astro check", ["npx", "astro", "check"], WEB),
     ("astro build", ["npm", "run", "build"], WEB),

@@ -20,11 +20,11 @@ official QGIS plugin repository as an experimental plugin is in progress.
 
 This repository contains two deliverables:
 
-- [`isobenefit_qgis/`](isobenefit_qgis/) — the **QGIS plugin** (thin). It handles the UI and
+- [`isobenefit_qgis/`](isobenefit_qgis/): the **QGIS plugin** (thin). It handles the UI and
   all GIS IO (reading layers, reprojection, rasterization, writing rasters,
   temporal animation), and depends only on libraries QGIS already bundles (numpy +
   GDAL) plus the simulation engine below.
-- [`core/`](core/) — the **simulation engine** (`isobenefit`), a Rust
+- [`core/`](core/): the **simulation engine** (`isobenefit`), a Rust
   extension built with PyO3/maturin and published to PyPI as abi3 wheels. It is
   pure compute (arrays in, arrays out) and never imports QGIS.
 
@@ -84,14 +84,14 @@ python -m pytest core/tests_py
 ```
 
 The core is parallel by design (rayon) and deterministic regardless of thread
-count — see [`core/README.md`](core/README.md).
+count; see [`core/README.md`](core/README.md).
 
 ### QGIS plugin
 
 Lint with `ruff check isobenefit_qgis`.
 
 The plugin's pure pipeline (grid/routing/OSM helpers) has a headless test suite that
-needs no QGIS — run it against a locally built engine wheel:
+needs no QGIS; run it against a locally built engine wheel:
 
 ```bash
 uv run --no-project \
@@ -159,8 +159,8 @@ Future Urban Growth project at the Bartlett School of Planning.
 
 ## Website
 
-A full overview — the concept, the workflow and its outputs, installation, and the
-parameters — is published from [`website/`](website/) in this repo:
+A full overview (the concept, the workflow and its outputs, installation, and the
+parameters) is published from [`website/`](website/) in this repo:
 
 **<https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/>**
 

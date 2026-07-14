@@ -6,17 +6,17 @@ parameter set. The website's scenario page describes each one:
 
 Folder anatomy:
 
-- `extents.geojson` — the formal simulation boundary, in the scenario's metric CRS. A
+- `extents.geojson`: the formal simulation boundary, in the scenario's metric CRS. A
   scenario may hold several boundary features (e.g. Dnipro's two growth areas); one run
   grows them all together.
-- `params.json` — the plugin's parameters format. Load it via the run dialog's *Load parameters*
+- `params.json`: the plugin's parameters format. Load it via the run dialog's *Load parameters*
   button; every plugin run also writes this format back as a `*_params.json` sidecar next to its
   output.
 - `built / green / centres / unbuildable / streets / stops / stations / railways / industrial
-  .geojson` — OSM input layers, pre-fetched with the plugin's own extraction rules.
-- `osm_download_extent.geojson` — the convex hull of the extents features, the window the OSM
+  .geojson`: OSM input layers, pre-fetched with the plugin's own extraction rules.
+- `osm_download_extent.geojson`: the convex hull of the extents features, the window the OSM
   data was fetched for.
-- `steep.geojson` — terrain slope bands from Copernicus GLO-30, where terrain matters; the
+- `steep.geojson`: terrain slope bands from Copernicus GLO-30, where terrain matters; the
   scenario's `slope_max_deg` says which bands preclude development.
 
 Boundaries and parameters are indicative, to be confirmed against local plans and norms.

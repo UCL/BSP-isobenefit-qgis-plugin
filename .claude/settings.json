@@ -30,5 +30,20 @@
       "Bash(/Users/dev/repos/ucl/BSP-isobenefit-qgis-plugin/.venv/bin/python /private/tmp/claude-502/-Users-dev-repos-ucl-BSP-isobenefit-qgis-plugin/f25e95a8-8860-4c14-a856-d62e715444a1/scratchpad/check_periphery.py)",
       "WebFetch(domain:pubmed.ncbi.nlm.nih.gov)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; .venv/bin/python scripts/prose_lint.py \"$f\"; }",
+            "timeout": 20,
+            "statusMessage": "Checking prose patterns"
+          }
+        ]
+      }
+    ]
   }
 }
