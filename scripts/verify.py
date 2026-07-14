@@ -23,6 +23,14 @@ STEPS: list[tuple[str, list[str], str]] = [
     ("cargo test", ["cargo", "test", "--manifest-path", "core/Cargo.toml"], REPO),
     ("ruff", [RUFF, "check", "isobenefit_qgis", "tests", "scripts"], REPO),
     ("prose lint", [PY, "scripts/prose_lint.py", "--all"], REPO),
+    # plugins.qgis.org parses metadata.txt with configparser (interpolation ON), so a bare
+    # % in any value rejects the upload; parsing here catches that before a tag
+    ("metadata parse", [
+        PY, "-c",
+        "import configparser; c = configparser.ConfigParser(); "
+        "c.read('isobenefit_qgis/metadata.txt'); "
+        "[c.get('general', k) for k in c.options('general')]",
+    ], REPO),
     ("pytest", [PY, "-m", "pytest", "tests", "core/tests_py", "-q"], REPO),
     ("astro check", ["npx", "astro", "check"], WEB),
     ("astro build", ["npm", "run", "build"], WEB),

@@ -89,6 +89,9 @@ class IsobenefitTask(QgsTask):
         self.pre_path = str(Path(out_dir_path) / f"{out_file_name}_pre.tif")  # raw CA, pre-processing
         self.existing_path = str(Path(out_dir_path) / f"{out_file_name}_existing.tif")  # pre-simulation fabric
         self.report_path = str(Path(out_dir_path) / f"{out_file_name}_report.txt")  # human-readable run record
+        # the output layers group under "<folder> - <run>", so successive runs (scenarios,
+        # scenarios_2, ...) stay organised by their folder in the layers pane
+        self.group_name = f"{Path(out_dir_path).name} \u2014 {out_file_name}"
         self.target_crs = target_crs
         # snapshot every input layer while still on the main thread (see _snapshot)
         self.extents_layer = _snapshot(extents_layer)
@@ -627,7 +630,7 @@ class IsobenefitTask(QgsTask):
             return
         if self.is_ensemble:
             root = QgsProject.instance().layerTreeRoot()
-            group = root.insertGroup(0, f"{self.out_file_name} likelihood")
+            group = root.insertGroup(0, self.group_name)
             group.setExpanded(True)
             for band, label in [(1, "built"), (2, "green")]:
                 lyr = QgsRasterLayer(self.out_path, f"{self.out_file_name} — {label} likelihood", "gdal")
@@ -680,7 +683,11 @@ class IsobenefitTask(QgsTask):
         tprops.setFixedRangePerBand(ranges)
         tprops.setIsActive(True)
 
-        QgsProject.instance().addMapLayer(layer)
+        root = QgsProject.instance().layerTreeRoot()
+        group = root.insertGroup(0, self.group_name)
+        group.setExpanded(True)
+        QgsProject.instance().addMapLayer(layer, addToLegend=False)
+        group.addLayer(layer)
         self._setup_temporal_controller(start, n)
         self._log(
             f"Loaded '{self.out_file_name}' with {n} temporal steps — press play in the Temporal Controller.",
