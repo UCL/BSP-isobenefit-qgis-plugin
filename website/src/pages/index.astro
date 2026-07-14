@@ -97,7 +97,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="layer" src={dg('input_centres')} alt="" /><figcaption>Mixed-use urban centres, taken from retail and commercial land. Every cell they cover acts as a centre.</figcaption></figure>
       <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land: water, industrial land, and buffered barrier corridors such as the A428.</figcaption></figure>
       <figure><img class="layer" src={dg('input_industrial')} alt="" /><figcaption>Industrial land. It stays as it is, but no new housing is placed on it.</figcaption></figure>
-      <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. When supplied, post-processing measures walking distances along it.</figcaption></figure>
+      <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. It gives the maps their context, and its motorway corridors are carved as barriers.</figcaption></figure>
       <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops. Stops feed the run report's transit-access readout; rail and tram stations anchor centres.</figcaption></figure>
     </div>
     <p>
@@ -386,8 +386,10 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <strong>Real-data grounding.</strong> Existing fabric is frozen (never redeveloped); water,
         industrial land and barrier corridors (motorways, railways, rivers) are carved out as unbuildable;
         downloaded centre <em>areas</em> act as true multi-cell centres; and an OSM extraction tool supplies
-        all of it. When a street network is supplied, post-processing measures walking distances along it
-        and stations anchor centres; the growth rules themselves do not use streets or stops yet.
+        all of it. Rail and tram stations anchor centres; stops feed the report's transit readout. The
+        growth rules and the scoring both measure bounded walks over the grid, blocked by unbuildable
+        land. Street-network distances were tried and removed, since a new settlement's streets do not
+        exist yet and a network metric would measure new and existing fabric on different terms.
       </li>
     </ul>
   </section>

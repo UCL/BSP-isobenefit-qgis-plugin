@@ -78,13 +78,19 @@ def slope_bands(hull, to_wgs):
         sel = (lat >= tlat) & (lat < tlat + 1) & (lon >= tlon) & (lon < tlon + 1)
         if not sel.any():
             continue
-        with rasterio.open(GLO30.format(name=name)) as ds:
-            window = rasterio.windows.from_bounds(
-                float(lon[sel].min()), float(lat[sel].min()), float(lon[sel].max()), float(lat[sel].max()),
-                transform=ds.transform,
-            ).round_offsets().round_lengths()
-            arr = ds.read(1, window=window)
-            wt = ds.window_transform(window)
+        try:
+            with rasterio.open(GLO30.format(name=name)) as ds:
+                window = rasterio.windows.from_bounds(
+                    float(lon[sel].min()), float(lat[sel].min()), float(lon[sel].max()), float(lat[sel].max()),
+                    transform=ds.transform,
+                ).round_offsets().round_lengths()
+                arr = ds.read(1, window=window)
+                wt = ds.window_transform(window)
+        except rasterio.errors.RasterioIOError as exc:
+            # tiles are absent over flat/ocean areas (the DEM ships no tile there);
+            # treat missing terrain as elevation 0 rather than failing the fetch
+            print(f"  GLO-30 {name}: unavailable ({exc}); treating as flat")
+            continue
         rows, cols = rasterio.transform.rowcol(wt, lon[sel].tolist(), lat[sel].tolist())
         rows = np.clip(np.asarray(rows), 0, arr.shape[0] - 1)
         cols = np.clip(np.asarray(cols), 0, arr.shape[1] - 1)

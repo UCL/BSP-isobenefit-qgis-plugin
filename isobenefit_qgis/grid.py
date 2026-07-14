@@ -385,6 +385,7 @@ def _refine_centres(
     # per cell) is what keeps this single-threaded post-processing affordable.
     fixed_field = walk(onehot(fixed)) if fixed else np.full((rows, cols), np.inf)
     fixed_col = fixed_field[new_built]
+    comp_col = comp_label[new_built]  # settlement id of every new home (placement is settlement-local)
     # station anchors are the only fixed centres that count as provision for NEW development
     anchors = [(int(y), int(x)) for y, x in (anchors or [])]
     anchor_reach = (
@@ -402,7 +403,13 @@ def _refine_centres(
             within = stack.min(axis=1) <= spacing  # homes beyond the spacing of every centre pull no one
             moved = False
             for j in range(len(centres)):
+                # SETTLEMENT-LOCAL placement: only homes in the centre's own contiguous
+                # built component position it. Walks traverse green, so a catchment can
+                # span a green gap to a neighbouring cluster; letting those homes pull
+                # the centre drags it to a periphery cell facing the green. Cross-gap
+                # homes still COUNT as served in scoring — they just don't steer placement.
                 members = (nearest == 1 + j) & within
+                members &= comp_col == int(comp_label[centres[j][0], centres[j][1]])
                 if not members.any():
                     continue
                 cy = int(round(hy[members].mean()))
@@ -646,7 +653,6 @@ def evaluate_plan(
     max_distance_m: float,
     min_green_span_m: float | None = None,
     transit_stops: np.ndarray | None = None,
-    router=None,
     centre_distance_m: float | None = None,
     green_distance_m: float | None = None,
     new_density_km2: float = MEAN_NEW_DENSITY_KM2,
@@ -687,9 +693,8 @@ def evaluate_plan(
         green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
         green_mask = _keep_large_components(green_mask, green_min)
 
-    # Walking distances: a straight-ish grid walk by default, or true street-network distances
-    # when a ``router`` (a callable mask -> rows×cols metres field) is injected. The default keeps
-    # this function pure/headless; the network router lives in the QGIS-coupled isobenefit_qgis.routing.
+    # Walking distances: the bounded grid walk (queen moves, barriers block) — the same
+    # metric the growth rules use, so growth and scoring always agree.
     # Split walks: a home is near a centre within ``centre_distance_m`` and near green within
     # ``green_distance_m`` (each defaults to the shared ``max_distance_m``). The distance field is
     # bounded at the larger of the two; coverage compares against each amenity's own threshold.
@@ -698,7 +703,7 @@ def evaluate_plan(
     field_bound = max(centre_distance_m, green_distance_m)
 
     def _dist(mask):
-        return router(mask) if router is not None else _walk_distance(mask, granularity_m, field_bound)
+        return _walk_distance(mask, granularity_m, field_bound)
 
     d_cent = _dist(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE)))[built]
     d_green = _dist(green_mask)[built]
@@ -770,9 +775,9 @@ def evaluate_plan(
     return metrics
 
 
-def audit_centres(plan, granularity_m, max_distance_m, router=None):
+def audit_centres(plan, granularity_m, max_distance_m):
     """Per-centre-AREA effectiveness audit, by the one distance model (the grid walk by default, the
-    network router when injected). Centres are areas (existing true-area + grown new ones), so each
+    Centres are areas (existing true-area + grown new ones), so each
     record is a connected component, with its ``cells`` (area), how many built cells it **serves**
     (within a walk) and the **mean walk** to them (low = well-centred; few served = an ineffective
     centre on a thin/edge catchment).
@@ -781,12 +786,8 @@ def audit_centres(plan, granularity_m, max_distance_m, router=None):
     rather than by eye. Returns ``{"centres": [...weakest first...], "summary": {...}}``.
     """
     plan = np.asarray(plan)
-    if router is None:
-
-        def walk(mask):
-            return _walk_distance(mask, granularity_m, max_distance_m)
-    else:
-        walk = router
+    def walk(mask):
+        return _walk_distance(mask, granularity_m, max_distance_m)
 
     built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
     records = []
@@ -847,7 +848,6 @@ def optimise_plan(
     ca_centres=None,
     optimise_centres: bool = True,
     centre_anchors=None,
-    router=None,
     centre_distance_m: float | None = None,
     green_distance_m: float | None = None,
     centre_spacing_m: float | None = None,
@@ -882,14 +882,10 @@ def optimise_plan(
     green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
     field_bound = max(centre_distance_m, green_distance_m, float(centre_spacing_m or 0.0))
     rows, cols = plan.shape
-    # ONE distance model: the grid walk by default, or true street-network distances when a ``router``
-    # (mask -> rows×cols metres) is injected. The field is bounded at the larger walk.
-    if router is None:
+    # ONE distance model: the bounded grid walk, the same metric the growth rules use.
 
-        def walk(mask):
-            return _walk_distance(mask, g, field_bound)
-    else:
-        walk = router
+    def walk(mask):
+        return _walk_distance(mask, g, field_bound)
 
     # Existing development is frozen: never pruned, and the small-settlement cleanup never touches it.
     frozen = np.zeros(plan.shape, dtype=bool)
@@ -1040,7 +1036,6 @@ def select_plan(
     optimise_centres=True,
     transit_stops=None,
     centre_anchors=None,
-    router=None,
     centre_distance_m=None,
     green_distance_m=None,
     centre_spacing_m=None,
@@ -1048,7 +1043,6 @@ def select_plan(
     new_density_km2=MEAN_NEW_DENSITY_KM2,
     centre_min_settlement=3,
     prune_islands=True,
-    router_top_k=5,
     progress=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
@@ -1060,12 +1054,6 @@ def select_plan(
     ``pre_plan`` is the chosen run BEFORE post-processing (its raw CA development, grown centres and
     qualifying green), so the pre/post pair can be compared.
 
-    With a ``router`` (network distances) the selection runs in TWO PHASES: every run is
-    post-processed and ranked with the fast grid walk, then the best ``router_top_k`` are
-    re-post-processed and scored along the street network to pick the winner. Network
-    queries are single-threaded Python; spending them on every member of a large ensemble
-    over a big window runs for tens of minutes with no benefit to the choice.
-
     ``progress`` is an optional callable ``(done, total) -> bool`` invoked after each
     post-processed candidate across both phases; return False to abort (the function then
     returns four Nones).
@@ -1076,11 +1064,10 @@ def select_plan(
     if max_eval and len(states) > max_eval:  # optional cap for very large ensembles
         states = states[:: len(states) // max_eval][:max_eval]
 
-    # walk fields depend only on the coordinate and the metric, so each phase shares one
-    # cache across every member; the grid and network metrics never share entries
-    caches = {False: {}, True: {}}
+    # walk fields depend only on the coordinate, so one cache serves every member
+    walk_cache: dict = {}
 
-    def optimise_and_score(st, use_router):
+    def optimise_and_score(st):
         st = np.asarray(st)
         ca_centres = [(int(y), int(x)) for y, x in np.argwhere(st == 2)]  # the CA's grown centres
         opt = optimise_plan(
@@ -1089,41 +1076,26 @@ def select_plan(
             existing_centres=existing_centres,
             existing_built=existing_built, ca_centres=ca_centres,
             optimise_centres=optimise_centres, centre_anchors=centre_anchors,
-            router=router if use_router else None,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=centre_spacing_m, centre_m2_per_person=centre_m2_per_person,
             new_density_km2=new_density_km2,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
-            walk_cache=caches[use_router],
+            walk_cache=walk_cache,
         )
         m = evaluate_plan(
             opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
-            transit_stops=transit_stops, router=router if use_router else None,
+            transit_stops=transit_stops,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2,
         )
         return opt, m
 
-    two_phase = router is not None and len(states) > max(1, int(router_top_k))
-    total = len(states) + (min(len(states), int(router_top_k)) if two_phase else 0)
+    total = len(states)
     done = 0
-    if two_phase:
-        # phase 1: rank every candidate by the grid walk; phase 2 below re-runs the
-        # leaders with network distances and the winner is chosen among those
-        ranked = []
-        for st in states:
-            opt, m = optimise_and_score(st, use_router=False)
-            ranked.append((m.get("access_cost", math.inf), st))
-            done += 1
-            if progress is not None and not progress(done, total):
-                return None, None, None, None
-        ranked.sort(key=lambda pair: pair[0])
-        states = [st for _, st in ranked[: int(router_top_k)]]
-
     best_plan, best, best_state = None, None, None
     for st in states:
         st = np.asarray(st)
-        opt, m = optimise_and_score(st, use_router=True)
+        opt, m = optimise_and_score(st)
         done += 1
         if progress is not None and not progress(done, total):
             return None, None, None, None
@@ -1137,7 +1109,7 @@ def select_plan(
         # readouts need the existing/new split (new amenity over new population only)
         best = evaluate_plan(
             best_plan, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
-            transit_stops=transit_stops, router=router,
+            transit_stops=transit_stops,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2, existing_green=existing_green,
         )
@@ -1155,7 +1127,6 @@ def derive_density(
     centre_distance_m,
     density_factors_km2,
     prob_distribution,
-    router=None,
 ):
     """Per-cell density (people/km²) for a FINISHED scenario, arranging the three tiers by distance.
 
@@ -1182,8 +1153,7 @@ def derive_density(
         return out
     # walking distance to the nearest centre for every new cell (inf where none is within a walk)
     if centres.any():
-        walk = router if router is not None else (lambda m: _walk_distance(m, g, float(centre_distance_m)))
-        dist_field = walk(centres)
+        dist_field = _walk_distance(centres, g, float(centre_distance_m))
     else:
         dist_field = np.full(plan.shape, np.inf)
     dists = dist_field[new_built]
@@ -1240,7 +1210,6 @@ def plan_variants(
     existing_built=None,
     existing_green=None,
     centre_anchors=None,
-    router=None,
     centre_distance_m=None,
     green_distance_m=None,
     centre_m2_per_person=CENTRE_M2_PER_PERSON,
@@ -1261,7 +1230,7 @@ def plan_variants(
         plan = optimise_plan(
             base, granularity_m, min_green_span_m, max_distance_m,
             existing_centres=existing_centres, existing_built=existing_built, ca_centres=ca_centres,
-            optimise_centres=True, centre_anchors=centre_anchors, router=router,
+            optimise_centres=True, centre_anchors=centre_anchors,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=spacing_m, centre_m2_per_person=centre_m2_per_person,
             new_density_km2=new_density_km2,
@@ -1271,7 +1240,7 @@ def plan_variants(
         # scored on the MARKED plan: coverage is basis-independent, and the per-person readouts
         # need the existing/new split (new amenity over new population only)
         metrics = evaluate_plan(
-            marked, granularity_m, max_distance_m, min_green_span_m=min_green_span_m, router=router,
+            marked, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2, existing_green=existing_green,
         )

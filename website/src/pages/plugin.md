@@ -154,8 +154,8 @@ is made from the extents layer; geographic lat/lon CRSs are rejected so the mode
 metres).
 
 **Input layers.** Extents (required, polygon) plus optional existing urban, existing green,
-unbuildable, urban centres (points or polygon areas), PT stops, rail/tram stations, and a street
-network (line layer; when given, walking distances are measured along it). All layers may be in
+unbuildable, urban centres (points or polygon areas), PT stops, and rail/tram stations. All
+layers may be in
 any CRS; they are reprojected to the chosen run CRS.
 
 The **Run button stays disabled** until four things are set: an extents layer, an output folder
@@ -168,12 +168,11 @@ missing.
   bounded by the walking distance. A walk cannot cross unbuildable land, so water and carved
   road or rail corridors must be walked around, not over. Streets are not used during growth,
   and straight-line (crow-flies) distances are never used anywhere.
-- **In post-processing and scoring**, the same grid walk applies by default. When a street
-  layer is supplied, every walking distance is instead measured along the street network: the
-  walk follows streets a pedestrian can use (motorways, trunk roads and their slip roads are
-  excluded), each cell attaches to its nearest street node, and a cell with no street within
-  reach counts as unreachable. Barriers hold in both models: a carved corridor has no walkable
-  street across it, and the grid walk treats it as impassable.
+- **In post-processing and scoring**, the same grid walk applies, so growth and scoring
+  always agree. Street-network distances are not used: a new settlement's streets do not exist
+  yet, so a network metric would measure new development and existing fabric on different
+  terms. The downloaded streets layer serves as map context, and motorway and rail corridors
+  derived from it are carved as barriers.
 - **Rail and tram stations** on built land anchor a mixed-use centre: the centre is pinned at
   the station, never moved or culled, and grows and is sized like any other centre. **Bus and
   tram stops** do not steer the simulation or the centres; the report states how many homes end

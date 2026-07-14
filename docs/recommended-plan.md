@@ -42,11 +42,11 @@ would produce, so the plan is never read off the averaged surfaces.
    and the plan with the lowest mean walk to amenities wins. The score is
    threshold coverage: a home within the chosen walking distance of a centre,
    and of a qualifying park, counts as served. Centre and green walks are
-   scored separately against their own distances. When a street layer is
-   supplied, walking distances are measured along the network rather than
-   across open ground; because network queries are far slower than grid
-   walks, every candidate is first ranked by the grid walk and only the
-   leading few are re-processed and scored along the network.
+   scored separately against their own distances, with the same bounded grid
+   walk the growth rules use, so growth and scoring always agree. Distances
+   detour around unbuildable land. Street-network distances were tried and
+   removed: a new settlement's streets do not exist yet, so a network metric
+   measures new and existing fabric on different terms.
 4. **Arrange density.** Each new home was built at one of three density
    tiers, drawn at the configured shares during the run. Post-processing
    re-arranges the drawn values spatially so the highest tiers sit nearest
@@ -71,8 +71,6 @@ post-processes every run and keeps the best one.
   same. A distance-decay score would be more faithful to the isobenefit idea
   of graded benefit.
 - Any qualifying park serves its whole catchment regardless of quality.
-- The evaluation walks the street network when one is supplied, but the
-  growth rules themselves still grow over open ground.
 - The pipeline has been exercised most heavily on Cambourne; the scenario
   library adds six further cases, but the strongest claims should still be
   read against that base.

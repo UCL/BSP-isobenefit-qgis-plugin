@@ -62,7 +62,6 @@ class IsobenefitTask(QgsTask):
         centre_seeds_layer,
         transit_stops_layer=None,
         stations_layer=None,
-        streets_layer=None,
         total_iters,
         granularity_m,
         max_distance_m,
@@ -99,7 +98,6 @@ class IsobenefitTask(QgsTask):
         self.centre_seeds_layer = _snapshot(centre_seeds_layer)
         self.transit_stops_layer = _snapshot(transit_stops_layer)
         self.stations_layer = _snapshot(stations_layer)
-        self.streets_layer = _snapshot(streets_layer)
         self.total_iters = int(total_iters)
         self.granularity_m = float(granularity_m)
         self.max_distance_m = float(max_distance_m)
@@ -140,13 +138,13 @@ class IsobenefitTask(QgsTask):
         per-person metrics and the centre provision size against."""
         return float(sum(p * d for p, d in zip(self.prob_distribution, self.density_factors)))
 
-    def _write_tiered_plan(self, path: str, plan, router, label: str) -> None:
+    def _write_tiered_plan(self, path: str, plan, label: str) -> None:
         """Arrange the drawn density tiers by walking distance to the final mixed-use centres, then
         write the plan as one categorical raster in which each new cell takes its tier's colour
         (built and centres in distinct hues). Registers the raster for finished() to load."""
         dens = grid.derive_density(
             plan, self.granularity_m, self.centre_distance_m or self.max_distance_m,
-            self.density_factors, self.prob_distribution, router=router,
+            self.density_factors, self.prob_distribution,
         )
         disp = grid.to_tiered_plan(plan, dens, self.density_factors)
         gis_io.write_plan_raster(path, disp, self.geotransform, self.target_crs)
@@ -433,9 +431,10 @@ class IsobenefitTask(QgsTask):
                 # centres; existing centre seeds kept. Picked by shortest average walk.
                 self._log("Selecting and refining the idealised scenario…")
                 self.setProgress(90.0)
-                # ONE distance model: with a streets layer, walking is measured along the network
-                # (built once here, reused for every run); without one, the open-grid walk. No silent
-                # fallback — if the graph can't be built, make_router raises and the run fails clearly.
+                # ONE distance model: the bounded grid walk, the same metric the growth rules
+                # use. Street-network routing was removed: new development's streets do not
+                # exist yet, so a network metric compares new and existing fabric on
+                # different terms and punishes exactly the thing being designed.
                 centre_walk = self.centre_distance_m or self.max_distance_m
                 # TWO centre-clustering options (centre spacing in metres) that share the SAME built fabric
                 # and differ ONLY in where the centres sit — the user compares + picks one, against the raw
@@ -446,19 +445,6 @@ class IsobenefitTask(QgsTask):
                 # end up beyond a walk of one). NB the raw is already ~coverage density, so we don't also
                 # offer a near-1x "spread" option — it would just look like the raw.
                 spacings = {"moderate": 1.5 * centre_walk, "tight": 2.5 * centre_walk}
-                router = None
-                if self.streets_layer is not None:
-                    from . import routing
-
-                    # Bound the network field at the LARGEST distance anything downstream measures — the
-                    # clustering spacing can exceed a walk, and a router capped at max_distance_m would
-                    # silently collapse the clustering options back into each other (finding: router + spacing).
-                    router_bound = max(self.max_distance_m, max(spacings.values()))
-                    router = routing.make_router(
-                        self.streets_layer, self.target_crs, geotransform, rows, cols,
-                        self.granularity_m, router_bound,
-                    )
-                    self._log("Walking distances measured along the street network.")
                 plan, metrics, pre_plan, best_state = grid.select_plan(
                     states,
                     self.granularity_m,
@@ -471,7 +457,6 @@ class IsobenefitTask(QgsTask):
                     optimise_centres=self.optimise_centres,
                     transit_stops=transit_stops,
                     centre_anchors=station_anchors,
-                    router=router,
                     centre_spacing_m=(spacings["moderate"] if self.optimise_centres else None),
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
@@ -496,10 +481,10 @@ class IsobenefitTask(QgsTask):
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
                 if pre_plan is not None:  # the chosen run BEFORE post-processing — saved for comparison
-                    self._write_tiered_plan(self.pre_path, pre_plan, router, "raw (before post-processing)")
+                    self._write_tiered_plan(self.pre_path, pre_plan, "raw (before post-processing)")
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
-                        router=router, centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
+                        centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         new_density_km2=self._mean_new_density_km2(), existing_green=(origin == 0),
                     )
                     report_stats.append(("raw (before post-processing)", pre_m, self._count_centres(pre_plan)))
@@ -508,7 +493,7 @@ class IsobenefitTask(QgsTask):
                     variants = grid.plan_variants(
                         best_state, self.granularity_m, self.min_green_span, self.max_distance_m, spacings,
                         existing_centres=seeds, existing_built=(origin == 1), existing_green=(origin == 0),
-                        centre_anchors=station_anchors, router=router,
+                        centre_anchors=station_anchors,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         centre_min_settlement=self.centre_min_settlement,
                         centre_m2_per_person=self.centre_m2_per_person,
@@ -525,7 +510,7 @@ class IsobenefitTask(QgsTask):
                         # put the centre COUNT in the layer name so the difference between the options is
                         # obvious in the QGIS layer panel itself, not only by eyeballing the map. The
                         # density tiers are arranged onto this plan and coloured per tier (built vs centre).
-                        self._write_tiered_plan(vpath, vplan, router, f"{labels[key]} ({ncent} centres)")
+                        self._write_tiered_plan(vpath, vplan, f"{labels[key]} ({ncent} centres)")
                         report_stats.append((labels[key], vm, ncent))
                         self._log(  # per-option metrics so the choice is informed, not just visual
                             f"  {labels[key]}: {ncent} centres, {vm.get('served_coverage', 0):.0%} served, "
@@ -544,7 +529,7 @@ class IsobenefitTask(QgsTask):
                             f"plan is kept un-cleaned so you can see exactly what the cleanup changed."
                         )
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
-                    self._write_tiered_plan(self.plan_path, plan, router, "idealised scenario")
+                    self._write_tiered_plan(self.plan_path, plan, "idealised scenario")
                     if metrics:
                         report_stats.append(("idealised scenario", metrics, self._count_centres(plan)))
                 if metrics:
@@ -562,7 +547,7 @@ class IsobenefitTask(QgsTask):
                 if plan is not None:
                     # Per-centre effectiveness audit, by the same distance model — surfaces weak
                     # centres (thin catchment / off-centre) every run, so they're not just eyeballed.
-                    audit = grid.audit_centres(plan, self.granularity_m, self.max_distance_m, router=router)
+                    audit = grid.audit_centres(plan, self.granularity_m, self.max_distance_m)
                     s = audit["summary"]
                     self._log(
                         f"Centre audit: {s['n_centres']} centres ({s['n_existing']} existing from input, "

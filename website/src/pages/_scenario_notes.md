@@ -53,7 +53,7 @@ As the reference demo, Cambourne also illustrates the input layers every scenari
 | `green` | Green space to preserve | Polygons |
 | `unbuildable` | Water, floodplain, slopes and other exclusions | Polygons |
 | `centres` | Existing or planned urban centres | Points or polygons |
-| `streets` | Walking network for routed distances | Lines |
+| `streets` | Map context; motorway/rail corridors become barriers | Lines |
 | `stops`, `stations` | Public transport; stations anchor centres | Points |
 | `railways`, `industrial` | Carved as barriers / unbuildable | Lines / polygons |
 

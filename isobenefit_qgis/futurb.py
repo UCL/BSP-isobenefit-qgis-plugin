@@ -174,10 +174,17 @@ class Isobenefit:
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         # cancel any running tasks and close dialogs, else a task finishing after a
-        # plugin reload calls back into this stale instance
+        # plugin reload calls back into this stale instance. A task that already
+        # finished leaves a dangling wrapper (the C++ object is deleted); cancelling
+        # it raises RuntimeError, which must not break the unload.
         for task in (self._task, self._osm_task):
             if task is not None:
-                task.cancel()
+                try:
+                    task.cancel()
+                except RuntimeError:
+                    pass  # already finished and deleted by the task manager
+        self._task = None
+        self._osm_task = None
         self.dlg.close()
         if self.osm_dlg is not None:
             self.osm_dlg.close()
@@ -325,7 +332,6 @@ class Isobenefit:
             centre_seeds_layer=self.dlg.centre_seeds_layer_box.currentLayer(),
             transit_stops_layer=self.dlg.transit_stops_layer_box.currentLayer(),
             stations_layer=self.dlg.stations_layer_box.currentLayer(),
-            streets_layer=self.dlg.streets_layer_box.currentLayer(),
             total_iters=total_iters,
             granularity_m=granularity_m,
             max_distance_m=max_distance_m,

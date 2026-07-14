@@ -274,9 +274,6 @@ class IsobenefitDialog(QtWidgets.QDialog):
         inp.addRow("PT stops [opt]", self.transit_stops_layer_box)
         self.stations_layer_box = _layer_combo(Qgis.LayerFilter.PointLayer)
         inp.addRow("Rail / tram stations [opt]", self.stations_layer_box)
-        self.streets_layer_box = _layer_combo(Qgis.LayerFilter.LineLayer)
-        self.streets_layer_box.setToolTip("Walking is measured along this street network (enables routing).")
-        inp.addRow("Street network [opt]", self.streets_layer_box)
 
         content_layout.addStretch(1)
 
@@ -301,7 +298,6 @@ class IsobenefitDialog(QtWidgets.QDialog):
         "centres": "centre_seeds_layer_box",
         "stops": "transit_stops_layer_box",
         "stations": "stations_layer_box",
-        "streets": "streets_layer_box",
     }
 
     def _prepopulate_from_osm(self) -> None:

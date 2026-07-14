@@ -51,7 +51,7 @@ published model). Parameter names in brackets are the plugin's settings.
 | One run, one output | Ensembles: many runs blended into likelihood layers, with the best single run selected as the scenario | Extension |
 | The grid starts as uniform nature | Real inputs: existing built fabric (frozen), protected green, unbuildable land, centre areas, streets, stops and stations from OpenStreetMap | Extension |
 | Centralities stay where they seeded | Post-processing re-positions centres central to the development they serve, adds one wherever new development lacks a centre of its own (existing centres serve the existing town, not new growth), culls redundant ones, and sizes each by the population in its catchment | Extension |
-| Distances are grid geometry | When a street layer is supplied, post-processing measures walking distances along the network; the growth rules themselves do not use streets yet | Extension |
+| Distances are straight lines over an abstract plain | One metric for growth and scoring: bounded walks over the grid, blocked by unbuildable land. Street-network distances were tried and removed, since a new settlement's streets do not exist yet and a network metric measures new and existing fabric on different terms | Modified: walkable distance |
 
 Most of the modifications have one motivation: the published model assumes a uniform
 abstract plain, while real places arrive with fragmented green, rivers, motorways and

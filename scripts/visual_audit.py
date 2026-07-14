@@ -1,6 +1,6 @@
 """Headless visual audit of the recommended-plan dynamics (no QGIS).
 
-Runs the PURE pipeline (``isobenefit_qgis.grid`` + the pure parts of ``isobenefit_qgis.routing``)
+Runs the PURE pipeline (``isobenefit_qgis.grid``)
 on a LARGE synthetic substrate and renders side-by-side panels, so every planning lever can be
 eyeballed and kept as an audit trail. The substrate is deliberately big (a 6 km square at 50 m
 cells) so the effect of fiddling a parameter — spread vs clustered centres, short vs long
@@ -17,7 +17,6 @@ Two tracks:
     06  centre centering           concave/irregular built: centre sits at the interior, not a rim/gap
     07  clustering on dispersed    moderate vs tight on scattered blobs (small blobs can't cluster)
     09  station anchoring          off vs on (a rail/tram stop pins a centre)
-    10  network routing            open-grid vs street-network (a barrier to detour)
     11  frozen existing fabric     existing built/centres kept; new development added around them
     15  failed-satellite cleanup   stranded specks pruned to green
 
@@ -43,7 +42,6 @@ same plans — it is the audit trail. The PNGs are gitignored (regenerate on dem
 
 from __future__ import annotations
 
-import math
 import os
 import sys
 from collections import namedtuple
@@ -58,6 +56,7 @@ from matplotlib.lines import Line2D  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
 from isobenefit_qgis import grid  # noqa: E402
 from isobenefit_qgis.grid import (  # noqa: E402
     PLAN_BUILT,
@@ -69,7 +68,6 @@ from isobenefit_qgis.grid import (  # noqa: E402
     evaluate_plan,
     optimise_plan,
 )
-from isobenefit_qgis.routing import NetworkRouter  # noqa: E402
 
 GRAN, MIN_GREEN_SPAN, MAX_DIST = 50.0, 400.0, 800.0
 G = 120  # substrate side in cells -> a 6 km x 6 km square at 50 m, big enough to see the differences
@@ -96,15 +94,14 @@ LEGEND = [
 ]
 
 # One panel of a figure: a plan plus the distance settings used to build/score it (so the caption's
-# metrics match the plan). router/cdist/gdist default to the shared walk. ``stations`` are overlaid as
-# a distinct marker; when a ``router`` is present its street segments are drawn over the plan.
+# metrics match the plan). cdist/gdist default to the shared walk. ``stations`` are overlaid as
+# a distinct marker.
 STATION_RGB = "#1f9bff"  # bright blue, distinct from the centre red
-NETWORK_RGB = "#1456b0"
-Panel = namedtuple("Panel", "plan label router cdist gdist stations")
+Panel = namedtuple("Panel", "plan label cdist gdist stations")
 
 
-def P(plan, label, router=None, cdist=None, gdist=None, stations=()):
-    return Panel(plan, label, router, cdist, gdist, tuple(stations))
+def P(plan, label, cdist=None, gdist=None, stations=()):
+    return Panel(plan, label, cdist, gdist, tuple(stations))
 
 
 def _rgb(plan):
@@ -116,10 +113,10 @@ def _rgb(plan):
 
 def _caption(panel):
     m = evaluate_plan(
-        panel.plan, GRAN, MAX_DIST, min_green_span_m=MIN_GREEN_SPAN, router=panel.router,
+        panel.plan, GRAN, MAX_DIST, min_green_span_m=MIN_GREEN_SPAN, 
         centre_distance_m=panel.cdist, green_distance_m=panel.gdist,
     )
-    s = grid.audit_centres(panel.plan, GRAN, panel.cdist or MAX_DIST, router=panel.router)["summary"]
+    s = grid.audit_centres(panel.plan, GRAN, panel.cdist or MAX_DIST, )["summary"]
     # report centre and green coverage SEPARATELY (a "served" headline needs both, so it reads as 0%
     # on the centre-only scenarios that carry no green — these per-amenity figures are honest there).
     return (
@@ -129,20 +126,6 @@ def _caption(panel):
     )
 
 
-def _draw_network(ax, router):
-    """Overlay the street graph used for routing — node-to-node segments in cell coordinates — so the
-    network (and where a barrier breaks it) is visible. Nodes are stored in metres; /GRAN -> cells."""
-    nodes = getattr(router, "_nodes", None)
-    adj = getattr(router, "_adj", None)
-    if nodes is None or adj is None or len(nodes) == 0:
-        return
-    for a, nbrs in enumerate(adj):
-        ax_col, ax_row = nodes[a][0] / GRAN, nodes[a][1] / GRAN
-        for b, _ in nbrs:
-            if b > a:  # draw each undirected edge once
-                ax.plot([ax_col, nodes[b][0] / GRAN], [ax_row, nodes[b][1] / GRAN],
-                        color=NETWORK_RGB, lw=0.6, alpha=0.5, zorder=2)
-
 
 def figure(name, suptitle, panels):
     n = len(panels)
@@ -150,11 +133,8 @@ def figure(name, suptitle, panels):
     if n == 1:
         axes = [axes]
     any_station = any(p.stations for p in panels)
-    any_network = any(p.router is not None for p in panels)
     for ax, panel in zip(axes, panels):
         ax.imshow(_rgb(panel.plan), interpolation="nearest")
-        if panel.router is not None:
-            _draw_network(ax, panel.router)
         if panel.stations:  # hollow star so the centre that forms underneath stays visible
             ax.scatter([s[1] for s in panel.stations], [s[0] for s in panel.stations],
                        marker="*", s=320, facecolors="none", edgecolors=STATION_RGB, linewidths=2.2, zorder=6)
@@ -165,8 +145,6 @@ def figure(name, suptitle, panels):
     if any_station:
         handles.append(Line2D([], [], marker="*", color="none", markerfacecolor="none",
                               markeredgecolor=STATION_RGB, markeredgewidth=1.6, markersize=15, label="station"))
-    if any_network:
-        handles.append(Line2D([], [], color=NETWORK_RGB, lw=1.4, alpha=0.7, label="street network"))
     fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=8, frameon=False)
     fig.suptitle(suptitle, fontsize=12.5, y=0.985)
     fig.tight_layout(rect=(0, 0.05, 1, 0.90))
@@ -184,42 +162,6 @@ def block(plan, r0, r1, c0, c1, code=PLAN_BUILT):
 def empty():
     return np.full((G, G), PLAN_NONE, np.uint8)
 
-
-def _lattice_router(rows, cols, step=3, barrier_col=None, bridge_rows=()):
-    """A synthetic street-graph on a lattice (nodes every ``step`` cells). Horizontal edges that
-    cross ``barrier_col`` are omitted unless the row is in ``bridge_rows`` — so the two sides connect
-    only via the bridge, forcing the network to detour where open-grid would cut straight across."""
-    lrs, lcs = list(range(0, rows, step)), list(range(0, cols, step))
-    node_id = {(r, c): i for i, (r, c) in enumerate([(r, c) for r in lrs for c in lcs])}
-    nodes = np.array([(c * GRAN, r * GRAN) for r in lrs for c in lcs], float)
-    adj: list = [[] for _ in nodes]
-
-    def link(a, b):
-        d = math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1])
-        adj[a].append((b, d))
-        adj[b].append((a, d))
-
-    for i, r in enumerate(lrs):
-        for j, c in enumerate(lcs):
-            a = node_id[(r, c)]
-            if j + 1 < len(lcs):
-                c2 = lcs[j + 1]
-                crosses = barrier_col is not None and c < barrier_col <= c2
-                if not crosses or r in bridge_rows:
-                    link(a, node_id[(r, c2)])
-            if i + 1 < len(lrs):
-                link(a, node_id[(lrs[i + 1], c)])
-
-    cell_node = np.full((rows, cols), -1, np.int64)
-    cell_access = np.full((rows, cols), np.inf)
-    for rr in range(rows):
-        lr = min(lrs, key=lambda v: abs(v - rr))
-        for cc in range(cols):
-            lc = min(lcs, key=lambda v: abs(v - cc))
-            cell_node[rr, cc] = node_id[(lr, lc)]
-            cell_access[rr, cc] = math.hypot(cc - lc, rr - lr) * GRAN
-    cell_node[cell_access > MAX_DIST] = -1
-    return NetworkRouter(nodes, adj, cell_node, cell_access, GRAN, MAX_DIST)
 
 
 # A big square town used by most scenarios (rows/cols 24..96 -> a ~3.6 km block of new built fabric).
@@ -376,24 +318,6 @@ def s09_station_anchor():
     )
 
 
-def s10_network_routing():
-    # two small blocks separated by a narrow gap; ONE centre can cover both only if the network links them
-    plan = empty()
-    block(plan, 55, 65, 54, 60)  # left block
-    block(plan, 55, 65, 64, 70)  # right block (gap at cols 60-64)
-    linked = _lattice_router(G, G, step=3, barrier_col=62, bridge_rows=(54, 57, 60, 63, 66))  # roads bridge the gap
-    split = _lattice_router(G, G, step=3, barrier_col=62, bridge_rows=())  # no road across the gap
-    common = dict(ca_centres=[(60, 57)], optimise_centres=True)
-    figure(
-        "10_network_routing",
-        "Network linking vs separating the same clusters: a bridge serves both from one centre; severing needs two",
-        [
-            P(_opt(plan, router=None, **common), "open-grid (no streets) — one centre"),
-            P(_opt(plan, router=linked, **common), "network LINKS them (road bridges the gap)", router=linked),
-            P(_opt(plan, router=split, **common), "network SEPARATES them (no crossing)", router=split),
-        ],
-    )
-
 
 def s11_frozen_existing():
     # an existing town (frozen) on the left, new growth on the right
@@ -438,7 +362,7 @@ def s15_island_cleanup():
 POST_PROCESS = [
     s01_centre_optimisation, s02_centre_clustering, s03_centre_area, s04_min_settlement,
     s05_centre_walk, s06_centre_centering, s07_clustering_on_dispersed,
-    s09_station_anchor, s10_network_routing, s11_frozen_existing,
+    s09_station_anchor, s11_frozen_existing,
     s15_island_cleanup,
 ]
 

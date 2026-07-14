@@ -312,34 +312,6 @@ def test_station_anchor_counts_as_provision_for_new_growth():
     assert out == []
 
 
-def test_select_plan_two_phase_with_router():
-    # with a router and more states than router_top_k, every state is ranked by the grid
-    # walk first and only the leaders are re-scored through the router; the progress
-    # callback sees both phases and the selection still returns a valid plan
-    from isobenefit_qgis.grid import _walk_distance, select_plan
-
-    g = 40
-    states = []
-    for k in range(4):
-        st = np.zeros((g, g), np.int16)
-        st[10:20, 10 : 22 + k] = 1
-        st[15, 15] = 2
-        states.append(st)
-    calls = {"router": 0}
-    seen = []
-
-    def router(mask):
-        calls["router"] += 1
-        return _walk_distance(mask, 100.0, 2000.0)
-
-    plan, metrics, pre, best = select_plan(
-        states, 100.0, 400.0, 800.0, router=router, router_top_k=2,
-        progress=lambda done, total: seen.append((done, total)) or True,
-    )
-    assert plan is not None and metrics is not None
-    assert calls["router"] > 0
-    assert seen[-1] == (6, 6)  # 4 grid-ranked + 2 router-scored
-
 
 def test_select_plan_progress_abort():
     from isobenefit_qgis.grid import select_plan
@@ -388,6 +360,25 @@ def test_select_plan_walk_query_budget(monkeypatch):
     assert plan is not None and metrics is not None
     # measured ~930 today; the pre-cache quadratic behaviour lands above 10,000
     assert calls["n"] < 1500, f"walk queries regressed: {calls['n']} (budget 1500)"
+
+
+def test_centre_placement_is_settlement_local():
+    # Two clusters across a green gap. A seed on the small cluster's gap-facing edge
+    # used to be dragged toward (or into) the big cluster by cross-gap members; with
+    # settlement-local placement it re-centres INSIDE its own cluster, and the other
+    # cluster gets its own anchor.
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 30
+    built = np.zeros((g, 44), bool)
+    built[8:22, 2:11] = True  # small cluster A
+    built[8:22, 16:42] = True  # big cluster B, 5 green columns away
+    seed = (15, 10)  # A's edge cell facing the gap
+    out = _refine_centres([seed], [], built, built, 100.0, 800.0)
+    a_centres = [(y, x) for y, x in out if x < 11]
+    b_centres = [(y, x) for y, x in out if x >= 16]
+    assert a_centres and b_centres  # each settlement anchored
+    assert all(x <= 8 for _, x in a_centres)  # A's centre moved interior, off the gap edge
 
 
 def test_interior_point():
@@ -493,95 +484,8 @@ def test_optimise_plan_grows_station_anchor():
     assert len(comp) > 1  # ...and it grew into an area around the station, not a single cell
 
 
-def test_evaluate_plan_uses_injected_router():
-    # evaluate_plan routes via an injected callable (mask -> rows x cols metres) instead of the
-    # grid walk, so true network distances can drive the metrics. grid.py stays QGIS-free.
-    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, evaluate_plan
-
-    g = 20
-    plan = np.zeros((g, g), np.uint8)
-    plan[5:15, 5:15] = PLAN_BUILT
-    plan[10, 10] = PLAN_CENTRE
-
-    calls = []
-
-    def router(mask):
-        calls.append(mask)
-        return np.full((g, g), 137.0)  # a distinctive constant the grid walk would never produce
-
-    m = evaluate_plan(plan, 50.0, 800.0, router=router)
-    assert calls  # the router was used in place of the grid walk
-    assert m["centre_access"] == 137.0 and m["green_access"] == 137.0  # straight from the router
-    assert m["centre_coverage"] == 1.0  # 137 m < 800 m walk
 
 
-def test_optimise_plan_threads_one_distance_model_to_placement():
-    # The injected distance model drives centre PLACEMENT too, not only scoring — one metric
-    # throughout. With nothing reachable, no centre can justify itself, so none are placed.
-    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
-
-    g = 30
-    plan = np.zeros((g, g), np.uint8)
-    plan[10:20, 10:20] = PLAN_BUILT
-    calls = []
-
-    def router(mask):
-        calls.append(True)
-        return np.full((g, g), np.inf)  # nothing is within a walk of anything
-
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(15, 15)], router=router)
-    assert calls  # the injected model was used inside the optimiser, not just the scorer
-    # the anchor invariant holds even under a degenerate distance model: the settlement keeps
-    # exactly its one attached centre (previously "unreachable -> no centre", now overridden —
-    # a settlement without a centre is not a settlement in this model's terms)
-    assert int((out == PLAN_CENTRE).sum()) == 1
-
-
-def test_network_router_uses_graph_distance():
-    # A U-shaped graph: A-M1-M2-B, each leg 100 m, so A->B ALONG the network is 300 m even though
-    # the straight-line A-B is only 100 m. The router must report the network distance.
-    from isobenefit_qgis.routing import NetworkRouter
-
-    nodes = np.array([[0, 0], [0, 100], [100, 100], [100, 0]], float)  # A, M1, M2, B
-    adj = [[(1, 100.0)], [(0, 100.0), (2, 100.0)], [(1, 100.0), (3, 100.0)], [(2, 100.0)]]
-    cell_node = np.array([[0, 3], [-1, -1]])  # cell (0,0)->A, (0,1)->B, bottom row off-network
-    cell_access = np.array([[0.0, 0.0], [np.inf, np.inf]])
-
-    router = NetworkRouter(nodes, adj, cell_node, cell_access, 50.0, 1000.0)
-    field = router(np.array([[False, True], [False, False]]))  # target = cell (0,1) == node B
-    assert field[0, 1] == 0.0  # the target cell itself
-    assert field[0, 0] == 300.0  # A -> B is the 300 m network distance, not the 100 m straight line
-    assert not np.isfinite(field[1, 0])  # off-network cell is unreachable
-
-    bounded = NetworkRouter(nodes, adj, cell_node, cell_access, 50.0, 200.0)
-    field2 = bounded(np.array([[False, True], [False, False]]))
-    assert not np.isfinite(field2[0, 0])  # 300 m exceeds the 200 m walk limit -> bounded out
-
-
-def test_network_router_caches_single_source():
-    # single-source queries (the hot path: one centre) are solved once per node and reused
-    from isobenefit_qgis.routing import NetworkRouter
-
-    nodes = np.array([[0, 0], [0, 100], [100, 100], [100, 0]], float)
-    adj = [[(1, 100.0)], [(0, 100.0), (2, 100.0)], [(1, 100.0), (3, 100.0)], [(2, 100.0)]]
-    cell_node = np.array([[0, 3], [-1, -1]])
-    cell_access = np.array([[0.0, 0.0], [np.inf, np.inf]])
-    router = NetworkRouter(nodes, adj, cell_node, cell_access, 50.0, 1000.0)
-
-    one = np.array([[True, False], [False, False]])  # single source = node 0
-    f1 = router(one)
-    assert 0 in router._cache  # node 0's distances were solved and cached
-    f2 = router(one)
-    assert np.array_equal(f1, f2)  # second call reuses the cache, same result
-
-
-def test_snap_cells_finds_nearest_node():
-    from isobenefit_qgis.routing import _snap_cells
-
-    nodes = np.array([[25.0, -25.0]])  # sits exactly at the centre of cell (0, 0)
-    gt = (0.0, 50.0, 0.0, 0.0, 0.0, -50.0)  # 50 m cells, north-up
-    cell_node, cell_access = _snap_cells(nodes, gt, 1, 1, 800.0)
-    assert cell_node[0, 0] == 0 and cell_access[0, 0] < 1.0
 
 
 def test_audit_centres_reports_served_and_flags_weak():
@@ -977,40 +881,6 @@ def test_select_plan_cleanup_accounting_non_negative():
     assert removed >= 0
     assert removed >= 1  # the speck really was cleaned up
 
-
-def test_plan_variants_router_bound_must_cover_spacing():
-    # Under a street router, centre clustering only works if the router's bound reaches the centre
-    # SPACING (2.5x walk for "tight"), not just the walk — sim_runner passes
-    # max(max_distance, max(spacings)). A walk-bounded router clips every spacing decision and the
-    # options collapse toward walk-spacing (tight was observed placing MORE centres than moderate).
-    from isobenefit_qgis.grid import _components, plan_variants
-    from isobenefit_qgis.routing import NetworkRouter
-
-    granularity, walk = 100.0, 400.0
-    rows, cols = 3, 80  # an 8 km built strip along a chain-graph street
-    nodes = np.array([(c * granularity + granularity / 2, 0.0) for c in range(cols)])
-    adj = [[] for _ in range(cols)]
-    for c in range(cols - 1):
-        adj[c].append((c + 1, granularity))
-        adj[c + 1].append((c, granularity))
-    cell_node = np.tile(np.arange(cols), (rows, 1))
-    cell_access = np.zeros((rows, cols))
-    state = np.ones((rows, cols), np.int16)
-    state[1, 5] = state[1, 40] = state[1, 75] = 2  # a few CA-grown centres
-    spacings = {"moderate": 1.5 * walk, "tight": 2.5 * walk}
-
-    def centre_counts(bound):
-        router = NetworkRouter(nodes, adj, cell_node, cell_access, granularity, bound)
-        out = plan_variants(state, granularity, 200.0, walk, spacings, router=router)
-        return {
-            label: len(_components(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE))))
-            for label, (plan, _m) in out.items()
-        }
-
-    good = centre_counts(max(walk, max(spacings.values())))  # what sim_runner passes
-    assert good["tight"] < good["moderate"]  # clustering harder -> strictly fewer centres
-    clipped = centre_counts(walk)  # the pre-fix bound: spacing decisions clipped at the walk
-    assert not (clipped["tight"] < clipped["moderate"])  # collapse fingerprint the fix removes
 
 
 def test_derive_density_arranges_tiers_by_distance():

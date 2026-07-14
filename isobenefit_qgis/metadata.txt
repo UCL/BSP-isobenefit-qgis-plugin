@@ -3,11 +3,11 @@ name=Isobenefit Urbanism
 qgisMinimumVersion=4.0
 qgisMaximumVersion=4.99
 description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
-version=0.12.14
+version=0.12.15
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
-about=The Isobenefit Urbanism QGIS plugin explores walkable urban development against real-world datasets. It grows settlements by simple rules: every new home must sit within a walking distance of a mixed-use centre (shops, services) and of green space. The model follows Luca D'Acci's Isobenefit Urbanism (D'Acci 2019, Journal of Environmental Management; D'Acci & Voto 2023, SoftwareX) and reimplements the cellular automaton originally coded by Michele Voto, with documented departures and extensions (existing-fabric freezing, OSM inputs, street-network routing, centre post-processing). See the homepage for the full guide and worked scenarios.
+about=The Isobenefit Urbanism QGIS plugin explores walkable urban development against real-world datasets. It grows settlements by simple rules: every new home must sit within a walking distance of a mixed-use centre (shops, services) and of green space. The model follows Luca D'Acci's Isobenefit Urbanism (D'Acci 2019, Journal of Environmental Management; D'Acci & Voto 2023, SoftwareX) and reimplements the cellular automaton originally coded by Michele Voto, with documented departures and extensions (existing-fabric freezing, OSM inputs, centre post-processing). See the homepage for the full guide and worked scenarios.
     The plugin bundles an OpenStreetMap extraction tool, ships seven worked scenarios in the repository's "scenarios" folder, and writes reproducible runs (each run saves a parameters sidecar that the dialog can reload).
     This plugin is marked experimental: enable "Show also Experimental Plugins" in the plugin manager settings to see it.
     On first use, the plugin offers to install its simulation engine (the "isobenefit" package from PyPI) into the QGIS Python environment; this needs an internet connection and a QGIS restart. No manual package installation is required.
@@ -22,6 +22,7 @@ deprecated=False
 server=False
 
 changelog=
+    0.12.15 One distance model: bounded grid walks everywhere, in growth and in scoring. Street-network routing removed (a new settlement has no streets yet, so a network metric measured new and existing fabric on different terms); the streets layer stays as map context and the source of carved barrier corridors. Centre placement is settlement-local: a centre is positioned only by homes in its own contiguous settlement, so it cannot be dragged to a periphery cell facing a green gap. Scenario panels colour slope-excluded land tan, distinct from water and corridors. Plugin unload no longer errors after a finished run.
     0.12.14 Centre refinement caches walk fields by coordinate across the whole ensemble: post-processing a many-centre window drops from ~40 s to ~3 s per candidate with identical results. Selection progress logs every candidate.
     0.12.13 The post-processing selection reports progress, honours Cancel, and runs in two phases when a street network is supplied (every run ranked by the grid walk, the leaders re-scored along the network), so large windows finish in minutes rather than sitting silent at 90%.
     0.12.12 Defaults grounded in practice: 800 m centre walk (a ten-minute walk) and 400 m green walk (the WHO/Natural England everyday-green reach); the minimum settlement is now a population (default 1,000 people) rather than an area; new development must earn its own mixed-use centres (a nearby existing centre no longer stands in, so growth cannot sprawl centre-free along existing fabric); scenario downloads fixed on the website; one consolidated Dnipro scenario; distances, barriers and station handling documented in the guide.

@@ -40,7 +40,7 @@ def _hex(rgb):
 BUILT_LOW, BUILT_MED, BUILT_HIGH = _hex(G._BUILT_LOW), _hex(G._BUILT_MED), _hex(G._BUILT_HIGH)
 CENTRE_LOW, CENTRE_MED, CENTRE_HIGH = _hex(G._CENTRE_LOW), _hex(G._CENTRE_MED), _hex(G._CENTRE_HIGH)
 EXIST_BUILT, EXIST_CENTRE = _hex(G._EXIST_BUILT), _hex(G._EXIST_CENTRE)
-GREEN, UNBUILDABLE, STREET, INK = _hex((89, 176, 60)), "#6f9fcf", "#a9a9a9", "#333333"
+GREEN, UNBUILDABLE, STEEP, STREET, INK = _hex((89, 176, 60)), "#6f9fcf", "#b5885c", "#a9a9a9", "#333333"
 TIER_STYLE = {
     G.PLAN_GREEN: (GREEN, 0.18),
     G.PLAN_EXIST_BUILT: (EXIST_BUILT, 0.42),
@@ -102,11 +102,11 @@ def load_scenario(folder: str):
     if slope_max is not None and os.path.exists(steep_path):
         with open(steep_path, encoding="utf-8") as fh:
             fc = json.load(fh)
-        layers.setdefault("unbuildable", []).extend(
+        layers["steep"] = [
             shapely.make_valid(shapely.geometry.shape(f["geometry"]))
             for f in fc["features"]
             if float(f["properties"].get("min_slope_deg", 0)) >= float(slope_max)
-        )
+        ]
     extents = {}
     for name in sorted(os.listdir(folder)):
         if name.startswith("extents") and name.endswith(".geojson"):
@@ -141,10 +141,12 @@ def substrate(extent, layers, gran):
     built = mask(layers.get("built", [])) & inside
     green = mask(layers.get("green", [])) & inside
     unb = mask(layers.get("unbuildable", [])) & inside
+    steep = mask(layers.get("steep", [])) & inside
     state[built] = 1
     origin[built] = 1
     origin[green & ~built] = 0
     state[unb & ~built] = -1
+    state[steep & ~built] = -1
     seeds = []
     for geom in layers.get("centres", []):
         p = geom if geom.geom_type == "Point" else geom.representative_point()
@@ -152,7 +154,8 @@ def substrate(extent, layers, gran):
         if 0 <= r < rows and 0 <= c < cols and built[r, c]:
             seeds.append((r, c))
     return {"state": state, "origin": origin, "seeds": sorted(set(seeds)), "gt": gt,
-            "rows": rows, "cols": cols, "extent": extent, "inside": inside_mask}
+            "rows": rows, "cols": cols, "extent": extent, "inside": inside_mask,
+            "steep": steep & ~built}
 
 
 def _rgb(hexcol):
@@ -225,13 +228,17 @@ def render_png(codes, layers, sub, gran, path):
                 draw.line(pts, fill=_rgb(STREET), width=2)
     inside = sub["inside"]
     unbuildable = (sub["state"] == -1) & inside
+    steep = sub.get("steep")
+    steep = steep & unbuildable if steep is not None else np.zeros_like(unbuildable)
     for r in range(H):
         for c in range(W):
             v = int(codes[r, c])
             if v in TIER_STYLE:
                 col, radf = TIER_STYLE[v]
+            elif steep[r, c]:
+                col, radf = STEEP, 0.3  # steep terrain: excluded for slope, not water
             elif unbuildable[r, c]:
-                col, radf = UNBUILDABLE, 0.3  # water, barriers, steep terrain: visibly excluded
+                col, radf = UNBUILDABLE, 0.3  # water and barrier corridors: visibly excluded
             elif inside[r, c]:
                 col, radf = GREEN, 0.18  # untouched land inside the extents
             else:
