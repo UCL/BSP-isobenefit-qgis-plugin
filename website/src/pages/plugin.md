@@ -50,8 +50,10 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
    new blocks built at each. The shares must sum to 1; the feedback line shows the running
    total and the resulting mean density.
 8. Press **Run**. The simulation runs as a background task; the progress bar tracks it, and a
-   run can be cancelled safely. With the default *Development likelihood* mode, several layers
-   load on completion; start with the *moderately clustered centres* plan.
+   run can be cancelled safely. Per-stage detail (grid size, ensemble progress, post-processing
+   candidates, warnings) streams to the Log Messages panel: *View → Panels → Log Messages*,
+   **Isobenefit** tab. With the default *Development likelihood* mode, several layers load on
+   completion; start with the *moderately clustered centres* plan.
 9. The run's full settings are saved next to the output as `<name>_params.json`. To repeat or
    adjust the run later, use *Load parameters* at the top of the dialog.
 

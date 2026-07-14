@@ -248,7 +248,13 @@ class Isobenefit:
         )
         self._osm_task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)
-        QgsMessageLog.logMessage("OpenStreetMap download queued.", level=Qgis.MessageLevel.Info, notifyUser=True)
+        self.iface.messageBar().pushMessage(
+            "Isobenefit",
+            "OpenStreetMap download started. Detail appears in the Log Messages panel "
+            "(View \u25b8 Panels \u25b8 Log Messages, Isobenefit tab).",
+            level=Qgis.MessageLevel.Info,
+            duration=8,
+        )
 
     def run(self):
         """Run method that performs all the real work"""
@@ -353,6 +359,13 @@ class Isobenefit:
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)
+        self.iface.messageBar().pushMessage(
+            "Isobenefit",
+            "Simulation started. Per-stage progress and any warnings appear in the Log Messages "
+            "panel (View \u25b8 Panels \u25b8 Log Messages, Isobenefit tab).",
+            level=Qgis.MessageLevel.Info,
+            duration=8,
+        )
         # cache exactly what was run as a sidecar next to the output, reloadable via the dialog's
         # "Load parameters" button (same schema as the scenarios/<scenario>/params.json presets)
         try:

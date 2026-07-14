@@ -278,6 +278,14 @@ class IsobenefitDialog(QtWidgets.QDialog):
         content_layout.addStretch(1)
 
         # --- status + buttons (pinned below the scroll area, always visible) -----------
+        log_hint = QtWidgets.QLabel(
+            "A running simulation reports per-stage progress and warnings in the Log "
+            "Messages panel (View ▸ Panels ▸ Log Messages, Isobenefit tab).",
+            self,
+        )
+        log_hint.setWordWrap(True)
+        log_hint.setStyleSheet("color: #6b6b6b;")
+        main_layout.addWidget(log_hint)
         main_layout.addWidget(self.run_status)
         self.button_box = QtWidgets.QDialogButtonBox(self)
         self.button_box.setStandardButtons(
