@@ -265,7 +265,8 @@ class Isobenefit:
         try:
             total_iters = _positive(int(self.dlg.n_iterations.text()))
             granularity_m = _positive(int(self.dlg.grid_size_m.text()))
-            # Split walks: centres and green each have their own. The CA grows by the LARGER walk; the recommended plan judges each amenity against its own.
+            # Split walks: centres and green each have their own. The CA grows by the LARGER
+            # walk; the recommended plan judges each amenity against its own.
             centre_distance_m = _positive(int(self.dlg.centre_walk_dist.text()))
             green_distance_m = _positive(int(self.dlg.green_walk_dist.text()))
             max_distance_m = max(centre_distance_m, green_distance_m)

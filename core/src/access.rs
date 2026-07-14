@@ -219,7 +219,11 @@ pub fn walk_distance(
             let nd = d + ystep.hypot(xstep) * granularity_m;
             if nd <= max_distance_m && nd < dist[[ny, nx]] {
                 dist[[ny, nx]] = nd;
-                heap.push(HeapItem { dist: nd, y: ny, x: nx });
+                heap.push(HeapItem {
+                    dist: nd,
+                    y: ny,
+                    x: nx,
+                });
             }
         }
     }
