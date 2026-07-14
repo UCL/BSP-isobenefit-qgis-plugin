@@ -319,6 +319,23 @@ class IsobenefitDialog(QtWidgets.QDialog):
                 continue
             if attr == "extents_layer_box" or combo.currentLayer() is None:
                 combo.setLayer(layer)
+        # Derive an output folder beside the detected data: <data dir>/scenarios, or the first
+        # scenarios_N that does not already hold a previous run's files. Only when the user has
+        # not chosen a folder; a deliberate choice is never overwritten.
+        if not self.file_output.filePath():
+            src = next(iter(by_key.values())).source().split("|")[0]
+            base = Path(src).parent
+            if base.is_dir():
+                candidate = base / "scenarios"
+                version = 1
+                while candidate.exists() and any(candidate.iterdir()):
+                    version += 1
+                    candidate = base / f"scenarios_{version}"
+                try:
+                    candidate.mkdir(parents=True, exist_ok=True)
+                except OSError:
+                    return  # unwritable data folder: leave the field for the user
+                self.file_output.setFilePath(str(candidate))
 
     def show(self) -> None:
         """Primes layers logic when opening dialog."""

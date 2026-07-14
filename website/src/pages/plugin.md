@@ -41,8 +41,9 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
 4. Open **Isobenefit Urbanism**. The dialog pre-fills its layer pickers from the OSM download,
    suggests a local projected CRS, and validates as you type; the status line under the form
    lists what is still missing.
-5. Choose an **output folder** and give the run a **name**. All of the run's files take that
-   name.
+5. Confirm the **output folder** and the run **name**. With an OSM download present, the folder
+   is pre-filled as a `scenarios` folder beside the downloaded data (numbered upward when
+   earlier runs exist); all of the run's files take the name.
 6. Set the **target population**: the number of new residents to house. Existing buildings are
    context only and are never counted.
 7. Check the **Development density** group: three densities (people per km²) and the share of
