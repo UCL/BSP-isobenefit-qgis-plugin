@@ -312,6 +312,45 @@ def test_station_anchor_counts_as_provision_for_new_growth():
     assert out == []
 
 
+def test_select_plan_two_phase_with_router():
+    # with a router and more states than router_top_k, every state is ranked by the grid
+    # walk first and only the leaders are re-scored through the router; the progress
+    # callback sees both phases and the selection still returns a valid plan
+    from isobenefit_qgis.grid import _walk_distance, select_plan
+
+    g = 40
+    states = []
+    for k in range(4):
+        st = np.zeros((g, g), np.int16)
+        st[10:20, 10 : 22 + k] = 1
+        st[15, 15] = 2
+        states.append(st)
+    calls = {"router": 0}
+    seen = []
+
+    def router(mask):
+        calls["router"] += 1
+        return _walk_distance(mask, 100.0, 2000.0)
+
+    plan, metrics, pre, best = select_plan(
+        states, 100.0, 400.0, 800.0, router=router, router_top_k=2,
+        progress=lambda done, total: seen.append((done, total)) or True,
+    )
+    assert plan is not None and metrics is not None
+    assert calls["router"] > 0
+    assert seen[-1] == (6, 6)  # 4 grid-ranked + 2 router-scored
+
+
+def test_select_plan_progress_abort():
+    from isobenefit_qgis.grid import select_plan
+
+    st = np.zeros((30, 30), np.int16)
+    st[10:20, 10:20] = 1
+    st[15, 15] = 2
+    out = select_plan([st, st], 100.0, 400.0, 800.0, progress=lambda d, t: False)
+    assert out == (None, None, None, None)
+
+
 def test_interior_point():
     from isobenefit_qgis.grid import _interior_point
 

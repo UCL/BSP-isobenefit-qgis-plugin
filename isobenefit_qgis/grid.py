@@ -1032,6 +1032,8 @@ def select_plan(
     new_density_km2=MEAN_NEW_DENSITY_KM2,
     centre_min_settlement=3,
     prune_islands=True,
+    router_top_k=5,
+    progress=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run and keep
     the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
@@ -1041,14 +1043,24 @@ def select_plan(
     Returns ``(best_plan, best_metrics, pre_plan, best_state)`` — ``(None, None, None, None)`` if empty.
     ``pre_plan`` is the chosen run BEFORE post-processing (its raw CA development, grown centres and
     qualifying green), so the pre/post pair can be compared.
+
+    With a ``router`` (network distances) the selection runs in TWO PHASES: every run is
+    post-processed and ranked with the fast grid walk, then the best ``router_top_k`` are
+    re-post-processed and scored along the street network to pick the winner. Network
+    queries are single-threaded Python; spending them on every member of a large ensemble
+    over a big window runs for tens of minutes with no benefit to the choice.
+
+    ``progress`` is an optional callable ``(done, total) -> bool`` invoked after each
+    post-processed candidate across both phases; return False to abort (the function then
+    returns four Nones).
     """
     states = list(states)
     if not states:
         return None, None, None, None
     if max_eval and len(states) > max_eval:  # optional cap for very large ensembles
         states = states[:: len(states) // max_eval][:max_eval]
-    best_plan, best, best_state = None, None, None
-    for st in states:
+
+    def optimise_and_score(st, use_router):
         st = np.asarray(st)
         ca_centres = [(int(y), int(x)) for y, x in np.argwhere(st == 2)]  # the CA's grown centres
         opt = optimise_plan(
@@ -1057,23 +1069,43 @@ def select_plan(
             existing_centres=existing_centres,
             existing_built=existing_built, ca_centres=ca_centres,
             optimise_centres=optimise_centres, centre_anchors=centre_anchors,
-            router=router,
+            router=router if use_router else None,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             centre_spacing_m=centre_spacing_m, centre_m2_per_person=centre_m2_per_person,
             new_density_km2=new_density_km2,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
         )
         m = evaluate_plan(
-            opt,
-            granularity_m,
-            max_distance_m,
-            min_green_span_m=min_green_span_m,
-            transit_stops=transit_stops,
-            router=router,
-            centre_distance_m=centre_distance_m,
-            green_distance_m=green_distance_m,
+            opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
+            transit_stops=transit_stops, router=router if use_router else None,
+            centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2,
         )
+        return opt, m
+
+    two_phase = router is not None and len(states) > max(1, int(router_top_k))
+    total = len(states) + (min(len(states), int(router_top_k)) if two_phase else 0)
+    done = 0
+    if two_phase:
+        # phase 1: rank every candidate by the grid walk; phase 2 below re-runs the
+        # leaders with network distances and the winner is chosen among those
+        ranked = []
+        for st in states:
+            opt, m = optimise_and_score(st, use_router=False)
+            ranked.append((m.get("access_cost", math.inf), st))
+            done += 1
+            if progress is not None and not progress(done, total):
+                return None, None, None, None
+        ranked.sort(key=lambda pair: pair[0])
+        states = [st for _, st in ranked[: int(router_top_k)]]
+
+    best_plan, best, best_state = None, None, None
+    for st in states:
+        st = np.asarray(st)
+        opt, m = optimise_and_score(st, use_router=True)
+        done += 1
+        if progress is not None and not progress(done, total):
+            return None, None, None, None
         # a degenerate run can yield zero built cells (metrics has no access_cost); never select it
         if best is None or m.get("access_cost", math.inf) < best.get("access_cost", math.inf):
             best_plan, best, best_state = opt, m, st

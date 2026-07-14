@@ -44,7 +44,9 @@ would produce, so the plan is never read off the averaged surfaces.
    and of a qualifying park, counts as served. Centre and green walks are
    scored separately against their own distances. When a street layer is
    supplied, walking distances are measured along the network rather than
-   across open ground.
+   across open ground; because network queries are far slower than grid
+   walks, every candidate is first ranked by the grid walk and only the
+   leading few are re-processed and scored along the network.
 4. **Arrange density.** Each new home was built at one of three density
    tiers, drawn at the configured shares during the run. Post-processing
    re-arranges the drawn values spatially so the highest tiers sit nearest

@@ -237,6 +237,15 @@ class IsobenefitTask(QgsTask):
         lines.append("")
         return "\n".join(lines)
 
+    def _selection_progress(self, done: int, total: int) -> bool:
+        """Progress + cancellation for the post-processing selection: the stage occupies the
+        90–99% band of the task bar, logs every few candidates (network routing makes each
+        one slow on big windows), and returning False aborts ``select_plan`` mid-stage."""
+        self.setProgress(90.0 + 9.0 * done / max(1, total))
+        if done % 5 == 0 or done == total:
+            self._log(f"post-processing candidates: {done}/{total}")
+        return not self.isCanceled()
+
     def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds) -> str:
         """Step ONE representative run to the population target and log how many iterations it took,
         so the user sees that typically only ~N steps run before the target of M is met (well under
@@ -470,7 +479,10 @@ class IsobenefitTask(QgsTask):
                     new_density_km2=self._mean_new_density_km2(),
                     centre_distance_m=self.centre_distance_m,
                     green_distance_m=self.green_distance_m,
+                    progress=self._selection_progress,
                 )
+                if self.isCanceled():
+                    return False
                 self._plan_outputs = []  # (path, label) for finished() to load, in display order
                 report_stats = []  # (label, metrics, n_centres) for the run report
                 # existing fabric (before any simulation) so the existing -> raw -> options chain is visible

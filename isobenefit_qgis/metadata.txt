@@ -3,7 +3,7 @@ name=Isobenefit Urbanism
 qgisMinimumVersion=4.0
 qgisMaximumVersion=4.99
 description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
-version=0.12.12
+version=0.12.13
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -22,6 +22,7 @@ deprecated=False
 server=False
 
 changelog=
+    0.12.13 The post-processing selection reports progress, honours Cancel, and runs in two phases when a street network is supplied (every run ranked by the grid walk, the leaders re-scored along the network), so large windows finish in minutes rather than sitting silent at 90%.
     0.12.12 Defaults grounded in practice: 800 m centre walk (a ten-minute walk) and 400 m green walk (the WHO/Natural England everyday-green reach); the minimum settlement is now a population (default 1,000 people) rather than an area; new development must earn its own mixed-use centres (a nearby existing centre no longer stands in, so growth cannot sprawl centre-free along existing fabric); scenario downloads fixed on the website; one consolidated Dnipro scenario; distances, barriers and station handling documented in the guide.
     0.12.11 Growth no longer stands off carved road, rail and river corridors: a green strip bounded by unbuildable land is exempt from the minimum-span rule, so development can build up to a barrier while green corridors between developments stay protected. Seeding diagrams and probability mechanics documented on the website; growth troubleshooting added to the guide.
     0.12.10 First public beta, for QGIS 4. Earlier development history is recorded in the repository.
