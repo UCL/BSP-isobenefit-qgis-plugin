@@ -242,8 +242,7 @@ class IsobenefitTask(QgsTask):
         90–99% band of the task bar, logs every few candidates (network routing makes each
         one slow on big windows), and returning False aborts ``select_plan`` mid-stage."""
         self.setProgress(90.0 + 9.0 * done / max(1, total))
-        if done % 5 == 0 or done == total:
-            self._log(f"post-processing candidates: {done}/{total}")
+        self._log(f"post-processing candidates: {done}/{total}")
         return not self.isCanceled()
 
     def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds) -> str:
