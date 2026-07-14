@@ -11,6 +11,10 @@ centre (shops, services) and of green space.
 (QGIS: *Plugins → Manage and Install Plugins → Install from ZIP*). A listing in the
 official QGIS plugin repository as an experimental plugin is in progress.
 
+This is research software. Its scenarios are exploratory sketches for discussion, not
+designs: anything taken further should be reviewed and developed with planning,
+transport and ecology professionals for the place in question.
+
 ## Repository layout
 
 This repository contains two deliverables:
@@ -39,11 +43,11 @@ binaries: the compiled engine is installed from PyPI rather than bundled.
    environment for you. This needs an internet connection; **restart QGIS** once
    it finishes.
 
-If the automatic install is blocked (e.g. a locked-down environment), the dialog
+If the automatic install is not available or not working on your system, the dialog
 shows the exact command to run yourself, which is simply:
 
 ```bash
-<qgis-python> -m pip install "isobenefit>=0.12.6,<0.13"
+<qgis-python> -m pip install "isobenefit>=0.12.11,<0.13"
 ```
 
 ## Usage

@@ -148,6 +148,10 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="diagram" src={dg('step_2')} alt="Step 2: centre walk" /><figcaption>The candidate must be within the <em>centre walk</em> of an existing centre, which keeps new homes near shops and services.</figcaption></figure>
     </div>
     <div class="ca-step">
+      <h4>Step 2b: build chance</h4>
+      <figure><img class="diagram" src={dg('step_2b')} alt="Step 2b: build chance" /><figcaption>Growth is stochastic. Each eligible candidate is drawn against the <em>build probability</em> (default 0.25); a failed draw simply waits for a later iteration. This draw is what makes runs differ under different random seeds, and the setting tunes the growth rate.</figcaption></figure>
+    </div>
+    <div class="ca-step">
       <h4>Step 3: green span</h4>
       <figure><img class="diagram" src={dg('step_3')} alt="Step 3: green span" /><figcaption>The same candidate sits on a green corridor. Building it narrows the corridor from 500 m to 400 m, which still meets the <em>minimum green span</em>, so the check passes.</figcaption></figure>
     </div>
@@ -162,13 +166,18 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <h3>Where new centres come from</h3>
     <p>
-      As built land outgrows a walk of every existing centre, the simulation seeds a new
-      <em>neighbouring</em> centre, which lets a single town keep growing outward. A separate setting,
-      <strong>Dispersed development</strong> (Off, Moderate or Aggressive), sets how readily development
-      <em>leapfrogs</em> away from the core to form satellite settlements.
+      As built land grows to the edge of the centre walk, frontier cells just beyond it can no longer
+      build. Each such cell has a small fixed chance (1% per iteration, at most one new centre per
+      iteration) to seed a new <em>neighbouring</em> centre, which lets a single town keep growing
+      outward. A separate setting, <strong>Dispersed development</strong> (Off, Moderate or Aggressive),
+      sets the chance that a far-off green cell instead seeds an <em>isolated</em> centre, so development
+      <em>leapfrogs</em> away from the core to form satellite settlements. Both are probability draws, like
+      the build chance: the dice are governed by the <strong>Build probability</strong> and
+      <strong>Dispersed development</strong> settings, and the <strong>Random seed</strong> makes any run
+      repeatable.
     </p>
-    <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre is seeded where built land has outgrown a walk of every existing centre.</figcaption></figure>
-    <figure><img class="diagram" src={dg('centres_isolated')} alt="" /><figcaption>An <em>isolated</em> centre lets a satellite settlement leapfrog away from the core.</figcaption></figure>
+    <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre may seed where the frontier sits just past the centre walk: at 700 m here, since growth can only reach the walk's edge, never far beyond it.</figcaption></figure>
+    <figure><img class="diagram" src={dg('centres_isolated')} alt="" /><figcaption>The same town: an <em>isolated</em> centre lets a satellite settlement leapfrog away from the core, at the rate set by Dispersed development.</figcaption></figure>
     <h3>The rules at work on the real town</h3>
     <p>
       Below, those rules run on the Cambourne grid from step 2; the three figures show the same run at three
@@ -186,7 +195,10 @@ const dg = (name: string) => `${base}images/${name}.svg`
       density</strong> is set as three tiers (low, medium and high, each a density in people per km²), each
       with a share, and the three shares sum to 1. Every new cell is built at one of the three densities,
       drawn at those shares, so the shares set the mix. Growth counts new development only, and stops
-      once the new population reaches the target; the existing fabric is context and is not counted. The
+      once the new population reaches the target; the existing fabric is context and is not counted.
+      Counting it would demand inputs that rarely exist in practice: a reliable population for every
+      existing block, and the capacity of every existing centre. Treating existing fabric as
+      already-served context needs neither. The
       finished scenario then arranges the drawn densities and colours the result by tier, described in step 5.
     </p>
   </section>
@@ -219,7 +231,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       simulation.
     </p>
     <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, stranded settlements below the minimum size revert to green.</figcaption></figure>
-    <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>A grown centre often lands on the edge or in a corner of its development, where it serves fewer homes. Each is moved to a <em>central</em> spot in the same built area.</figcaption></figure>
+    <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>A grown centre often lands on the edge or in a corner of its development, so it serves its population less well than a central location would. Each is moved to a <em>central</em> spot in the same built area.</figcaption></figure>
     <p>
       The centres are mixed-use throughout: a centre cell keeps its homes and gains shops and services, and
       each centre is sized by the population it serves at a rule-of-thumb provision (m² of centre land per
@@ -229,6 +241,13 @@ const dg = (name: string) => `${base}images/${name}.svg`
       change; only their placement is set here. Arranging it after post-processing, rather than during
       growth, means the placement is measured against the centres the scenario actually shows, not against
       whichever centres happened to exist mid-run.
+    </p>
+    <p>
+      This centre-and-density arrangement is also what makes <strong>public transport</strong> workable.
+      A well-placed mixed-use centre, with the densest housing gathered around it, concentrates residents,
+      shops and services in one walkable catchment; a bus or tram stop at the centre then serves the most
+      people and the most destinations per stop. Scattered centres and flat densities spread that demand
+      too thin for a service to run frequently.
     </p>
     <p>
       Finally, centres are offered at two <strong>clustering</strong> strengths. The run and the buildings
@@ -292,7 +311,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </div>
 
     <h3>Build probability</h3>
-    <p>This is the per-step growth rate. Over the same number of steps, faster growth reaches much further.</p>
+    <p>This is the per-step growth rate: each eligible cell builds with this probability per iteration, so a higher value grows more, and spreads farther, in the same number of iterations.</p>
     <div class="demo-row">
       <figure><img class="demo" src={dg('demo_buildprob_slow')} alt="" /><figcaption><strong>Slow (0.08).</strong> Growth stays compact.</figcaption></figure>
       <figure><img class="demo" src={dg('demo_buildprob_fast')} alt="" /><figcaption><strong>Fast (0.6).</strong> Far more is grown in the same time.</figcaption></figure>
@@ -304,9 +323,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       The growth rules themselves (periphery-only development, a walk to the nearest centrality, protected
       green spans, stochastic seeding of new centralities) follow D'Acci's morphogenesis and Voto's original
-      simulator. Around that core, this implementation departs in several ways, listed here to keep the boundary
-      with the theory clear. The <a href={`${base}theory/`}>theory page</a> sets the published model and this
-      implementation side by side, rule by rule.
+      simulator. Around that core, this implementation departs in several ways. The
+      <a href={`${base}theory/`}>theory page</a> gives the detailed comparison with the published model.
     </p>
     <ul>
       <li>
@@ -325,7 +343,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <strong>Density tiers arranged toward centres.</strong> The original draws each block's density
         randomly from three fixed tiers, scattered across the map. The plugin keeps the three tiers and
         their shares, but arranges the drawn densities in post-processing so the highest sit nearest the
-        mixed-use centres, then medium, then low. The mix is unchanged, so the population is the same; only
+        mixed-use centres, then medium, then low. Gathering the densest housing around the centres is what
+        lets public transport work: a stop at the centre serves the most people and destinations per stop.
+        The mix is unchanged, so the population is the same; only
         the placement is organised. Growth counts new development only.
       </li>
       <li>
@@ -338,9 +358,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li>
         <strong>Green connectivity is enforced locally rather than globally.</strong> The published model keeps all
         nature as one connected region. Real landscapes arrive already fragmented by rivers, roads and
-        towns, so that rule cannot hold on real data. The plugin instead refuses to pinch any green corridor
-        below the minimum green span and, where a build would split green, requires each resulting fragment
-        to keep at least a minimum contiguous area.
+        towns, so that rule cannot hold on real data. The plugin instead refuses to pinch a green corridor
+        between developments below the minimum green span and, where a build would split green, requires
+        each resulting fragment to keep at least a minimum contiguous area. A green strip bounded by water
+        or a carved road corridor is exempt from the span rule: it is not a corridor between developments,
+        and land beside a barrier may be built right up to it.
       </li>
       <li>
         <strong>Guards on centre seeding.</strong> At most one new centre seeds per iteration; seeding stops
@@ -374,6 +396,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
       from the Copernicus GLO-30 digital elevation model: produced using Copernicus WorldDEM-30 © DLR e.V.
       2010–2014 and © Airbus Defence and Space GmbH, provided under COPERNICUS by the European Union and
       ESA; all rights reserved.
+    </p>
+    <p>
+      This is research software. Its scenarios are exploratory sketches for discussion, not designs:
+      anything taken further should be reviewed and developed with planning, transport and ecology
+      professionals for the place in question.
     </p>
     <p>
       The plugin and its simulation engine are free software under the

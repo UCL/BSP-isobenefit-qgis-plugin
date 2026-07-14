@@ -124,7 +124,10 @@ class IsobenefitDialog(QtWidgets.QDialog):
         # --- Walkable access ----------------------------------------------------------
         acc = _group("Walkable access")
         self.centre_walk_dist = QtWidgets.QLineEdit("400", self)
-        self.centre_walk_dist.setToolTip("How far people walk to a centre (the CA grows by the larger walk).")
+        self.centre_walk_dist.setToolTip(
+            "How far people walk to a centre. Growth uses the larger of the two walks; "
+            "the finished plan is scored against each separately."
+        )
         acc.addRow("Centre walk (m)", self.centre_walk_dist)
         self.green_walk_dist = QtWidgets.QLineEdit("400", self)
         self.green_walk_dist.setToolTip("How far people will walk to a park.")

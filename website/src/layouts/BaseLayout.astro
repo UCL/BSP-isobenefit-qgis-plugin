@@ -33,7 +33,7 @@ const description =
     />
   </head>
   <body class="h-full w-full">
-    <div class="app-container">
+    <div class="app-container" id="top">
       <div class="app-content">
         <nav class="site-nav">
           <a href={base}>Introduction</a>
@@ -42,6 +42,13 @@ const description =
           <a href={`${base}theory/`}>Theory</a>
         </nav>
         <slot />
+        <nav class="site-nav site-nav-footer">
+          <a href={base}>Introduction</a>
+          <a href={`${base}plugin/`}>Plugin guide</a>
+          <a href={`${base}scenarios/`}>Scenarios</a>
+          <a href={`${base}theory/`}>Theory</a>
+          <a href="#top" class="to-top">Back to top ↑</a>
+        </nav>
       </div>
     </div>
   </body>
@@ -59,5 +66,12 @@ const description =
   }
   .site-nav a {
     @apply no-underline;
+  }
+  .site-nav-footer {
+    @apply mt-12 border-b-0 border-t-2 pb-0 pt-3;
+    border-top-color: #d33130;
+  }
+  .site-nav-footer .to-top {
+    @apply ml-auto;
   }
 </style>

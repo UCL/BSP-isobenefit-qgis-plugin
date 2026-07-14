@@ -83,40 +83,45 @@ pub fn count_cont_nbs(state: &Array2<i16>, y: usize, x: usize, targets: &[i16]) 
 
 /// Length of the run of green (`== 0`) cells from `start` along a 1-D line, in
 /// the positive or negative direction, stopping at the first non-green cell
-/// (built `> 0` or unbuildable `< 0`) or the array edge. Unbuildable land is not
-/// usable green, so water or a carved corridor terminates a span rather than
-/// extending it.
-pub fn green_span(line: ArrayView1<i16>, start: usize, positive: bool) -> i64 {
+/// (built `> 0` or unbuildable `< 0`) or the array edge. Returns the run length
+/// and the terminating cell value (`None` at the array edge). Unbuildable land
+/// is not usable green, so water or a carved corridor terminates a span rather
+/// than extending it.
+pub fn green_span(line: ArrayView1<i16>, start: usize, positive: bool) -> (i64, Option<i16>) {
     let n = line.len();
     let mut span: i64 = 0;
     if positive {
         let mut i = start + 1;
         while i < n {
             if line[i] != 0 {
-                break;
+                return (span, Some(line[i]));
             }
             span += 1;
             i += 1;
         }
     } else {
         if start == 0 {
-            return 0;
+            return (0, None);
         }
         let mut i = start as i64 - 1;
         while i >= 0 {
             if line[i as usize] != 0 {
-                break;
+                return (span, Some(line[i as usize]));
             }
             span += 1;
             i -= 1;
         }
     }
-    span
+    (span, None)
 }
 
 /// True if filling `(y, x)` would not crimp any orthogonal green corridor below
-/// the minimum span. A span of 0 (immediately bounded) is allowed; any nonzero
-/// span shorter than `min_green_span_m / granularity_m` blocks the fill.
+/// the minimum span. A span of 0 (immediately bounded) is allowed; a nonzero
+/// span shorter than `min_green_span_m / granularity_m` blocks the fill when it
+/// terminates at built land or the grid edge. A span bounded by unbuildable land
+/// is exempt: the minimum-width rule protects green corridors *between*
+/// developments, and land beside a river or carved road corridor may be built
+/// right up to it (growth would otherwise never be able to approach a barrier).
 pub fn green_spans(
     state: &Array2<i16>,
     y: usize,
@@ -133,7 +138,10 @@ pub fn green_spans(
         green_span(col, y, true),
     ];
     let span_blocks = min_green_span_m / granularity_m;
-    for s in spans {
+    for (s, terminator) in spans {
+        if matches!(terminator, Some(v) if v < 0) {
+            continue;
+        }
         if (s as f64) < span_blocks && s != 0 {
             return false;
         }
@@ -205,17 +213,27 @@ mod tests {
     fn green_span_counts_until_built() {
         let line = array![0i16, 0, 0, 1, 0];
         // from index 0 going positive: indices 1,2 are green, index 3 is built -> 2
-        assert_eq!(green_span(line.view(), 0, true), 2);
+        assert_eq!(green_span(line.view(), 0, true), (2, Some(1)));
         // from index 4 going negative: index 3 is built immediately -> 0
-        assert_eq!(green_span(line.view(), 4, false), 0);
+        assert_eq!(green_span(line.view(), 4, false), (0, Some(1)));
     }
 
     #[test]
     fn green_span_stops_at_unbuildable() {
         // water/carved corridors terminate a green span; they do not extend it
         let line = array![0i16, 0, -1, 0, 0];
-        assert_eq!(green_span(line.view(), 0, true), 1);
-        assert_eq!(green_span(line.view(), 4, false), 1);
+        assert_eq!(green_span(line.view(), 0, true), (1, Some(-1)));
+        assert_eq!(green_span(line.view(), 4, false), (1, Some(-1)));
+    }
+
+    #[test]
+    fn unbuildable_bounded_spans_do_not_block() {
+        // a short green strip against a river/carved corridor may be built on;
+        // the same strip against built land is a protected corridor and blocks
+        let riverside = array![[1i16, 0, 0, 0, -1]];
+        assert!(green_spans(&riverside, 0, 1, 100.0, 300.0));
+        let between_built = array![[1i16, 0, 0, 0, 1]];
+        assert!(!green_spans(&between_built, 0, 1, 100.0, 300.0));
     }
 
     #[test]

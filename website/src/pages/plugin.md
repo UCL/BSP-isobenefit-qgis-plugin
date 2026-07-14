@@ -21,11 +21,11 @@ and troubleshooting. The [introduction](../) explains the model itself, the
    missing, offers to install it into the QGIS Python environment (this requires an internet connection).
    **Restart QGIS** once it finishes.
 
-If the automatic install is blocked (a locked-down environment), run the shown command yourself
-with the QGIS Python:
+If the automatic install is not available or not working on your system, run the shown command
+yourself with the QGIS Python:
 
 ```
-<qgis-python> -m pip install "isobenefit>=0.12.6,<0.13"
+<qgis-python> -m pip install "isobenefit>=0.12.11,<0.13"
 ```
 
 ## Quick start: your first run
@@ -54,6 +54,13 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
 9. The run's full settings are saved next to the output as `<name>_params.json`. To repeat or
    adjust the run later, use *Load parameters* at the top of the dialog.
 
+If the first result shows less growth than expected, some constraint is usually binding harder
+than intended for the place. The usual suspects, in order: the target population against the
+iterations available (the run report states both); the centre walk, which bounds growth around
+each centre until a new one seeds; a minimum green span wider than the gaps growth would need
+to fill; and unbuildable land fragmenting the window. The
+[troubleshooting section](#troubleshooting) walks through each.
+
 To start from a prepared case instead, use a scenario download, described in the next section.
 
 <h2 id="use-a-scenario">Using a downloaded scenario</h2>
@@ -76,7 +83,7 @@ parameters for a run.
   GLO-30 elevation model. The bands at or above the scenario's maximum slope belong in the
   unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
 - **Parameters**: in **Isobenefit Urbanism**, *Load parameters* with the scenario's
-  `params.json` fills in the dialog. Dnipro provides one preset per pilot area.
+  `params.json` fills in the dialog.
 - **Running**: select the layers in the *Input layers* group, confirm the suggested CRS,
   choose an output folder and run name, and press **Run**.
 - **Reproducing a published panel**: the explorer's per-run parameter files carry the exact
@@ -118,8 +125,10 @@ output.
 | Random seed | 42 | The same seed reproduces the same run and the same ensemble, independent of core count |
 
 **Walkable access.** Centre walk (400 m) and Green walk (400 m): how far people walk to a
-mixed-use centre and to a park. The simulation grows by the larger of the two; the finished plan
-is scored against each separately.
+mixed-use centre and to a park. During growth the engine uses one walk radius for its checks,
+set to the larger of these two values, so growth is never cut off by the stricter one mid-run.
+The finished plan is then scored against each walk separately, and any shortfall shows in the
+coverage figures and steers the centre re-positioning.
 
 **Post-processing.**
 
@@ -182,6 +191,16 @@ percentages include every home, existing and new.
   directions; enlarge the extents polygon or shorten the walks.
 - **OSM fetch fails**: the Overpass servers are shared and sometimes busy; retry after a minute,
   or draw a smaller area.
+- **Growth stalls or falls short of the target**: the run report states the population reached and
+  the iterations used. If the iterations ran out, raise *Max iterations* or the *Build probability*.
+  If growth stopped early with iterations to spare, the frontier has usually run out of room within
+  the rules: the *Centre walk* bounds growth around each centre and new centres seed by a small
+  per-iteration chance, so give reluctant runs more iterations rather than more probability first.
+  Remember the target counts **new residents only**; existing fabric contributes nothing, however
+  large. A *Minimum green span* wider than the gaps between built areas also freezes infill: gaps
+  narrower than the span never fill, by design. Engines before 0.12.11 also refused to grow
+  toward rivers and carved road corridors; if growth halts a fixed distance from every barrier,
+  update the engine when prompted.
 - **Finding the logs**: *View → Panels → Log Messages*, under the **Isobenefit** tab, records
   grid size, per-stage progress, per-option metrics and any warnings.
 - **Recovering a run's settings**: they are saved next to the output raster as

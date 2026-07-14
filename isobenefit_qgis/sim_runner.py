@@ -269,7 +269,12 @@ class IsobenefitTask(QgsTask):
                 f"{sample.pop_target_ratio:.0%} of the target population "
                 f"({int(sample.population):,} of {int(self.max_populat):,})."
             )
-            self._log(summary + " Raise max iterations or build probability.", Qgis.MessageLevel.Warning)
+            self._log(
+                summary + " Raise max iterations or the build probability. Note the target counts"
+                " new residents only, and gaps narrower than the min green span never fill;"
+                " the plugin guide's troubleshooting section lists the common causes.",
+                Qgis.MessageLevel.Warning,
+            )
         return summary
 
     def run(self) -> bool:

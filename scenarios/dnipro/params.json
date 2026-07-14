@@ -1,7 +1,7 @@
 {
   "schema": "isobenefit-params/1",
-  "name": "dnipro_A",
-  "notes": "Area A, central right-bank regeneration. DBN Б.2.2-12 net densities (120/250/400 persons/ha at household 2.55); medium-led mix for compact reconstruction; also run centre_walk_m=800 for comparison. Use extents_A.geojson.",
+  "name": "dnipro",
+  "notes": "Dnipro, Ukraine: one window covering the two growth areas, the central right bank (regeneration and infill) and the left-bank edge bounded by the Samara floodplain. Boundaries are drafts to adjust in QGIS; a single run grows both areas together.",
   "random_seed": 42,
   "optimise_centres": true,
   "centre_m2_per_person": 20,
@@ -22,10 +22,10 @@
     "low": 12000
   },
   "fetch_buffer_m": 0,
-  "target_population": 153250,
+  "target_population": 252450,
   "shares": {
-    "high": 0.2,
-    "medium": 0.6,
-    "low": 0.2
+    "high": 0.15,
+    "medium": 0.5,
+    "low": 0.35
   }
 }

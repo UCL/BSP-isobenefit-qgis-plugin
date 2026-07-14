@@ -317,8 +317,7 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
 
 TITLES = {
     "cambourne": ("Cambourne, UK", "New-settlement growth: the reference demo"),
-    "dnipro_A": ("Dnipro, Ukraine: Area A", "Central right-bank regeneration (DBN norms)"),
-    "dnipro_B": ("Dnipro, Ukraine: Area B", "Left-bank edge growth (DBN norms)"),
+    "dnipro": ("Dnipro, Ukraine", "Regeneration and edge growth on both banks"),
     "london_crews_hill": ("Crews Hill, London", "Green-belt release at the metropolitan edge"),
     "celina_tx": ("Celina, Texas", "US suburbia at the metropolitan fringe"),
     "kigali_east": ("Kigali, Rwanda", "Plan-guided rapid urbanisation"),
@@ -339,10 +338,10 @@ def main():
             name = os.path.basename(folder) + ("" if key == "main" else f"_{key}")
             title, subtitle = TITLES.get(name, (name, ""))
             pp = params
-            if key == "B":  # dnipro's B preset file
-                bpath = os.path.join(folder, "params_B.json")
-                if os.path.exists(bpath):
-                    with open(bpath, encoding="utf-8") as fh:
+            if key != "main":  # a per-extent preset file, when a scenario ships one
+                ppath = os.path.join(folder, f"params_{key}.json")
+                if os.path.exists(ppath):
+                    with open(ppath, encoding="utf-8") as fh:
                         pp = json.load(fh)
             entries.append(entry_for(folder, key, extent, pp, layers, title, subtitle))
     # one downloadable ZIP per scenario folder (layers + params presets), served by the site

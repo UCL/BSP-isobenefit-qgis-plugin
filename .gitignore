@@ -137,3 +137,6 @@ dmypy.json
 # Generated visual A/B audit images (regenerate with scripts/visual_audit.py)
 visual_audit/
 _overpass_cache.xml
+
+# scenario data ZIPs are published site content, not build artefacts
+!website/public/scenarios/*.zip

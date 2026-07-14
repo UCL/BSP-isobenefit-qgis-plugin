@@ -240,8 +240,9 @@ def d_plan_centring():
         "Centre placement",
         [
             "A grown centre often lands on",
-            "the edge or in a corner, where",
-            "it serves fewer homes.",
+            "the edge or in a corner, serving",
+            "its population less well than a",
+            "central location would.",
             "",
             ("Post-processing moves it to a", BUILT, 700),
             ("central spot in the same", BUILT, 700),
@@ -333,6 +334,18 @@ def d_step1c():  # THE worked candidate: empty and on the periphery -> continues
     )
 
 
+def d_step2b():  # SAME candidate: the stochastic build draw, between the centre walk and the green checks
+    build_step(
+        "step_2b", "Step 2b: build chance",
+        [("The same candidate.", RED, 700), "",
+         "Eligible cells do not all build", "at once: each is drawn against",
+         "the build probability first.", "",
+         ("Drawn (p = 0.25) → last check.", BUILT, 700),
+         "Not drawn → wait for a", "later iteration."],
+        candidate=WORKED_CANDIDATE, town=worked_town(), centres=WORKED_CENTRES,
+    )
+
+
 def d_step3():  # SAME candidate: its green corridor stays >= the minimum span, so it passes
     cy = (gy(4) + gy(5)) / 2  # sit the dimension line in the GAP between two dot rows, not over the dots
     x1, x2 = gx(7) - 25, gx(11) + 25  # the green corridor spans cols 7..11 = 5 cells = 500 m
@@ -363,14 +376,16 @@ def d_step4():  # SAME candidate builds
     )
 
 
-def d_centres_neighbouring():
-    # built land has grown a long eastern lobe whose frontier is beyond a walk of the single centre,
-    # so a new neighbouring centre seeds there. Custom town so the distance genuinely exceeds 600 m.
+def seeding_town():
+    # ONE town serves both seeding diagrams: a west blob holding the centre, and an eastern lobe
+    # grown to the edge of the centre walk. Its green frontier cell sits at 700 m, just past the
+    # 600 m walk — growth can only ever overshoot the walk by a cell, so a frontier far beyond
+    # it (say 900 m) could never arise.
     g = [["." for _ in range(COLS + 2)] for _ in range(ROWS + 2)]
     for c in range(2, 8):  # the west blob, holding the centre
         for r in range(4, 10):
             g[r][c] = "#"
-    for c in range(8, 15):  # the eastern lobe, grown out beyond the walk
+    for c in range(8, 12):  # the eastern lobe, grown out to the walk's edge
         for r in range(6, 9):
             g[r][c] = "#"
     for r in range(1, ROWS + 1):
@@ -379,21 +394,27 @@ def d_centres_neighbouring():
                 g[r + dr][c + dc] == "#" for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr, dc) != (0, 0)
             ):
                 g[r][c] = "g"
+    return g
+
+
+def d_centres_neighbouring():
     build_step(
         "centres_neighbouring", "Seeding: neighbouring",
-        [("The eastern lobe has grown", RED, 700), ("beyond a walk of the centre.", RED, 700), "",
-         "Its frontier is 900 m from the", "centre, over the 600 m walk.", "",
-         ("A neighbouring centre seeds here.", BUILT, 700)],
-        candidate=(14, 7), distline=(14, 7, 5, 7, "900 m"), town=g, centres=((5, 7),),
+        [("The eastern lobe has grown to", RED, 700), ("the edge of the centre walk.", RED, 700), "",
+         "Its green frontier is 700 m out,", "just past the 600 m walk, so it", "cannot build.", "",
+         ("Such a cell may seed a centre:", BUILT, 700), ("a 1% draw each iteration.", BUILT, 700)],
+        candidate=(12, 7), distline=(12, 7, 5, 7, "700 m"), town=seeding_town(), centres=((5, 7),),
     )
 
 
 def d_centres_isolated():
+    # the SAME town as the neighbouring diagram; only the seeding location differs
     build_step(
         "centres_isolated", "Seeding: isolated",
-        ["Dispersed development", "(Moderate / Aggressive) lets a", "new settlement leapfrog away", "from the built area,",
+        ["The same town.", "", "Dispersed development", "(Moderate / Aggressive) gives", "every far green cell a small",
+         "per-iteration chance to seed",
          ("a satellite, with its centre.", BUILT, 700)],
-        candidate=(15, 3),
+        candidate=(15, 3), town=seeding_town(), centres=((5, 7),),
     )
 
 
@@ -557,7 +578,7 @@ def input_layers():
 def main():
     os.makedirs(OUT, exist_ok=True)
     input_layers()
-    for fn in (d_step0, d_step1a, d_step1b, d_step1c, d_step2, d_step3, d_step4,
+    for fn in (d_step0, d_step1a, d_step1b, d_step1c, d_step2, d_step2b, d_step3, d_step4,
                d_centres_neighbouring, d_centres_isolated,
                d_plan_select, d_plan_cleanup, d_plan_centring):
         fn()

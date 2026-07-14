@@ -28,7 +28,7 @@ Every scenario downloads as a single ZIP (extents, all input layers including th
 | # | Scenario | Theme | Status | Download |
 |---|---|---|---|---|
 | 1 | [Cambourne, UK](#cambourne) | New-settlement growth (the reference demo) | Worked | [ZIP](cambourne.zip) |
-| 2 | [Dnipro, Ukraine](#dnipro) | Post-war regeneration and edge growth, DBN norms | Worked | [ZIP](dnipro.zip) (areas A + B) |
+| 2 | [Dnipro, Ukraine](#dnipro) | Regeneration and edge growth | Worked | [ZIP](dnipro.zip) |
 | 3 | [Crews Hill, London](#crews-hill) | Green-belt release at the metropolitan edge | Draft | [ZIP](london_crews_hill.zip) |
 | 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | Draft | [ZIP](celina_tx.zip) |
 | 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | Draft | [ZIP](kigali_east.zip) |
@@ -44,84 +44,28 @@ with `cambourne.qgz`): a 30,000-person target across the demo extents, 50 m cell
 400 m walks, and tiers of 6,000 / 3,000 / 1,500 people/km² at shares 0.2 / 0.3 / 0.5. The
 overview page's own demonstrators use a smaller 4.2 km window with a 12,000-person target.
 
-<h2 id="dnipro">2. Dnipro, Ukraine: regeneration and edge growth under DBN norms</h2>
+As the reference demo, Cambourne also illustrates the input layers every scenario shares:
 
-Two pilot districts run as separate simulations
+| Layer | Plugin role | Geometry |
+|---|---|---|
+| `extents` | The simulation boundary; one or more polygons | Polygons |
+| `built` | Existing built fabric, frozen as context | Polygons |
+| `green` | Green space to preserve | Polygons |
+| `unbuildable` | Water, floodplain, slopes and other exclusions | Polygons |
+| `centres` | Existing or planned urban centres | Points or polygons |
+| `streets` | Walking network for routed distances | Lines |
+| `stops`, `stations` | Public transport; stations anchor centres | Points |
+| `railways`, `industrial` | Carved as barriers / unbuildable | Lines / polygons |
+
+<h2 id="dnipro">2. Dnipro, Ukraine: regeneration and edge growth</h2>
+
+One window covers two growth areas on either side of the river
 ([`scenarios/dnipro/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/dnipro)):
-**Area A (regeneration)**, the central right bank with riverside brownfield and infill, and
-**Area B (edge growth)** on the left bank, where the Samara floodplain is a hard unbuildable
-limit. Both use UTM zone 36N (EPSG:32636) and a 25 m grid (Area B may coarsen to 30 m). The
-boundaries are drafts to be adjusted in QGIS; `params.json` holds Area A and `params_B.json`
-Area B.
-
-### Density tiers from the Ukrainian norms (DBN Б.2.2-12)
-
-Residential densities follow the national planning norms, assuming an average household of
-**2.55 persons per dwelling**. The DBN net residential density band is 150–450 persons/ha, up to
-+20% in large cities under conditions; Dnipro qualifies as a large city. The band applies to
-multi-storey residential fabric, so the low tier below sits under it: the 1–4 storey form is set
-from typical net densities for that fabric instead. The three built forms map onto the plugin's
-three density tiers (1 person/ha = 100 people/km²):
-
-| Tier | Built form (Ukraine) | DBN storeys | Net density (persons/ha) | Avg dwelling (m²) | Plugin density (people/km²) | Persons per 25 m cell |
-|---|---|---|---|---|---|---|
-| Low | 1–4 storey, садибна / townhouse | 1–4 | 120 | 70 | **12,000** | 7.5 |
-| Medium | 5–9 storey mid-rise | 5–9 | 250 | 58 | **25,000** | 15.6 |
-| High | 10–25 storey high-rise | 10–25 | 400 | 52 | **40,000** | 25.0 |
-
-These are *net* residential densities (people per hectare of residential land), which suits the
-plugin's per-cell accounting at a fine grid. The shares are a scenario choice: Area A starts at
-0.2 / 0.6 / 0.2 (high / medium / low) for a medium-led compact reconstruction, Area B at
-0.1 / 0.4 / 0.5 for a low-to-medium edge mix.
-
-### Target populations
-
-Buildable area is the part of each large district realistically available for new housing (about
-7% of Area A's 8,756 ha and 9% of Area B's 5,515 ha). The target population is buildable area
-times net density, and is itself a scenario choice:
-
-| Pilot area | Buildable area (ha) | Net density (persons/ha) | Target population |
-|---|---|---|---|
-| Area A, regeneration | 613 | 250 | **153,250** |
-| Area B, edge growth | 496 | 200 | **99,200** |
-
-### Model parameters
-
-| Parameter | Meaning in the model | Area A | Area B | Plugin control | Notes |
-|---|---|---|---|---|---|
-| Walkable distance (m) | Max distance from a new home to the nearest centre | 400 | 400 | Centre walk / Green walk | Also run 800 m for comparison |
-| Minimum green span | Smallest protected green corridor kept | tune per run | tune per run | Min green span (m) | So existing parks and the river edge survive |
-| Density level | People per built cell (see the tiers above) | Medium | Low–Med | Density tiers + shares | High for compact reconstruction |
-| Centrality seeding | Chance the model adds a new local centre | 0.8 | 0.8 | Dispersed development | 0 disables new centres; the project worksheet's 0.8 maps to the Moderate/Aggressive end of the dial |
-| Cell resolution (m) | Grid cell size (spatial precision) | 25 | 25–30 | Grid size (m) | Coarser for large districts |
-| CRS | Coordinate system (metres) | EPSG:32636 | EPSG:32636 | CRS picker | UTM 36N, Dnipro |
-| Time steps | Iterations until the target population is reached | set by the model | set by the model | Max iterations | The run stops at the target |
-
-### Curated centralities
-
-Twenty-two real attraction points (city centre, stations, markets, hospitals, universities,
-malls, parks) are curated in
-[`centralities.csv`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/blob/main/scenarios/dnipro/centralities.csv)
-and `centralities.geojson`, each with a type and a relative pull weight (3 city-wide, 2 district,
-1.5 local) and tagged with the pilot area it falls in. Coordinates are approximate; snap to OSM in
-QGIS. The plugin's Urban centres input currently uses the point locations (weights are recorded
-for future use); the OSM-derived `centres.geojson` is the uncurated alternative.
-
-### Input layers
-
-All layers share one extent, one CRS (EPSG:32636) and one cell size, with consistent nodata.
-`<area>` is `A` or `B`.
-
-| # | Layer / file | Plugin role | Geometry | Key attribute | Deliver as | Dnipro source |
-|---|---|---|---|---|---|---|
-| 1 | `extent_<area>` | Pilot study-area boundary | Polygon (1 feature) | — | GeoJSON / GPKG | Drawn in QGIS / Google Maps |
-| 2 | `built_<area>` | Existing built-up areas | Polygons | `built=1` | GeoJSON → GeoTIFF | OSM buildings; city GIS; satellite |
-| 3 | `green_<area>` | Green areas to preserve | Polygons | `preserve=1` | GeoJSON → GeoTIFF | OSM landuse/leisure; ESA WorldCover |
-| 4 | `centralities_<area>` | Shops / services / centres / transport | Points | `type`, `weight` | GeoJSON / CSV(xy) | Centralities sheet + OSM |
-| 5 | `unbuildable_<area>` | Water / floodplain / slopes / hazards | Polygons | `reason` | GeoJSON → GeoTIFF | OSM water; DEM slope; flood maps |
-
-The scenario folder already holds OSM first drafts of layers 2–5 for the whole hull; local
-sources then refine them.
+the central right bank (regeneration and infill) and the left-bank edge, where the Samara
+floodplain is a hard unbuildable limit. The extents layer holds both boundaries as drafts to
+adjust in QGIS, and a single run grows both areas together. Density tiers and the population
+target follow the national residential norms and load from `params.json`; urban centres are
+supplied as a plain point layer. 25 m grid, EPSG:32636.
 
 <h2 id="crews-hill">3. Crews Hill, London: a green-belt release (draft)</h2>
 
@@ -206,11 +150,5 @@ Folder: [`scenarios/freiburg_rieselfeld/`](https://github.com/UCL/BSP-isobenefit
 
 ## Adding a scenario
 
-Copy an existing folder's structure: `extents.geojson` in a local metric CRS, a `params.json`
-(the dialog's *Load parameters* button must accept it), and a short context note here covering the
-local density norms translated to three tiers and shares, the target population with its basis,
-and any curated centralities. Then fetch the OSM layers:
-
-```bash
-.venv/bin/python scripts/fetch_scenario.py scenarios/<name>
-```
+Scenario contributions happen in the repository; the steps are described in
+[`scenarios/README.md`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios).
