@@ -4,6 +4,7 @@
 //! state machine and the parallel `run_ensemble`, marshalling numpy arrays in and
 //! out. All heavy compute releases the GIL where it runs across threads.
 
+use crate::access::walk_distance as core_walk_distance;
 use crate::sim::{
     ensemble_class_counts as core_ensemble_class_counts,
     ensemble_probability as core_ensemble_probability, run_ensemble as core_run_ensemble, Params,
@@ -182,11 +183,32 @@ fn ensemble_class_counts(
     )
 }
 
+/// Multi-source bounded walk field: metres from every cell to the nearest True cell
+/// in `targets` (queen moves, diagonal sqrt(2) x granularity), inf beyond the bound.
+/// Releases the GIL during compute.
+#[pyfunction]
+#[pyo3(signature = (targets, granularity_m, max_distance_m, blocked = None))]
+fn walk_distance(
+    py: Python<'_>,
+    targets: PyReadonlyArray2<bool>,
+    granularity_m: f64,
+    max_distance_m: f64,
+    blocked: Option<PyReadonlyArray2<bool>>,
+) -> Py<PyArray2<f64>> {
+    let targets = targets.as_array().to_owned();
+    let blocked = blocked.map(|b| b.as_array().to_owned());
+    let dist = py.allow_threads(|| {
+        core_walk_distance(&targets, granularity_m, max_distance_m, blocked.as_ref())
+    });
+    dist.into_pyarray_bound(py).unbind()
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<PySimulation>()?;
     m.add_function(wrap_pyfunction!(run_ensemble, m)?)?;
+    m.add_function(wrap_pyfunction!(walk_distance, m)?)?;
     m.add_function(wrap_pyfunction!(ensemble_probability, m)?)?;
     m.add_function(wrap_pyfunction!(ensemble_class_counts, m)?)?;
     Ok(())

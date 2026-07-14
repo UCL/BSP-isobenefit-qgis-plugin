@@ -48,15 +48,15 @@ If the automatic install is not available or not working on your system, the dia
 shows the exact command to run yourself, which is simply:
 
 ```bash
-<qgis-python> -m pip install "isobenefit>=0.12.11,<0.13"
+<qgis-python> -m pip install "isobenefit>=0.12.17,<0.13"
 ```
 
 ## Usage
 
 Open the plugin and choose an output folder and run name, a polygon **extents** layer, and a
 projected **CRS**. Optionally add layers for existing built areas, green space,
-unbuildable land, urban centres, public-transport stops, rail/tram stations, and a
-street network. No layers prepared? The companion **Extract from OpenStreetMap** tool
+unbuildable land, urban centres, public-transport stops, and rail/tram stations.
+No layers prepared? The companion **Extract from OpenStreetMap** tool
 downloads them for an area of interest.
 
 Set the parameters and run. A single run is written iteration-by-iteration as a
@@ -90,7 +90,7 @@ count; see [`core/README.md`](core/README.md).
 
 Lint with `ruff check isobenefit_qgis`.
 
-The plugin's pure pipeline (grid/routing/OSM helpers) has a headless test suite that
+The plugin's pure pipeline (grid/OSM helpers) has a headless test suite that
 needs no QGIS; run it against a locally built engine wheel:
 
 ```bash

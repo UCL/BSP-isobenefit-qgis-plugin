@@ -6,7 +6,7 @@ QGIS/GDAL), mirroring the pure/coupled split between ``grid.py`` and ``gis_io.py
 The QGIS/GDAL-coupled fetch + GeoPackage building lives in ``osm_fetcher.py``.
 
 The model consumes built / green / centre / (water → unbuildable) polygons and, as
-groundwork for a later step, the street network and public-transport stops. Centres
+the street network (map context; motorway-grade corridors become barriers) and public-transport stops. Centres
 are derived from ``landuse=retail|commercial`` and become *true polygon areas* in the
 model (every cell they cover is a centre cell).
 """
@@ -261,7 +261,7 @@ def is_barrier_line(tags: dict[str, str]) -> bool:
 
 
 # Extra string fields written per dataset (beyond geometry). The street network carries its
-# highway class so the routing graph can tell walkable streets from motorway-class barriers.
+# highway class for map styling and for classing motorway-grade corridors as barriers.
 DATASET_FIELDS: dict[str, list[str]] = {"streets": ["highway"]}
 
 

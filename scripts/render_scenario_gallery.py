@@ -173,7 +173,7 @@ def run_preset(sub, params, preset):
     gran = p["_gran"]
     tiers = (p["densities_km2"]["high"], p["densities_km2"]["medium"], p["densities_km2"]["low"])
     shares = (p["shares"]["high"], p["shares"]["medium"], p["shares"]["low"])
-    walk = float(p.get("centre_walk_m", 400.0))
+    walk = float(p.get("centre_walk_m", 800.0))
     green_walk = float(p.get("green_walk_m", walk))
     max_walk = max(walk, green_walk)
     sim = isobenefit.Simulation(

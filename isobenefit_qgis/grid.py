@@ -302,8 +302,8 @@ def _refine_centres(
     spacing_m=None, anchors=None, walk_cache=None,
 ):
     """Optimise seeded centres after the fact, measuring catchment by ``walk`` — ONE distance
-    model used for every judgment here (the grid walk by default, or true street-network
-    distances when a ``walk`` callable ``mask -> rows×cols metres`` is injected). Each new centre
+    model used for every judgment here: the bounded grid walk (callers inject it as the
+    ``walk`` callable ``mask -> rows×cols metres``, sharing one barrier mask and cache). Each new centre
     is re-positioned onto NEW land, central to the NEW homes it serves; ``fixed``/existing centres
     compete in the assignment; centres uniquely serving fewer than ``cull_min_unique`` built cells
     are culled (redundant, or feeding too small a catchment). Returns the optimised new ``(row, col)``.
@@ -440,8 +440,8 @@ def _refine_centres(
         underserved = new_built & ~(anchor_reach | reach(new))
         if not underserved.any():
             break
-        # propose the new centre from WITHIN the underserved area (densest spot), not merely near it:
-        # under network routing a Euclidean-near cell may be unable to actually reach across a barrier
+        # propose the new centre from WITHIN the underserved area (densest spot), not merely
+        # near it: a box-near cell may be unable to actually reach across a barrier
         gain = np.where(underserved, _box_sum(underserved.astype(np.float64), r), -1.0)
         if gain.max() < cull_min_unique:
             break
@@ -500,7 +500,7 @@ CENTRE_M2_PER_PERSON = 20.0
 MEAN_NEW_DENSITY_KM2 = 2850.0
 CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
 # Contiguity floor: however coarse the grid, a settlement (and so any mixed-use centre attached to
-# it) must span at least this many contiguous cells, or it reverts to green. Keeps the ha-based
+# it) must span at least this many contiguous cells, or it reverts to green. Keeps the population-based
 # minimum-settlement dial resolution-independent.
 MIN_SETTLEMENT_CELLS = 4
 # Redundancy floor for the centre cull/add — a centre that uniquely serves fewer than this many built
@@ -620,7 +620,22 @@ def _walk_distance(
     ``sqrt(2) * granularity``. Cells further than ``max_distance_m`` from any target stay
     ``inf``. If ``blocked`` is given, the walk cannot enter those cells (it routes around
     them) — used so distances don't cross the green network.
+
+    The engine computes this field 50-100x faster (and without holding the GIL), so it
+    is preferred whenever importable; the Python loop below is the exact-parity fallback
+    for engines predating ``walk_distance`` (< 0.12.17).
     """
+    try:
+        import isobenefit
+
+        return isobenefit.walk_distance(
+            np.ascontiguousarray(targets, dtype=bool),
+            float(granularity_m),
+            float(max_distance_m),
+            None if blocked is None else np.ascontiguousarray(blocked, dtype=bool),
+        )
+    except (ImportError, AttributeError, TypeError):
+        pass
     rows, cols = targets.shape
     dist = np.full((rows, cols), math.inf)
     g = float(granularity_m)
@@ -702,8 +717,10 @@ def evaluate_plan(
     green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
     field_bound = max(centre_distance_m, green_distance_m)
 
+    walk_blocked = plan == PLAN_NONE  # unbuildable land and outside the extents
+
     def _dist(mask):
-        return _walk_distance(mask, granularity_m, field_bound)
+        return _walk_distance(mask, granularity_m, field_bound, blocked=walk_blocked)
 
     d_cent = _dist(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE)))[built]
     d_green = _dist(green_mask)[built]
@@ -776,7 +793,7 @@ def evaluate_plan(
 
 
 def audit_centres(plan, granularity_m, max_distance_m):
-    """Per-centre-AREA effectiveness audit, by the one distance model (the grid walk by default, the
+    """Per-centre-AREA effectiveness audit, by the one distance model (the bounded grid walk).
     Centres are areas (existing true-area + grown new ones), so each
     record is a connected component, with its ``cells`` (area), how many built cells it **serves**
     (within a walk) and the **mean walk** to them (low = well-centred; few served = an ineffective
@@ -786,8 +803,10 @@ def audit_centres(plan, granularity_m, max_distance_m):
     rather than by eye. Returns ``{"centres": [...weakest first...], "summary": {...}}``.
     """
     plan = np.asarray(plan)
+    walk_blocked = plan == PLAN_NONE
+
     def walk(mask):
-        return _walk_distance(mask, granularity_m, max_distance_m)
+        return _walk_distance(mask, granularity_m, max_distance_m, blocked=walk_blocked)
 
     built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
     records = []
@@ -841,7 +860,7 @@ def audit_centres(plan, granularity_m, max_distance_m):
 def optimise_plan(
     plan: np.ndarray,
     granularity_m: float,
-    min_green_span_m: float,
+    min_green_span_m: float,  # accepted for signature stability; green qualification happens in _state_to_plan
     max_distance_m: float,
     existing_centres=None,
     existing_built=None,
@@ -882,10 +901,12 @@ def optimise_plan(
     green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
     field_bound = max(centre_distance_m, green_distance_m, float(centre_spacing_m or 0.0))
     rows, cols = plan.shape
-    # ONE distance model: the bounded grid walk, the same metric the growth rules use.
+    # ONE distance model: the bounded grid walk, the same metric the growth rules use;
+    # unbuildable land and cells outside the extents block it, exactly as in growth.
+    walk_blocked = plan == PLAN_NONE
 
     def walk(mask):
-        return _walk_distance(mask, g, field_bound)
+        return _walk_distance(mask, g, field_bound, blocked=walk_blocked)
 
     # Existing development is frozen: never pruned, and the small-settlement cleanup never touches it.
     frozen = np.zeros(plan.shape, dtype=bool)
@@ -1055,7 +1076,7 @@ def select_plan(
     qualifying green), so the pre/post pair can be compared.
 
     ``progress`` is an optional callable ``(done, total) -> bool`` invoked after each
-    post-processed candidate across both phases; return False to abort (the function then
+    post-processed candidate; return False to abort (the function then
     returns four Nones).
     """
     states = list(states)
@@ -1153,7 +1174,7 @@ def derive_density(
         return out
     # walking distance to the nearest centre for every new cell (inf where none is within a walk)
     if centres.any():
-        dist_field = _walk_distance(centres, g, float(centre_distance_m))
+        dist_field = _walk_distance(centres, g, float(centre_distance_m), blocked=plan == PLAN_NONE)
     else:
         dist_field = np.full(plan.shape, np.inf)
     dists = dist_field[new_built]

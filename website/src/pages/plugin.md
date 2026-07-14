@@ -25,7 +25,7 @@ If the automatic install is not available or not working on your system, run the
 yourself with the QGIS Python:
 
 ```
-<qgis-python> -m pip install "isobenefit>=0.12.11,<0.13"
+<qgis-python> -m pip install "isobenefit>=0.12.17,<0.13"
 ```
 
 ## Quick start: your first run
@@ -217,7 +217,7 @@ percentages include every home, existing and new.
   per-iteration chance, so give reluctant runs more iterations rather than more probability first.
   Remember the target counts **new residents only**; existing fabric contributes nothing, however
   large. A *Minimum green span* wider than the gaps between built areas also freezes infill: gaps
-  narrower than the span never fill, by design. Engines before 0.12.11 also refused to grow
+  narrower than the span never fill, by design. Engines before 0.12.11 refused to grow
   toward rivers and carved road corridors; if growth halts a fixed distance from every barrier,
   update the engine when prompted.
 - **Finding the logs**: *View → Panels → Log Messages*, under the **Isobenefit** tab, records

@@ -3,7 +3,7 @@ name=Isobenefit Urbanism
 qgisMinimumVersion=4.0
 qgisMaximumVersion=4.99
 description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
-version=0.12.16
+version=0.12.17
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -22,6 +22,7 @@ deprecated=False
 server=False
 
 changelog=
+    0.12.17 Post-processing is engine-accelerated and barrier-aware: the walk field is computed by the Rust engine (a large window post-processes in under a minute), and scoring walks now detour around water and carved corridors exactly as growth does (they previously crossed them). Requires engine 0.12.17; the plugin prompts for the upgrade.
     0.12.16 With an OSM download in the project, the run dialog pre-fills the output folder as a scenarios folder beside the downloaded data, numbered upward when earlier runs exist. A chosen folder is never overwritten.
     0.12.15 One distance model: bounded grid walks everywhere, in growth and in scoring. Street-network routing removed (a new settlement has no streets yet, so a network metric measured new and existing fabric on different terms); the streets layer stays as map context and the source of carved barrier corridors. Centre placement is settlement-local: a centre is positioned only by homes in its own contiguous settlement, so it cannot be dragged to a periphery cell facing a green gap. Scenario panels colour slope-excluded land tan, distinct from water and corridors. Plugin unload no longer errors after a finished run.
     0.12.14 Centre refinement caches walk fields by coordinate across the whole ensemble: post-processing a many-centre window drops from ~40 s to ~3 s per candidate with identical results. Selection progress logs every candidate.

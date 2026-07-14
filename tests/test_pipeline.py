@@ -381,6 +381,37 @@ def test_centre_placement_is_settlement_local():
     assert all(x <= 8 for _, x in a_centres)  # A's centre moved interior, off the gap edge
 
 
+def test_scoring_walks_detour_around_unbuildable():
+    # homes and the centre sit either side of a carved corridor open only at one end:
+    # the scored walk must go around, exactly as the growth walks do
+    g = 21
+    open_plan = np.full((g, g), PLAN_GREEN, np.uint8)
+    open_plan[10, 2:13] = PLAN_BUILT
+    open_plan[10, 2] = PLAN_CENTRE
+    blocked_plan = open_plan.copy()
+    blocked_plan[:20, 10] = PLAN_NONE  # the corridor; passable only via row 20
+    m_open = evaluate_plan(open_plan, 100.0, 1000.0)
+    m_blocked = evaluate_plan(blocked_plan, 100.0, 1000.0)
+    assert m_open["centre_coverage"] == 1.0
+    assert m_blocked["centre_coverage"] < m_open["centre_coverage"]
+
+
+def test_walk_distance_engine_matches_python():
+    # the engine's walk field and the Python fallback must agree exactly: same metric,
+    # same bound, same inf-beyond behaviour, on a grid with scattered targets
+    import isobenefit
+
+    from isobenefit_qgis import grid as G
+
+    rng = np.random.default_rng(11)
+    targets = rng.random((40, 55)) < 0.02
+    targets[0, 0] = True  # at least one target, incl. a corner
+    rust = isobenefit.walk_distance(targets, 100.0, 900.0)
+    # force the Python path by monkey-free means: call the loop body via blocked=all-False
+    python = G._walk_distance(targets, 100.0, 900.0, blocked=np.zeros_like(targets))
+    np.testing.assert_allclose(rust, python)
+
+
 def test_interior_point():
     from isobenefit_qgis.grid import _interior_point
 

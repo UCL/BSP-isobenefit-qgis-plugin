@@ -158,8 +158,6 @@ class IsobenefitTask(QgsTask):
     def _compose_report(self, report_stats, audit, rows, cols, start_pop, iter_summary, elapsed) -> str:
         """A plain-text record of the run — parameters, run summary, per-plan statistics and the centre
         audit — so there is a durable account of exactly what was done and how each option scored."""
-        from datetime import datetime
-
         dispersal = {0.0: "Off", 0.0001: "Moderate", 0.04: "Aggressive"}.get(
             round(self.cent_prob_isol, 4), f"{self.cent_prob_isol:g}"
         )
@@ -237,8 +235,8 @@ class IsobenefitTask(QgsTask):
 
     def _selection_progress(self, done: int, total: int) -> bool:
         """Progress + cancellation for the post-processing selection: the stage occupies the
-        90–99% band of the task bar, logs every few candidates (network routing makes each
-        one slow on big windows), and returning False aborts ``select_plan`` mid-stage."""
+        90–99% band of the task bar, logs every candidate, and returning False aborts
+        ``select_plan`` mid-stage."""
         self.setProgress(90.0 + 9.0 * done / max(1, total))
         self._log(f"post-processing candidates: {done}/{total}")
         return not self.isCanceled()

@@ -184,6 +184,48 @@ pub fn agg_dijkstra_dist(
     dist
 }
 
+/// Multi-source bounded walk: the distance (metres) from every cell to the nearest
+/// `true` cell in `targets`, traversing all cells (queen moves, diagonal cost
+/// sqrt(2) x granularity), `inf` beyond `max_distance_m`. This is the plugin's
+/// post-processing walk field; it lives in the engine because the Python loop was
+/// the whole cost of post-processing on large windows.
+pub fn walk_distance(
+    targets: &Array2<bool>,
+    granularity_m: f64,
+    max_distance_m: f64,
+    blocked: Option<&Array2<bool>>,
+) -> Array2<f64> {
+    let (rows, cols) = targets.dim();
+    let mut dist = Array2::<f64>::from_elem((rows, cols), f64::INFINITY);
+    let mut heap = BinaryHeap::new();
+    for ((y, x), &is_target) in targets.indexed_iter() {
+        if is_target {
+            dist[[y, x]] = 0.0;
+            heap.push(HeapItem { dist: 0.0, y, x });
+        }
+    }
+    while let Some(HeapItem { dist: d, y, x }) = heap.pop() {
+        if d > dist[[y, x]] {
+            continue;
+        }
+        for (ny, nx) in iter_nbs(rows, cols, y, x, false) {
+            if let Some(b) = blocked {
+                if b[[ny, nx]] {
+                    continue;
+                }
+            }
+            let ystep = (ny as f64 - y as f64).abs();
+            let xstep = (nx as f64 - x as f64).abs();
+            let nd = d + ystep.hypot(xstep) * granularity_m;
+            if nd <= max_distance_m && nd < dist[[ny, nx]] {
+                dist[[ny, nx]] = nd;
+                heap.push(HeapItem { dist: nd, y: ny, x: nx });
+            }
+        }
+    }
+    dist
+}
+
 /// Builds the green-periphery (`green_itx`) and green-access (`green_acc`) arrays.
 ///
 /// `green_itx`: unbuildable cells -> -1; built/centre cells -> 1; green cells

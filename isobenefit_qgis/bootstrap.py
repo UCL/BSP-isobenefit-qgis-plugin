@@ -24,12 +24,12 @@ from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 CORE_IMPORT = "isobenefit"
 CORE_PACKAGE = "isobenefit"
-# the floor tracks the oldest core this plugin should drive: 0.12.11 lets growth
-# approach carved road/rail/river corridors (0.12.6–0.12.10 stood off every barrier
-# by the min green span, strangling growth on real maps)
-MIN_VERSION = (0, 12, 11)
+# the floor tracks the oldest core this plugin should drive: 0.12.17 adds the
+# engine-side walk_distance field that makes post-processing fast on large windows
+# (the plugin falls back to a slow Python walk on older engines)
+MIN_VERSION = (0, 12, 17)
 MAX_VERSION_EXCLUSIVE = (0, 13, 0)
-PIP_SPEC = "isobenefit>=0.12.11,<0.13"
+PIP_SPEC = "isobenefit>=0.12.17,<0.13"
 
 # module-level so the running install survives ensure_core returning
 _install_task: QgsTask | None = None

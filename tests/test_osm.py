@@ -143,7 +143,7 @@ def test_feature_matches_streets_and_pt():
 
 
 def test_streets_carry_highway_class():
-    # the street network persists its highway class (for the routing graph); other datasets
+    # the street network persists its highway class (map styling and barrier classing); other datasets
     # carry no extra fields
     assert DATASET_FIELDS.get("streets") == ["highway"]
     assert DATASET_FIELDS.get("built", []) == []
