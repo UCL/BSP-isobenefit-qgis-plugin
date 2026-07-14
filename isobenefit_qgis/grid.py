@@ -816,7 +816,7 @@ def evaluate_plan(
     metrics["green_m2_per_person"] = n_new_green * cell_km2 * 1e6 / population if population else 0.0
 
     # transit access — a third dimension, REPORTED ONLY for now (not folded into access_cost,
-    # so it cannot distort run-selection until validated). See the transit-routing plan.
+    # so it cannot distort run-selection until validated).
     if transit_stops is not None:
         stops = np.asarray(transit_stops, dtype=bool)
         if stops.any():

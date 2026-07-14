@@ -144,3 +144,6 @@ _overpass_cache.xml
 # Claude Code per-user grants and worktrees stay local
 .claude/settings.local.json
 .claude/worktrees/
+
+# editor configs stay local
+.vscode/
