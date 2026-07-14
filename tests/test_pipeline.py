@@ -351,6 +351,45 @@ def test_select_plan_progress_abort():
     assert out == (None, None, None, None)
 
 
+def test_select_plan_walk_query_budget(monkeypatch):
+    # Performance regression guard (the Winnipeg finding): post-processing cost is walk
+    # queries, and the budget is deterministic where wall time is not. The quadratic cull
+    # burned ~18,000 queries per member at ~80 centres; the coordinate cache brings a
+    # many-centre member down to the low hundreds. Budget = measured + headroom; a
+    # regression to per-move recomputation blows it by an order of magnitude.
+    from isobenefit_qgis import grid as G
+
+    g = 120
+    st = np.zeros((g, g), np.int16)
+    yy, xx = np.mgrid[0:g, 0:g]
+    st[((yy - 60) ** 2 + (xx - 60) ** 2) < 45**2] = 1  # one big town
+    existing = np.zeros((g, g), bool)
+    existing[40:80, 40:80] = st[40:80, 40:80] == 1  # its core is existing fabric
+    rng = np.random.default_rng(3)
+    centres = []
+    while len(centres) < 40:  # many grown centres, the regression trigger
+        y, x = int(rng.integers(g)), int(rng.integers(g))
+        if st[y, x] == 1:
+            st[y, x] = 2
+            centres.append((y, x))
+
+    calls = {"n": 0}
+    real = G._walk_distance
+
+    def counting(*a, **k):
+        calls["n"] += 1
+        return real(*a, **k)
+
+    monkeypatch.setattr(G, "_walk_distance", counting)
+    plan, metrics, _pre, _best = G.select_plan(
+        [st], 50.0, 400.0, 800.0, existing_built=existing,
+        centre_spacing_m=1200.0, centre_distance_m=800.0, green_distance_m=400.0,
+    )
+    assert plan is not None and metrics is not None
+    # measured ~930 today; the pre-cache quadratic behaviour lands above 10,000
+    assert calls["n"] < 1500, f"walk queries regressed: {calls['n']} (budget 1500)"
+
+
 def test_interior_point():
     from isobenefit_qgis.grid import _interior_point
 
