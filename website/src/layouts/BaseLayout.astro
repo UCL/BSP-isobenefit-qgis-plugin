@@ -35,12 +35,18 @@ const description =
   <body class="h-full w-full">
     <div class="app-container" id="top">
       <div class="app-content">
-        <nav class="site-nav">
-          <a href={base}>Introduction</a>
-          <a href={`${base}plugin/`}>Plugin guide</a>
-          <a href={`${base}scenarios/`}>Scenarios</a>
-          <a href={`${base}theory/`}>Theory</a>
-        </nav>
+        <header class="site-header">
+          <a class="site-home" href={base} title="Home">
+            <img src={`${base}favicon.svg`} alt="" width="30" height="30" />
+            <span>Isobenefit Urbanism</span>
+          </a>
+          <nav class="site-nav">
+            <a href={base}>Introduction</a>
+            <a href={`${base}plugin/`}>Plugin guide</a>
+            <a href={`${base}scenarios/`}>Scenarios</a>
+            <a href={`${base}theory/`}>Theory</a>
+          </nav>
+        </header>
         <slot />
         <nav class="site-nav site-nav-footer">
           <a href={base}>Introduction</a>
@@ -61,8 +67,18 @@ const description =
   .app-content {
     @apply flex w-full max-w-6xl flex-col items-stretch px-3 py-10;
   }
+  .site-header {
+    @apply flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b-1 border-theme pb-2;
+  }
+  .site-home {
+    @apply flex items-center gap-2 text-base font-semibold no-underline;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .site-home img {
+    @apply block;
+  }
   .site-nav {
-    @apply flex gap-6 border-b-1 border-theme pb-2 text-sm font-semibold;
+    @apply flex flex-wrap gap-6 text-sm font-semibold;
   }
   .site-nav a {
     @apply no-underline;
