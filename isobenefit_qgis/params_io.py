@@ -30,7 +30,7 @@ _FIELD_TYPES: dict[str, type] = {
     "green_walk_m": float,
     "optimise_centres": bool,
     "centre_m2_per_person": float,
-    "min_settlement_ha": float,
+    "min_settlement_pop": float,
     "min_green_span_m": float,
     "ensemble": bool,
     "ensemble_runs": int,

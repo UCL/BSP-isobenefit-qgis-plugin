@@ -426,8 +426,8 @@ def d_plan_select():
     p, ey = panel(
         ["one chosen", "run"],
         "Pick the best run",
-        ["From the ensemble, take the", "single run with the shortest", "average walk to amenities.", "",
-         ("A coherent, buildable layout —", BUILT, 700), "not a blurry average."],
+        ["Every run is post-processed", "into a candidate; the one with", "the shortest average walk to", "amenities is kept.", "",
+         ("A coherent, buildable layout,", BUILT, 700), "not a blurry average."],
     )
     scene += p + legend(["green", "built", "centre"], ey + 56)
     write("plan_select", scene)

@@ -13,8 +13,13 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       The <strong>Isobenefit Urbanism</strong> plugin for QGIS simulates how a place could grow so that
       everyone keeps walkable access to <strong>both</strong> mixed-use local centres (shops and services
-      among homes) <strong>and</strong> green space. From the simulation it generates <strong>idealised planning scenarios</strong> for further discussion
-      with planning experts. It runs on your own GIS layers.
+      among homes) <strong>and</strong> green space. From the simulation it generates <strong>idealised
+      planning scenarios</strong>. It runs on your own GIS layers.
+    </p>
+    <p>
+      This is research software for discussion and debate. Its scenarios are speculative sketches of
+      walkable growth in a place, made to be discussed with domain experts and weighed by them when
+      developing actual planning strategies and developments. The scenarios are not plans to build from.
     </p>
     <figure id="hero-plan">
       <img class="hero" src={dg('demo_recommended_plan')} alt="An idealised scenario for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
@@ -217,25 +222,30 @@ const dg = (name: string) => `${base}images/${name}.svg`
       build the cell, faint where few do.</figcaption>
     </figure>
     <p>
-      Because a probability surface is not a buildable layout, the plugin also picks out the single best
-      run, the one with the shortest average walk to amenities, and carries that forward.
+      Because a probability surface is not a buildable layout, the plugin also produces one buildable
+      scenario. Every run in the ensemble is first post-processed into a candidate (the edits are
+      described in <a href="#postprocessing">step 5</a>), the candidates are scored, and the one with the
+      shortest average walk to amenities is kept.
     </p>
-    <figure><img class="diagram" src={dg('plan_select')} alt="" /><figcaption>Every run in the ensemble is scored; the winner becomes the scenario and the others remain in the likelihood map.</figcaption></figure>
+    <figure><img class="diagram" src={dg('plan_select')} alt="" /><figcaption>Every run is post-processed and scored; the winner becomes the scenario and the others remain in the likelihood map.</figcaption></figure>
   </section>
 
-  <h2 id="postprocessing">Step 5: Post-processing the chosen run</h2>
+  <h2 id="postprocessing">Step 5: Post-processing the runs</h2>
   <section>
     <p>
-      The chosen run is refined into the idealised scenario. Post-processing changes <strong>the
-      centres</strong> and applies a limited building cleanup; the buildings themselves come from the
-      simulation.
+      Each run is refined into a candidate scenario before the scoring in step 4; the winner is the
+      scenario the plugin loads. Post-processing changes <strong>the centres</strong> and applies a
+      limited building cleanup; the buildings themselves come from the simulation.
     </p>
     <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, stranded settlements below the minimum size revert to green.</figcaption></figure>
     <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>A grown centre often lands on the edge or in a corner of its development, so it serves its population less well than a central location would. Each is moved to a <em>central</em> spot in the same built area.</figcaption></figure>
     <p>
       The centres are mixed-use throughout: a centre cell keeps its homes and gains shops and services, and
       each centre is sized by the population it serves at a rule-of-thumb provision (m² of centre land per
-      person). Once the centres are settled, each scenario is coloured by <strong>density tier</strong>. The
+      person). Where new development has no centre of its own within a walk, one is added: an existing
+      centre nearby serves the existing town, not the new growth, so new development cannot sprawl
+      centre-free along existing fabric. Once the centres are settled, each scenario is coloured by
+      <strong>density tier</strong>. The
       densities drawn during the run are arranged by walking distance to the final centres: the highest sit
       nearest a centre, then medium, then low. The mix of tiers is fixed, so the total population does not
       change; only their placement is set here. Arranging it after post-processing, rather than during
@@ -329,11 +339,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <ul>
       <li>
         <strong>Ensembles instead of a single run.</strong> The original simulator produces a single run.
-        The plugin runs many, blends them into likelihood layers, and selects the best single run by
-        shortest average walk to amenities.
+        The plugin runs many, blends them into likelihood layers, post-processes every run, and keeps
+        the one with the shortest average walk to amenities.
       </li>
       <li>
-        <strong>Post-processing of the chosen run.</strong> The original keeps centres where they seeded.
+        <strong>Post-processing of the grown runs.</strong> The original keeps centres where they seeded.
         The plugin adds a limited cleanup (stranded fragments below a minimum settlement size revert
         to green) and re-positions the mixed-use centres to the interior of the development they serve,
         sized by the population in their catchment at a m²-per-person rule of thumb, and offered at two
@@ -352,8 +362,10 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <strong>Walking distances rather than radii, one per amenity.</strong> The original measures
         straight-line distance within one walkable radius of roughly a kilometre (a 15-minute walk;
         D'Acci's later summaries use 1 to 2 km). The plugin measures a bounded walk over the grid that
-        cannot cross unbuildable land, gives centres and green each their own distance, and defaults both
-        to 400 m, below the published radius; both are settings the user can change.
+        cannot cross unbuildable land, gives centres and green each their own distance, and defaults to
+        800 m for centres (a ten-minute walk, just below the published radius) and 400 m for green (the
+        stricter everyday-green reach of the WHO and Natural England standards); both are settings the
+        user can change.
       </li>
       <li>
         <strong>Green connectivity is enforced locally rather than globally.</strong> The published model keeps all
@@ -396,11 +408,6 @@ const dg = (name: string) => `${base}images/${name}.svg`
       from the Copernicus GLO-30 digital elevation model: produced using Copernicus WorldDEM-30 © DLR e.V.
       2010–2014 and © Airbus Defence and Space GmbH, provided under COPERNICUS by the European Union and
       ESA; all rights reserved.
-    </p>
-    <p>
-      This is research software. Its scenarios are exploratory sketches for discussion, not designs:
-      anything taken further should be reviewed and developed with planning, transport and ecology
-      professionals for the place in question.
     </p>
     <p>
       The plugin and its simulation engine are free software under the

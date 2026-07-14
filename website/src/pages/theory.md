@@ -44,13 +44,13 @@ published model). Parameter names in brackets are the plugin's settings.
 | Every built cell keeps nature within T* | Same, as a bounded walk; the check also applies to the newly built cell itself [Green walk] | Unchanged in substance |
 | New centralities seed near built land that has outgrown its centres, with probability 0.005 | Same trigger; the probability is fixed at 0.01, at most one new centre seeds per iteration, and seeding stops at 80% of the population target | Modified: added guards |
 | Isolated centralities seed on open land with probability 0.1 scaled by grid area | A per-cell probability without area scaling, exposed as Off, Moderate or Aggressive [Dispersed development] | Reparameterised |
-| One walkable radius T* = 5 cells, cell side 1000/T* m, so T* ≈ 1 km | Explicit metres throughout: cell size [Grid size] and two walking distances, each defaulting to 400 m, below the published radius | Reparameterised |
+| One walkable radius T* = 5 cells, cell side 1000/T* m, so T* ≈ 1 km | Explicit metres throughout: cell size [Grid size] and two walking distances, defaulting to 800 m for centres and 400 m for green | Reparameterised |
 | Each built block draws a density from three tiers at fixed probabilities (0.7, 0.3, 0) | Same draw; tiers and shares are settings, and post-processing then arranges the drawn values so the highest sit nearest the final centres [Development density] | Unchanged draw, extended placement |
 | Run stops at a population cap (500,000 default) | Same stop; the target counts new residents only, since existing fabric is treated as served by its own centres [Target population] | Modified: new-only accounting |
 | Cells are scanned in a fixed raster order against a frozen copy of the grid | Cells are visited in a shuffled order each iteration, which removes the scan-direction bias | Modified |
 | One run, one output | Ensembles: many runs blended into likelihood layers, with the best single run selected as the scenario | Extension |
 | The grid starts as uniform nature | Real inputs: existing built fabric (frozen), protected green, unbuildable land, centre areas, streets, stops and stations from OpenStreetMap | Extension |
-| Centralities stay where they seeded | Post-processing re-positions centres central to the development they serve, adds where under-served, culls redundant ones, and sizes each by the population in its catchment | Extension |
+| Centralities stay where they seeded | Post-processing re-positions centres central to the development they serve, adds one wherever new development lacks a centre of its own (existing centres serve the existing town, not new growth), culls redundant ones, and sizes each by the population in its catchment | Extension |
 | Distances are grid geometry | When a street layer is supplied, post-processing measures walking distances along the network; the growth rules themselves do not use streets yet | Extension |
 
 Most of the modifications have one motivation: the published model assumes a uniform

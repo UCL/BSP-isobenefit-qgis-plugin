@@ -1,10 +1,8 @@
 # The recommended plan: how it is produced
 
 How the plugin turns a stochastic growth simulation into the single prescriptive
-layout it labels the recommended plan. This describes the shipped pipeline
-(0.9.0 onward). A record of the earlier, rejected design is kept at the end.
-For the relationship between the growth rules and D'Acci's published model, see
-the theory page on the project website.
+layout it labels the recommended plan. For the relationship between the growth
+rules and D'Acci's published model, see the theory page on the project website.
 
 ## Two products, two questions
 
@@ -59,18 +57,11 @@ the coverage numbers for both.
 
 ## Why the best single run, not a consensus
 
-An earlier version of this pipeline thresholded the averaged probability
-surfaces into a "consensus" plan and then repaired it with a green-carving
-optimiser. Scored on identical terms, the repaired consensus never matched a
-good single run: averaging destroys the run-level coherence (contiguous green
-corridors, sensibly spaced centres) that the growth rules guarantee, and the
-optimiser was re-deriving structure that any single run already had. The
-consensus path, its densification-funded green carving, and its
-facility-location centre placement were removed in 0.8.0 and replaced by
-select-the-best-run; the centre post-processing described above arrived in
-0.9.0. Earlier editions of this document reported Cambourne coverage numbers
-for the consensus pipeline; those numbers describe the removed code and no
-longer apply.
+Averaging many runs into a consensus destroys the run-level coherence that the
+growth rules guarantee: contiguous green corridors and sensibly spaced centres
+blur into a pattern no single future would produce. Scored on identical terms,
+a repaired consensus never matched a good single run, so the pipeline
+post-processes every run and keeps the best one.
 
 ## Known limitations
 

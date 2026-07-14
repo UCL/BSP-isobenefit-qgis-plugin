@@ -41,7 +41,7 @@ Cambourne is a fast-growing Cambridgeshire new settlement, and the worked exampl
 throughout the [overview page](../). The scenario folder is the demo project
 ([`scenarios/cambourne/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/cambourne),
 with `cambourne.qgz`): a 30,000-person target across the demo extents, 50 m cells, EPSG:27700,
-400 m walks, and tiers of 6,000 / 3,000 / 1,500 people/km² at shares 0.2 / 0.3 / 0.5. The
+walks of 800 m to a centre and 400 m to green, and tiers of 6,000 / 3,000 / 1,500 people/km² at shares 0.2 / 0.3 / 0.5. The
 overview page's own demonstrators use a smaller 4.2 km window with a 12,000-person target.
 
 As the reference demo, Cambourne also illustrates the input layers every scenario shares:
@@ -92,7 +92,7 @@ Folder: [`scenarios/celina_tx/`](https://github.com/UCL/BSP-isobenefit-qgis-plug
 - **Tiers (indicative suburban values, household 2.5):** 1,500 / 7,500 / 18,500 people/km²
   (2.5 / 12 / 30 dwellings per acre), shares 0.6 / 0.3 / 0.1 (low / medium / high).
 - **Target:** about 50,000 new residents, of the order of the city's own growth projections.
-  **Walks:** 800 m. **Grid:** 30 m, EPSG:32614. **Dispersal:** moderate (leapfrog growth is
+  **Walks:** 800 m to a centre, 400 m to green. **Grid:** 30 m, EPSG:32614. **Dispersal:** moderate (leapfrog growth is
   characteristic).
 - **Status:** draft boundary and indicative numbers, to be confirmed against city projections.
 
@@ -107,7 +107,7 @@ Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-pl
 
 - **Tiers (indicative values, household 4.3):** 10,000 / 20,000 / 35,000 people/km²
   (roughly 25 / 45 / 80 dwellings/ha), shares 0.4 / 0.4 / 0.2 (low / medium / high).
-- **Target:** about 60,000 new residents for one expansion area. **Walks:** 400 m.
+- **Target:** about 60,000 new residents for one expansion area. **Walks:** 800 m to a centre, 400 m to green.
   **Grid:** 25 m, EPSG:32736. **Dispersal:** moderate.
 - **Terrain:** slopes over 15° preclude development (`slope_max_deg: 15`, matching Rwanda's
   percent-slope planning limits; a few percent of the window). Bands in the editable
@@ -125,7 +125,7 @@ Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-q
 
 - **Tiers (indicative values, household 3.1):** 8,000 / 18,000 / 35,000 people/km², shares
   0.3 / 0.4 / 0.3 (low / medium / high); the high tier reflects the area's housing towers.
-- **Target:** about 40,000 new residents. **Walks:** 400 m. **Grid:** 25 m, EPSG:32618.
+- **Target:** about 40,000 new residents. **Walks:** 800 m to a centre, 400 m to green. **Grid:** 25 m, EPSG:32618.
   **Dispersal:** moderate.
 - **Terrain:** slopes over 20° preclude development (`slope_max_deg: 20`; about 30% of the study
   window). The bands are in the editable `steep.geojson`, from Copernicus GLO-30.
@@ -143,7 +143,7 @@ Folder: [`scenarios/freiburg_rieselfeld/`](https://github.com/UCL/BSP-isobenefit
 
 - **Tiers (indicative values, household 2.0, centred on the districts' real densities):**
   8,000 / 14,000 / 22,000 people/km², shares 0.2 / 0.6 / 0.2 (low / medium / high).
-- **Target:** about 16,000 residents (the two districts' combined population). **Walks:** 400 m.
+- **Target:** about 16,000 residents (the two districts' combined population). **Walks:** 800 m to a centre, 400 m to green.
   **Grid:** 25 m, EPSG:25832. **Dispersal:** off (both districts are contiguous extensions).
 - **Status:** draft boundary; the validation protocol (remove, regrow, compare) is described in
   the folder's `params.json` notes.

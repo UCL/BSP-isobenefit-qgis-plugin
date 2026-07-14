@@ -26,13 +26,13 @@
      "overrides": {},
      "image": "cambourne/baseline.png",
      "metrics": {
-      "served_coverage": 0.845,
-      "centre_access": 296.902,
-      "green_access": 138.864,
-      "population": 30033.585,
-      "centre_m2_per_person": 19.688,
-      "green_m2_per_person": 1832.868,
-      "built_cells": 1829.0
+      "served_coverage": 0.971,
+      "centre_access": 350.501,
+      "green_access": 135.995,
+      "population": 28856.25,
+      "centre_m2_per_person": 18.526,
+      "green_m2_per_person": 1926.456,
+      "built_cells": 1777.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -42,11 +42,11 @@
       "build_prob": 0.3,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 6000,
@@ -65,22 +65,21 @@
      "params_file": "cambourne/baseline_params.json"
     },
     {
-     "id": "walk800",
-     "label": "Longer walk (800 m)",
-     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "id": "walk400",
+     "label": "Shorter centre walk (400 m)",
+     "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
      "overrides": {
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0
+      "centre_walk_m": 400.0
      },
-     "image": "cambourne/walk800.png",
+     "image": "cambourne/walk400.png",
      "metrics": {
-      "served_coverage": 0.958,
-      "centre_access": 401.548,
-      "green_access": 135.596,
-      "population": 31395.6,
-      "centre_m2_per_person": 17.286,
-      "green_m2_per_person": 1742.002,
-      "built_cells": 1888.0
+      "served_coverage": 0.839,
+      "centre_access": 300.701,
+      "green_access": 138.695,
+      "population": 28394.55,
+      "centre_m2_per_person": 20.824,
+      "green_m2_per_person": 1958.922,
+      "built_cells": 1758.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -90,11 +89,11 @@
       "build_prob": 0.3,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0,
+      "centre_walk_m": 400.0,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 6000,
@@ -108,9 +107,56 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "cambourne_walk800"
+      "name": "cambourne_walk400"
      },
-     "params_file": "cambourne/walk800_params.json"
+     "params_file": "cambourne/walk400_params.json"
+    },
+    {
+     "id": "walk1600",
+     "label": "Longer centre walk (1,600 m)",
+     "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+     "overrides": {
+      "centre_walk_m": 1600.0
+     },
+     "image": "cambourne/walk1600.png",
+     "metrics": {
+      "served_coverage": 0.989,
+      "centre_access": 422.728,
+      "green_access": 138.063,
+      "population": 29202.525,
+      "centre_m2_per_person": 16.088,
+      "green_m2_per_person": 1893.905,
+      "built_cells": 1794.0
+     },
+     "settings": {
+      "crs": "EPSG:27700",
+      "grid_size_m": 50,
+      "max_iterations": 400,
+      "target_population": 30000,
+      "build_prob": 0.3,
+      "dispersal": "moderate",
+      "random_seed": 42,
+      "centre_walk_m": 1600.0,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 1000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 6000,
+       "medium": 3000,
+       "low": 1500
+      },
+      "shares": {
+       "high": 0.2,
+       "medium": 0.3,
+       "low": 0.5
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "name": "cambourne_walk1600"
+     },
+     "params_file": "cambourne/walk1600_params.json"
     },
     {
      "id": "compact",
@@ -121,13 +167,13 @@
      },
      "image": "cambourne/compact.png",
      "metrics": {
-      "served_coverage": 0.854,
-      "centre_access": 288.097,
-      "green_access": 147.004,
-      "population": 27886.68,
-      "centre_m2_per_person": 19.751,
-      "green_m2_per_person": 2001.859,
-      "built_cells": 1737.0
+      "served_coverage": 0.94,
+      "centre_access": 375.486,
+      "green_access": 163.016,
+      "population": 30426.03,
+      "centre_m2_per_person": 17.837,
+      "green_m2_per_person": 1807.364,
+      "built_cells": 1848.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -137,11 +183,11 @@
       "build_prob": 0.3,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 6000,
@@ -168,13 +214,13 @@
      },
      "image": "cambourne/dispersed.png",
      "metrics": {
-      "served_coverage": 0.787,
-      "centre_access": 333.583,
-      "green_access": 130.445,
-      "population": 30402.945,
-      "centre_m2_per_person": 18.916,
-      "green_m2_per_person": 1806.871,
-      "built_cells": 1847.0
+      "served_coverage": 0.952,
+      "centre_access": 369.983,
+      "green_access": 135.798,
+      "population": 25578.18,
+      "centre_m2_per_person": 18.684,
+      "green_m2_per_person": 2206.6,
+      "built_cells": 1638.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -184,11 +230,11 @@
       "build_prob": 0.3,
       "dispersal": "aggressive",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 6000,
@@ -219,13 +265,13 @@
      },
      "image": "cambourne/denser.png",
      "metrics": {
-      "served_coverage": 0.786,
-      "centre_access": 326.259,
-      "green_access": 135.093,
-      "population": 28474.74,
-      "centre_m2_per_person": 18.206,
-      "green_m2_per_person": 2064.63,
-      "built_cells": 1367.0
+      "served_coverage": 0.965,
+      "centre_access": 339.306,
+      "green_access": 126.301,
+      "population": 29325.24,
+      "centre_m2_per_person": 17.954,
+      "green_m2_per_person": 2002.817,
+      "built_cells": 1388.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -235,11 +281,11 @@
       "build_prob": 0.3,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 6000,
@@ -266,13 +312,13 @@
      },
      "image": "cambourne/tight.png",
      "metrics": {
-      "served_coverage": 0.736,
-      "centre_access": 369.516,
-      "green_access": 138.864,
-      "population": 30010.5,
-      "centre_m2_per_person": 17.814,
-      "green_m2_per_person": 1834.278,
-      "built_cells": 1829.0
+      "served_coverage": 0.95,
+      "centre_access": 416.581,
+      "green_access": 135.995,
+      "population": 28833.165,
+      "centre_m2_per_person": 16.856,
+      "green_m2_per_person": 1927.999,
+      "built_cells": 1777.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -282,11 +328,11 @@
       "build_prob": 0.3,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 6000,
@@ -332,13 +378,13 @@
      "overrides": {},
      "image": "celina_tx/baseline.png",
      "metrics": {
-      "served_coverage": 0.932,
-      "centre_access": 434.086,
-      "green_access": 190.235,
-      "population": 50075.0,
-      "centre_m2_per_person": 17.074,
-      "green_m2_per_person": 388.917,
-      "built_cells": 6915.0
+      "served_coverage": 0.863,
+      "centre_access": 438.839,
+      "green_access": 217.965,
+      "population": 47100.0,
+      "centre_m2_per_person": 17.304,
+      "green_m2_per_person": 426.115,
+      "built_cells": 6677.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -349,10 +395,10 @@
       "dispersal": "moderate",
       "random_seed": 42,
       "centre_walk_m": 800,
-      "green_walk_m": 800,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 18500,
@@ -371,22 +417,21 @@
      "params_file": "celina_tx/baseline_params.json"
     },
     {
-     "id": "walk800",
-     "label": "Longer walk (800 m)",
-     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "id": "walk400",
+     "label": "Shorter centre walk (400 m)",
+     "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
      "overrides": {
-      "centre_walk_m": 800.0,
-      "green_walk_m": 800
+      "centre_walk_m": 400.0
      },
-     "image": "celina_tx/walk800.png",
+     "image": "celina_tx/walk400.png",
      "metrics": {
-      "served_coverage": 0.932,
-      "centre_access": 434.086,
-      "green_access": 190.235,
-      "population": 50075.0,
-      "centre_m2_per_person": 17.074,
-      "green_m2_per_person": 388.917,
-      "built_cells": 6915.0
+      "served_coverage": 0.763,
+      "centre_access": 303.514,
+      "green_access": 207.029,
+      "population": 47525.0,
+      "centre_m2_per_person": 19.463,
+      "green_m2_per_person": 419.043,
+      "built_cells": 6714.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -396,11 +441,11 @@
       "build_prob": 0.3,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 800.0,
-      "green_walk_m": 800,
+      "centre_walk_m": 400.0,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 18500,
@@ -414,9 +459,56 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "celina_tx_walk800"
+      "name": "celina_tx_walk400"
      },
-     "params_file": "celina_tx/walk800_params.json"
+     "params_file": "celina_tx/walk400_params.json"
+    },
+    {
+     "id": "walk1600",
+     "label": "Longer centre walk (1,600 m)",
+     "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+     "overrides": {
+      "centre_walk_m": 1600.0
+     },
+     "image": "celina_tx/walk1600.png",
+     "metrics": {
+      "served_coverage": 0.844,
+      "centre_access": 688.093,
+      "green_access": 239.617,
+      "population": 47475.0,
+      "centre_m2_per_person": 15.956,
+      "green_m2_per_person": 416.166,
+      "built_cells": 6707.0
+     },
+     "settings": {
+      "crs": "EPSG:32614",
+      "grid_size_m": 30,
+      "max_iterations": 400,
+      "target_population": 50000,
+      "build_prob": 0.3,
+      "dispersal": "moderate",
+      "random_seed": 42,
+      "centre_walk_m": 1600.0,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 1000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 18500,
+       "medium": 7500,
+       "low": 1500
+      },
+      "shares": {
+       "high": 0.1,
+       "medium": 0.3,
+       "low": 0.6
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "name": "celina_tx_walk1600"
+     },
+     "params_file": "celina_tx/walk1600_params.json"
     },
     {
      "id": "compact",
@@ -427,12 +519,12 @@
      },
      "image": "celina_tx/compact.png",
      "metrics": {
-      "served_coverage": 0.864,
-      "centre_access": 529.934,
-      "green_access": 223.351,
-      "population": 50200.0,
-      "centre_m2_per_person": 15.787,
-      "green_m2_per_person": 382.072,
+      "served_coverage": 0.793,
+      "centre_access": 468.007,
+      "green_access": 262.98,
+      "population": 50250.0,
+      "centre_m2_per_person": 17.761,
+      "green_m2_per_person": 381.692,
       "built_cells": 6923.0
      },
      "settings": {
@@ -444,10 +536,10 @@
       "dispersal": "off",
       "random_seed": 42,
       "centre_walk_m": 800,
-      "green_walk_m": 800,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 18500,
@@ -474,13 +566,13 @@
      },
      "image": "celina_tx/dispersed.png",
      "metrics": {
-      "served_coverage": 0.881,
-      "centre_access": 473.722,
-      "green_access": 157.678,
-      "population": 49550.0,
-      "centre_m2_per_person": 17.861,
-      "green_m2_per_person": 399.041,
-      "built_cells": 6876.0
+      "served_coverage": 0.805,
+      "centre_access": 541.993,
+      "green_access": 185.563,
+      "population": 39875.0,
+      "centre_m2_per_person": 17.179,
+      "green_m2_per_person": 544.451,
+      "built_cells": 6101.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -491,10 +583,10 @@
       "dispersal": "aggressive",
       "random_seed": 42,
       "centre_walk_m": 800,
-      "green_walk_m": 800,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 18500,
@@ -525,13 +617,13 @@
      },
      "image": "celina_tx/denser.png",
      "metrics": {
-      "served_coverage": 0.876,
-      "centre_access": 498.477,
-      "green_access": 185.418,
-      "population": 52716.5,
-      "centre_m2_per_person": 14.654,
-      "green_m2_per_person": 478.835,
-      "built_cells": 4663.0
+      "served_coverage": 0.824,
+      "centre_access": 516.047,
+      "green_access": 210.871,
+      "population": 50209.0,
+      "centre_m2_per_person": 15.286,
+      "green_m2_per_person": 507.13,
+      "built_cells": 4575.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -542,10 +634,10 @@
       "dispersal": "moderate",
       "random_seed": 42,
       "centre_walk_m": 800,
-      "green_walk_m": 800,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 18500,
@@ -572,13 +664,13 @@
      },
      "image": "celina_tx/tight.png",
      "metrics": {
-      "served_coverage": 0.771,
-      "centre_access": 653.172,
-      "green_access": 190.235,
-      "population": 50000.0,
-      "centre_m2_per_person": 16.8,
-      "green_m2_per_person": 389.5,
-      "built_cells": 6915.0
+      "served_coverage": 0.712,
+      "centre_access": 688.759,
+      "green_access": 217.965,
+      "population": 47037.5,
+      "centre_m2_per_person": 16.476,
+      "green_m2_per_person": 426.681,
+      "built_cells": 6677.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -589,10 +681,10 @@
       "dispersal": "moderate",
       "random_seed": 42,
       "centre_walk_m": 800,
-      "green_walk_m": 800,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 18500,
@@ -638,13 +730,13 @@
      "overrides": {},
      "image": "dnipro/baseline.png",
      "metrics": {
-      "served_coverage": 0.197,
-      "centre_access": 546.209,
-      "green_access": 569.392,
-      "population": 208094.873,
-      "centre_m2_per_person": 17.341,
-      "green_m2_per_person": 83.639,
-      "built_cells": 3562.0
+      "served_coverage": 0.253,
+      "centre_access": 956.978,
+      "green_access": 573.754,
+      "population": 244501.133,
+      "centre_m2_per_person": 12.97,
+      "green_m2_per_person": 68.204,
+      "built_cells": 3623.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -654,11 +746,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 40000,
@@ -677,22 +769,21 @@
      "params_file": "dnipro/baseline_params.json"
     },
     {
-     "id": "walk800",
-     "label": "Longer walk (800 m)",
-     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "id": "walk400",
+     "label": "Shorter centre walk (400 m)",
+     "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
      "overrides": {
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0
+      "centre_walk_m": 400.0
      },
-     "image": "dnipro/walk800.png",
+     "image": "dnipro/walk400.png",
      "metrics": {
-      "served_coverage": 0.262,
-      "centre_access": 928.737,
-      "green_access": 573.754,
-      "population": 245328.548,
-      "centre_m2_per_person": 11.812,
-      "green_m2_per_person": 67.974,
-      "built_cells": 3623.0
+      "served_coverage": 0.157,
+      "centre_access": 611.298,
+      "green_access": 569.392,
+      "population": 210990.825,
+      "centre_m2_per_person": 15.548,
+      "green_m2_per_person": 82.491,
+      "built_cells": 3562.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -702,11 +793,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0,
+      "centre_walk_m": 400.0,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 40000,
@@ -720,9 +811,56 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "dnipro_walk800"
+      "name": "dnipro_walk400"
      },
-     "params_file": "dnipro/walk800_params.json"
+     "params_file": "dnipro/walk400_params.json"
+    },
+    {
+     "id": "walk1600",
+     "label": "Longer centre walk (1,600 m)",
+     "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+     "overrides": {
+      "centre_walk_m": 1600.0
+     },
+     "image": "dnipro/walk1600.png",
+     "metrics": {
+      "served_coverage": 0.341,
+      "centre_access": 1363.661,
+      "green_access": 572.315,
+      "population": 269323.583,
+      "centre_m2_per_person": 8.865,
+      "green_m2_per_person": 60.835,
+      "built_cells": 3674.0
+     },
+     "settings": {
+      "crs": "EPSG:32636",
+      "grid_size_m": 25,
+      "max_iterations": 400,
+      "target_population": 252450,
+      "build_prob": 0.25,
+      "dispersal": "moderate",
+      "random_seed": 42,
+      "centre_walk_m": 1600.0,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 1000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 40000,
+       "medium": 25000,
+       "low": 12000
+      },
+      "shares": {
+       "high": 0.15,
+       "medium": 0.5,
+       "low": 0.35
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "name": "dnipro_walk1600"
+     },
+     "params_file": "dnipro/walk1600_params.json"
     },
     {
      "id": "compact",
@@ -733,13 +871,13 @@
      },
      "image": "dnipro/compact.png",
      "metrics": {
-      "served_coverage": 0.216,
-      "centre_access": 547.614,
-      "green_access": 561.154,
-      "population": 212231.948,
-      "centre_m2_per_person": 17.346,
-      "green_m2_per_person": 81.064,
-      "built_cells": 3565.0
+      "served_coverage": 0.252,
+      "centre_access": 958.612,
+      "green_access": 577.002,
+      "population": 227952.833,
+      "centre_m2_per_person": 12.552,
+      "green_m2_per_person": 76.833,
+      "built_cells": 3583.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -749,11 +887,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 40000,
@@ -780,13 +918,13 @@
      },
      "image": "dnipro/dispersed.png",
      "metrics": {
-      "served_coverage": 0.184,
-      "centre_access": 621.381,
-      "green_access": 531.254,
-      "population": 187823.205,
-      "centre_m2_per_person": 17.951,
-      "green_m2_per_person": 91.308,
-      "built_cells": 3515.0
+      "served_coverage": 0.249,
+      "centre_access": 1033.881,
+      "green_access": 557.274,
+      "population": 224229.465,
+      "centre_m2_per_person": 14.224,
+      "green_m2_per_person": 70.306,
+      "built_cells": 3596.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -796,11 +934,11 @@
       "build_prob": 0.25,
       "dispersal": "aggressive",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 40000,
@@ -831,13 +969,13 @@
      },
      "image": "dnipro/denser.png",
      "metrics": {
-      "served_coverage": 0.201,
-      "centre_access": 554.054,
-      "green_access": 565.279,
-      "population": 232684.043,
-      "centre_m2_per_person": 15.822,
-      "green_m2_per_person": 82.006,
-      "built_cells": 3461.0
+      "served_coverage": 0.216,
+      "centre_access": 981.362,
+      "green_access": 579.003,
+      "population": 261020.273,
+      "centre_m2_per_person": 12.079,
+      "green_m2_per_person": 71.568,
+      "built_cells": 3494.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -847,11 +985,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 40000,
@@ -878,13 +1016,13 @@
      },
      "image": "dnipro/tight.png",
      "metrics": {
-      "served_coverage": 0.15,
-      "centre_access": 608.273,
-      "green_access": 569.392,
-      "population": 215541.608,
-      "centre_m2_per_person": 14.121,
-      "green_m2_per_person": 80.749,
-      "built_cells": 3562.0
+      "served_coverage": 0.216,
+      "centre_access": 1058.189,
+      "green_access": 573.754,
+      "population": 244087.425,
+      "centre_m2_per_person": 11.499,
+      "green_m2_per_person": 68.319,
+      "built_cells": 3623.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -894,11 +1032,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 40000,
@@ -944,13 +1082,13 @@
      "overrides": {},
      "image": "freiburg_rieselfeld/baseline.png",
      "metrics": {
-      "served_coverage": 0.305,
-      "centre_access": 408.983,
-      "green_access": 540.454,
-      "population": 9684.0,
-      "centre_m2_per_person": 13.941,
-      "green_m2_per_person": 234.924,
-      "built_cells": 5710.0
+      "served_coverage": 0.369,
+      "centre_access": 380.472,
+      "green_access": 577.823,
+      "population": 10728.0,
+      "centre_m2_per_person": 9.787,
+      "green_m2_per_person": 198.546,
+      "built_cells": 5740.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -960,11 +1098,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 22000,
@@ -983,22 +1121,21 @@
      "params_file": "freiburg_rieselfeld/baseline_params.json"
     },
     {
-     "id": "walk800",
-     "label": "Longer walk (800 m)",
-     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "id": "walk400",
+     "label": "Shorter centre walk (400 m)",
+     "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
      "overrides": {
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0
+      "centre_walk_m": 400.0
      },
-     "image": "freiburg_rieselfeld/walk800.png",
+     "image": "freiburg_rieselfeld/walk400.png",
      "metrics": {
-      "served_coverage": 0.327,
-      "centre_access": 471.628,
-      "green_access": 577.823,
-      "population": 10728.0,
-      "centre_m2_per_person": 8.389,
-      "green_m2_per_person": 198.546,
-      "built_cells": 5740.0
+      "served_coverage": 0.27,
+      "centre_access": 450.956,
+      "green_access": 540.454,
+      "population": 9684.0,
+      "centre_m2_per_person": 15.748,
+      "green_m2_per_person": 234.924,
+      "built_cells": 5710.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1008,11 +1145,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0,
+      "centre_walk_m": 400.0,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 22000,
@@ -1026,9 +1163,56 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "freiburg_rieselfeld_walk800"
+      "name": "freiburg_rieselfeld_walk400"
      },
-     "params_file": "freiburg_rieselfeld/walk800_params.json"
+     "params_file": "freiburg_rieselfeld/walk400_params.json"
+    },
+    {
+     "id": "walk1600",
+     "label": "Longer centre walk (1,600 m)",
+     "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+     "overrides": {
+      "centre_walk_m": 1600.0
+     },
+     "image": "freiburg_rieselfeld/walk1600.png",
+     "metrics": {
+      "served_coverage": 0.373,
+      "centre_access": 455.472,
+      "green_access": 576.536,
+      "population": 10404.0,
+      "centre_m2_per_person": 6.248,
+      "green_m2_per_person": 211.217,
+      "built_cells": 5730.0
+     },
+     "settings": {
+      "crs": "EPSG:25832",
+      "grid_size_m": 25,
+      "max_iterations": 300,
+      "target_population": 16000,
+      "build_prob": 0.25,
+      "dispersal": "off",
+      "random_seed": 42,
+      "centre_walk_m": 1600.0,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 1000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 22000,
+       "medium": 14000,
+       "low": 8000
+      },
+      "shares": {
+       "high": 0.2,
+       "medium": 0.6,
+       "low": 0.2
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "name": "freiburg_rieselfeld_walk1600"
+     },
+     "params_file": "freiburg_rieselfeld/walk1600_params.json"
     },
     {
      "id": "moderate",
@@ -1039,13 +1223,13 @@
      },
      "image": "freiburg_rieselfeld/moderate.png",
      "metrics": {
-      "served_coverage": 0.31,
-      "centre_access": 433.04,
-      "green_access": 513.739,
-      "population": 16272.0,
-      "centre_m2_per_person": 17.361,
-      "green_m2_per_person": 104.781,
-      "built_cells": 5894.0
+      "served_coverage": 0.357,
+      "centre_access": 429.52,
+      "green_access": 562.531,
+      "population": 15012.0,
+      "centre_m2_per_person": 13.489,
+      "green_m2_per_person": 124.9,
+      "built_cells": 5858.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1055,11 +1239,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 22000,
@@ -1086,13 +1270,13 @@
      },
      "image": "freiburg_rieselfeld/dispersed.png",
      "metrics": {
-      "served_coverage": 0.242,
-      "centre_access": 488.375,
-      "green_access": 524.452,
-      "population": 15768.0,
-      "centre_m2_per_person": 17.44,
-      "green_m2_per_person": 93.068,
-      "built_cells": 5884.0
+      "served_coverage": 0.402,
+      "centre_access": 453.072,
+      "green_access": 540.88,
+      "population": 10332.0,
+      "centre_m2_per_person": 13.55,
+      "green_m2_per_person": 179.297,
+      "built_cells": 5726.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1102,11 +1286,11 @@
       "build_prob": 0.25,
       "dispersal": "aggressive",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 22000,
@@ -1137,13 +1321,13 @@
      },
      "image": "freiburg_rieselfeld/denser.png",
      "metrics": {
-      "served_coverage": 0.306,
-      "centre_access": 407.636,
-      "green_access": 540.454,
-      "population": 11382.0,
-      "centre_m2_per_person": 13.398,
-      "green_m2_per_person": 199.877,
-      "built_cells": 5710.0
+      "served_coverage": 0.369,
+      "centre_access": 376.832,
+      "green_access": 577.823,
+      "population": 12600.0,
+      "centre_m2_per_person": 9.921,
+      "green_m2_per_person": 169.048,
+      "built_cells": 5740.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1153,11 +1337,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 22000,
@@ -1184,13 +1368,13 @@
      },
      "image": "freiburg_rieselfeld/tight.png",
      "metrics": {
-      "served_coverage": 0.235,
-      "centre_access": 495.414,
-      "green_access": 540.454,
-      "population": 9648.0,
-      "centre_m2_per_person": 10.883,
-      "green_m2_per_person": 235.8,
-      "built_cells": 5710.0
+      "served_coverage": 0.316,
+      "centre_access": 465.699,
+      "green_access": 577.823,
+      "population": 10728.0,
+      "centre_m2_per_person": 9.554,
+      "green_m2_per_person": 198.546,
+      "built_cells": 5740.0
      },
      "settings": {
       "crs": "EPSG:25832",
@@ -1200,11 +1384,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 22000,
@@ -1250,13 +1434,13 @@
      "overrides": {},
      "image": "kigali_east/baseline.png",
      "metrics": {
-      "served_coverage": 0.26,
-      "centre_access": 615.874,
-      "green_access": 472.135,
-      "population": 60636.6,
-      "centre_m2_per_person": 19.837,
-      "green_m2_per_person": 309.611,
-      "built_cells": 9226.0
+      "served_coverage": 0.349,
+      "centre_access": 997.035,
+      "green_access": 486.638,
+      "population": 61521.525,
+      "centre_m2_per_person": 18.564,
+      "green_m2_per_person": 306.573,
+      "built_cells": 9228.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1266,11 +1450,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1289,22 +1473,21 @@
      "params_file": "kigali_east/baseline_params.json"
     },
     {
-     "id": "walk800",
-     "label": "Longer walk (800 m)",
-     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "id": "walk400",
+     "label": "Shorter centre walk (400 m)",
+     "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
      "overrides": {
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0
+      "centre_walk_m": 400.0
      },
-     "image": "kigali_east/walk800.png",
+     "image": "kigali_east/walk400.png",
      "metrics": {
-      "served_coverage": 0.409,
-      "centre_access": 837.021,
-      "green_access": 485.036,
-      "population": 63137.475,
-      "centre_m2_per_person": 19.532,
-      "green_m2_per_person": 297.636,
-      "built_cells": 9262.0
+      "served_coverage": 0.236,
+      "centre_access": 631.886,
+      "green_access": 478.063,
+      "population": 55827.225,
+      "centre_m2_per_person": 19.732,
+      "green_m2_per_person": 340.963,
+      "built_cells": 9097.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1314,11 +1497,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0,
+      "centre_walk_m": 400.0,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1332,9 +1515,56 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "kigali_east_walk800"
+      "name": "kigali_east_walk400"
      },
-     "params_file": "kigali_east/walk800_params.json"
+     "params_file": "kigali_east/walk400_params.json"
+    },
+    {
+     "id": "walk1600",
+     "label": "Longer centre walk (1,600 m)",
+     "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+     "overrides": {
+      "centre_walk_m": 1600.0
+     },
+     "image": "kigali_east/walk1600.png",
+     "metrics": {
+      "served_coverage": 0.5,
+      "centre_access": 1113.187,
+      "green_access": 490.628,
+      "population": 62252.55,
+      "centre_m2_per_person": 18.606,
+      "green_m2_per_person": 301.835,
+      "built_cells": 9259.0
+     },
+     "settings": {
+      "crs": "EPSG:32736",
+      "grid_size_m": 25,
+      "max_iterations": 400,
+      "target_population": 60000,
+      "build_prob": 0.25,
+      "dispersal": "moderate",
+      "random_seed": 42,
+      "centre_walk_m": 1600.0,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 1000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 35000,
+       "medium": 20000,
+       "low": 10000
+      },
+      "shares": {
+       "high": 0.2,
+       "medium": 0.4,
+       "low": 0.4
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "name": "kigali_east_walk1600"
+     },
+     "params_file": "kigali_east/walk1600_params.json"
     },
     {
      "id": "compact",
@@ -1345,13 +1575,13 @@
      },
      "image": "kigali_east/compact.png",
      "metrics": {
-      "served_coverage": 0.3,
-      "centre_access": 577.309,
-      "green_access": 482.151,
-      "population": 61252.2,
-      "centre_m2_per_person": 19.968,
-      "green_m2_per_person": 306.136,
-      "built_cells": 9246.0
+      "served_coverage": 0.349,
+      "centre_access": 960.014,
+      "green_access": 497.783,
+      "population": 62367.975,
+      "centre_m2_per_person": 17.078,
+      "green_m2_per_person": 302.12,
+      "built_cells": 9249.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1361,11 +1591,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1392,13 +1622,13 @@
      },
      "image": "kigali_east/dispersed.png",
      "metrics": {
-      "served_coverage": 0.193,
-      "centre_access": 660.262,
-      "green_access": 469.581,
-      "population": 61367.625,
-      "centre_m2_per_person": 20.03,
-      "green_m2_per_person": 303.778,
-      "built_cells": 9262.0
+      "served_coverage": 0.24,
+      "centre_access": 1260.787,
+      "green_access": 472.9,
+      "population": 56866.05,
+      "centre_m2_per_person": 19.942,
+      "green_m2_per_person": 332.811,
+      "built_cells": 9138.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1408,11 +1638,11 @@
       "build_prob": 0.25,
       "dispersal": "aggressive",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1443,13 +1673,13 @@
      },
      "image": "kigali_east/denser.png",
      "metrics": {
-      "served_coverage": 0.234,
-      "centre_access": 633.231,
-      "green_access": 487.866,
-      "population": 62068.275,
-      "centre_m2_per_person": 19.379,
-      "green_m2_per_person": 315.128,
-      "built_cells": 8838.0
+      "served_coverage": 0.328,
+      "centre_access": 1012.454,
+      "green_access": 502.034,
+      "population": 63617.4,
+      "centre_m2_per_person": 17.539,
+      "green_m2_per_person": 309.078,
+      "built_cells": 8831.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1459,11 +1689,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1490,13 +1720,13 @@
      },
      "image": "kigali_east/tight.png",
      "metrics": {
-      "served_coverage": 0.233,
-      "centre_access": 632.46,
-      "green_access": 472.135,
-      "population": 60328.8,
-      "centre_m2_per_person": 19.938,
-      "green_m2_per_person": 311.191,
-      "built_cells": 9226.0
+      "served_coverage": 0.316,
+      "centre_access": 1150.821,
+      "green_access": 486.638,
+      "population": 61521.525,
+      "centre_m2_per_person": 18.663,
+      "green_m2_per_person": 306.573,
+      "built_cells": 9228.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1506,11 +1736,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1556,12 +1786,12 @@
      "overrides": {},
      "image": "london_crews_hill/baseline.png",
      "metrics": {
-      "served_coverage": 0.958,
-      "centre_access": 317.87,
+      "served_coverage": 0.951,
+      "centre_access": 299.38,
       "green_access": 140.962,
-      "population": 13523.22,
-      "centre_m2_per_person": 13.577,
-      "green_m2_per_person": 322.578,
+      "population": 13423.68,
+      "centre_m2_per_person": 16.493,
+      "green_m2_per_person": 324.97,
       "built_cells": 3167.0
      },
      "settings": {
@@ -1576,7 +1806,7 @@
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 26000,
@@ -1595,22 +1825,21 @@
      "params_file": "london_crews_hill/baseline_params.json"
     },
     {
-     "id": "walk800",
-     "label": "Longer walk (800 m)",
-     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "id": "walk400",
+     "label": "Shorter centre walk (400 m)",
+     "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
      "overrides": {
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0
+      "centre_walk_m": 400.0
      },
-     "image": "london_crews_hill/walk800.png",
+     "image": "london_crews_hill/walk400.png",
      "metrics": {
-      "served_coverage": 0.958,
-      "centre_access": 317.87,
-      "green_access": 140.962,
+      "served_coverage": 0.79,
+      "centre_access": 270.453,
+      "green_access": 153.351,
       "population": 13523.22,
-      "centre_m2_per_person": 13.577,
-      "green_m2_per_person": 322.578,
-      "built_cells": 3167.0
+      "centre_m2_per_person": 18.102,
+      "green_m2_per_person": 318.386,
+      "built_cells": 3178.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1620,11 +1849,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0,
+      "centre_walk_m": 400.0,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 26000,
@@ -1638,9 +1867,56 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "london_crews_hill_walk800"
+      "name": "london_crews_hill_walk400"
      },
-     "params_file": "london_crews_hill/walk800_params.json"
+     "params_file": "london_crews_hill/walk400_params.json"
+    },
+    {
+     "id": "walk1600",
+     "label": "Longer centre walk (1,600 m)",
+     "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+     "overrides": {
+      "centre_walk_m": 1600.0
+     },
+     "image": "london_crews_hill/walk1600.png",
+     "metrics": {
+      "served_coverage": 0.942,
+      "centre_access": 425.816,
+      "green_access": 150.634,
+      "population": 13309.92,
+      "centre_m2_per_person": 14.944,
+      "green_m2_per_person": 326.599,
+      "built_cells": 3163.0
+     },
+     "settings": {
+      "crs": "EPSG:27700",
+      "grid_size_m": 25,
+      "max_iterations": 300,
+      "target_population": 13000,
+      "build_prob": 0.25,
+      "dispersal": "off",
+      "random_seed": 42,
+      "centre_walk_m": 1600.0,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 1000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 26000,
+       "medium": 15500,
+       "low": 9500
+      },
+      "shares": {
+       "high": 0.2,
+       "medium": 0.5,
+       "low": 0.3
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "name": "london_crews_hill_walk1600"
+     },
+     "params_file": "london_crews_hill/walk1600_params.json"
     },
     {
      "id": "moderate",
@@ -1651,13 +1927,13 @@
      },
      "image": "london_crews_hill/moderate.png",
      "metrics": {
-      "served_coverage": 0.956,
-      "centre_access": 301.582,
-      "green_access": 140.227,
-      "population": 13196.16,
-      "centre_m2_per_person": 15.891,
-      "green_m2_per_person": 330.573,
-      "built_cells": 3137.0
+      "served_coverage": 0.955,
+      "centre_access": 308.018,
+      "green_access": 142.269,
+      "population": 12087.0,
+      "centre_m2_per_person": 15.413,
+      "green_m2_per_person": 366.94,
+      "built_cells": 3056.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1671,7 +1947,7 @@
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 26000,
@@ -1698,13 +1974,13 @@
      },
      "image": "london_crews_hill/dispersed.png",
      "metrics": {
-      "served_coverage": 0.871,
-      "centre_access": 403.911,
-      "green_access": 121.698,
-      "population": 12087.0,
-      "centre_m2_per_person": 17.275,
-      "green_m2_per_person": 361.281,
-      "built_cells": 3086.0
+      "served_coverage": 0.861,
+      "centre_access": 424.718,
+      "green_access": 134.395,
+      "population": 5858.64,
+      "centre_m2_per_person": 14.594,
+      "green_m2_per_person": 812.339,
+      "built_cells": 2650.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1718,7 +1994,7 @@
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 26000,
@@ -1749,12 +2025,12 @@
      },
      "image": "london_crews_hill/denser.png",
      "metrics": {
-      "served_coverage": 0.958,
-      "centre_access": 314.675,
+      "served_coverage": 0.954,
+      "centre_access": 298.756,
       "green_access": 143.466,
-      "population": 13864.86,
-      "centre_m2_per_person": 13.047,
-      "green_m2_per_person": 324.691,
+      "population": 14093.595,
+      "centre_m2_per_person": 15.39,
+      "green_m2_per_person": 319.422,
       "built_cells": 2996.0
      },
      "settings": {
@@ -1769,7 +2045,7 @@
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 26000,
@@ -1796,12 +2072,12 @@
      },
      "image": "london_crews_hill/tight.png",
      "metrics": {
-      "served_coverage": 0.83,
-      "centre_access": 491.608,
+      "served_coverage": 0.958,
+      "centre_access": 339.186,
       "green_access": 140.962,
-      "population": 13309.92,
-      "centre_m2_per_person": 11.225,
-      "green_m2_per_person": 327.748,
+      "population": 13437.9,
+      "centre_m2_per_person": 11.788,
+      "green_m2_per_person": 324.627,
       "built_cells": 3167.0
      },
      "settings": {
@@ -1816,7 +2092,7 @@
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 26000,
@@ -1862,13 +2138,13 @@
      "overrides": {},
      "image": "medellin_pajarito/baseline.png",
      "metrics": {
-      "served_coverage": 0.73,
-      "centre_access": 202.728,
-      "green_access": 262.045,
-      "population": 42167.79,
-      "centre_m2_per_person": 19.305,
-      "green_m2_per_person": 251.397,
-      "built_cells": 1891.0
+      "served_coverage": 0.825,
+      "centre_access": 279.554,
+      "green_access": 244.946,
+      "population": 37120.68,
+      "centre_m2_per_person": 16.256,
+      "green_m2_per_person": 271.122,
+      "built_cells": 1750.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -1878,11 +2154,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1901,22 +2177,21 @@
      "params_file": "medellin_pajarito/baseline_params.json"
     },
     {
-     "id": "walk800",
-     "label": "Longer walk (800 m)",
-     "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
+     "id": "walk400",
+     "label": "Shorter centre walk (400 m)",
+     "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
      "overrides": {
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0
+      "centre_walk_m": 400.0
      },
-     "image": "medellin_pajarito/walk800.png",
+     "image": "medellin_pajarito/walk400.png",
      "metrics": {
-      "served_coverage": 0.826,
-      "centre_access": 245.851,
-      "green_access": 243.466,
-      "population": 40051.26,
-      "centre_m2_per_person": 17.292,
-      "green_m2_per_person": 248.503,
-      "built_cells": 1825.0
+      "served_coverage": 0.718,
+      "centre_access": 208.829,
+      "green_access": 266.319,
+      "population": 38219.647,
+      "centre_m2_per_person": 19.551,
+      "green_m2_per_person": 280.599,
+      "built_cells": 1792.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -1926,11 +2201,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 800.0,
-      "green_walk_m": 400.0,
+      "centre_walk_m": 400.0,
+      "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1944,9 +2219,56 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "medellin_pajarito_walk800"
+      "name": "medellin_pajarito_walk400"
      },
-     "params_file": "medellin_pajarito/walk800_params.json"
+     "params_file": "medellin_pajarito/walk400_params.json"
+    },
+    {
+     "id": "walk1600",
+     "label": "Longer centre walk (1,600 m)",
+     "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+     "overrides": {
+      "centre_walk_m": 1600.0
+     },
+     "image": "medellin_pajarito/walk1600.png",
+     "metrics": {
+      "served_coverage": 0.853,
+      "centre_access": 264.472,
+      "green_access": 240.394,
+      "population": 38667.375,
+      "centre_m2_per_person": 14.087,
+      "green_m2_per_person": 285.729,
+      "built_cells": 1783.0
+     },
+     "settings": {
+      "crs": "EPSG:32618",
+      "grid_size_m": 25,
+      "max_iterations": 400,
+      "target_population": 40000,
+      "build_prob": 0.25,
+      "dispersal": "moderate",
+      "random_seed": 42,
+      "centre_walk_m": 1600.0,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 1000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 35000,
+       "medium": 18000,
+       "low": 8000
+      },
+      "shares": {
+       "high": 0.3,
+       "medium": 0.4,
+       "low": 0.3
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "name": "medellin_pajarito_walk1600"
+     },
+     "params_file": "medellin_pajarito/walk1600_params.json"
     },
     {
      "id": "compact",
@@ -1957,13 +2279,13 @@
      },
      "image": "medellin_pajarito/compact.png",
      "metrics": {
-      "served_coverage": 0.736,
-      "centre_access": 218.268,
-      "green_access": 270.324,
-      "population": 38748.78,
-      "centre_m2_per_person": 18.657,
-      "green_m2_per_person": 289.571,
-      "built_cells": 1787.0
+      "served_coverage": 0.865,
+      "centre_access": 191.755,
+      "green_access": 254.0,
+      "population": 41597.955,
+      "centre_m2_per_person": 17.525,
+      "green_m2_per_person": 263.847,
+      "built_cells": 1857.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -1973,11 +2295,11 @@
       "build_prob": 0.25,
       "dispersal": "off",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -2004,13 +2326,13 @@
      },
      "image": "medellin_pajarito/dispersed.png",
      "metrics": {
-      "served_coverage": 0.603,
-      "centre_access": 322.625,
-      "green_access": 229.123,
-      "population": 37934.73,
-      "centre_m2_per_person": 19.164,
-      "green_m2_per_person": 260.126,
-      "built_cells": 1800.0
+      "served_coverage": 0.796,
+      "centre_access": 301.975,
+      "green_access": 255.303,
+      "population": 35126.257,
+      "centre_m2_per_person": 17.237,
+      "green_m2_per_person": 290.148,
+      "built_cells": 1716.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2020,11 +2342,11 @@
       "build_prob": 0.25,
       "dispersal": "aggressive",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -2055,13 +2377,13 @@
      },
      "image": "medellin_pajarito/denser.png",
      "metrics": {
-      "served_coverage": 0.709,
-      "centre_access": 217.318,
-      "green_access": 263.455,
-      "population": 41227.987,
-      "centre_m2_per_person": 18.861,
-      "green_m2_per_person": 267.197,
-      "built_cells": 1685.0
+      "served_coverage": 0.778,
+      "centre_access": 310.626,
+      "green_access": 251.601,
+      "population": 39342.713,
+      "centre_m2_per_person": 16.368,
+      "green_m2_per_person": 268.575,
+      "built_cells": 1623.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2071,11 +2393,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -2102,13 +2424,13 @@
      },
      "image": "medellin_pajarito/tight.png",
      "metrics": {
-      "served_coverage": 0.687,
-      "centre_access": 242.893,
-      "green_access": 262.045,
-      "population": 42534.112,
-      "centre_m2_per_person": 17.949,
-      "green_m2_per_person": 249.232,
-      "built_cells": 1891.0
+      "served_coverage": 0.825,
+      "centre_access": 270.406,
+      "green_access": 244.946,
+      "population": 36998.572,
+      "centre_m2_per_person": 16.31,
+      "green_m2_per_person": 272.017,
+      "built_cells": 1750.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2118,11 +2440,11 @@
       "build_prob": 0.25,
       "dispersal": "moderate",
       "random_seed": 42,
-      "centre_walk_m": 400,
+      "centre_walk_m": 800,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_ha": 2,
+      "min_settlement_pop": 1000,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,

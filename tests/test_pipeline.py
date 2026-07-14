@@ -279,6 +279,39 @@ def test_refine_centres_adds_when_underserved():
     assert np.isfinite(_walk_distance(cmask, 100.0, 800.0)[built]).mean() > 0.8  # most homes served
 
 
+def test_new_growth_near_existing_centre_still_earns_its_own_centre():
+    # New development hugging an existing town used to ride on the existing centre and end up
+    # centre-free (the Celina sprawl finding). Existing centres are not provision for new
+    # development: the appendage must gain a centre of its own.
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 40
+    built = np.zeros((g, g), bool)
+    built[10:20, 10:20] = True  # existing town, centre at its middle
+    new = np.zeros((g, g), bool)
+    new[10:20, 20:26] = True  # a new appendage east of the town, within the existing centre's walk
+    built = built | new
+    out = _refine_centres([], [(15, 15)], built, new, 100.0, 800.0)
+    assert len(out) >= 1
+    assert any(new[y, x] for y, x in out)
+
+
+def test_station_anchor_counts_as_provision_for_new_growth():
+    # The same appendage with a station anchor on it needs no further centre: anchors are new
+    # provision (grown and sized by the pipeline), only their location is pinned.
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 40
+    built = np.zeros((g, g), bool)
+    built[10:20, 10:20] = True
+    new = np.zeros((g, g), bool)
+    new[10:20, 20:26] = True
+    built = built | new
+    anchor = (15, 22)
+    out = _refine_centres([], [(15, 15), anchor], built, new, 100.0, 800.0, anchors=[anchor])
+    assert out == []
+
+
 def test_interior_point():
     from isobenefit_qgis.grid import _interior_point
 

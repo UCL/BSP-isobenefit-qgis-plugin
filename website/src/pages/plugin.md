@@ -124,8 +124,10 @@ output.
 | Dispersed development | Moderate | Leapfrog rate: Off / Moderate / Aggressive |
 | Random seed | 42 | The same seed reproduces the same run and the same ensemble, independent of core count |
 
-**Walkable access.** Centre walk (400 m) and Green walk (400 m): how far people walk to a
-mixed-use centre and to a park. During growth the engine uses one walk radius for its checks,
+**Walkable access.** Centre walk (800 m) and Green walk (400 m): how far people walk to a
+mixed-use centre and to a park. The defaults follow common practice: a ten-minute walk to a
+neighbourhood centre, and everyday green within the stricter reach the WHO and Natural England
+standards use. During growth the engine uses one walk radius for its checks,
 set to the larger of these two values, so growth is never cut off by the stricter one mid-run.
 The finished plan is then scored against each walk separately, and any shortfall shows in the
 coverage figures and steers the centre re-positioning.
@@ -134,9 +136,9 @@ coverage figures and steers the centre re-positioning.
 
 | Field | Default | What it does |
 | --- | --- | --- |
-| Optimise centre placement | on | Re-position centres central to their development, add where under-served, cull redundant ones; saves moderately and tightly clustered options. Off keeps the grown centres (one plan) |
+| Optimise centre placement | on | Re-position centres central to their development, add one wherever new development lacks a centre of its own (a nearby existing centre does not stand in), cull redundant ones; saves moderately and tightly clustered options. Off keeps the grown centres (one plan) |
 | Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
-| Min settlement area (ha) | 2 | Detached new clusters smaller than this revert to green |
+| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); the raw plan keeps everything for comparison |
 | Min green span (m) | 400 | A green patch must span this to count as a park; also a build rule protecting corridors |
 
 **Development density.** Three densities (people per km²) for the high, medium and low tiers,
@@ -159,6 +161,23 @@ any CRS; they are reprojected to the chosen run CRS.
 The **Run button stays disabled** until four things are set: an extents layer, an output folder
 and run name, a projected CRS, and valid densities and shares. The red status line names whichever are
 missing.
+
+## How distances, barriers and public transport are treated
+
+- **During growth**, every distance is a walk across the land grid (diagonal steps allowed),
+  bounded by the walking distance. A walk cannot cross unbuildable land, so water and carved
+  road or rail corridors must be walked around, not over. Streets are not used during growth,
+  and straight-line (crow-flies) distances are never used anywhere.
+- **In post-processing and scoring**, the same grid walk applies by default. When a street
+  layer is supplied, every walking distance is instead measured along the street network: the
+  walk follows streets a pedestrian can use (motorways, trunk roads and their slip roads are
+  excluded), each cell attaches to its nearest street node, and a cell with no street within
+  reach counts as unreachable. Barriers hold in both models: a carved corridor has no walkable
+  street across it and blocks the grid walk alike.
+- **Rail and tram stations** on built land anchor a mixed-use centre: the centre is pinned at
+  the station, never moved or culled, and grows and is sized like any other centre. **Bus and
+  tram stops** do not steer the simulation or the centres; the report states how many homes end
+  within a walk of a stop.
 
 ## Outputs and how to read them
 

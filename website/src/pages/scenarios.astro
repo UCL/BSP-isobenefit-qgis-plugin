@@ -18,6 +18,13 @@ const base = import.meta.env.BASE_URL
       (yellow to brown), mixed-use centres in reds, existing fabric muted, nature green, unbuildable
       blue.
     </p>
+    <p class="data-notice">
+      <strong>The input layers are automatically extracted from OpenStreetMap and will not always
+      reflect reality.</strong> Developed land can show as undeveloped, green space can be missing, and
+      centres can be absent where shops exist. The runs here are hypothetical illustrations of how the
+      isobenefit rules behave on each terrain. Before drawing conclusions about a real place, edit the
+      downloaded layers to match what is on the ground, then run the simulation on the corrected data.
+    </p>
     <div id="explorer" data-base={base}>
       <p class="chooser-label">Scenario</p>
       <div class="chooser" id="scenario-buttons"></div>
@@ -89,6 +96,10 @@ const base = import.meta.env.BASE_URL
     }
     .lede {
       @apply mt-1 text-sm font-light italic;
+    }
+    .data-notice {
+      @apply my-4 py-2 pl-4;
+      border-left: 3px solid #d33130;
     }
     .chooser-label {
       @apply mt-3 mb-0 text-center text-xs font-semibold uppercase tracking-wide;

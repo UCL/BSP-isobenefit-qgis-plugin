@@ -4,16 +4,17 @@ A QGIS plugin for exploring walkable urban development on real-world datasets,
 after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use
 centre (shops, services) and of green space.
 
+This is research software for discussion and debate. Its scenarios are speculative
+sketches of walkable growth in a place, made to be discussed with domain experts and
+weighed by them when developing actual planning strategies and developments. The
+scenarios are not plans to build from.
+
 📖 **Documentation & overview website:** <https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/>
 
 ⬇ **Get the plugin:** the ready-to-install `isobenefit_qgis.zip` is attached to every
 [GitHub release](https://github.com/UCL/BSP-isobenefit-qgis-plugin/releases/latest)
 (QGIS: *Plugins → Manage and Install Plugins → Install from ZIP*). A listing in the
 official QGIS plugin repository as an experimental plugin is in progress.
-
-This is research software. Its scenarios are exploratory sketches for discussion, not
-designs: anything taken further should be reviewed and developed with planning,
-transport and ecology professionals for the place in question.
 
 ## Repository layout
 

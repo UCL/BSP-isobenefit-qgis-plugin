@@ -167,7 +167,7 @@ class IsobenefitTask(QgsTask):
         )
         cwalk = self.centre_distance_m or self.max_distance_m
         gwalk = self.green_distance_m or self.max_distance_m
-        min_ha = self.centre_min_settlement * self.granularity_m**2 / 1.0e4
+        min_pop = self.centre_min_settlement * self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
         km = self.granularity_m / 1000.0
         hi, md, lo = self.density_factors
         ph, pm, pl = self.prob_distribution
@@ -193,7 +193,7 @@ class IsobenefitTask(QgsTask):
             f"  Green walk            : {gwalk:.0f} m",
             f"  Min green span        : {self.min_green_span:.0f} m",
             f"  Density               : {dens}",
-            f"  Min settlement        : {min_ha:.0f} ha ({self.centre_min_settlement} cells)",
+            f"  Min settlement        : ~{min_pop:,.0f} people ({self.centre_min_settlement} cells)",
             f"  Optimise centres      : {'on' if self.optimise_centres else 'off'}",
             f"  Ensemble              : {self.n_ensemble} run(s)",
             "",
@@ -524,11 +524,13 @@ class IsobenefitTask(QgsTask):
                     plan, metrics = variants["moderate"]  # headline metrics + audit use the moderate option
                     if pre_plan is not None:  # surface the gentle cleanup (raw is kept un-cleaned to compare)
                         removed = pre_m["built_cells"] - metrics["built_cells"]
-                        min_ha = self.centre_min_settlement * self.granularity_m**2 / 1.0e4
+                        min_pop = (
+                            self.centre_min_settlement * self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
+                        )
                         self._log(
                             f"Building cleanup reverted {removed:,} stranded built cell(s) to green "
-                            f"(detached new settlements smaller than {min_ha:.1f} ha); the raw plan is kept "
-                            f"un-cleaned so you can see exactly what the cleanup changed."
+                            f"(detached new settlements housing fewer than ~{min_pop:,.0f} people); the raw "
+                            f"plan is kept un-cleaned so you can see exactly what the cleanup changed."
                         )
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
                     self._write_tiered_plan(self.plan_path, plan, router, "idealised scenario")

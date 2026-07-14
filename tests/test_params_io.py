@@ -19,7 +19,7 @@ def test_roundtrip(tmp_path):
         "green_walk_m": 400,
         "optimise_centres": True,
         "centre_m2_per_person": 20,
-        "min_settlement_ha": 2,
+        "min_settlement_pop": 1000,
         "min_green_span_m": 400,
         "densities_km2": {"high": 40000, "medium": 25000, "low": 12000},
         "shares": {"high": 0.2, "medium": 0.6, "low": 0.2},

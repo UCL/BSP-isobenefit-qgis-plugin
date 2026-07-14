@@ -45,7 +45,8 @@ GRAN = 50.0  # m per cell — the demonstration window is 84 x 84 cells (4.2 km)
 
 # the same walk/density dials the dialog defaults to: three explicit tiers (people/km²) each with a
 # probability (summing to 1), high -> low
-WALK, GREEN_SPAN = 400.0, 400.0
+WALK, GREEN_WALK, GREEN_SPAN = 800.0, 400.0, 400.0  # the plugin's defaults
+MIN_SETTLEMENT_POP = 1000.0  # the plugin's default; converted to cells via the mean density
 DENSITY_TIERS = (6000.0, 3000.0, 1500.0)  # high, med, low
 TIER_PROBS = (0.2, 0.3, 0.5)
 
@@ -134,8 +135,10 @@ def to_plan(sub, st, spacing):
     plan, _, _, _ = G.select_plan(
         [st], GRAN, GREEN_SPAN, WALK,
         existing_built=sub["origin"] == 1, existing_centres=sub["seeds"],
-        centre_spacing_m=spacing, centre_distance_m=WALK, green_distance_m=WALK,
-        centre_min_settlement=8,
+        centre_spacing_m=spacing, centre_distance_m=WALK, green_distance_m=GREEN_WALK,
+        centre_min_settlement=max(
+            1, round(MIN_SETTLEMENT_POP / (sum(p * d for p, d in zip(TIER_PROBS, DENSITY_TIERS)) * GRAN**2 / 1.0e6))
+        ),
     )
     return plan
 

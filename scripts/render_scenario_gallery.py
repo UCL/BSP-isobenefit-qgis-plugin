@@ -60,9 +60,12 @@ TIER_STYLE = {
 def presets_for(name: str, params: dict) -> list[dict]:
     base = [
         {"id": "baseline", "label": "Baseline run", "note": "The scenario's own params.json, as shipped."},
-        {"id": "walk800", "label": "Longer walk (800 m)",
-         "note": "Centres serve an 800 m walk; growth reaches further from each centre.",
-         "overrides": {"centre_walk_m": 800.0, "green_walk_m": max(400.0, params.get("green_walk_m", 400.0))}},
+        {"id": "walk400", "label": "Shorter centre walk (400 m)",
+         "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
+         "overrides": {"centre_walk_m": 400.0}},
+        {"id": "walk1600", "label": "Longer centre walk (1,600 m)",
+         "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
+         "overrides": {"centre_walk_m": 1600.0}},
         {"id": "compact", "label": "Compact (dispersal off)",
          "note": "No leapfrogging: one contiguous settlement.", "overrides": {"dispersal": "off"}},
         {"id": "dispersed", "label": "Dispersed (aggressive)",
@@ -185,7 +188,14 @@ def run_preset(sub, params, preset):
         existing_centres=sub["seeds"], centre_spacing_m=spacing,
         centre_distance_m=walk, green_distance_m=green_walk,
         new_density_km2=sum(s * d for s, d in zip(shares, tiers)),
-        centre_min_settlement=max(1, round(2.0 * 1e4 / gran**2)),
+        # min settlement is a population: convert via the mean density (people / (people/km² × km²/cell))
+        centre_min_settlement=max(
+            1,
+            round(
+                float(p.get("min_settlement_pop", 1000.0))
+                / (sum(s * d for s, d in zip(shares, tiers)) * gran**2 / 1.0e6)
+            ),
+        ),
     )
     dens = G.derive_density(plan, gran, walk, tiers, shares)
     disp = G.to_tiered_plan(plan, dens, tiers)
@@ -237,7 +247,7 @@ def render_png(codes, layers, sub, gran, path):
 _SCHEMA_KEYS = (
     "crs", "grid_size_m", "max_iterations", "target_population", "build_prob", "dispersal",
     "random_seed", "centre_walk_m", "green_walk_m", "optimise_centres", "centre_m2_per_person",
-    "min_settlement_ha", "min_green_span_m", "densities_km2", "shares", "ensemble", "ensemble_runs",
+    "min_settlement_pop", "min_green_span_m", "densities_km2", "shares", "ensemble", "ensemble_runs",
 )
 
 

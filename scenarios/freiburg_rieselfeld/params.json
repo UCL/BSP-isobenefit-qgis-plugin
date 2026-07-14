@@ -5,7 +5,6 @@
   "random_seed": 42,
   "optimise_centres": true,
   "centre_m2_per_person": 20,
-  "min_settlement_ha": 2,
   "ensemble": true,
   "ensemble_runs": 50,
   "min_green_span_m": 400,
@@ -15,7 +14,7 @@
   "target_population": 16000,
   "build_prob": 0.25,
   "dispersal": "off",
-  "centre_walk_m": 400,
+  "centre_walk_m": 800,
   "green_walk_m": 400,
   "densities_km2": {
     "high": 22000,
@@ -27,5 +26,6 @@
     "medium": 0.6,
     "low": 0.2
   },
-  "fetch_buffer_m": 400
+  "fetch_buffer_m": 400,
+  "min_settlement_pop": 1000
 }

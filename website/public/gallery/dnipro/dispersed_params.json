@@ -6,11 +6,11 @@
   "build_prob": 0.25,
   "dispersal": "aggressive",
   "random_seed": 42,
-  "centre_walk_m": 400,
+  "centre_walk_m": 800,
   "green_walk_m": 400,
   "optimise_centres": true,
   "centre_m2_per_person": 20,
-  "min_settlement_ha": 2,
+  "min_settlement_pop": 1000,
   "min_green_span_m": 400,
   "densities_km2": {
     "high": 40000,

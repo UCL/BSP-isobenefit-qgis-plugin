@@ -298,7 +298,8 @@ def _seed_centres_proximity(built, granularity_m, max_distance_m, existing=None)
 
 
 def _refine_centres(
-    seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3, walk=None, spacing_m=None
+    seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3, walk=None,
+    spacing_m=None, anchors=None,
 ):
     """Optimise seeded centres after the fact, measuring catchment by ``walk`` — ONE distance
     model used for every judgment here (the grid walk by default, or true street-network
@@ -318,6 +319,12 @@ def _refine_centres(
     green, so without this a cluster can look "served" by a neighbouring cluster's centre across a
     green gap and be stripped bare by consolidation; a settlement without its own centre is not a
     settlement in this model's terms.
+
+    PROVISION RULE: existing centres serve the existing population and do NOT count as provision
+    for new development — new growth hugging an existing town must still earn its own centre, or
+    it would sprawl centre-free along existing fabric. ``anchors`` (station-anchored centres,
+    a subset of ``fixed``) are new provision and DO count: they are grown and sized by this
+    pipeline like any new centre, only their location is pinned.
     """
     built = np.asarray(built, dtype=bool)
     new_built = np.asarray(new_built, dtype=bool) & built
@@ -363,7 +370,11 @@ def _refine_centres(
     # per cell) is what keeps this single-threaded post-processing affordable.
     fixed_field = walk(onehot(fixed)) if fixed else np.full((rows, cols), np.inf)
     fixed_col = fixed_field[new_built]
-    fixed_reach = fixed_field <= spacing
+    # station anchors are the only fixed centres that count as provision for NEW development
+    anchors = [(int(y), int(x)) for y, x in (anchors or [])]
+    anchor_reach = (
+        (walk(onehot(anchors)) <= spacing) if anchors else np.zeros((rows, cols), dtype=bool)
+    )
 
     def lloyd(centres):  # re-position each new centre to the INTERIOR of the NEW homes it serves
         if not centres:
@@ -399,11 +410,12 @@ def _refine_centres(
 
     new = lloyd(new)
 
-    # Add centres where NEW development is still beyond a walk of any centre. The densest
+    # Add centres where NEW development is still beyond a walk of any NEW centre or anchor.
+    # Existing centres do not suppress an addition (the provision rule above). The densest
     # underserved cluster (a box-sum) only proposes WHERE; whether a centre is warranted there is
     # confirmed by the one metric (how many underserved homes it actually reaches within a walk).
     while True:
-        underserved = new_built & ~(fixed_reach | reach(new))
+        underserved = new_built & ~(anchor_reach | reach(new))
         if not underserved.any():
             break
         # propose the new centre from WITHIN the underserved area (densest spot), not merely near it:
@@ -417,8 +429,9 @@ def _refine_centres(
         new.append((int(y), int(x)))
     new = lloyd(new)
 
-    # Cull a centre uniquely serving < cull_min_unique built cells (redundant / overly small). A new
-    # centre's unique coverage = cells it reaches that no OTHER new centre and no fixed centre does.
+    # Cull a centre uniquely serving < cull_min_unique NEW built cells (redundant / overly small).
+    # A new centre's unique coverage = new cells it reaches that no OTHER new centre and no anchor
+    # does; coverage by an existing centre does not discount it (the provision rule above).
     # The anchor invariant caps the cull: a centre that is its settlement's LAST anchor is never
     # removed, however redundant its coverage looks through the green to a neighbouring cluster.
     def is_last_anchor(j, centres):
@@ -430,7 +443,7 @@ def _refine_centres(
     while new:
         new_masks = [reach([c]) for c in new]
         new_count = np.sum(new_masks, axis=0)
-        unique = [int((built & new_masks[j] & (new_count == 1) & ~fixed_reach).sum()) for j in range(len(new))]
+        unique = [int((new_built & new_masks[j] & (new_count == 1) & ~anchor_reach).sum()) for j in range(len(new))]
         cullable = [j for j in range(len(new)) if unique[j] < cull_min_unique and not is_last_anchor(j, new)]
         if not cullable:
             break
@@ -923,6 +936,7 @@ def optimise_plan(
         new_centres = _refine_centres(
             seed_new, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
             cull_min_unique=CENTRE_CULL_MIN, walk=walk, spacing_m=centre_spacing_m,
+            anchors=anchor_on_built,
         )
         # Grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built).
         # Station anchors grow too — a station should seed a real centre, not stay a lone cell — while

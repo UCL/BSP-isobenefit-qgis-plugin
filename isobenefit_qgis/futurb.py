@@ -288,10 +288,13 @@ class Isobenefit:
                 float(self.dlg.med_prob.text()),
                 float(self.dlg.low_prob.text()),
             )
-            # recommended-plan dials. Min settlement is entered as an AREA in hectares; convert to the
-            # cell count the model prunes/culls by: ha -> m² (×10 000) / cell area (grid²).
-            min_settlement_ha = _non_negative(float(self.dlg.min_settlement.text()))
-            centre_min_settlement = max(1, round(min_settlement_ha * 10000.0 / (granularity_m**2)))
+            # recommended-plan dials. Min settlement is entered as a POPULATION (a viable new cluster
+            # must house at least this many people); convert to the cell count the model prunes/culls
+            # by via the mean new density: cells = people / (people-per-km² × km² per cell).
+            min_settlement_pop = _non_negative(float(self.dlg.min_settlement.text()))
+            mean_density_km2 = sum(d * p for d, p in zip(density_factors, prob_distribution))
+            cell_km2 = granularity_m**2 / 1.0e6
+            centre_min_settlement = max(1, round(min_settlement_pop / (mean_density_km2 * cell_km2)))
             # centre provision is per person (rule-of-thumb m² of centre land per resident served)
             centre_m2_per_person = _positive(float(self.dlg.centre_m2_person.text()))
             # centre clustering is no longer chosen here: the run saves two options (moderately and
@@ -362,7 +365,7 @@ class Isobenefit:
                     "green_walk_m": green_distance_m,
                     "optimise_centres": self.dlg.optimise_centres_check.isChecked(),
                     "centre_m2_per_person": centre_m2_per_person,
-                    "min_settlement_ha": min_settlement_ha,
+                    "min_settlement_pop": min_settlement_pop,
                     "min_green_span_m": min_green_span,
                     "densities_km2": dict(zip(("high", "medium", "low"), density_factors)),
                     "shares": dict(zip(("high", "medium", "low"), prob_distribution)),

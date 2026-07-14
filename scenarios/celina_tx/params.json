@@ -5,7 +5,6 @@
   "random_seed": 42,
   "optimise_centres": true,
   "centre_m2_per_person": 20,
-  "min_settlement_ha": 2,
   "ensemble": true,
   "ensemble_runs": 50,
   "crs": "EPSG:32614",
@@ -15,7 +14,7 @@
   "build_prob": 0.3,
   "dispersal": "moderate",
   "centre_walk_m": 800,
-  "green_walk_m": 800,
+  "green_walk_m": 400,
   "min_green_span_m": 400,
   "densities_km2": {
     "high": 18500,
@@ -27,5 +26,6 @@
     "medium": 0.3,
     "low": 0.6
   },
-  "fetch_buffer_m": 400
+  "fetch_buffer_m": 400,
+  "min_settlement_pop": 1000
 }
