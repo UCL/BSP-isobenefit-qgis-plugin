@@ -25,15 +25,15 @@ Every scenario downloads as a single ZIP (extents, all input layers including th
 `steep.geojson`, and the parameter presets), or browse the folders on
 [GitHub](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios):
 
-| # | Scenario | Theme | Status | Download |
-|---|---|---|---|---|
-| 1 | [Cambourne, UK](#cambourne) | New-settlement growth (the reference demo) | Worked | [ZIP](cambourne.zip) |
-| 2 | [Dnipro, Ukraine](#dnipro) | Regeneration and edge growth | Worked | [ZIP](dnipro.zip) |
-| 3 | [Crews Hill, London](#crews-hill) | Green-belt release at the metropolitan edge | Draft | [ZIP](london_crews_hill.zip) |
-| 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | Draft | [ZIP](celina_tx.zip) |
-| 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | Draft | [ZIP](kigali_east.zip) |
-| 6 | [Medellín, Colombia](#medellin) | Planned hillside expansion on steep terrain | Draft | [ZIP](medellin_pajarito.zip) |
-| 7 | [Freiburg, Germany](#freiburg) | Validation against built walkable districts | Draft | [ZIP](freiburg_rieselfeld.zip) |
+| # | Scenario | Theme | Download |
+|---|---|---|---|
+| 1 | [Cambourne, UK](#cambourne) | New-settlement growth (the reference demo) | [ZIP](cambourne.zip) |
+| 2 | [Dnipro, Ukraine](#dnipro) | Regeneration and edge growth | [ZIP](dnipro.zip) |
+| 3 | [Crews Hill, London](#crews-hill) | Green-belt release at the metropolitan edge | [ZIP](london_crews_hill.zip) |
+| 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | [ZIP](celina_tx.zip) |
+| 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | [ZIP](kigali_east.zip) |
+| 6 | [Medellín, Colombia](#medellin) | Planned hillside expansion on steep terrain | [ZIP](medellin_pajarito.zip) |
+| 7 | [Freiburg, Germany](#freiburg) | Validation against built walkable districts | [ZIP](freiburg_rieselfeld.zip) |
 
 <h2 id="cambourne">1. Cambourne, UK: the reference demo</h2>
 
@@ -67,7 +67,7 @@ adjust in QGIS, and a single run grows both areas together. Density tiers and th
 target follow the national residential norms and load from `params.json`; urban centres are
 supplied as a plain point layer. 25 m grid, EPSG:32636.
 
-<h2 id="crews-hill">3. Crews Hill, London: a green-belt release (draft)</h2>
+<h2 id="crews-hill">3. Crews Hill, London: a green-belt release</h2>
 
 The Crews Hill area of Enfield, at London's northern edge inside the M25, is one of the largest
 green-belt releases proposed in an emerging London local plan, at about 5,500 homes around an
@@ -79,9 +79,9 @@ Folder: [`scenarios/london_crews_hill/`](https://github.com/UCL/BSP-isobenefit-q
   people/km² (40 / 65 / 110 dwellings/ha), shares 0.3 / 0.5 / 0.2 (low / medium / high).
 - **Target:** about 13,000 new residents (5,500 homes). **Walks:** 800 m to a centre, 400 m to
   green. **Grid:** 25 m, EPSG:27700. **Dispersal:** off (a contiguous urban extension).
-- **Status:** draft boundary and indicative numbers, to be confirmed against the local plan.
+- The boundary and numbers are indicative, to be confirmed against the local plan.
 
-<h2 id="celina">4. Celina, Texas: US suburbia at the fringe (draft)</h2>
+<h2 id="celina">4. Celina, Texas: US suburbia at the fringe</h2>
 
 Celina, on the Dallas–Fort Worth northern fringe, has repeatedly been the fastest-growing city in
 the United States, converting ranchland into master-planned subdivisions at speed. The scenario
@@ -94,9 +94,9 @@ Folder: [`scenarios/celina_tx/`](https://github.com/UCL/BSP-isobenefit-qgis-plug
 - **Target:** about 50,000 new residents, of the order of the city's own growth projections.
   **Walks:** 800 m to a centre, 400 m to green. **Grid:** 30 m, EPSG:32614. **Dispersal:** moderate (leapfrog growth is
   characteristic).
-- **Status:** draft boundary and indicative numbers, to be confirmed against city projections.
+- The boundary and numbers are indicative, to be confirmed against city projections.
 
-<h2 id="kigali">5. Kigali, Rwanda: plan-guided rapid urbanisation (draft)</h2>
+<h2 id="kigali">5. Kigali, Rwanda: plan-guided rapid urbanisation</h2>
 
 Kigali manages rapid urbanisation through a city-wide master plan that steers growth into
 designated expansion zones while protecting a network of green corridors and wetlands. The
@@ -112,10 +112,10 @@ Folder: [`scenarios/kigali_east/`](https://github.com/UCL/BSP-isobenefit-qgis-pl
 - **Terrain:** slopes over 15° preclude development (`slope_max_deg: 15`, matching Rwanda's
   percent-slope planning limits; a few percent of the window). Bands in the editable
   `steep.geojson`, from Copernicus GLO-30.
-- **Status:** draft boundary and indicative numbers, to be confirmed against the Kigali master
+- The boundary and numbers are indicative, to be confirmed against the Kigali master
   plan zoning.
 
-<h2 id="medellin">6. Medellín, Colombia: planned hillside expansion (draft)</h2>
+<h2 id="medellin">6. Medellín, Colombia: planned hillside expansion</h2>
 
 Pajarito and Ciudadela Nuevo Occidente on Medellín's northwestern slopes are a planned expansion
 of high-rise social housing served by the Metrocable. The scenario tests the growth rules where
@@ -129,9 +129,9 @@ Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-q
   **Dispersal:** moderate.
 - **Terrain:** slopes over 20° preclude development (`slope_max_deg: 20`; about 30% of the study
   window). The bands are in the editable `steep.geojson`, from Copernicus GLO-30.
-- **Status:** draft boundary and indicative numbers, to be confirmed against the POT zoning.
+- The boundary and numbers are indicative, to be confirmed against the POT zoning.
 
-<h2 id="freiburg">7. Freiburg, Germany: a validation scenario (draft)</h2>
+<h2 id="freiburg">7. Freiburg, Germany: a validation scenario</h2>
 
 Rieselfeld and Vauban in western Freiburg are two widely studied walkable districts, planned in
 the 1990s and often cited as models of the form this plugin aims for. The scenario runs the
@@ -145,7 +145,7 @@ Folder: [`scenarios/freiburg_rieselfeld/`](https://github.com/UCL/BSP-isobenefit
   8,000 / 14,000 / 22,000 people/km², shares 0.2 / 0.6 / 0.2 (low / medium / high).
 - **Target:** about 16,000 residents (the two districts' combined population). **Walks:** 800 m to a centre, 400 m to green.
   **Grid:** 25 m, EPSG:25832. **Dispersal:** off (both districts are contiguous extensions).
-- **Status:** draft boundary; the validation protocol (remove, regrow, compare) is described in
+- The boundary is indicative; the validation protocol (remove, regrow, compare) is described in
   the folder's `params.json` notes.
 
 ## Adding a scenario

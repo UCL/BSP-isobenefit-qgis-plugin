@@ -19,8 +19,7 @@ Folder anatomy:
 - `steep.geojson` — terrain slope bands from Copernicus GLO-30, where terrain matters; the
   scenario's `slope_max_deg` says which bands preclude development.
 
-Scenarios marked draft on the website have indicative parameters and draft boundaries, to be
-confirmed against local plans and norms.
+Boundaries and parameters are indicative, to be confirmed against local plans and norms.
 
 ## Adding a scenario (contributors)
 
