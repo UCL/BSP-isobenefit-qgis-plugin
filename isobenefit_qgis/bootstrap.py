@@ -24,12 +24,30 @@ from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 CORE_IMPORT = "isobenefit"
 CORE_PACKAGE = "isobenefit"
-# the floor tracks the oldest core this plugin should drive: 0.12.17 adds the
-# engine-side walk_distance field that makes post-processing fast on large windows
-# (the plugin falls back to a slow Python walk on older engines)
-MIN_VERSION = (0, 12, 18)
 MAX_VERSION_EXCLUSIVE = (0, 13, 0)
-PIP_SPEC = "isobenefit>=0.12.18,<0.13"
+
+
+def _plugin_version() -> str:
+    """The plugin's own version from metadata.txt — the engine requirement.
+
+    Plugin and engine release in strict lockstep, so the engine must be at least the
+    plugin's version (a newer 0.12.x is fine). Deriving the requirement here, rather
+    than from a hand-maintained floor, means the two can never drift and the upgrade
+    prompt fires exactly when the versions differ.
+    """
+    import configparser
+
+    parser = configparser.ConfigParser()
+    parser.read(os.path.join(os.path.dirname(__file__), "metadata.txt"))
+    return parser.get("general", "version")
+
+
+def min_version() -> tuple[int, int, int]:
+    return _parse_version(_plugin_version())
+
+
+def pip_spec() -> str:
+    return f"{CORE_PACKAGE}>={_plugin_version()},<{MAX_VERSION_EXCLUSIVE[0]}.{MAX_VERSION_EXCLUSIVE[1]}"
 
 # module-level so the running install survives ensure_core returning
 _install_task: QgsTask | None = None
@@ -64,7 +82,7 @@ def core_status() -> tuple[bool, str | None]:
     except Exception:
         return False, None
     parsed = _parse_version(version)
-    if parsed < MIN_VERSION or parsed >= MAX_VERSION_EXCLUSIVE:
+    if parsed < min_version() or parsed >= MAX_VERSION_EXCLUSIVE:
         return False, version
     return True, version
 
@@ -240,7 +258,7 @@ def ensure_core(parent: QWidget | None = None) -> bool:
         return False
 
     def _install(_task: QgsTask):
-        return _pip_install(PIP_SPEC)
+        return _pip_install(pip_spec())
 
     def _done(exception, result=None):
         global _install_task
@@ -258,7 +276,7 @@ def ensure_core(parent: QWidget | None = None) -> bool:
                 parent,
                 "Isobenefit: install failed",
                 "Automatic installation failed. Install it manually from a terminal:\n\n"
-                f'    "{python}" -m pip install "{PIP_SPEC}"\n\n'
+                f'    "{python}" -m pip install "{pip_spec()}"\n\n'
                 "Then restart QGIS.\n\nDetails:\n" + (output[-1500:] if output else "(no output)"),
             )
 
