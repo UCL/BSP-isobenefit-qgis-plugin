@@ -81,6 +81,35 @@ pub fn count_cont_nbs(state: &Array2<i16>, y: usize, x: usize, targets: &[i16]) 
     (total, longest, adds.len() as i64)
 }
 
+/// Connected-component labels of a bool mask: 0 = background, 1..=n per component,
+/// rook or queen connectivity. Serves the plugin's pruning/anchoring logic; the
+/// Python loop it replaces was a visible share of post-processing on large windows.
+pub fn label_components(mask: &Array2<bool>, queen: bool) -> Array2<i32> {
+    let (rows, cols) = mask.dim();
+    let mut labels = Array2::<i32>::zeros((rows, cols));
+    let mut next = 0i32;
+    let mut stack: Vec<(usize, usize)> = Vec::new();
+    for sy in 0..rows {
+        for sx in 0..cols {
+            if !mask[[sy, sx]] || labels[[sy, sx]] != 0 {
+                continue;
+            }
+            next += 1;
+            labels[[sy, sx]] = next;
+            stack.push((sy, sx));
+            while let Some((y, x)) = stack.pop() {
+                for (ny, nx) in iter_nbs(rows, cols, y, x, !queen) {
+                    if mask[[ny, nx]] && labels[[ny, nx]] == 0 {
+                        labels[[ny, nx]] = next;
+                        stack.push((ny, nx));
+                    }
+                }
+            }
+        }
+    }
+    labels
+}
+
 /// Length of the run of green (`== 0`) cells from `start` along a 1-D line, in
 /// the positive or negative direction, stopping at the first non-green cell
 /// (built `> 0` or unbuildable `< 0`) or the array edge. Returns the run length

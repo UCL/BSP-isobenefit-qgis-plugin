@@ -131,8 +131,28 @@ PLAN_PALETTE = [
 ]
 
 
+def _label_components(mask: np.ndarray, queen: bool):
+    """Engine-labelled connected components (0 = background, 1..n), or None when the
+    engine predates ``label_components``; callers then run their exact Python fallback."""
+    try:
+        import isobenefit
+
+        return isobenefit.label_components(np.ascontiguousarray(mask, dtype=bool), queen)
+    except (ImportError, AttributeError):
+        return None
+
+
 def _keep_large_components(mask: np.ndarray, min_cells: int) -> np.ndarray:
     """Zero out rook-connected components of ``mask`` smaller than ``min_cells``."""
+    mask = np.asarray(mask, dtype=bool)
+    labels = _label_components(mask, queen=False)
+    if labels is not None:
+        n = int(labels.max())
+        if n == 0:
+            return np.zeros_like(mask)
+        keep = np.bincount(labels.ravel()) >= min_cells
+        keep[0] = False
+        return keep[labels]
     rows, cols = mask.shape
     out = np.zeros_like(mask)
     seen = np.zeros_like(mask)
@@ -361,6 +381,17 @@ def _refine_centres(
             cache[c] = field
         return field
 
+    col_cache: dict = {}
+
+    def centre_col(c) -> np.ndarray:
+        # the placement stack slices each centre's field by new_built every Lloyd iteration;
+        # the slice depends only on the coordinate, so cache it per refinement call
+        col = col_cache.get(c)
+        if col is None:
+            col = centre_field(c)[new_built]
+            col_cache[c] = col
+        return col
+
     def reach(cells):  # built cells within the centre SPACING of any cell in `cells` (by the one metric)
         if not cells:
             return np.zeros((rows, cols), dtype=bool)
@@ -398,7 +429,7 @@ def _refine_centres(
         member_mask = np.zeros((rows, cols), dtype=bool)
         for _ in range(8):
             # column 0 = nearest fixed centre; columns 1.. = each new centre (single-source, cached)
-            stack = np.column_stack([fixed_col] + [centre_field(tuple(c))[new_built] for c in centres])
+            stack = np.column_stack([fixed_col] + [centre_col(tuple(c)) for c in centres])
             nearest = np.argmin(stack, axis=1)
             within = stack.min(axis=1) <= spacing  # homes beyond the spacing of every centre pull no one
             moved = False
@@ -580,6 +611,12 @@ def _grow_centres(points, fixed, built, walk, cell_pop, m2_per_person, cell_area
 def _components(mask):
     """8-connected components of a bool mask, as a list of (row, col) cell lists."""
     mask = np.asarray(mask, dtype=bool)
+    labels = _label_components(mask, queen=True)
+    if labels is not None:
+        comps: list[list[tuple[int, int]]] = [[] for _ in range(int(labels.max()))]
+        for y, x in zip(*np.nonzero(mask)):
+            comps[labels[y, x] - 1].append((int(y), int(x)))
+        return comps
     rows, cols = mask.shape
     seen = np.zeros((rows, cols), dtype=bool)
     comps = []
@@ -623,7 +660,7 @@ def _walk_distance(
 
     The engine computes this field 50-100x faster (and without holding the GIL), so it
     is preferred whenever importable; the Python loop below is the exact-parity fallback
-    for engines predating ``walk_distance`` (< 0.12.17).
+    for engines predating the engine helpers (< 0.12.17).
     """
     try:
         import isobenefit

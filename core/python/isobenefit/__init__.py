@@ -11,6 +11,7 @@ from ._core import (
     __version__,
     ensemble_class_counts,
     ensemble_probability,
+    label_components,
     run_ensemble,
     walk_distance,
 )
@@ -19,6 +20,7 @@ __all__ = [
     "Simulation",
     "ensemble_class_counts",
     "ensemble_probability",
+    "label_components",
     "run_ensemble",
     "walk_distance",
     "__version__",

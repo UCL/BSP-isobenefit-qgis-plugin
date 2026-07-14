@@ -27,9 +27,9 @@ CORE_PACKAGE = "isobenefit"
 # the floor tracks the oldest core this plugin should drive: 0.12.17 adds the
 # engine-side walk_distance field that makes post-processing fast on large windows
 # (the plugin falls back to a slow Python walk on older engines)
-MIN_VERSION = (0, 12, 17)
+MIN_VERSION = (0, 12, 18)
 MAX_VERSION_EXCLUSIVE = (0, 13, 0)
-PIP_SPEC = "isobenefit>=0.12.17,<0.13"
+PIP_SPEC = "isobenefit>=0.12.18,<0.13"
 
 # module-level so the running install survives ensure_core returning
 _install_task: QgsTask | None = None

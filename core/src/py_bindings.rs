@@ -5,6 +5,7 @@
 //! out. All heavy compute releases the GIL where it runs across threads.
 
 use crate::access::walk_distance as core_walk_distance;
+use crate::neighbours::label_components as core_label_components;
 use crate::sim::{
     ensemble_class_counts as core_ensemble_class_counts,
     ensemble_probability as core_ensemble_probability, run_ensemble as core_run_ensemble, Params,
@@ -203,12 +204,26 @@ fn walk_distance(
     dist.into_pyarray_bound(py).unbind()
 }
 
+/// Connected-component labels of a bool mask (0 = background, 1..=n), rook or
+/// queen connectivity. Releases the GIL during compute.
+#[pyfunction]
+fn label_components(
+    py: Python<'_>,
+    mask: PyReadonlyArray2<bool>,
+    queen: bool,
+) -> Py<PyArray2<i32>> {
+    let mask = mask.as_array().to_owned();
+    let labels = py.allow_threads(|| core_label_components(&mask, queen));
+    labels.into_pyarray_bound(py).unbind()
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<PySimulation>()?;
     m.add_function(wrap_pyfunction!(run_ensemble, m)?)?;
     m.add_function(wrap_pyfunction!(walk_distance, m)?)?;
+    m.add_function(wrap_pyfunction!(label_components, m)?)?;
     m.add_function(wrap_pyfunction!(ensemble_probability, m)?)?;
     m.add_function(wrap_pyfunction!(ensemble_class_counts, m)?)?;
     Ok(())

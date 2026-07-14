@@ -235,9 +235,9 @@ class IsobenefitTask(QgsTask):
 
     def _selection_progress(self, done: int, total: int) -> bool:
         """Progress + cancellation for the post-processing selection: the stage occupies the
-        90–99% band of the task bar, logs every candidate, and returning False aborts
+        40–99% band of the task bar (it is where the time goes), logs every candidate, and returning False aborts
         ``select_plan`` mid-stage."""
-        self.setProgress(90.0 + 9.0 * done / max(1, total))
+        self.setProgress(40.0 + 59.0 * done / max(1, total))
         self._log(f"post-processing candidates: {done}/{total}")
         return not self.isCanceled()
 
@@ -411,7 +411,7 @@ class IsobenefitTask(QgsTask):
                     states.extend(
                         isobenefit.run_ensemble(sim, self.random_seed, members, member_offset=len(states))
                     )
-                    self.setProgress(len(states) / n * 80.0)
+                    self.setProgress(len(states) / n * 40.0)
                     self._log(f"ensemble: {len(states)}/{n} runs")
 
                 # likelihood (uncertainty) layers from all runs (centres belong to the plan, not here)
@@ -428,7 +428,7 @@ class IsobenefitTask(QgsTask):
                 # green (funded by densification, not lost homes) + facility-location
                 # centres; existing centre seeds kept. Picked by shortest average walk.
                 self._log("Selecting and refining the idealised scenario…")
-                self.setProgress(90.0)
+                self.setProgress(40.0)
                 # ONE distance model: the bounded grid walk, the same metric the growth rules
                 # use. Street-network routing was removed: new development's streets do not
                 # exist yet, so a network metric compares new and existing fabric on

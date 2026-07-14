@@ -396,6 +396,20 @@ def test_scoring_walks_detour_around_unbuildable():
     assert m_blocked["centre_coverage"] < m_open["centre_coverage"]
 
 
+def test_label_components_engine_matches_python(monkeypatch):
+    # engine labelling and the Python fallback must produce identical components
+    # (as SETS per component; label numbering follows the same row-major scan)
+    from isobenefit_qgis import grid as G
+
+    rng = np.random.default_rng(5)
+    mask = rng.random((36, 48)) < 0.4
+    fast_comps = G._components(mask)
+    fast_kept = G._keep_large_components(mask, 5)
+    monkeypatch.setattr(G, "_label_components", lambda m, queen: None)  # force the fallback
+    assert [set(c) for c in fast_comps] == [set(c) for c in G._components(mask)]
+    np.testing.assert_array_equal(fast_kept, G._keep_large_components(mask, 5))
+
+
 def test_walk_distance_engine_matches_python():
     # the engine's walk field and the Python fallback must agree exactly: same metric,
     # same bound, same inf-beyond behaviour, on a grid with scattered targets
