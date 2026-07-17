@@ -21,3 +21,12 @@ unifying "viable as a settlement" and "warrants its own centre" into one number.
 Before deciding: count, across the seven scenario galleries, how many added centres
 serve sub-threshold catchments, and what served-coverage and centre-per-person
 figures look like with and without the unified threshold.
+
+## 2. Load-parameters feedback should state what changed
+
+Loading a params file works, but when the loaded values match the dialog (common,
+since the defaults and the scenario presets are aligned) nothing visibly moves and
+the load looks like a no-op. The feedback line should enumerate the changed fields
+("3 fields updated: max iterations 100 to 400, ...") or state that every field
+already matched. Old sidecars carrying the retired min_settlement_ha key are
+silently skipped for that field; the feedback should say so.
