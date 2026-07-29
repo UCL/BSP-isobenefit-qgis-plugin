@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://github-pages.ucl.ac.uk/BSP-isobenefit-qgis-plugin/sitemap-index.xml

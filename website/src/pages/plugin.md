@@ -25,7 +25,7 @@ If the automatic install is not available or not working on your system, run the
 yourself with the QGIS Python:
 
 ```
-<qgis-python> -m pip install "isobenefit>=0.12.18,<0.13"
+<qgis-python> -m pip install "isobenefit>=0.12.20,<0.13"
 ```
 
 ## Quick start: your first run
@@ -100,9 +100,10 @@ parameters for a run.
   finish, Esc to cancel) or the union of an existing polygon layer. The polygon's bounding box
   drives the download; results are trimmed to the polygon.
 - **Datasets**: built-up areas, green space, mixed-use centres, industrial land, streets,
-  railways, public-transport stops, rail/tram stations, and unbuildable land (water, airfields,
-  military, quarries, plus buffered motorway/railway/river corridors). Untick anything not
-  needed.
+  railways, public-transport stops, rail/tram stations, and unbuildable land. The unbuildable
+  dataset combines water, airfields, military land, quarries, industrial land, and buffered
+  corridors along major roads (motorway, trunk and primary), railways and rivers. Untick
+  anything not needed.
 - **Output**: one GeoPackage; every dataset becomes a layer in it, added to the project under an
   "OSM" group.
 
@@ -174,11 +175,11 @@ missing.
 - **In post-processing and scoring**, the same grid walk applies, so growth and scoring
   always agree. Street-network distances are not used: a new settlement's streets do not exist
   yet, so a network metric would measure new development and existing fabric on different
-  terms. The downloaded streets layer serves as map context, and motorway and rail corridors
-  derived from it are carved as barriers.
+  terms. The downloaded streets layer serves as map context, and major-road (motorway, trunk
+  and primary) and rail corridors derived from it are carved as barriers.
 - **Rail and tram stations** on built land anchor a mixed-use centre: the centre is pinned at
-  the station, never moved or culled, and grows and is sized like any other centre. **Bus and
-  tram stops** do not steer the simulation or the centres; the report states how many homes end
+  the station, never moved or culled, and grows and is sized like any other centre. **Bus
+  stops** do not steer the simulation or the centres; the report states how many homes end
   within a walk of a stop.
 
 ## Outputs and how to read them
@@ -190,7 +191,9 @@ built and green likelihood bands), `<name>_existing.tif` (the starting fabric),
 `<name>_tight.tif` (the two clustering options, each coloured by density tier: built as a
 yellow-to-brown ramp, mixed-use centres as a reds ramp, existing fabric muted),
 `<name>_report.txt` (parameters and per-option statistics) and `<name>_params.json` (the
-reloadable settings). QGIS loads them as a layer group in that order.
+reloadable settings). QGIS loads the rasters as one layer group, ordered existing fabric, then
+the raw pre-processing run, then the two clustering options, with the likelihood bands at the
+bottom.
 
 Every population figure counts **new residents only**; existing fabric is assumed served by its
 own centres. The per-person readouts follow the same convention: m² of mixed-use centre per person is new centre

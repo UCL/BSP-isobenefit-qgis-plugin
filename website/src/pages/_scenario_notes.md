@@ -65,7 +65,7 @@ the central right bank (regeneration and infill) and the left-bank edge, where t
 floodplain is a hard unbuildable limit. The extents layer holds both boundaries as drafts to
 adjust in QGIS, and a single run grows both areas together. Density tiers and the population
 target follow the national residential norms and load from `params.json`; urban centres are
-supplied as a plain point layer. 25 m grid, EPSG:32636.
+supplied as a polygon layer. 25 m grid, EPSG:32636.
 
 <h2 id="crews-hill">3. Crews Hill, London: a green-belt release</h2>
 
@@ -151,4 +151,4 @@ Folder: [`scenarios/freiburg_rieselfeld/`](https://github.com/UCL/BSP-isobenefit
 ## Adding a scenario
 
 Scenario contributions happen in the repository; the steps are described in
-[`scenarios/README.md`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios).
+[`scenarios/README.md`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/blob/main/scenarios/README.md).

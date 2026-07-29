@@ -97,7 +97,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="layer" src={dg('input_centres')} alt="" /><figcaption>Mixed-use urban centres, taken from retail and commercial land. Every cell they cover acts as a centre.</figcaption></figure>
       <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land: water, industrial land, and buffered barrier corridors such as the A428.</figcaption></figure>
       <figure><img class="layer" src={dg('input_industrial')} alt="" /><figcaption>Industrial land. It stays as it is, but no new housing is placed on it.</figcaption></figure>
-      <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. It gives the maps their context, and its motorway corridors are carved as barriers.</figcaption></figure>
+      <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. It gives the maps their context, and its major-road corridors (motorway, trunk and primary) are carved as barriers.</figcaption></figure>
       <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops. Stops feed the run report's transit-access readout; rail and tram stations anchor centres.</figcaption></figure>
     </div>
     <p>
@@ -119,7 +119,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       Run; the rest is automatic. The simulation works on a grid (here 50 m cells), so the vector layers are
       rasterised first: existing built fabric becomes <em>frozen</em> built cells, downloaded green becomes
       protected green cells, centre <em>areas</em> become centre cells across their full extent, and water,
-      industrial land and buffered barrier corridors (motorways, railways, rivers) are marked
+      industrial land and buffered barrier corridors (major roads, railways, rivers) are marked
       <strong>unbuildable</strong>, so the simulation never develops them. Every run on this page starts
       from this grid:
     </p>
@@ -176,12 +176,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
       iteration) to seed a new <em>neighbouring</em> centre, which lets a single town keep growing
       outward. A separate setting, <strong>Dispersed development</strong> (Off, Moderate or Aggressive),
       sets the chance that a far-off green cell instead seeds an <em>isolated</em> centre, so development
-      <em>leapfrogs</em> away from the core to form satellite settlements. Both are probability draws, like
-      the build chance: the dice are governed by the <strong>Build probability</strong> and
-      <strong>Dispersed development</strong> settings, and the <strong>Random seed</strong> makes any run
+      <em>leapfrogs</em> away from the core to form satellite settlements. Both centre draws are
+      probabilistic, like the build chance, and the <strong>Random seed</strong> makes any run
       repeatable.
     </p>
-    <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre may seed where the frontier sits just past the centre walk: at 700 m here, since growth can only reach the walk's edge, never far beyond it.</figcaption></figure>
+    <figure><img class="diagram" src={dg('centres_neighbouring')} alt="" /><figcaption>A <em>neighbouring</em> centre may seed where the frontier sits just past the centre walk: at 700 m here, since growth stops at the walk's edge.</figcaption></figure>
     <figure><img class="diagram" src={dg('centres_isolated')} alt="" /><figcaption>The same town: an <em>isolated</em> centre lets a satellite settlement leapfrog away from the core, at the rate set by Dispersed development.</figcaption></figure>
     <h3>The rules at work on the real town</h3>
     <p>
@@ -305,19 +304,22 @@ const dg = (name: string) => `${base}images/${name}.svg`
   <h2 id="scenarios">Changing the parameters</h2>
   <section>
     <p>
-      Every figure below is a <strong>complete pipeline run on the same Cambourne grid</strong>; only the named
+      Every figure below is a <strong>run on the same Cambourne grid</strong>; only the named
       parameter changes between figures.
     </p>
 
     <h3>Dispersed development</h3>
     <p>
-      This control sets how readily growth leapfrogs away from the existing fabric. Even <em>Moderate</em>
-      keeps the existing town dominant, while <em>Aggressive</em> scatters satellites across the window.
+      This control sets how readily growth leapfrogs away from the existing fabric. It also sets how much
+      of the population target fits: leapfrogging opens land that edge-only growth can never reach within
+      the walkability rules. These three panels show the raw grown state, before post-processing, so the
+      dial's effect is visible; the cleanup step then prunes any satellite that fails to reach the minimum
+      settlement size, which under <em>Aggressive</em> removes much of the scatter.
     </p>
     <div class="demo-row">
-      <figure><img class="demo" src={dg('demo_dispersal_off')} alt="" /><figcaption><strong>Off.</strong> Growth happens only at the edges of the existing fabric.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_dispersal_moderate')} alt="" /><figcaption><strong>Moderate.</strong> The town leads, and a few satellites appear.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_dispersal_aggressive')} alt="" /><figcaption><strong>Aggressive.</strong> Many satellites form, each still subject to the walkability rules.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_dispersal_off')} alt="" /><figcaption><strong>Off.</strong> Growth clings to the edges of the existing fabric, including its outlying hamlets, and saturates early.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_dispersal_moderate')} alt="" /><figcaption><strong>Moderate.</strong> The town still leads, and a few satellites grow to viable size.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_dispersal_aggressive')} alt="" /><figcaption><strong>Aggressive.</strong> Many small satellites scatter across the window, each still subject to the walkability rules; most are later pruned as too small.</figcaption></figure>
     </div>
 
     <h3>Build probability</h3>
@@ -384,7 +386,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       </li>
       <li>
         <strong>Real-data grounding.</strong> Existing fabric is frozen (never redeveloped); water,
-        industrial land and barrier corridors (motorways, railways, rivers) are carved out as unbuildable;
+        industrial land and barrier corridors (major roads, railways, rivers) are carved out as unbuildable;
         downloaded centre <em>areas</em> act as true multi-cell centres; and an OSM extraction tool supplies
         all of it. Rail and tram stations anchor centres; stops feed the report's transit readout. The
         growth rules and the scoring both measure bounded walks over the grid, blocked by unbuildable

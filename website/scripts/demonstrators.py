@@ -7,8 +7,11 @@ the results as a fine dot-grid over the town's actual street network.
 One geography threads the whole site: the input-layer panels (diagrams.py), these
 growth demonstrators, and the hero scenario are all the same 4.2 km window.
 
-    uv run --no-project --with core/dist/isobenefit-*.whl --with numpy --with shapely \
+    uv run --no-project --with isobenefit --with numpy --with shapely \
         python website/scripts/demonstrators.py
+
+(``isobenefit`` from PyPI tracks the released core in lockstep with the plugin; use
+``--with core/dist/<wheel>`` instead to preview an unreleased core.)
 """
 from __future__ import annotations
 
@@ -370,10 +373,13 @@ def main():
     render_likelihood(prob, sub, "demo_likelihood", "Development likelihood: 24 runs blended",
                       underlay=streets)
 
-    # Dispersed development on the same town: Off / Moderate / Aggressive
+    # Dispersed development on the same town: Off / Moderate / Aggressive. These panels show the RAW
+    # grown state, not the post-processed plan: pruning removes satellites below the minimum
+    # settlement size, which under Aggressive culls most of the scatter and would make the three
+    # figures read in the wrong order (Aggressive would look sparser than Off).
     for label, isol in (("off", 0.0), ("moderate", 0.0001), ("aggressive", 0.04)):
-        st, _dens, _ = grow(sub, isol=isol)
-        draw(tiered(to_plan(sub, st, 1.5 * WALK)), f"demo_dispersal_{label}",
+        st, dens, _ = grow(sub, isol=isol)
+        draw(growth_codes(sub, st, dens), f"demo_dispersal_{label}",
              f"Dispersed development: {label.capitalize()}")
 
     # Centre clustering: the SAME run and buildings, only the centre spacing differs. The two options
