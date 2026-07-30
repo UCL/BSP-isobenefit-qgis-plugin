@@ -22,25 +22,7 @@ Before deciding: count, across the seven scenario galleries, how many added cent
 serve sub-threshold catchments, and what served-coverage and centre-per-person
 figures look like with and without the unified threshold.
 
-## 2. Tabular summary report of the main outputs
-
-User request (Dnipro testing, 2026-07-30). The ensemble run already writes
-`<name>_report.txt`, but the statistics arrive as packed prose lines. The main
-outputs should read as tables, in the style of the website's parameter tables:
-
-- population accommodated vs the target, and the starting population;
-- achieved densities: per-tier breakdown (people/km² and share of new homes in
-  high/medium/low), plus the realised mean over new development;
-- served coverage, centre and green walk averages, centre count, m² of centre
-  and walkable green per person, with one row per plan option so the raw run
-  and the two clustering options compare side by side.
-
-Decisions to take: whether the table lives in the existing `report.txt` (fixed-
-width), in a Markdown/HTML sidecar, or both; and whether single-run mode (which
-currently writes no report at all) should produce the same summary. The log
-panel already carries most figures; the report is the durable copy.
-
-## 3. Load-parameters feedback should state what changed
+## 2. Load-parameters feedback should state what changed
 
 Loading a params file works, but when the loaded values match the dialog (common,
 since the defaults and the scenario presets are aligned) nothing visibly moves and

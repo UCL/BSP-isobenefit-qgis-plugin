@@ -190,18 +190,25 @@ built and green likelihood bands), `<name>_existing.tif` (the starting fabric),
 `<name>_pre.tif` (the chosen run before post-processing), `<name>_moderate.tif` and
 `<name>_tight.tif` (the two clustering options, each coloured by density tier: built as a
 yellow-to-brown ramp, mixed-use centres as a reds ramp, existing fabric muted),
-`<name>_report.txt` (parameters and per-option statistics) and `<name>_params.json` (the
+`<name>_report.txt` (the run record) and `<name>_params.json` (the
 reloadable settings). QGIS loads the rasters as one layer group, ordered existing fabric, then
 the raw pre-processing run, then the two clustering options, with the likelihood bands at the
 bottom.
+
+The report file is the durable summary of the run: the parameters, then fixed-width tables with
+the plan options side by side (population accommodated and share of the target, coverage,
+average walks, per-person centre and green provision), the achieved density mix per tier, and
+the centre audit including the weakest new centres.
 
 Every population figure counts **new residents only**; existing fabric is assumed served by its
 own centres. The per-person readouts follow the same convention: m² of mixed-use centre per person is new centre
 land over new residents, and m² of green per person is new green over new residents. Coverage
 percentages include every home, existing and new.
 
-**Single-run mode** writes one band per growth step. QGIS loads it as a temporal animation: open
-*View → Panels → Temporal Controller*, press the play button, and the town grows step by step.
+**Single-run mode** writes one band per growth step, plus its own `<name>_report.txt` (the
+parameters and the outcome: population accommodated, iterations used). QGIS loads the raster as
+a temporal animation: open *View → Panels → Temporal Controller*, press the play button, and the
+town grows step by step.
 
 ## Troubleshooting
 

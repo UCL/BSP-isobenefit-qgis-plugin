@@ -27,7 +27,7 @@ from qgis.core import (
     QgsTemporalNavigationObject,
 )
 
-from . import gis_io, grid
+from . import gis_io, grid, report
 
 LOG_TAG = "Isobenefit"
 
@@ -141,10 +141,11 @@ class IsobenefitTask(QgsTask):
         per-person metrics and the centre provision size against."""
         return float(sum(p * d for p, d in zip(self.prob_distribution, self.density_factors)))
 
-    def _write_tiered_plan(self, path: str, plan, label: str) -> None:
+    def _write_tiered_plan(self, path: str, plan, label: str) -> np.ndarray:
         """Arrange the drawn density tiers by walking distance to the final mixed-use centres, then
         write the plan as one categorical raster in which each new cell takes its tier's colour
-        (built and centres in distinct hues). Registers the raster for finished() to load."""
+        (built and centres in distinct hues). Registers the raster for finished() to load and
+        returns the tiered plan, so the report can break the achieved densities down per tier."""
         dens = grid.derive_density(
             plan, self.granularity_m, self.centre_distance_m or self.max_distance_m,
             self.density_factors, self.prob_distribution,
@@ -152,37 +153,44 @@ class IsobenefitTask(QgsTask):
         disp = grid.to_tiered_plan(plan, dens, self.density_factors)
         gis_io.write_plan_raster(path, disp, self.geotransform, self.target_crs)
         self._plan_outputs.append((path, label))
+        return disp
+
+    def _report_option(self, label: str, short: str, metrics: dict, n_centres: int, tiered) -> dict:
+        """One plan option's report entry: label, short column header, metrics, centre count and
+        (when a tiered raster was written) the per-tier density breakdown."""
+        tiers = None
+        if tiered is not None:
+            tiers = report.tier_breakdown(tiered, self.granularity_m, self.density_factors)
+        return {"label": label, "short": short, "metrics": metrics, "n_centres": n_centres, "tiers": tiers}
 
     @staticmethod
     def _count_centres(plan) -> int:
         """Number of centre AREAS (connected components) in a plan — new and existing."""
         return len(grid._components((plan == grid.PLAN_CENTRE) | (plan == grid.PLAN_EXIST_CENTRE)))
 
-    def _compose_report(self, report_stats, audit, rows, cols, start_pop, iter_summary, elapsed) -> str:
-        """A plain-text record of the run — parameters, run summary, per-plan statistics and the centre
-        audit — so there is a durable account of exactly what was done and how each option scored."""
+    def _report_header_lines(self) -> list[str]:
+        return [
+            "Isobenefit Urbanism — simulation report",
+            "=" * 42,
+            f"Output:    {self.out_file_name}",
+            f"Generated: {datetime.now():%Y-%m-%d %H:%M}",
+            f"CRS:       {self.target_crs.authid()}",
+        ]
+
+    def _report_param_lines(self) -> list[str]:
         dispersal = {0.0: "Off", 0.0001: "Moderate", 0.04: "Aggressive"}.get(
             round(self.cent_prob_isol, 4), f"{self.cent_prob_isol:g}"
         )
         cwalk = self.centre_distance_m or self.max_distance_m
         gwalk = self.green_distance_m or self.max_distance_m
         min_pop = self.centre_min_settlement * self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
-        km = self.granularity_m / 1000.0
         hi, md, lo = self.density_factors
         ph, pm, pl = self.prob_distribution
         dens = (
             f"high {hi:,.0f} ({ph:.0%}), med {md:,.0f} ({pm:.0%}), low {lo:,.0f} ({pl:.0%}) /km²; "
             f"mean {self._mean_new_density_km2():,.0f}"
         )
-        lines = [
-            "Isobenefit Urbanism — simulation report",
-            "=" * 42,
-            f"Output:    {self.out_file_name}",
-            f"Generated: {datetime.now():%Y-%m-%d %H:%M}",
-            f"CRS:       {self.target_crs.authid()}",
-            "",
-            "PARAMETERS",
-            "-" * 10,
+        return [
             f"  Grid size             : {self.granularity_m:.0f} m",
             f"  Max iterations        : {self.total_iters}",
             f"  Target population     : {self.max_populat:,.0f}",
@@ -195,46 +203,37 @@ class IsobenefitTask(QgsTask):
             f"  Min settlement        : ~{min_pop:,.0f} people ({self.centre_min_settlement} cells)",
             f"  Optimise centres      : {'on' if self.optimise_centres else 'off'}",
             f"  Ensemble              : {self.n_ensemble} run(s)",
-            "",
-            "RUN",
-            "-" * 3,
+        ]
+
+    def _report_file_lines(self, first: tuple[str, str] | None = None) -> list[str]:
+        entries = ([first] if first else []) + [(Path(p).name, label) for p, label in self._plan_outputs]
+        entries.append((Path(self.report_path).name, "this report"))
+        width = max(len(name) for name, _ in entries)
+        return [f"  {name.ljust(width)}  {label}" for name, label in entries]
+
+    def _compose_report(self, options, audit, rows, cols, start_pop, iter_summary, elapsed) -> str:
+        """A plain-text record of the run — parameters, run summary, the plan options side by side,
+        the achieved density mix and the centre audit — so there is a durable, comprehensive account
+        of exactly what was done and how each option scored."""
+        km = self.granularity_m / 1000.0
+        run_lines = [
             f"  Grid: {cols} × {rows} cells ({cols * km:.1f} × {rows * km:.1f} km)",
             f"  Starting population: {start_pop:,.0f} ({start_pop / self.max_populat:.0%} of target)",
         ]
         if iter_summary:
-            lines.append(f"  {iter_summary}")
-        lines.append(f"  Elapsed: {elapsed:.0f} s")
-        lines += ["", "STATISTICS (per plan — homes within a walk of an amenity)", "-" * 40]
-        for label, m, ncent in report_stats:
-            lines.append(
-                f"  {label}: served {m.get('served_coverage', 0):.0%}, "
-                f"centre walk {m.get('centre_access', 0):.0f} m, green walk {m.get('green_access', 0):.0f} m, "
-                f"{ncent} centres, {m.get('built_cells', 0):,} built cells, "
-                f"~{m.get('population', 0):,.0f} people: "
-                f"{m.get('centre_m2_per_person', 0):.0f} m² centre, "
-                f"{m.get('green_m2_per_person', 0):.0f} m² walkable green / person"
-            )
-        if report_stats and "transit_coverage" in report_stats[-1][1]:
-            tm = report_stats[-1][1]
-            lines.append(
-                f"  transit: {tm['transit_coverage']:.0%} within a walk of a stop "
-                f"(avg {tm['transit_access']:.0f} m) [reported only]"
-            )
-        if audit:
-            s = audit["summary"]
-            lines += [
-                "",
-                "CENTRE AUDIT (moderate option)",
-                "-" * 30,
-                f"  {s['n_centres']} centres ({s['n_existing']} existing, {s['n_new']} new); each serves a "
-                f"median of {s['served_median']} built cells (min {s['served_min']}, max {s['served_max']}).",
-            ]
-        lines += ["", "FILES", "-" * 5, f"  {Path(self.out_path).name}  — development likelihood (built, green)"]
-        for path, label in self._plan_outputs:
-            lines.append(f"  {Path(path).name}  — {label}")
-        lines.append(f"  {Path(self.report_path).name}  — this report")
-        lines.append("")
-        return "\n".join(lines)
+            run_lines.append(f"  {iter_summary}")
+        run_lines.append(f"  Elapsed: {elapsed:.0f} s")
+        return report.compose_report(
+            self._report_header_lines(),
+            self._report_param_lines(),
+            run_lines,
+            options,
+            self.max_populat,
+            self.density_factors,
+            self.prob_distribution,
+            audit,
+            self._report_file_lines(first=(Path(self.out_path).name, "development likelihood (built, green)")),
+        )
 
     def _selection_progress(self, done: int, total: int) -> bool:
         """Progress + cancellation for the post-processing selection: the stage occupies the
@@ -482,13 +481,15 @@ class IsobenefitTask(QgsTask):
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
                 if pre_plan is not None:  # the chosen run BEFORE post-processing — saved for comparison
-                    self._write_tiered_plan(self.pre_path, pre_plan, "raw (before post-processing)")
+                    pre_tiered = self._write_tiered_plan(self.pre_path, pre_plan, "raw (before post-processing)")
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         new_density_km2=self._mean_new_density_km2(), existing_green=(origin == 0),
                     )
-                    report_stats.append(("raw (before post-processing)", pre_m, self._count_centres(pre_plan)))
+                    report_stats.append(self._report_option(
+                        "raw (before post-processing)", "raw", pre_m, self._count_centres(pre_plan), pre_tiered
+                    ))
                 if self.optimise_centres and best_state is not None:
                     self._log("Post-processing the chosen run at each centre-clustering option…")
                     variants = grid.plan_variants(
@@ -511,8 +512,8 @@ class IsobenefitTask(QgsTask):
                         # put the centre COUNT in the layer name so the difference between the options is
                         # obvious in the QGIS layer panel itself, not only by eyeballing the map. The
                         # density tiers are arranged onto this plan and coloured per tier (built vs centre).
-                        self._write_tiered_plan(vpath, vplan, f"{labels[key]} ({ncent} centres)")
-                        report_stats.append((labels[key], vm, ncent))
+                        vtiered = self._write_tiered_plan(vpath, vplan, f"{labels[key]} ({ncent} centres)")
+                        report_stats.append(self._report_option(labels[key], key, vm, ncent, vtiered))
                         self._log(  # per-option metrics so the choice is informed, not just visual
                             f"  {labels[key]}: {ncent} centres, {vm.get('served_coverage', 0):.0%} served, "
                             f"centre walk {vm.get('centre_access', 0):.0f} m, green {vm.get('green_access', 0):.0f} m, "
@@ -530,9 +531,11 @@ class IsobenefitTask(QgsTask):
                             f"plan is kept un-cleaned so you can see exactly what the cleanup changed."
                         )
                 elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
-                    self._write_tiered_plan(self.plan_path, plan, "idealised scenario")
+                    ptiered = self._write_tiered_plan(self.plan_path, plan, "idealised scenario")
                     if metrics:
-                        report_stats.append(("idealised scenario", metrics, self._count_centres(plan)))
+                        report_stats.append(self._report_option(
+                            "idealised scenario", "idealised", metrics, self._count_centres(plan), ptiered
+                        ))
                 if metrics:
                     self._log(
                         f"Idealised scenario: {metrics.get('served_coverage', 0):.0%} of homes within a walk of "
@@ -566,11 +569,11 @@ class IsobenefitTask(QgsTask):
                         )
                 # durable run record (best-effort — never fail the run over the report)
                 try:
-                    report = self._compose_report(
+                    report_text = self._compose_report(
                         report_stats, audit, rows, cols, int(sim.population), iter_summary, time.time() - t_zero
                     )
                     with open(self.report_path, "w", encoding="utf-8") as fh:
-                        fh.write(report)
+                        fh.write(report_text)
                     self._log(f"Wrote run report: {Path(self.report_path).name}")
                 except Exception as exc:  # noqa: BLE001 — the report is a nicety, not worth failing for
                     self._log(f"Could not write the run report: {exc}", Qgis.MessageLevel.Warning)
@@ -610,6 +613,28 @@ class IsobenefitTask(QgsTask):
 
             self._log(f"Writing {len(self.frames)} steps to a single temporal raster: {self.out_path}")
             gis_io.write_temporal_class_raster(self.out_path, self.frames, geotransform, self.target_crs)
+            # durable run record for single-run mode too (best-effort, never fail the run over it)
+            try:
+                km = self.granularity_m / 1000.0
+                run_lines = [
+                    f"  Grid: {cols} × {rows} cells ({cols * km:.1f} × {rows * km:.1f} km)",
+                    f"  Mode: single run, one categorical band per growth step ({len(self.frames)} steps)",
+                    f"  Population accommodated: {int(sim.population):,} of {self.max_populat:,.0f} target "
+                    f"({sim.pop_target_ratio:.0%})",
+                    f"  Iterations: {sim.current_iter} of {self.total_iters} max",
+                    f"  Elapsed: {time.time() - t_zero:.0f} s",
+                ]
+                text = report.compose_single_run_report(
+                    self._report_header_lines(),
+                    self._report_param_lines(),
+                    run_lines,
+                    self._report_file_lines(first=(Path(self.out_path).name, "growth animation (temporal raster)")),
+                )
+                with open(self.report_path, "w", encoding="utf-8") as fh:
+                    fh.write(text)
+                self._log(f"Wrote run report: {Path(self.report_path).name}")
+            except Exception as exc:  # noqa: BLE001 — the report is a nicety, not worth failing for
+                self._log(f"Could not write the run report: {exc}", Qgis.MessageLevel.Warning)
             self._log(f"Simulation finished in {time.time() - t_zero:.0f}s ({len(self.frames)} steps).")
             return True
         except Exception as exc:
