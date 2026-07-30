@@ -134,14 +134,20 @@ def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, sta
     return np.asarray(final["state"]).copy(), np.asarray(final["density"]).copy(), snaps
 
 
+def _mean_density():
+    return sum(p * d for p, d in zip(TIER_PROBS, DENSITY_TIERS))
+
+
+def _min_settlement():
+    return max(1, round(MIN_SETTLEMENT_POP / (_mean_density() * GRAN**2 / 1.0e6)))
+
+
 def to_plan(sub, st, spacing):
     plan, _, _, _ = G.select_plan(
         [st], GRAN, GREEN_SPAN, WALK,
         existing_built=sub["origin"] == 1, existing_centres=sub["seeds"],
         centre_spacing_m=spacing, centre_distance_m=WALK, green_distance_m=GREEN_WALK,
-        centre_min_settlement=max(
-            1, round(MIN_SETTLEMENT_POP / (sum(p * d for p, d in zip(TIER_PROBS, DENSITY_TIERS)) * GRAN**2 / 1.0e6))
-        ),
+        centre_min_settlement=_min_settlement(),
     )
     return plan
 
@@ -383,11 +389,30 @@ def main():
              f"Dispersed development: {label.capitalize()}")
 
     # Centre clustering: the SAME run and buildings, only the centre spacing differs. The two options
-    # are ONE figure (two sub-panels, one shared legend) so they read as a direct comparison.
-    st, _dens, _ = grow(sub, isol=0.0)
+    # are ONE figure (two sub-panels, one shared legend) so they read as a direct comparison. Grown to
+    # a 20,000-person target: at the worked example's 12,000 the settlements stay smaller than either
+    # spacing and the two options collapse to near-identical centres. plan_variants (the plugin's own
+    # path) guarantees both options share one fabric.
+    st, _dens, _ = grow(sub, pop=20000.0, iters=3000)
+    _plan, _m, _pre, best_state = G.select_plan(
+        [st], GRAN, GREEN_SPAN, WALK,
+        existing_built=sub["origin"] == 1, existing_green=sub["origin"] == 0,
+        existing_centres=sub["seeds"], optimise_centres=True, centre_spacing_m=1.5 * WALK,
+        centre_distance_m=WALK, green_distance_m=GREEN_WALK,
+        centre_min_settlement=_min_settlement(), centre_m2_per_person=20.0,
+        new_density_km2=_mean_density(),
+    )
+    variants = G.plan_variants(
+        best_state, GRAN, GREEN_SPAN, WALK, {"moderate": 1.5 * WALK, "tight": 2.5 * WALK},
+        existing_centres=sub["seeds"], existing_built=sub["origin"] == 1,
+        existing_green=sub["origin"] == 0,
+        centre_distance_m=WALK, green_distance_m=GREEN_WALK,
+        centre_min_settlement=_min_settlement(), centre_m2_per_person=20.0,
+        new_density_km2=_mean_density(),
+    )
     render_multi(sub, [
-        (tiered(to_plan(sub, st, 1.5 * WALK)), "Moderately clustered"),
-        (tiered(to_plan(sub, st, 2.5 * WALK)), "Tightly clustered"),
+        (tiered(variants["moderate"][0]), "Moderately clustered"),
+        (tiered(variants["tight"][0]), "Tightly clustered"),
     ], "demo_clustering", "Centre clustering options", unb)
 
     # Build probability: cap iterations (huge pop) so the same elapsed time shows the RATE

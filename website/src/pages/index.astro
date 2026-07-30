@@ -260,11 +260,14 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <p>
       Finally, centres are offered at two <strong>clustering</strong> strengths. The run and the buildings
-      are the same; only the centre arrangement differs. These are the two options the plugin writes:
+      are the same; only the centre arrangement differs. These are the two options the plugin writes. The
+      comparison below is grown to a 20,000-person target rather than the worked example's 12,000: on a
+      town this size the smaller settlements need the same few centres at either spacing, so the fuller
+      growth is what lets the two options separate.
     </p>
     <figure>
       <img class="wide" src={dg('demo_clustering')} alt="Two centre-clustering options for the same run: moderately clustered and tightly clustered" />
-      <figcaption>The same run and buildings at two centre spacings: moderately clustered gives more, smaller centres and shorter walks; tightly clustered gives fewer, larger, more consolidated centres.</figcaption>
+      <figcaption>The same run and buildings at two centre spacings: moderately clustered distributes the centres across the settlements, with shorter walks (343 m average here); tightly clustered consolidates them into fewer, larger centres (435 m average). The built cells are identical; the density tiers re-arrange around whichever centres are placed.</figcaption>
     </figure>
     <p>
       Either can be compared against the raw grown state at the end of <a href="#simulation">step 3</a>. The
