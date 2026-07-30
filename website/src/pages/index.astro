@@ -260,10 +260,12 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <p>
       Finally, centres are offered at two <strong>clustering</strong> strengths. The run and the buildings
-      are the same; only the centre arrangement differs. These are the two options the plugin writes. The
-      comparison below is grown to a 20,000-person target rather than the worked example's 12,000: on a
-      town this size the smaller settlements need the same few centres at either spacing, so the fuller
-      growth is what lets the two options separate.
+      are the same; only the centre arrangement differs. These are the two options the plugin writes.
+      Under low growth pressure the two options come out the same, and that is expected: while every
+      settlement is smaller across than the centre spacing, each needs the same few centres wherever the
+      spacing dial sits. The options separate once settlements outgrow the spacing, which happens with
+      larger population targets, larger windows, or satellites that merge as they grow. The comparison
+      below is therefore grown to a 20,000-person target rather than the worked example's 12,000.
     </p>
     <figure>
       <img class="wide" src={dg('demo_clustering')} alt="Two centre-clustering options for the same run: moderately clustered and tightly clustered" />
