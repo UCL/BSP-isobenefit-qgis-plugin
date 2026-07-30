@@ -177,9 +177,12 @@ missing.
   yet, so a network metric would measure new development and existing fabric on different
   terms. The downloaded streets layer serves as map context, and major-road (motorway, trunk
   and primary) and rail corridors derived from it are carved as barriers.
-- **Rail and tram stations** on built land anchor a mixed-use centre: the centre is pinned at
-  the station, never moved or culled, and grows and is sized like any other centre. **Bus
-  stops** do not steer the simulation or the centres; the report states how many homes end
+- **Rail and tram stations** seed a mixed-use centre by default: during growth the simulation
+  treats the station like a centre, so development gathers around it, and in post-processing the
+  centre is pinned at the station, never moved or culled, and grows and is sized like any other
+  centre. Stations and stops that fall on a carved corridor cell are snapped to the nearest
+  walkable cell (a station sits on its own railway, and railways are carved as barriers).
+  **Bus stops** do not steer the simulation or the centres; the report states how many homes end
   within a walk of a stop.
 
 ## Outputs and how to read them
@@ -199,6 +202,42 @@ The report file is the durable summary of the run: the parameters, then fixed-wi
 the plan options side by side (population accommodated and share of the target, coverage,
 average walks, per-person centre and green provision), the achieved density mix per tier, and
 the centre audit including the weakest new centres.
+
+This excerpt is from a run on the Cambourne window used throughout the
+[introduction](../) (12,000-person target, default walks and densities):
+
+```text
+PLAN OPTIONS (side by side; the walkability figures count every home)
+----------------------------------------
+  Metric                                  raw  moderate   tight
+  -----------------------------------  ------  --------  ------
+  population accommodated              10,110    10,125  10,125
+  share of target                         84%       84%     84%
+  built cells (incl. existing)          2,072     2,072   2,072
+  mixed-use centre areas                   22        26      25
+  served coverage (centre AND green)      93%       93%     93%
+  avg walk to a centre (m)                336       267     283
+  avg walk to green (m)                   167       167     167
+  m2 mixed-use centre / person              4        20      18
+  m2 walkable green / person              826       825     825
+
+ACHIEVED DENSITY MIX (new development only)
+----------------------------------------
+  Tier (people/km2)  share drawn  moderate: cells  moderate: people
+  -----------------  -----------  ---------------  ----------------
+  high (6,000)               20%              284             4,260
+  medium (3,000)             30%              426             3,195
+  low (1,500)                50%              711             2,666
+  total                     100%            1,421            10,121
+```
+
+Reading it: the three columns are the raw run and the two clustering options, which share the
+same homes and differ in their centres, so the rows that move between columns are the centre
+count, the walks and the centre provision. Here the run housed 84% of the target (the window
+saturates before 12,000 under Moderate dispersal), the moderately clustered option cut the
+average centre walk from 336 m to 267 m, and the density mix landed on the drawn 20/30/50
+shares. A full report adds the walk means, compactness, transit readouts where stops were
+supplied, and the centre audit.
 
 Every population figure counts **new residents only**; existing fabric is assumed served by its
 own centres. The per-person readouts follow the same convention: m² of mixed-use centre per person is new centre

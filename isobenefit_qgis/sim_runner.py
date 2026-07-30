@@ -352,12 +352,26 @@ class IsobenefitTask(QgsTask):
             # Public-transport access: ordinary stops and rail/tram stations are two layers
             # (each edited/swapped on its own). The scored transit dimension uses BOTH — every
             # stop is transit access — while only stations anchor a centre in the plan.
+            # Both are snapped off carved cells: a station sits ON its railway and a stop on its
+            # road, and those corridors are carved as unbuildable, so the raw cell is often one
+            # a walk can never reach (which would silently void the anchor and the access score).
             stop_cells = []
             if self.transit_stops_layer is not None:
                 stop_cells = gis_io.point_cells(self.transit_stops_layer, self.target_crs, geotransform, rows, cols)
+                stop_cells, _, n_lost = grid.sanitise_seeds(stop_cells, state, self.granularity_m,
+                                                            2 * self.granularity_m)
+                if n_lost:
+                    self._log(f"{n_lost} stop(s) dropped: no walkable cell within two blocks.")
             station_anchors = []
             if self.stations_layer is not None:
                 station_anchors = gis_io.point_cells(self.stations_layer, self.target_crs, geotransform, rows, cols)
+                station_anchors, _, n_lost = grid.sanitise_seeds(station_anchors, state, self.granularity_m,
+                                                                 2 * self.granularity_m)
+                if n_lost:
+                    self._log(
+                        f"{n_lost} station(s) dropped: no walkable cell within two blocks.",
+                        Qgis.MessageLevel.Warning,
+                    )
             transit_stops = None
             all_stop_cells = stop_cells + station_anchors
             if all_stop_cells:
@@ -368,13 +382,20 @@ class IsobenefitTask(QgsTask):
                     f"Placed {len(stop_cells)} stop(s) + {len(station_anchors)} station(s)"
                     + ("; stations anchor centres." if station_anchors else ".")
                 )
+            # Stations join the CA centre seeds: a station triggers development around itself by
+            # default, exactly like an existing centre, and the post-processing anchor then pins,
+            # grows and protects the centre it earns. The stations stay OUT of ``seeds`` proper so
+            # the plan does not mislabel their new centres as existing fabric.
+            sim_seeds = seeds + [s for s in station_anchors if s not in set(seeds)]
+            if len(sim_seeds) > len(seeds):
+                self._log(f"{len(sim_seeds) - len(seeds)} station(s) added as centre seeds for growth.")
 
             self.per_block = self._per_block()
             sim = isobenefit.Simulation(
                 state,
                 origin,
                 density,
-                seeds,
+                sim_seeds,
                 self.granularity_m,
                 self.max_distance_m,
                 self.max_populat,
@@ -397,7 +418,7 @@ class IsobenefitTask(QgsTask):
                 n = self.n_ensemble
                 batch = max(1, cores)  # ~one run per core keeps all cores busy
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
-                iter_summary = self._log_iterations_to_target(isobenefit, state, origin, density, seeds)
+                iter_summary = self._log_iterations_to_target(isobenefit, state, origin, density, sim_seeds)
                 # Collect each run's final layout (not just the blended average): the
                 # likelihood layers come from all runs, and the idealised scenario is the
                 # best single run, optimised. Batched for progress + cancellation; one fixed

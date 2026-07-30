@@ -98,12 +98,12 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land: water, industrial land, and buffered barrier corridors such as the A428.</figcaption></figure>
       <figure><img class="layer" src={dg('input_industrial')} alt="" /><figcaption>Industrial land. It stays as it is, but no new housing is placed on it.</figcaption></figure>
       <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. It gives the maps their context, and its major-road corridors (motorway, trunk and primary) are carved as barriers.</figcaption></figure>
-      <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops. Stops feed the run report's transit-access readout; rail and tram stations anchor centres.</figcaption></figure>
+      <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops. Stops feed the run report's transit-access readout; rail and tram stations seed growth and anchor centres.</figcaption></figure>
     </div>
     <p>
       Two further datasets, <em>railways</em> and <em>rail/tram stations</em>, are also downloaded. They
-      are empty here because Cambourne has no railway. Where stations do exist, they anchor centres in the
-      scenarios.
+      are empty here because Cambourne has no railway. Where stations do exist, they seed growth and
+      anchor centres in the scenarios.
     </p>
     <figure>
       <img class="hero" src={dg('input_composite')} alt="All downloaded layers stacked into one map of Cambourne" />
