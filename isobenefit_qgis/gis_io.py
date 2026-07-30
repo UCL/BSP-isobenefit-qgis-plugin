@@ -34,7 +34,14 @@ def prepare_grid(extents_layer, target_crs, granularity_m):
     Returns ``(rows, cols, geotransform, bounds)``.
     """
     xform = QgsCoordinateTransform(extents_layer.crs(), target_crs, QgsProject.instance())
-    bbox = xform.transformBoundingBox(extents_layer.extent())
+    try:
+        bbox = xform.transformBoundingBox(extents_layer.extent())
+    except Exception as exc:  # QgsCsException — usually a CRS that does not cover the area
+        raise ValueError(
+            f"The extents layer could not be reprojected to {target_crs.authid()}. "
+            f"That CRS probably does not cover the area of interest; "
+            f"choose the local projected CRS (e.g. the area's UTM zone). [{exc}]"
+        ) from exc
     return align_bounds(bbox.xMinimum(), bbox.yMinimum(), bbox.xMaximum(), bbox.yMaximum(), float(granularity_m))
 
 

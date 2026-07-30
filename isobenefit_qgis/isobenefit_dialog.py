@@ -517,7 +517,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             chosen = self._local_utm_crs(candidate_layer)
         if chosen is not None and chosen.isValid():
             self.crs_selection.setCrs(chosen)
-            self.handle_crs()  # sync selected_crs even if crsChanged didn't fire
+        self.handle_crs()  # sync selected_crs (and re-validate coverage) even if crsChanged didn't fire
         self.refresh_state()
 
     def _local_utm_crs(self, layer: QgsVectorLayer) -> QgsCoordinateReferenceSystem | None:
@@ -537,11 +537,40 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
     def handle_crs(self) -> None:
         """Only LOCAL PROJECTED CRSs are accepted — geographic (lat/lon) CRSs are rejected so the
-        simulation always runs in metres."""
-        if not self.crs_selection.crs().isValid() or self.crs_selection.crs().isGeographic():
+        simulation always runs in metres — and the CRS must cover the extents layer, otherwise the
+        run would fail later with a cryptic transform error."""
+        crs = self.crs_selection.crs()
+        if not crs.isValid() or crs.isGeographic():
             self.crs_feedback.setText("Select a local projected CRS (e.g. the UTM zone) — not a geographic one")
             self.selected_crs = None
         else:
-            self.crs_feedback.setText("")
-            self.selected_crs = self.crs_selection.crs()
+            mismatch = self._crs_outside_aoi(crs)
+            if mismatch:
+                self.crs_feedback.setText(mismatch)
+                self.selected_crs = None
+            else:
+                self.crs_feedback.setText("")
+                self.selected_crs = crs
         self.refresh_state()
+
+    def _crs_outside_aoi(self, crs: QgsCoordinateReferenceSystem) -> str | None:
+        """A message when the chosen CRS's area of use does not cover the extents layer (e.g. a UTM
+        zone from another continent left over from a previous session or a loaded preset). Returns
+        None when the CRS covers the area, or when either side cannot be established (validation is
+        best-effort; a genuinely broken transform still fails at run time)."""
+        if self.extents_layer is None:
+            return None
+        try:
+            wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
+            xform = QgsCoordinateTransform(self.extents_layer.crs(), wgs84, QgsProject.instance())
+            aoi = xform.transformBoundingBox(self.extents_layer.extent())
+            bounds = crs.bounds()
+        except Exception:  # noqa: BLE001 — best-effort check; never block on the check itself failing
+            return None
+        if aoi.isNull() or bounds.isNull():
+            return None
+        if bounds.intersects(aoi):
+            return None
+        suggestion = self._local_utm_crs(self.extents_layer)
+        hint = f" (the local UTM zone is {suggestion.authid()})" if suggestion is not None else ""
+        return f"{crs.authid()} does not cover the extents layer{hint}"
