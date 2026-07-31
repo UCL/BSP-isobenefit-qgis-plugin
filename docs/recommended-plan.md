@@ -35,9 +35,12 @@ would produce, so the plan is never read off the averaged surfaces.
      is on (the default), each is re-positioned onto new land, central to the
      new homes it serves; centres are added where new development is
      under-served, redundant or tiny ones are culled, and each is grown to an
-     area sized by the residents it serves. Existing centres and rail or tram
-     station anchors are fixed and never culled, and every settlement keeps
-     at least one attached centre.
+     area sized by the residents it serves. A centre must reach enough new
+     homes to hold the minimum settlement population, the same threshold that
+     prunes failed satellites, so a stray infill patch inside existing fabric
+     never earns one. Existing centres and rail or tram station anchors are
+     fixed and never culled, and every settlement whose new development meets
+     that threshold keeps at least one attached centre.
 3. **Select the best run.** Every candidate is scored on the same yardstick
    and the plan with the lowest mean walk to amenities wins. The score is
    threshold coverage: a home within the chosen walking distance of a centre,

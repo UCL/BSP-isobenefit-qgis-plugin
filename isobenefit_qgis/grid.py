@@ -318,8 +318,8 @@ def _seed_centres_proximity(built, granularity_m, max_distance_m, existing=None)
 
 
 def _refine_centres(
-    seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3, walk=None,
-    spacing_m=None, anchors=None, walk_cache=None,
+    seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3, min_support=0,
+    walk=None, spacing_m=None, anchors=None, walk_cache=None,
 ):
     """Optimise seeded centres after the fact, measuring catchment by ``walk`` — ONE distance
     model used for every judgment here: the bounded grid walk (callers inject it as the
@@ -345,6 +345,14 @@ def _refine_centres(
     it would sprawl centre-free along existing fabric. ``anchors`` (station-anchored centres,
     a subset of ``fixed``) are new provision and DO count: they are grown and sized by this
     pipeline like any new centre, only their location is pinned.
+
+    SUPPORT FLOOR: a new centre must reach at least ``min_support`` NEW built cells within the
+    spacing, or it is culled — a centre lives off the new development it feeds, and stray infill
+    inside existing fabric (a handful of scattered cells) cannot support one. The floor overrides
+    the anchor invariant when the settlement's whole stock of new development is itself below it:
+    such an addition to existing fabric only exists because a centre was already within a walk, so
+    it rides on that provision rather than earning its own. Callers pass the minimum-settlement
+    size here, unifying "viable as a settlement" and "warrants its own centre" into one number.
     """
     built = np.asarray(built, dtype=bool)
     new_built = np.asarray(new_built, dtype=bool) & built
@@ -410,6 +418,9 @@ def _refine_centres(
             comp_label[y, x] = i
     needs_anchor = {i for i, comp in enumerate(comps) if any(new_built[y, x] for y, x in comp)}
     fixed_comps = {int(comp_label[y, x]) for y, x in fixed if 0 <= y < rows and 0 <= x < cols} - {-1}
+    # per-settlement stock of new development, for the support floor: a settlement whose new
+    # cells number below min_support cannot support a centre of its own (see the docstring)
+    comp_new = [sum(1 for y, x in comp if new_built[y, x]) for comp in comps]
 
     # Distance/reach to the nearest FIXED (existing) centre, solved ONCE — fixed centres don't move,
     # and true-area centres are many cells, so collapsing them into a single field (rather than one
@@ -482,11 +493,14 @@ def _refine_centres(
         new.append((int(y), int(x)))
     new = lloyd(new)
 
-    # Cull a centre uniquely serving < cull_min_unique NEW built cells (redundant / overly small).
-    # A new centre's unique coverage = new cells it reaches that no OTHER new centre and no anchor
-    # does; coverage by an existing centre does not discount it (the provision rule above).
-    # The anchor invariant caps the cull: a centre that is its settlement's LAST anchor is never
-    # removed, however redundant its coverage looks through the green to a neighbouring cluster.
+    # Cull a centre uniquely serving < cull_min_unique NEW built cells (redundant / overly small)
+    # or reaching < min_support new cells in total (unsupported — too little new development to
+    # live off, however unique its coverage). A new centre's unique coverage = new cells it reaches
+    # that no OTHER new centre and no anchor does; coverage by an existing centre does not discount
+    # it (the provision rule above). The anchor invariant caps the cull: a centre that is its
+    # settlement's LAST anchor is never removed, however redundant its coverage looks through the
+    # green to a neighbouring cluster — UNLESS the settlement's whole stock of new development is
+    # below the support floor (a sub-threshold addition to existing fabric earns no centre at all).
     def is_last_anchor(j, centres):
         cj = int(comp_label[centres[j][0], centres[j][1]])
         if cj < 0 or cj not in needs_anchor or cj in fixed_comps:
@@ -497,7 +511,13 @@ def _refine_centres(
         new_masks = [reach([c]) for c in new]
         new_count = np.sum(new_masks, axis=0)
         unique = [int((new_built & new_masks[j] & (new_count == 1) & ~anchor_reach).sum()) for j in range(len(new))]
-        cullable = [j for j in range(len(new)) if unique[j] < cull_min_unique and not is_last_anchor(j, new)]
+        support = [int((new_built & new_masks[j]).sum()) for j in range(len(new))]
+        cullable = [
+            j
+            for j in range(len(new))
+            if (unique[j] < cull_min_unique or support[j] < min_support)
+            and not (is_last_anchor(j, new) and comp_new[int(comp_label[new[j][0], new[j][1]])] >= min_support)
+        ]
         if not cullable:
             break
         new.pop(min(cullable, key=lambda j: unique[j]))
@@ -505,9 +525,12 @@ def _refine_centres(
 
     # Backstop for the same invariant: if a settlement with new development still has no attached
     # centre (the CA never seeded one there, or Lloyd drifted its centre into another cluster),
-    # anchor it at the interior of its new development.
+    # anchor it at the interior of its new development. Settlements whose new development is below
+    # the support floor are skipped: they cannot support a centre (see the cull above).
     anchored = fixed_comps | {int(comp_label[y, x]) for y, x in new}
     for i in sorted(needs_anchor - anchored):
+        if comp_new[i] < min_support:
+            continue
         mask = np.zeros((rows, cols), dtype=bool)
         for y, x in comps[i]:
             if new_built[y, x]:
@@ -535,8 +558,9 @@ CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
 # minimum-settlement dial resolution-independent.
 MIN_SETTLEMENT_CELLS = 4
 # Redundancy floor for the centre cull/add — a centre that uniquely serves fewer than this many built
-# cells is dropped. This is the CENTRE catchment minimum, kept small and SEPARATE from the
-# minimum-SETTLEMENT size (which prunes failed-satellite clusters); conflating them made large
+# cells is dropped. This measures UNIQUE coverage between overlapping new centres, so it is kept
+# small and SEPARATE from the minimum-SETTLEMENT size (which prunes failed-satellite clusters and,
+# as _refine_centres' min_support, floors a centre's TOTAL catchment); conflating them made large
 # min-settlement values stop centres forming at all.
 CENTRE_CULL_MIN = 3
 
@@ -927,7 +951,9 @@ def optimise_plan(
     sets centre consolidation (consolidated↔dispersed; see ``_refine_centres``); each centre grows to
     ``centre_m2_per_person`` of centre land per resident it serves (population estimated per cell from
     ``new_density_km2``; existing fabric counts zero — only new residents size a centre);
-    ``centre_min_settlement`` is the minimum settlement size below which a detached new cluster is pruned.
+    ``centre_min_settlement`` is the minimum settlement size (in cells): a detached new cluster
+    below it is pruned, and a new centre must reach at least that many new cells within a walk to
+    be kept (the support floor — one number for "viable as a settlement" and "warrants a centre").
     """
     plan = plan.copy()
     g = float(granularity_m)
@@ -1005,8 +1031,8 @@ def optimise_plan(
     if optimise_centres:
         new_centres = _refine_centres(
             seed_new, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
-            cull_min_unique=CENTRE_CULL_MIN, walk=walk, spacing_m=centre_spacing_m,
-            anchors=anchor_on_built, walk_cache=walk_cache,
+            cull_min_unique=CENTRE_CULL_MIN, min_support=centre_min_settlement, walk=walk,
+            spacing_m=centre_spacing_m, anchors=anchor_on_built, walk_cache=walk_cache,
         )
         # Grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built).
         # Station anchors grow too — a station should seed a real centre, not stay a lone cell — while

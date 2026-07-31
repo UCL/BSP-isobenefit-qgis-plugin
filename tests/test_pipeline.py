@@ -312,6 +312,40 @@ def test_station_anchor_counts_as_provision_for_new_growth():
     assert out == []
 
 
+def test_refine_centres_support_floor_rejects_stray_infill():
+    # A few stray new cells grown inside existing fabric clear the old cell-count floor and used
+    # to earn a centre of their own. Under the support floor they cannot: the existing centre a
+    # walk away is what let them grow, and 4 cells of new homes cannot support a centre.
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 40
+    built = np.zeros((g, g), bool)
+    built[10:20, 10:20] = True  # existing town, centre at its middle
+    new = np.zeros((g, g), bool)
+    new[14:16, 20:22] = True  # a 4-cell infill patch against the town's edge
+    built = built | new
+    assert _refine_centres([], [(15, 15)], built, new, 100.0, 800.0) != []  # old rule: earns one
+    out = _refine_centres([], [(15, 15)], built, new, 100.0, 800.0, min_support=20)
+    assert out == []  # support floor: no centre for a sub-threshold addition
+
+
+def test_refine_centres_support_floor_keeps_supported_district():
+    # The same geometry with a real new district: enough new homes within a walk support a centre,
+    # so the floor changes nothing and the provision rule still applies (an existing centre nearby
+    # does not serve new development).
+    from isobenefit_qgis.grid import _refine_centres
+
+    g = 40
+    built = np.zeros((g, g), bool)
+    built[10:20, 10:20] = True
+    new = np.zeros((g, g), bool)
+    new[10:20, 20:26] = True  # a 60-cell district east of the town
+    built = built | new
+    out = _refine_centres([], [(15, 15)], built, new, 100.0, 800.0, min_support=20)
+    assert len(out) >= 1
+    assert any(new[y, x] for y, x in out)
+
+
 
 def test_select_plan_progress_abort():
     from isobenefit_qgis.grid import select_plan
@@ -588,6 +622,25 @@ def test_optimise_plan_culls_tiny_ca_centre():
     cs = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
     assert any(10 <= y < 30 and 10 <= x < 30 for y, x in cs)  # real development keeps a centre
     assert not any(y < 5 and x >= 35 for y, x in cs)  # the 2-cell speck's centre is culled
+
+
+def test_optimise_plan_no_centre_for_subthreshold_infill():
+    # End to end: a CA run infills a few cells inside an existing town and seeds a centre on them.
+    # With min-settlement at 20 cells the infill keeps its homes (attached to frozen fabric, never
+    # pruned) but earns no centre; the existing centre stays the only one.
+    g = 40
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:20, 10:20] = PLAN_BUILT
+    existing = np.zeros((g, g), bool)
+    existing[10:20, 10:20] = True
+    plan[14:16, 20:22] = PLAN_BUILT  # 4 new infill cells against the town's edge
+    out = optimise_plan(
+        plan, 100.0, 400.0, 800.0, existing_centres=[(15, 15)], existing_built=existing,
+        ca_centres=[(15, 21)], centre_min_settlement=20,
+    )
+    assert (out[14:16, 20:22] == PLAN_BUILT).all()  # infill homes kept
+    cs = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
+    assert cs == [(15, 15)]  # only the existing centre
 
 
 def test_walk_distance_routes_around_green_barrier():

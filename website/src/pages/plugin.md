@@ -142,7 +142,7 @@ coverage figures and steers the centre re-positioning.
 | --- | --- | --- |
 | Optimise centre placement | on | Re-position centres central to their development, add one wherever new development lacks a centre of its own (a nearby existing centre does not stand in), cull redundant ones; saves moderately and tightly clustered options. Off keeps the grown centres (one plan) |
 | Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
-| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); the raw plan keeps everything for comparison |
+| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); a new centre must also reach this many new residents within a walk, so small infill in existing areas earns no centre; the raw plan keeps everything for comparison |
 | Min green span (m) | 400 | A green patch must span this to count as a park; also a build rule protecting corridors |
 
 **Development density.** Three densities (people per km²) for the high, medium and low tiers,
