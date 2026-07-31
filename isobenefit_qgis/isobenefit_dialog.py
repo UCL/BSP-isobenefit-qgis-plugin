@@ -14,7 +14,7 @@ from qgis.core import (
 from qgis.gui import QgsFileWidget, QgsMapLayerComboBox, QgsProjectionSelectionWidget
 from qgis.PyQt import QtCore, QtWidgets
 
-from .params_io import load_params
+from .params_io import load_params_report
 from .validation import check_density_tiers
 
 
@@ -388,62 +388,108 @@ class IsobenefitDialog(QtWidgets.QDialog):
         if not path:
             return
         try:
-            params = load_params(path)
+            params, ignored = load_params_report(path)
         except ValueError as exc:
             self.params_feedback.setText(str(exc))
             return
-        self.apply_params(params)
+        changes = self.apply_params(params)
         label = params.get("name") or Path(path).name
-        self.params_feedback.setText(f"Loaded parameters from {label}.")
+        if changes:
+            noun = "field" if len(changes) == 1 else "fields"
+            msg = f"Loaded {label}: {len(changes)} {noun} changed: {'; '.join(changes)}."
+        else:
+            msg = f"Loaded {label}: every field already matched the dialog."
+        if ignored:
+            msg += f" Ignored keys: {', '.join(ignored)}."
+        self.params_feedback.setText(msg)
 
-    def apply_params(self, params: dict) -> None:
-        """Repopulate the dialog from a loaded params dict (missing keys leave fields untouched)."""
+    def apply_params(self, params: dict) -> list[str]:
+        """Repopulate the dialog from a loaded params dict (missing keys leave fields untouched).
+
+        Returns a readable "label old to new" entry for every field the load actually moved, so
+        the feedback line can enumerate the changes. A loaded preset often matches the dialog
+        (defaults and scenario presets are aligned), and a load that visibly moves nothing would
+        otherwise read as a no-op.
+        """
 
         def fmt(v: float) -> str:
             return str(int(v)) if float(v).is_integer() else str(v)
 
+        def differs(old: str, new: str) -> bool:
+            try:
+                return float(old) != float(new)
+            except ValueError:
+                return old.strip() != new.strip()
+
+        changes: list[str] = []
+
+        def set_text(widget, label: str, value) -> None:
+            new = fmt(value)
+            old = widget.text()
+            widget.setText(new)
+            if differs(old, new):
+                changes.append(f"{label} {old.strip() or '(empty)'} to {new}")
+
         line_edits = {
-            "grid_size_m": self.grid_size_m,
-            "max_iterations": self.n_iterations,
-            "target_population": self.max_populat,
-            "build_prob": self.build_prob,
-            "random_seed": self.random_seed,
-            "centre_walk_m": self.centre_walk_dist,
-            "green_walk_m": self.green_walk_dist,
-            "min_green_span_m": self.min_green_span,
-            "min_settlement_pop": self.min_settlement,
-            "centre_m2_per_person": self.centre_m2_person,
+            "grid_size_m": (self.grid_size_m, "grid size"),
+            "max_iterations": (self.n_iterations, "max iterations"),
+            "target_population": (self.max_populat, "target population"),
+            "build_prob": (self.build_prob, "build probability"),
+            "random_seed": (self.random_seed, "random seed"),
+            "centre_walk_m": (self.centre_walk_dist, "centre walk"),
+            "green_walk_m": (self.green_walk_dist, "green walk"),
+            "min_green_span_m": (self.min_green_span, "min green span"),
+            "min_settlement_pop": (self.min_settlement, "min settlement"),
+            "centre_m2_per_person": (self.centre_m2_person, "centre m² per person"),
         }
-        for key, widget in line_edits.items():
+        for key, (widget, label) in line_edits.items():
             if key in params:
-                widget.setText(fmt(params[key]))
+                set_text(widget, label, params[key])
         tier_edits = {
-            "densities_km2": {"high": self.high_density, "medium": self.med_density, "low": self.low_density},
-            "shares": {"high": self.high_prob, "medium": self.med_prob, "low": self.low_prob},
+            "densities_km2": (
+                {"high": self.high_density, "medium": self.med_density, "low": self.low_density},
+                "density",
+            ),
+            "shares": ({"high": self.high_prob, "medium": self.med_prob, "low": self.low_prob}, "share"),
         }
-        for group, widgets in tier_edits.items():
+        for group, (widgets, noun) in tier_edits.items():
             for tier, widget in widgets.items():
                 if tier in params.get(group, {}):
-                    widget.setText(fmt(params[group][tier]))
+                    set_text(widget, f"{tier} {noun}", params[group][tier])
         if "dispersal" in params:
             wanted = str(params["dispersal"]).lower()
             for i in range(self.dispersal_mode.count()):
                 if self.dispersal_mode.itemText(i).lower().startswith(wanted[:3]):
+                    if i != self.dispersal_mode.currentIndex():
+                        changes.append(
+                            f"dispersal {self.dispersal_mode.currentText()} to {self.dispersal_mode.itemText(i)}"
+                        )
                     self.dispersal_mode.setCurrentIndex(i)
                     break
-        if "optimise_centres" in params:
-            self.optimise_centres_check.setChecked(bool(params["optimise_centres"]))
-        if "ensemble" in params:
-            self.ensemble_check.setChecked(bool(params["ensemble"]))
+        for key, widget, label in (
+            ("optimise_centres", self.optimise_centres_check, "optimise centres"),
+            ("ensemble", self.ensemble_check, "ensemble"),
+        ):
+            if key in params:
+                new_state = bool(params[key])
+                if new_state != widget.isChecked():
+                    changes.append(f"{label} {'off to on' if new_state else 'on to off'}")
+                widget.setChecked(new_state)
         if "ensemble_runs" in params:
             runs = int(params["ensemble_runs"])
             best = min(range(self.detail_mode.count()), key=lambda i: abs(self.detail_mode.itemData(i) - runs))
+            if best != self.detail_mode.currentIndex():
+                changes.append(f"ensemble runs {self.detail_mode.currentData()} to {self.detail_mode.itemData(best)}")
             self.detail_mode.setCurrentIndex(best)
         if "crs" in params:
             crs = QgsCoordinateReferenceSystem(str(params["crs"]))
             if crs.isValid():
+                old_id = self.crs_selection.crs().authid()
+                if crs.authid() != old_id:
+                    changes.append(f"CRS {old_id or '(none)'} to {crs.authid()}")
                 self.crs_selection.setCrs(crs)
         self.handle_densities()
+        return changes
 
     def handle_densities(self) -> None:
         """Validate the three density tiers and their probabilities, and show live feedback.

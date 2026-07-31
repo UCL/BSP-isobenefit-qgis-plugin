@@ -158,3 +158,20 @@ def test_dataset_metadata_consistent():
         meta = DATASETS[key]
         assert meta["osm_layer"] in {"multipolygons", "lines", "points"}
         assert meta["geom_type"] in {"MultiPolygon", "MultiLineString", "Point"}
+
+
+def test_layer_styles_cover_every_dataset():
+    # every fetched layer (plus the extents outline) gets a fixed style, matched to its geometry
+    from isobenefit_qgis.osm_queries import LAYER_STYLES
+
+    assert set(LAYER_STYLES) == set(DATASETS) | {"extents"}
+    for key, spec in LAYER_STYLES.items():
+        geom = DATASETS[key]["geom_type"] if key in DATASETS else "MultiPolygon"
+        if geom == "Point":
+            assert {"marker", "fill", "outline", "size"} <= set(spec)
+        elif geom == "MultiLineString":
+            assert {"line", "width"} <= set(spec)
+        else:
+            assert {"fill", "outline"} <= set(spec)
+        for value in spec.values():  # colours are "r,g,b[,a]" strings, other values plain strings
+            assert isinstance(value, str) and value

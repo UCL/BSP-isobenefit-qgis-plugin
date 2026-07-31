@@ -49,6 +49,30 @@ def test_partial_preset_and_unknown_keys(tmp_path):
     assert loaded == {"centre_walk_m": 800.0, "densities_km2": {"high": 40000.0}}
 
 
+def test_load_report_names_ignored_keys(tmp_path):
+    # the report variant returns the same params plus every key the load could not use:
+    # malformed values, malformed tier values, and keys the schema does not recognise
+    # (retired dials like min_settlement_ha, preset extras like fetch_buffer_m)
+    p = tmp_path / "old_sidecar.json"
+    p.write_text(
+        '{"schema": "isobenefit-params/1", "densities_km2": {"high": 40000, "low": "x"},'
+        ' "centre_walk_m": 800, "build_prob": "not-a-number",'
+        ' "min_settlement_ha": 2.5, "fetch_buffer_m": 500, "notes": "old run"}',
+        encoding="utf-8",
+    )
+    loaded, ignored = params_io.load_params_report(p)
+    assert loaded == {"centre_walk_m": 800.0, "densities_km2": {"high": 40000.0}, "notes": "old run"}
+    assert sorted(ignored) == ["build_prob", "densities_km2.low", "fetch_buffer_m", "min_settlement_ha"]
+
+
+def test_load_report_clean_file_reports_nothing(tmp_path):
+    p = tmp_path / "clean.json"
+    p.write_text('{"schema": "isobenefit-params/1", "centre_walk_m": 800, "name": "a"}', encoding="utf-8")
+    loaded, ignored = params_io.load_params_report(p)
+    assert loaded == {"centre_walk_m": 800.0, "name": "a"}
+    assert ignored == []
+
+
 def test_rejects_bad_files(tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text("[1, 2]", encoding="utf-8")

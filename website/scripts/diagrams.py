@@ -19,6 +19,10 @@ import os
 # "already there" reads apart from "newly recommended".
 RED, GREEN, BLUE, BUILT = "#D32333", "#2f7d33", "#1f6fbf", "#cc7a29"
 EXIST_BUILT, EXIST_CENTRE = "#96867a", "#962858"  # existing built matches grid.py's cool grey-taupe
+# transit gets its own hue: BLUE already means unbuildable cells and candidate locations on this
+# site, and the water polygons are a softer blue, so stops are a deep teal with a white halo (the
+# same teal the plugin applies to fetched stop/station layers)
+STOP = "#0b7285"
 W, H = 1200, 680  # cropped tight to the content (grid + panel end ~1110 / ~654) to cut dead margin
 X0, Y0, STEP = 92, 46, 50  # grid origin (col 1 / row 1 centre) + cell pitch
 COLS, ROWS = 16, 12
@@ -525,7 +529,8 @@ def input_layers():
         s = 9.0
         return "".join(
             f'<rect x="{X(f["geometry"]["coordinates"][0]) - s / 2:.1f}" '
-            f'y="{Y(f["geometry"]["coordinates"][1]) - s / 2:.1f}" width="{s}" height="{s}" rx="2" fill="{BLUE}"/>'
+            f'y="{Y(f["geometry"]["coordinates"][1]) - s / 2:.1f}" width="{s}" height="{s}" rx="2" '
+            f'fill="{STOP}" stroke="#ffffff" stroke-width="1.4"/>'
             for f in _features("stops")
         )
 

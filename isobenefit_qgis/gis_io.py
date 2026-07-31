@@ -17,14 +17,19 @@ from qgis.core import (
     Qgis,
     QgsColorRampShader,
     QgsCoordinateTransform,
+    QgsFillSymbol,
     QgsGeometry,
+    QgsLineSymbol,
+    QgsMarkerSymbol,
     QgsPalettedRasterRenderer,
     QgsProject,
     QgsRasterShader,
     QgsSingleBandPseudoColorRenderer,
+    QgsSingleSymbolRenderer,
 )
 from qgis.PyQt.QtGui import QColor
 
+from . import osm_queries
 from .grid import NODATA, PALETTE, PLAN_PALETTE, align_bounds, classify  # noqa: F401  (re-exported)
 
 
@@ -223,3 +228,33 @@ def apply_plan_style(rast_layer):
     ]
     renderer = QgsPalettedRasterRenderer(rast_layer.dataProvider(), 1, classes)
     rast_layer.setRenderer(renderer)
+
+
+def apply_osm_style(layer, key: str) -> None:
+    """Style a fetched OSM vector layer per the shared colour table (``osm_queries.LAYER_STYLES``),
+    so downloads look the same in every project instead of taking QGIS's random symbology."""
+    spec = osm_queries.LAYER_STYLES.get(key)
+    if spec is None:
+        return
+    if "marker" in spec:
+        symbol = QgsMarkerSymbol.createSimple(
+            {
+                "name": spec["marker"],
+                "color": spec["fill"],
+                "outline_color": spec["outline"],
+                "outline_width": "0.3",
+                "size": spec["size"],
+            }
+        )
+    elif "line" in spec:
+        props = {"line_color": spec["line"], "line_width": spec["width"]}
+        if "line_style" in spec:
+            props["line_style"] = spec["line_style"]
+        symbol = QgsLineSymbol.createSimple(props)
+    else:
+        props = {"color": spec["fill"], "outline_color": spec["outline"], "outline_width": "0.3"}
+        if "outline_style" in spec:
+            props["outline_style"] = spec["outline_style"]
+        symbol = QgsFillSymbol.createSimple(props)
+    layer.setRenderer(QgsSingleSymbolRenderer(symbol))
+    layer.triggerRepaint()

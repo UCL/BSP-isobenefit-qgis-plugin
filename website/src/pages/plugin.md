@@ -105,7 +105,9 @@ parameters for a run.
   corridors along major roads (motorway, trunk and primary), railways and rivers. Untick
   anything not needed.
 - **Output**: one GeoPackage; every dataset becomes a layer in it, added to the project under an
-  "OSM" group.
+  "OSM" group. The layers arrive pre-styled in a fixed colour scheme (green space green, water-led
+  unbuildable land blue, built fabric the muted taupe of the plan rasters, transit stops and
+  stations teal), so every download looks the same.
 
 Downloading and simulating are separate steps. The layers are on disk and can be edited or
 swapped before any run. The simulation dialog recognises the downloaded layers and pre-selects
@@ -115,7 +117,9 @@ them.
 
 **Parameters.** *Load parameters* repopulates the dialog from a previous run's
 `*_params.json` sidecar or from a scenario preset. Every run writes such a sidecar next to its
-output.
+output. The feedback line under the button lists exactly which fields the load changed and their
+old and new values, states when every field already matched, and names any keys in the file it
+could not use (retired or unrecognised dials).
 
 **Simulation.**
 

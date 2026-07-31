@@ -25,7 +25,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QBuffer, QByteArray, QIODevice, QUrl
 from qgis.PyQt.QtNetwork import QNetworkRequest
 
-from . import osm_queries
+from . import gis_io, osm_queries
 
 LOG_TAG = "Isobenefit"
 USER_AGENT = b"isobenefit-qgis (QGIS plugin; https://github.com/UCL/BSP-isobenefit-qgis-plugin)"
@@ -438,6 +438,7 @@ class OsmFetchTask(QgsTask):
                 continue
             # tag with the dataset key so the simulation dialog can pre-select it in the right combo
             layer.setCustomProperty("isobenefit/osm_dataset", key)
+            gis_io.apply_osm_style(layer, key)  # one colour language for every download
             project.addMapLayer(layer, addToLegend=False)
             group.addLayer(layer)
             loaded += 1

@@ -52,6 +52,17 @@ def load_params(path: str | Path) -> dict:
     Raises ``ValueError`` with a readable message if the file is not JSON, not an object, or has
     an unknown schema marker (a missing marker is tolerated for hand-written presets).
     """
+    return load_params_report(path)[0]
+
+
+def load_params_report(path: str | Path) -> tuple[dict, list[str]]:
+    """Like ``load_params``, but also report what the load could not use.
+
+    Returns ``(params, ignored)`` where ``ignored`` names the keys that were dropped: keys whose
+    value would not coerce, and keys the schema no longer recognises (retired dials such as
+    ``min_settlement_ha``, or preset extras such as ``fetch_buffer_m``). The dialog surfaces the
+    list so a silent skip never masquerades as a successful load of every field.
+    """
     try:
         doc = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -62,12 +73,13 @@ def load_params(path: str | Path) -> dict:
     if schema is not None and schema != SCHEMA:
         raise ValueError(f"Unsupported parameters schema: {schema!r} (expected {SCHEMA!r}).")
     out: dict = {}
+    ignored: list[str] = []
     for key, typ in _FIELD_TYPES.items():
         if key in doc and doc[key] is not None:
             try:
                 out[key] = typ(doc[key])
             except (TypeError, ValueError):
-                continue  # a malformed single value never blocks the rest of the preset
+                ignored.append(key)  # a malformed single value never blocks the rest of the preset
     for group in ("densities_km2", "shares"):
         vals = doc.get(group)
         if isinstance(vals, dict):
@@ -77,13 +89,15 @@ def load_params(path: str | Path) -> dict:
                     try:
                         tiers[tier] = float(vals[tier])
                     except (TypeError, ValueError):
-                        continue
+                        ignored.append(f"{group}.{tier}")
             if tiers:
                 out[group] = tiers
     for meta in ("name", "notes"):
         if isinstance(doc.get(meta), str):
             out[meta] = doc[meta]
-    return out
+    known = set(_FIELD_TYPES) | {"schema", "name", "notes", "densities_km2", "shares"}
+    ignored.extend(key for key in doc if key not in known)
+    return out, ignored
 
 
 def sidecar_path(out_dir: str | Path, out_file_name: str) -> Path:

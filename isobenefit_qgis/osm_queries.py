@@ -125,6 +125,26 @@ DATASET_ORDER: tuple[str, ...] = (
     "unbuildable",
 )
 
+# Fixed styling applied when fetched layers load into QGIS, so every download shares one colour
+# language instead of QGIS's random symbology: green space is green, water-led unbuildable land
+# is the soft blue, existing fabric the muted taupe of the plan rasters, transit the teal also
+# used on the project website. Values are plain "r,g,b[,a]" strings so the table stays importable
+# without QGIS; ``gis_io.apply_osm_style`` turns each entry into a renderer. Polygon fills carry
+# an alpha so a basemap stays legible underneath. Keys: polygons use fill/outline (optional
+# outline_style), lines use line/width (optional line_style), points use marker/fill/outline/size.
+LAYER_STYLES: dict[str, dict[str, str]] = {
+    "built": {"fill": "150,134,122,140", "outline": "94,74,48"},
+    "green": {"fill": "63,143,71,140", "outline": "47,125,51"},
+    "centres": {"fill": "150,40,85,150", "outline": "110,29,64"},
+    "industrial": {"fill": "123,109,143,130", "outline": "100,90,120"},
+    "unbuildable": {"fill": "111,159,207,130", "outline": "90,134,181"},
+    "extents": {"fill": "0,0,0,0", "outline": "211,35,51", "outline_style": "dash"},
+    "streets": {"line": "154,154,154", "width": "0.35"},
+    "railways": {"line": "77,77,77", "width": "0.5", "line_style": "dash"},
+    "stops": {"marker": "circle", "fill": "11,114,133", "outline": "255,255,255", "size": "2.2"},
+    "stations": {"marker": "star", "fill": "11,114,133", "outline": "255,255,255", "size": "4"},
+}
+
 # OSM tag keys we read to decide whether a feature matches a dataset. Any not present
 # as a native OSM-driver field (e.g. railway / public_transport on some layers) are
 # recovered from the ``other_tags`` HSTORE.
