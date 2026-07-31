@@ -3,7 +3,7 @@ name=Isobenefit Urbanism
 qgisMinimumVersion=4.0
 qgisMaximumVersion=4.99
 description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
-version=0.12.21
+version=0.12.22
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -22,6 +22,7 @@ deprecated=False
 server=False
 
 changelog=
+    0.12.22 Four outputs replace the two clustering options: the raw run (coloured by the density tiers it actually drew, in place), centres as grown, optimised placement, and fewest centres. Every processed option keeps every home within the centre walk: a placement move that would strand a home is discarded, a centre is added wherever new development lacks provision within the walk, and a centre is removed only while every home stays covered. A contiguous cluster of new development below the minimum settlement size is absorbed into the existing fabric when it touches it (stray free cells inside a town are usually unmapped roads or parks, not building sites) and reverts to green when detached. Loading parameters now lists exactly which fields changed with old and new values, and names any keys in the file it could not use. Downloaded OSM layers arrive pre-styled in a fixed colour scheme instead of random symbology. Requires engine 0.12.22 (the raw layer's drawn densities are recovered by re-running the selected ensemble member at its own seed).
     0.12.21 The run report is a set of fixed-width tables: the plan options side by side (population accommodated, coverage, walks, per-person provision), the achieved density mix per tier, and the centre audit with the weakest new centres; single-run mode now writes a report too. Rail and tram stations seed growth as centres by default (development gathers around a station, and post-processing pins and grows its centre); stations and stops that land on a carved corridor cell snap to the nearest walkable cell instead of dropping out of the anchor and access accounting. The dialog rejects a CRS whose area of use misses the extents layer and names the local UTM zone to pick, instead of failing mid-run with a raw transform error.
     0.12.20 Metadata made parseable by the plugin repository (a stray percent sign rejected the 0.12.19 upload); the release check now parses it the same way the repository does. A run's output layers load as one group named for the output folder and run, so successive runs stay organised in the layers pane.
     0.12.19 The run dialog, the message bar and the guide all point at the Isobenefit tab of the Log Messages panel, where a running simulation reports per-stage progress and warnings.
