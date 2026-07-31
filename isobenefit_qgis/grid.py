@@ -952,8 +952,10 @@ def optimise_plan(
     ``centre_m2_per_person`` of centre land per resident it serves (population estimated per cell from
     ``new_density_km2``; existing fabric counts zero — only new residents size a centre);
     ``centre_min_settlement`` is the minimum settlement size (in cells): a detached new cluster
-    below it is pruned, and a new centre must reach at least that many new cells within a walk to
-    be kept (the support floor — one number for "viable as a settlement" and "warrants a centre").
+    below it is pruned; one grown against existing fabric is absorbed into that fabric (tagged
+    ``PLAN_EXIST_BUILT``, no longer new development); and a new centre must reach at least that
+    many new cells within a walk to be kept (the support floor — one number for "viable as a
+    settlement" and "warrants a centre").
     """
     plan = plan.copy()
     g = float(granularity_m)
@@ -991,6 +993,26 @@ def optimise_plan(
             if len(comp) < centre_min_settlement and not any(frozen[y, x] for y, x in comp):
                 for y, x in comp:
                     plan[y, x] = PLAN_GREEN  # the land reverts to nature, blending with its surroundings
+
+    # Absorb sub-threshold infill: a contiguous cluster of NEW cells grown against existing fabric,
+    # smaller than the minimum settlement size, is not called new development at all. The odd free
+    # cell or three inside a town is usually an artefact of the mapping (an unmapped road, a park,
+    # an awkward lot) rather than developable land, and such a patch could never support a centre of
+    # its own; it joins the existing fabric and drops out of every account of new development.
+    # A detached cluster of the same size was pruned to green above instead.
+    built_all = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
+    new_mask = built_all & ~frozen
+    if frozen.any() and new_mask.any():
+        comp_id = np.full(plan.shape, -1, dtype=int)
+        for i, comp in enumerate(_components(built_all)):
+            for y, x in comp:
+                comp_id[y, x] = i
+        frozen_comps = set(np.unique(comp_id[frozen & built_all]))
+        for cluster in _components(new_mask):
+            y0, x0 = cluster[0]
+            if len(cluster) < centre_min_settlement and int(comp_id[y0, x0]) in frozen_comps:
+                for y, x in cluster:
+                    plan[y, x] = PLAN_EXIST_BUILT
 
     n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
     if n_built == 0:

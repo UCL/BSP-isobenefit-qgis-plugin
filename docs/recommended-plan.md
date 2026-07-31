@@ -28,6 +28,12 @@ would produce, so the plan is never read off the averaged surfaces.
    - Failed satellites are pruned. An entirely new settlement smaller than
      the minimum settlement size is a stranded speck, not viable development,
      and reverts to nature. Existing fabric is frozen and never pruned.
+   - Sub-threshold infill is absorbed. A new cluster grown against existing
+     fabric that is smaller than the same minimum is not called new
+     development: the odd free cell inside a town is usually an unmapped
+     road, park or awkward lot rather than developable land. Those cells
+     join the existing fabric on the map and drop out of the population,
+     density and centre accounting. The raw plan keeps them for comparison.
    - The green network is kept exactly as the run grew it. The growth rules
      already enforce the minimum green span, so the plan does not re-carve
      parks.
