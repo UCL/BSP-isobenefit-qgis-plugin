@@ -318,52 +318,47 @@ def _seed_centres_proximity(built, granularity_m, max_distance_m, existing=None)
 
 
 def _refine_centres(
-    seeds, fixed, built, new_built, granularity_m, max_distance_m, cull_min_unique=3, min_support=0,
-    walk=None, spacing_m=None, anchors=None, walk_cache=None,
+    seeds, fixed, built, new_built, granularity_m, max_distance_m, walk=None, anchors=None,
+    walk_cache=None, minimise_count=False,
 ):
     """Optimise seeded centres after the fact, measuring catchment by ``walk`` — ONE distance
     model used for every judgment here: the bounded grid walk (callers inject it as the
-    ``walk`` callable ``mask -> rows×cols metres``, sharing one barrier mask and cache). Each new centre
-    is re-positioned onto NEW land, central to the NEW homes it serves; ``fixed``/existing centres
-    compete in the assignment; centres uniquely serving fewer than ``cull_min_unique`` built cells
-    are culled (redundant, or feeding too small a catchment). Returns the optimised new ``(row, col)``.
+    ``walk`` callable ``mask -> rows×cols metres``, sharing one barrier mask and cache). Each new
+    centre is re-positioned onto NEW land, central to the NEW homes it serves; ``fixed``/existing
+    centres compete in the assignment. Returns the optimised new ``(row, col)`` list.
 
-    ``spacing_m`` sets how far apart centres sit — their catchment scale (defaults to the walk,
-    ``max_distance_m`` = the coverage-minimal arrangement). A LARGER spacing CONSOLIDATES — fewer,
-    larger, more central centres, accepting that some homes end up beyond a single walk of one; a
-    smaller spacing disperses (more, closer centres). It may exceed the walk (the ``walk`` field is
-    bounded to reach it), which is how aggressive consolidation actually clumps centres together.
+    WALK CONSTRAINT (hard): on return, every NEW built cell is within ``max_distance_m`` (the
+    centre walk) of a new centre or an anchor. The growth rules enforce this distance while the
+    settlement grows, and nothing here may un-serve a home: a repositioning that would strand one
+    is discarded, a centre is added wherever new development would otherwise be beyond the walk,
+    and a removal is only allowed when every home stays covered without it.
+
+    ``minimise_count`` picks the placement product. False re-positions the seeded centres (and
+    adds where provision is missing) without ever removing one — the run's own centres, walked
+    into their best positions. True additionally removes centres one at a time, most redundant
+    first, for as long as full coverage and the anchor invariant hold — the fewest centres the
+    walk constraint permits.
 
     ANCHOR INVARIANT: every contiguous built settlement containing new development keeps at least
     one directly attached centre (its own, or a fixed one within it). Walking distances traverse
     green, so without this a cluster can look "served" by a neighbouring cluster's centre across a
-    green gap and be stripped bare by consolidation; a settlement without its own centre is not a
-    settlement in this model's terms.
+    green gap and be stripped bare; a settlement without its own centre is not a settlement in
+    this model's terms.
 
     PROVISION RULE: existing centres serve the existing population and do NOT count as provision
     for new development — new growth hugging an existing town must still earn its own centre, or
     it would sprawl centre-free along existing fabric. ``anchors`` (station-anchored centres,
     a subset of ``fixed``) are new provision and DO count: they are grown and sized by this
     pipeline like any new centre, only their location is pinned.
-
-    SUPPORT FLOOR: a new centre must reach at least ``min_support`` NEW built cells within the
-    spacing, or it is culled — a centre lives off the new development it feeds, and stray infill
-    inside existing fabric (a handful of scattered cells) cannot support one. The floor overrides
-    the anchor invariant when the settlement's whole stock of new development is itself below it:
-    such an addition to existing fabric only exists because a centre was already within a walk, so
-    it rides on that provision rather than earning its own. Callers pass the minimum-settlement
-    size here, unifying "viable as a settlement" and "warrants its own centre" into one number.
     """
     built = np.asarray(built, dtype=bool)
     new_built = np.asarray(new_built, dtype=bool) & built
     rows, cols = built.shape
-    spacing = max_distance_m if spacing_m is None else float(spacing_m)
-    r = max(1, round(spacing / granularity_m))
+    r = max(1, round(max_distance_m / granularity_m))
     if walk is None:
-        bound = max(max_distance_m, spacing)  # the field must reach the spacing (which may exceed the walk)
 
         def walk(mask):
-            return _walk_distance(mask, granularity_m, bound)
+            return _walk_distance(mask, granularity_m, max_distance_m)
 
     fixed = [(int(y), int(x)) for y, x in (fixed or [])]
     if not new_built.any():
@@ -400,12 +395,12 @@ def _refine_centres(
             col_cache[c] = col
         return col
 
-    def reach(cells):  # built cells within the centre SPACING of any cell in `cells` (by the one metric)
+    def reach(cells):  # built cells within the centre WALK of any cell in `cells` (by the one metric)
         if not cells:
             return np.zeros((rows, cols), dtype=bool)
         if len(cells) == 1:
-            return centre_field(tuple(cells[0])) <= spacing
-        return np.minimum.reduce([centre_field(tuple(c)) for c in cells]) <= spacing
+            return centre_field(tuple(cells[0])) <= max_distance_m
+        return np.minimum.reduce([centre_field(tuple(c)) for c in cells]) <= max_distance_m
 
     new = [_nearest_built(new_built, int(y), int(x)) for y, x in seeds]
 
@@ -418,9 +413,6 @@ def _refine_centres(
             comp_label[y, x] = i
     needs_anchor = {i for i, comp in enumerate(comps) if any(new_built[y, x] for y, x in comp)}
     fixed_comps = {int(comp_label[y, x]) for y, x in fixed if 0 <= y < rows and 0 <= x < cols} - {-1}
-    # per-settlement stock of new development, for the support floor: a settlement whose new
-    # cells number below min_support cannot support a centre of its own (see the docstring)
-    comp_new = [sum(1 for y, x in comp if new_built[y, x]) for comp in comps]
 
     # Distance/reach to the nearest FIXED (existing) centre, solved ONCE — fixed centres don't move,
     # and true-area centres are many cells, so collapsing them into a single field (rather than one
@@ -431,8 +423,11 @@ def _refine_centres(
     # station anchors are the only fixed centres that count as provision for NEW development
     anchors = [(int(y), int(x)) for y, x in (anchors or [])]
     anchor_reach = (
-        (walk(onehot(anchors)) <= spacing) if anchors else np.zeros((rows, cols), dtype=bool)
+        (walk(onehot(anchors)) <= max_distance_m) if anchors else np.zeros((rows, cols), dtype=bool)
     )
+
+    def covered(centres):  # new homes within the walk of a NEW centre or anchor (provision rule)
+        return anchor_reach | reach(centres)
 
     def lloyd(centres):  # re-position each new centre to the INTERIOR of the NEW homes it serves
         if not centres:
@@ -442,7 +437,7 @@ def _refine_centres(
             # column 0 = nearest fixed centre; columns 1.. = each new centre (single-source, cached)
             stack = np.column_stack([fixed_col] + [centre_col(tuple(c)) for c in centres])
             nearest = np.argmin(stack, axis=1)
-            within = stack.min(axis=1) <= spacing  # homes beyond the spacing of every centre pull no one
+            within = stack.min(axis=1) <= max_distance_m  # homes beyond the walk of every centre pull no one
             moved = False
             for j in range(len(centres)):
                 # SETTLEMENT-LOCAL placement: only homes in the centre's own contiguous
@@ -472,65 +467,62 @@ def _refine_centres(
                 break
         return centres
 
-    new = lloyd(new)
+    def fill_gaps(centres):
+        # Every new home beyond the walk of every new centre and anchor forces a centre in the
+        # gap — the walk constraint is hard, however few homes a gap holds. Existing centres do
+        # not suppress an addition (the provision rule above). The centre is proposed from WITHIN
+        # the densest underserved cluster, not merely near it: a box-near cell may be unable to
+        # actually reach across a barrier. Each addition covers at least its own cell, so this
+        # terminates with full coverage.
+        while True:
+            underserved = new_built & ~covered(centres)
+            if not underserved.any():
+                return centres
+            gain = np.where(underserved, _box_sum(underserved.astype(np.float64), r), -1.0)
+            y, x = divmod(int(np.argmax(gain)), cols)
+            centres.append((int(y), int(x)))
 
-    # Add centres where NEW development is still beyond a walk of any NEW centre or anchor.
-    # Existing centres do not suppress an addition (the provision rule above). The densest
-    # underserved cluster (a box-sum) only proposes WHERE; whether a centre is warranted there is
-    # confirmed by the one metric (how many underserved homes it actually reaches within a walk).
-    while True:
-        underserved = new_built & ~(anchor_reach | reach(new))
-        if not underserved.any():
-            break
-        # propose the new centre from WITHIN the underserved area (densest spot), not merely
-        # near it: a box-near cell may be unable to actually reach across a barrier
-        gain = np.where(underserved, _box_sum(underserved.astype(np.float64), r), -1.0)
-        if gain.max() < cull_min_unique:
-            break
-        y, x = divmod(int(np.argmax(gain)), cols)
-        if int((reach([(int(y), int(x))]) & underserved).sum()) < cull_min_unique:
-            break  # the largest remaining gap is too small to warrant a centre
-        new.append((int(y), int(x)))
-    new = lloyd(new)
+    def guarded_lloyd(centres):
+        # polish placement without breaking the walk constraint: coverage is full before the
+        # call, and a repositioning that would strand any home is discarded wholesale
+        moved = lloyd(list(centres))
+        if not (new_built & ~covered(moved)).any():
+            return moved
+        return centres
 
-    # Cull a centre uniquely serving < cull_min_unique NEW built cells (redundant / overly small)
-    # or reaching < min_support new cells in total (unsupported — too little new development to
-    # live off, however unique its coverage). A new centre's unique coverage = new cells it reaches
-    # that no OTHER new centre and no anchor does; coverage by an existing centre does not discount
-    # it (the provision rule above). The anchor invariant caps the cull: a centre that is its
-    # settlement's LAST anchor is never removed, however redundant its coverage looks through the
-    # green to a neighbouring cluster — UNLESS the settlement's whole stock of new development is
-    # below the support floor (a sub-threshold addition to existing fabric earns no centre at all).
+    new = lloyd(new)  # free first pass: the baseline is the seeded placement, gaps are filled next
+    new = fill_gaps(new)
+    new = guarded_lloyd(new)
+
     def is_last_anchor(j, centres):
         cj = int(comp_label[centres[j][0], centres[j][1]])
         if cj < 0 or cj not in needs_anchor or cj in fixed_comps:
             return False
         return not any(int(comp_label[c[0], c[1]]) == cj for k, c in enumerate(centres) if k != j)
 
-    while new:
-        new_masks = [reach([c]) for c in new]
-        new_count = np.sum(new_masks, axis=0)
-        unique = [int((new_built & new_masks[j] & (new_count == 1) & ~anchor_reach).sum()) for j in range(len(new))]
-        support = [int((new_built & new_masks[j]).sum()) for j in range(len(new))]
-        cullable = [
-            j
-            for j in range(len(new))
-            if (unique[j] < cull_min_unique or support[j] < min_support)
-            and not (is_last_anchor(j, new) and comp_new[int(comp_label[new[j][0], new[j][1]])] >= min_support)
-        ]
-        if not cullable:
-            break
-        new.pop(min(cullable, key=lambda j: unique[j]))
-        new = lloyd(new)
+    if minimise_count:
+        # Remove centres one at a time for as long as the walk constraint and the anchor
+        # invariant hold. A removal keeps every home covered exactly when the centre covers no
+        # new cell uniquely (its whole catchment is also someone else's), so zero-unique centres
+        # are the removable ones; repositioning after each removal lets the survivors spread and
+        # exposes the next redundancy, converging on the fewest centres the constraint permits.
+        while new:
+            masks = [reach([c]) for c in new]
+            counts = np.sum(masks, axis=0)
+            unique = [
+                int((new_built & masks[j] & (counts == 1) & ~anchor_reach).sum()) for j in range(len(new))
+            ]
+            cullable = [j for j in range(len(new)) if unique[j] == 0 and not is_last_anchor(j, new)]
+            if not cullable:
+                break
+            new.pop(cullable[0])
+            new = guarded_lloyd(new)
 
-    # Backstop for the same invariant: if a settlement with new development still has no attached
-    # centre (the CA never seeded one there, or Lloyd drifted its centre into another cluster),
-    # anchor it at the interior of its new development. Settlements whose new development is below
-    # the support floor are skipped: they cannot support a centre (see the cull above).
+    # Backstop for the anchor invariant: if a settlement with new development still has no
+    # attached centre (the CA never seeded one there, or Lloyd drifted its centre into another
+    # cluster), anchor it at the interior of its new development.
     anchored = fixed_comps | {int(comp_label[y, x]) for y, x in new}
     for i in sorted(needs_anchor - anchored):
-        if comp_new[i] < min_support:
-            continue
         mask = np.zeros((rows, cols), dtype=bool)
         for y, x in comps[i]:
             if new_built[y, x]:
@@ -557,12 +549,6 @@ CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
 # it) must span at least this many contiguous cells, or it reverts to green. Keeps the population-based
 # minimum-settlement dial resolution-independent.
 MIN_SETTLEMENT_CELLS = 4
-# Redundancy floor for the centre cull/add — a centre that uniquely serves fewer than this many built
-# cells is dropped. This measures UNIQUE coverage between overlapping new centres, so it is kept
-# small and SEPARATE from the minimum-SETTLEMENT size (which prunes failed-satellite clusters and,
-# as _refine_centres' min_support, floors a centre's TOTAL catchment); conflating them made large
-# min-settlement values stop centres forming at all.
-CENTRE_CULL_MIN = 3
 
 
 def _grow_blob(start, target, built, claimed):
@@ -926,45 +912,51 @@ def optimise_plan(
     existing_centres=None,
     existing_built=None,
     ca_centres=None,
-    optimise_centres: bool = True,
+    centre_mode: str = "placed",
     centre_anchors=None,
     centre_distance_m: float | None = None,
     green_distance_m: float | None = None,
-    centre_spacing_m: float | None = None,
     centre_m2_per_person: float = CENTRE_M2_PER_PERSON,
     new_density_km2: float = MEAN_NEW_DENSITY_KM2,
     centre_min_settlement: int = 3,
     prune_islands: bool = True,
     walk_cache: dict | None = None,
 ) -> np.ndarray:
-    """Post-process a single CA run's plan into the recommended plan: prune failed-satellite specks,
-    then (when ``optimise_centres``, the default) re-place the centres central to their development,
-    add centres where new development is under-served, cull redundant ones and grow each to an area —
-    otherwise keep the simulation's grown centres as-is. The CA's green network is kept as-is. Returns
-    a new plan.
+    """Post-process a single CA run's plan into a recommended plan: prune failed-satellite specks,
+    absorb sub-threshold infill, handle the centres per ``centre_mode``, and grow each centre to
+    an area sized by the residents it serves. The CA's green network is kept as-is. Returns a new
+    plan. Every mode keeps the walk constraint the growth rules enforced: every new home within
+    the centre walk of a centre.
+
+    ``centre_mode`` picks the centre treatment:
+
+    - ``"grown"`` — centres stay exactly where the run grew them (locations and extent); each
+      still grows to the area its catchment warrants (never shrinks).
+    - ``"placed"`` — the run's centres are re-positioned central to the new homes they serve, and
+      centres are added where new development lacks provision within the walk; none are removed.
+    - ``"minimal"`` — as ``"placed"``, then centres are removed one at a time for as long as every
+      home keeps a centre within the walk: the fewest centres the constraint permits.
 
     ``existing_built`` is a bool mask of cells already developed before the simulation; those are
     **frozen** (never pruned) and tagged distinctly downstream.
 
     Centre/green walks are split: ``centre_distance_m`` / ``green_distance_m`` (each defaulting to
-    ``max_distance_m``) are the walk thresholds for centre vs green coverage. ``centre_spacing_m``
-    sets centre consolidation (consolidated↔dispersed; see ``_refine_centres``); each centre grows to
-    ``centre_m2_per_person`` of centre land per resident it serves (population estimated per cell from
-    ``new_density_km2``; existing fabric counts zero — only new residents size a centre);
+    ``max_distance_m``) are the walk thresholds for centre vs green coverage. Each centre grows to
+    ``centre_m2_per_person`` of centre land per resident it serves (population estimated per cell
+    from ``new_density_km2``; existing fabric counts zero — only new residents size a centre).
     ``centre_min_settlement`` is the minimum settlement size (in cells): a detached new cluster
     below it is pruned; one grown against existing fabric is absorbed into that fabric (tagged
-    ``PLAN_EXIST_BUILT``, no longer new development); and a new centre must reach at least that
-    many new cells within a walk to be kept (the support floor — one number for "viable as a
-    settlement" and "warrants a centre").
+    ``PLAN_EXIST_BUILT``, no longer new development).
     """
+    if centre_mode not in ("grown", "placed", "minimal"):
+        raise ValueError(f"unknown centre_mode: {centre_mode!r}")
     plan = plan.copy()
     g = float(granularity_m)
-    # Split walks: centres and green each have their own walk threshold (both default to the shared
-    # max_distance). The distance FIELD is bounded at the larger of the walks AND the centre spacing
-    # (consolidation may place centres more than a walk apart, so the field must reach that far).
+    # Split walks: centres and green each have their own walk threshold (both default to the
+    # shared max_distance). The distance FIELD is bounded at the larger of the two.
     centre_distance_m = max_distance_m if centre_distance_m is None else float(centre_distance_m)
     green_distance_m = max_distance_m if green_distance_m is None else float(green_distance_m)
-    field_bound = max(centre_distance_m, green_distance_m, float(centre_spacing_m or 0.0))
+    field_bound = max(centre_distance_m, green_distance_m)
     rows, cols = plan.shape
     # ONE distance model: the bounded grid walk, the same metric the growth rules use;
     # unbuildable land and cells outside the extents block it, exactly as in growth.
@@ -1018,11 +1010,9 @@ def optimise_plan(
     if n_built == 0:
         return plan
 
-    # Centres: keep the existing ones; take the simulation's grown centres (``ca_centres`` — the
-    # original proximity seeding). When ``optimise_centres`` (the default) tidy them — re-position
-    # onto new land, central to what they serve, add where development is under-served, and cull
-    # redundant ones; otherwise keep them exactly where the simulation grew them. With no
-    # ca_centres (direct calls) fall back to the same proximity seeding on the finished fabric.
+    # Centres: keep the existing ones; take the simulation's grown centres (``ca_centres``), each
+    # connected blob of centre cells collapsing to ONE centre (seeded at the blob's interior).
+    # With no ca_centres (direct calls) fall back to proximity seeding on the finished fabric.
     plan[plan == PLAN_CENTRE] = PLAN_BUILT
     built = plan == PLAN_BUILT
     new_built = built & ~frozen
@@ -1041,37 +1031,55 @@ def optimise_plan(
     fixed_on_built = list(dict.fromkeys(existing_on_built + anchor_on_built))  # dedup, order-stable
     exclude = {(int(ey), int(ex)) for ey, ex in (existing_centres or [])} | set(anchor_on_built)
     if ca_centres is None:
-        seed_new = [
+        seed_cells = [
             s
             for s in _seed_centres_proximity(built, granularity_m, centre_distance_m, existing_centres)
             if s not in exclude
         ]
     else:
-        seed_new = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in exclude]
+        seed_cells = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in exclude]
+    seed_cells = [(y, x) for y, x in seed_cells if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
+    seed_mask = np.zeros_like(built)
+    for y, x in seed_cells:
+        seed_mask[y, x] = True
+    seed_areas = _components(seed_mask) if seed_mask.any() else []
+    seed_points = []
+    for comp in seed_areas:
+        m = np.zeros_like(built)
+        for y, x in comp:
+            m[y, x] = True
+        pt = _interior_point(m)
+        seed_points.append((int(pt[0]), int(pt[1])) if pt is not None else comp[0])
     for ey, ex in fixed_on_built:
         plan[ey, ex] = PLAN_CENTRE
-    if optimise_centres:
+    exist_mask = (
+        (np.asarray(existing_built, dtype=bool) & built)
+        if existing_built is not None
+        else np.zeros_like(built)
+    )
+    # existing fabric contributes NO population: centres are sized by the new residents they serve
+    cell_pop = np.where(exist_mask, 0.0, new_density_km2) * (g * g / 1e6)
+    if centre_mode == "grown":
+        # Locations untouched: every grown centre cell stays a centre. Each area still grows to
+        # the size its catchment warrants (mixed-use provision is a ratio, not a location choice);
+        # growing only, never shrinking. Station anchors grow too, as in every mode.
+        kept = [c for comp in seed_areas for c in comp]
+        grow_points = list(dict.fromkeys(seed_points + anchor_on_built))
+        grown = _grow_centres(grow_points, existing_on_built, built, walk, cell_pop, centre_m2_per_person, g * g)
+        new_centres = list(dict.fromkeys(list(grown) + kept))
+    else:
         new_centres = _refine_centres(
-            seed_new, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
-            cull_min_unique=CENTRE_CULL_MIN, min_support=centre_min_settlement, walk=walk,
-            spacing_m=centre_spacing_m, anchors=anchor_on_built, walk_cache=walk_cache,
+            seed_points, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
+            walk=walk, anchors=anchor_on_built, walk_cache=walk_cache,
+            minimise_count=centre_mode == "minimal",
         )
         # Grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built).
         # Station anchors grow too — a station should seed a real centre, not stay a lone cell — while
         # existing/true-area centres come pre-sized from the input and are left intact (claimed, not grown).
         grow_points = list(dict.fromkeys(new_centres + anchor_on_built))
-        exist_mask = (
-            (np.asarray(existing_built, dtype=bool) & built)
-            if existing_built is not None
-            else np.zeros_like(built)
-        )
-        # existing fabric contributes NO population: centres are sized by the new residents they serve
-        cell_pop = np.where(exist_mask, 0.0, new_density_km2) * (g * g / 1e6)
         new_centres = _grow_centres(
             grow_points, existing_on_built, built, walk, cell_pop, centre_m2_per_person, g * g
         )
-    else:  # keep the simulation's grown centres as-is (only those still on built land)
-        new_centres = [(y, x) for y, x in seed_new if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
     for y, x in new_centres:
         plan[y, x] = PLAN_CENTRE
     return plan
@@ -1139,22 +1147,22 @@ def select_plan(
     max_eval=None,
     existing_built=None,
     existing_green=None,
-    optimise_centres=True,
+    centre_mode="placed",
     transit_stops=None,
     centre_anchors=None,
     centre_distance_m=None,
     green_distance_m=None,
-    centre_spacing_m=None,
     centre_m2_per_person=CENTRE_M2_PER_PERSON,
     new_density_km2=MEAN_NEW_DENSITY_KM2,
     centre_min_settlement=3,
     prune_islands=True,
     progress=None,
 ):
-    """Pick the recommended plan from per-run final states: optimise EVERY run and keep
-    the one with the lowest average walk (``access_cost``). Pass ``max_eval`` to optimise
-    only that many evenly-sampled runs (faster for very large ensembles; runs are
-    similar). ``existing_built``/``existing_green`` (bool masks of already-developed land)
+    """Pick the recommended plan from per-run final states: optimise EVERY run (at
+    ``centre_mode``; see ``optimise_plan``) and keep the one with the lowest average walk
+    (``access_cost``). Pass ``max_eval`` to optimise only that many evenly-sampled runs
+    (faster for very large ensembles; runs are similar). ``existing_built``/``existing_green``
+    (bool masks of already-developed land)
     are frozen — never pruned — and the chosen plan tags them with the existing-* codes.
     Returns ``(best_plan, best_metrics, pre_plan, best_state)`` — ``(None, None, None, None)`` if empty.
     ``pre_plan`` is the chosen run BEFORE post-processing (its raw CA development, grown centres and
@@ -1181,9 +1189,9 @@ def select_plan(
             granularity_m, min_green_span_m, max_distance_m,
             existing_centres=existing_centres,
             existing_built=existing_built, ca_centres=ca_centres,
-            optimise_centres=optimise_centres, centre_anchors=centre_anchors,
+            centre_mode=centre_mode, centre_anchors=centre_anchors,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
-            centre_spacing_m=centre_spacing_m, centre_m2_per_person=centre_m2_per_person,
+            centre_m2_per_person=centre_m2_per_person,
             new_density_km2=new_density_km2,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
             walk_cache=walk_cache,
@@ -1310,7 +1318,7 @@ def plan_variants(
     granularity_m,
     min_green_span_m,
     max_distance_m,
-    spacings,
+    modes,
     *,
     existing_centres=None,
     existing_built=None,
@@ -1323,22 +1331,21 @@ def plan_variants(
     centre_min_settlement=3,
     prune_islands=True,
 ):
-    """Post-process one chosen CA run ``state`` at several centre-SPACING settings, so the user can
-    compare compactness options and pick rather than choosing up front. ``spacings`` maps a label to a
-    centre spacing in metres (``None`` = consolidated / coverage-minimal). Returns ``{label: (plan,
-    metrics)}``; each plan is fully optimised (centre placement at that spacing) and tagged with the
-    existing-* codes."""
+    """Post-process one chosen CA run ``state`` at several centre modes, so the user can compare
+    the options and pick rather than choosing up front. ``modes`` maps a label to a
+    ``centre_mode`` (``"grown"`` / ``"placed"`` / ``"minimal"``; see ``optimise_plan``). Returns
+    ``{label: (plan, metrics)}``; each plan is tagged with the existing-* codes."""
     state = np.asarray(state)
     ca_centres = [(int(y), int(x)) for y, x in np.argwhere(state == 2)]
     base = _state_to_plan(state, min_green_span_m, granularity_m, existing_green=existing_green)
     out: dict = {}
-    for label, spacing_m in spacings.items():
+    for label, mode in modes.items():
         plan = optimise_plan(
             base, granularity_m, min_green_span_m, max_distance_m,
             existing_centres=existing_centres, existing_built=existing_built, ca_centres=ca_centres,
-            optimise_centres=True, centre_anchors=centre_anchors,
+            centre_mode=mode, centre_anchors=centre_anchors,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
-            centre_spacing_m=spacing_m, centre_m2_per_person=centre_m2_per_person,
+            centre_m2_per_person=centre_m2_per_person,
             new_density_km2=new_density_km2,
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
         )

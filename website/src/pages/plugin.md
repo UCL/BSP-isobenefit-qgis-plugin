@@ -53,7 +53,7 @@ The fastest route uses the OSM downloader for the data and accepts most defaults
    run can be cancelled safely. Per-stage detail (grid size, ensemble progress, post-processing
    candidates, warnings) streams to the Log Messages panel: *View → Panels → Log Messages*,
    **Isobenefit** tab. With the default *Development likelihood* mode, several layers load on
-   completion; start with the *moderately clustered centres* plan.
+   completion; start with the *optimised placement* plan.
 9. The run's full settings are saved next to the output as `<name>_params.json`. To repeat or
    adjust the run later, use *Load parameters* at the top of the dialog.
 
@@ -144,9 +144,9 @@ coverage figures and steers the centre re-positioning.
 
 | Field | Default | What it does |
 | --- | --- | --- |
-| Optimise centre placement | on | Re-position centres central to their development, add one wherever new development lacks a centre of its own (a nearby existing centre does not stand in), cull redundant ones; saves moderately and tightly clustered options. Off keeps the grown centres (one plan) |
+| Optimise centre placement | on | Alongside the as-grown option, save two more: optimised placement (the run's centres re-positioned to cut walking distances, plus any the provision rule requires; a nearby existing centre does not stand in for new development) and fewest centres (the smallest number that keeps every home within the centre walk). Off saves only the as-grown option. Every option keeps every home within the centre walk |
 | Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
-| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); a smaller cluster grown against existing development is absorbed into the existing fabric instead, since the odd free cell inside a town is usually an unmapped road, park or awkward lot rather than a building site; a new centre must also reach this many new residents within a walk; the raw plan keeps everything for comparison |
+| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); a smaller cluster grown against existing development is absorbed into the existing fabric instead, since the odd free cell inside a town is usually an unmapped road, park or awkward lot rather than a building site; the raw plan keeps everything for comparison |
 | Min green span (m) | 400 | A green patch must span this to count as a park; also a build rule protecting corridors |
 
 **Development density.** Three densities (people per km²) for the high, medium and low tiers,
@@ -194,15 +194,14 @@ missing.
 **Ensemble mode** writes a family of files into the output folder, sharing the run name:
 `<name>.tif` (the
 built and green likelihood bands), `<name>_existing.tif` (the starting fabric),
-`<name>_pre.tif` (the chosen run before post-processing; new development in one flat colour,
-since density tiers are arranged by post-processing and so never appear on the raw layer),
-`<name>_moderate.tif` and
-`<name>_tight.tif` (the two clustering options, each coloured by density tier: built as a
-yellow-to-brown ramp, mixed-use centres as a reds ramp, existing fabric muted),
-`<name>_report.txt` (the run record) and `<name>_params.json` (the
-reloadable settings). QGIS loads the rasters as one layer group, ordered existing fabric, then
-the raw pre-processing run, then the two clustering options, with the likelihood bands at the
-bottom.
+`<name>_pre.tif` (the chosen run before post-processing, coloured by the density tiers the run
+actually drew, in place), `<name>_grown.tif`, `<name>_placed.tif` and `<name>_fewest.tif` (the
+three centre options: centres as grown, optimised placement and fewest centres, each coloured
+by arranged density tier, with built as a yellow-to-brown ramp, mixed-use centres as a reds
+ramp, and existing fabric muted), `<name>_report.txt` (the run record) and `<name>_params.json`
+(the reloadable settings). Every option keeps each home within the centre walk. QGIS loads the
+rasters as one layer group, ordered existing fabric, then the raw pre-processing run, then the
+centre options, with the likelihood bands at the bottom.
 
 The report file is the durable summary of the run: the parameters, then fixed-width tables with
 the plan options side by side (population accommodated and share of the target, coverage,
@@ -215,35 +214,38 @@ This excerpt is from a run on the Cambourne window used throughout the
 ```text
 PLAN OPTIONS (side by side; the walkability figures count every home)
 ----------------------------------------
-  Metric                                  raw  moderate   tight
-  -----------------------------------  ------  --------  ------
-  population accommodated              10,110    10,125  10,125
-  share of target                         84%       84%     84%
-  built cells (incl. existing)          2,072     2,072   2,072
-  mixed-use centre areas                   22        26      25
-  served coverage (centre AND green)      93%       93%     93%
-  avg walk to a centre (m)                336       267     283
-  avg walk to green (m)                   167       167     167
-  m2 mixed-use centre / person              4        20      18
-  m2 walkable green / person              826       825     825
+  Metric                                 raw  grown  placed  fewest
+  -----------------------------------  -----  -----  ------  ------
+  population accommodated              9,818  6,085   6,085   6,085
+  share of target                        82%    51%     51%     51%
+  built cells (incl. existing)         2,031  1,784   1,784   1,784
+  mixed-use centre areas                  27     15      18      16
+  served coverage (centre AND green)     95%    87%     88%     88%
+  avg walk to a centre (m)               292    482     436     442
+  avg walk to green (m)                  145    130     130     130
+  m2 mixed-use centre / person             5     17      20      19
+  m2 walkable green / person             867  1,500   1,500   1,500
 
 ACHIEVED DENSITY MIX (new development only)
 ----------------------------------------
-  Tier (people/km2)  share drawn  moderate: cells  moderate: people
-  -----------------  -----------  ---------------  ----------------
-  high (6,000)               20%              284             4,260
-  medium (3,000)             30%              426             3,195
-  low (1,500)                50%              711             2,666
-  total                     100%            1,421            10,121
+  Tier (people/km2)  share drawn  placed: cells  placed: people
+  -----------------  -----------  -------------  --------------
+  high (6,000)               20%            171           2,565
+  medium (3,000)             30%            256           1,920
+  low (1,500)                50%            427           1,601
+  total                     100%            854           6,086
 ```
 
-Reading it: the three columns are the raw run and the two clustering options, which share the
-same homes and differ in their centres, so the rows that move between columns are the centre
-count, the walks and the centre provision. Here the run housed 84% of the target (the window
-saturates before 12,000 under Moderate dispersal), the moderately clustered option cut the
-average centre walk from 336 m to 267 m, and the density mix landed on the drawn 20/30/50
-shares. A full report adds the walk means, compactness, transit readouts where stops were
-supplied, and the centre audit.
+Reading it: the four columns are the raw run and the three centre options. The options share the
+same cleaned fabric and differ only in their centres, so the rows that move between them are the
+centre count, the walks and the centre provision; optimised placement cut the average centre
+walk from 482 m to 436 m against the as-grown arrangement, and fewest centres gave most of that
+back for two fewer centres. The gap between raw and the options is the cleanup: this window
+grows much of its population as clusters below the 1,000-person minimum, which revert to green
+(detached) or join the existing fabric (infill), so the options credit 51% of the target against
+the raw run's 82%. The density mix landed on the drawn 20/30/50 shares. A full report adds the
+walk means, compactness, transit readouts where stops were supplied, and the centre audit (the
+excerpt shows one option's density-mix columns; the file carries all four).
 
 Every population figure counts **new residents only**; existing fabric is assumed served by its
 own centres. The per-person readouts follow the same convention: m² of mixed-use centre per person is new centre

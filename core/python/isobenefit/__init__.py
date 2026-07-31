@@ -13,6 +13,7 @@ from ._core import (
     ensemble_probability,
     label_components,
     run_ensemble,
+    run_member,
     walk_distance,
 )
 
@@ -22,6 +23,7 @@ __all__ = [
     "ensemble_probability",
     "label_components",
     "run_ensemble",
+    "run_member",
     "walk_distance",
     "__version__",
 ]

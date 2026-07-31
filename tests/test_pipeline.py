@@ -236,14 +236,16 @@ def test_seed_centres_proximity_covers_built():
     assert np.isfinite(_walk_distance(centres, 100.0, 800.0)[built]).all()  # every home within a walk
 
 
-def test_refine_centres_culls_redundant():
-    # Two seeds on a small development that one centre already covers -> the redundant one goes.
+def test_refine_centres_minimal_culls_redundant():
+    # Two seeds on a small development one centre fully covers: minimise_count drops the
+    # redundant one; the default (placed) keeps both — it never removes a centre.
     from isobenefit_qgis.grid import _refine_centres
 
     g = 30
     built = np.zeros((g, g), bool)
     built[12:18, 12:18] = True  # small development, well within one 800 m catchment
-    out = _refine_centres([(14, 14), (15, 15)], [], built, built, 100.0, 800.0)
+    assert len(_refine_centres([(14, 14), (15, 15)], [], built, built, 100.0, 800.0)) == 2
+    out = _refine_centres([(14, 14), (15, 15)], [], built, built, 100.0, 800.0, minimise_count=True)
     assert len(out) == 1
     assert built[out[0][0], out[0][1]]  # the survivor sits on the development
 
@@ -312,38 +314,23 @@ def test_station_anchor_counts_as_provision_for_new_growth():
     assert out == []
 
 
-def test_refine_centres_support_floor_rejects_stray_infill():
-    # A few stray new cells grown inside existing fabric clear the old cell-count floor and used
-    # to earn a centre of their own. Under the support floor they cannot: the existing centre a
-    # walk away is what let them grow, and 4 cells of new homes cannot support a centre.
-    from isobenefit_qgis.grid import _refine_centres
+def test_refine_centres_walk_constraint_holds_in_both_modes():
+    # The hard constraint: whatever the mode does to the centres, every new home ends within the
+    # centre walk of one. The minimal mode never uses fewer centres at the price of coverage.
+    from isobenefit_qgis.grid import _refine_centres, _walk_distance
 
-    g = 40
+    g = 80
     built = np.zeros((g, g), bool)
-    built[10:20, 10:20] = True  # existing town, centre at its middle
-    new = np.zeros((g, g), bool)
-    new[14:16, 20:22] = True  # a 4-cell infill patch against the town's edge
-    built = built | new
-    assert _refine_centres([], [(15, 15)], built, new, 100.0, 800.0) != []  # old rule: earns one
-    out = _refine_centres([], [(15, 15)], built, new, 100.0, 800.0, min_support=20)
-    assert out == []  # support floor: no centre for a sub-threshold addition
-
-
-def test_refine_centres_support_floor_keeps_supported_district():
-    # The same geometry with a real new district: enough new homes within a walk support a centre,
-    # so the floor changes nothing and the provision rule still applies (an existing centre nearby
-    # does not serve new development).
-    from isobenefit_qgis.grid import _refine_centres
-
-    g = 40
-    built = np.zeros((g, g), bool)
-    built[10:20, 10:20] = True
-    new = np.zeros((g, g), bool)
-    new[10:20, 20:26] = True  # a 60-cell district east of the town
-    built = built | new
-    out = _refine_centres([], [(15, 15)], built, new, 100.0, 800.0, min_support=20)
-    assert len(out) >= 1
-    assert any(new[y, x] for y, x in out)
+    built[5:75, 5:75] = True  # far larger than one catchment; one corner seed
+    placed = _refine_centres([(10, 10)], [], built, built, 100.0, 800.0)
+    minimal = _refine_centres([(10, 10)], [], built, built, 100.0, 800.0, minimise_count=True)
+    for out in (placed, minimal):
+        cmask = np.zeros((g, g), bool)
+        for y, x in out:
+            cmask[y, x] = True
+        d = _walk_distance(cmask, 100.0, 800.0)
+        assert (d[built] <= 800.0).all()  # every home within the walk — no exceptions
+    assert len(minimal) <= len(placed)
 
 
 
@@ -389,7 +376,7 @@ def test_select_plan_walk_query_budget(monkeypatch):
     monkeypatch.setattr(G, "_walk_distance", counting)
     plan, metrics, _pre, _best = G.select_plan(
         [st], 50.0, 400.0, 800.0, existing_built=existing,
-        centre_spacing_m=1200.0, centre_distance_m=800.0, green_distance_m=400.0,
+        centre_distance_m=800.0, green_distance_m=400.0,
     )
     assert plan is not None and metrics is not None
     # measured ~930 today; the pre-cache quadratic behaviour lands above 10,000
@@ -491,9 +478,9 @@ def test_refine_centres_concave_catchment_centres_on_built_interior():
         assert built[y - 1 : y + 2, x - 1 : x + 2].all()  # interior of the band, not snapped to the rim
 
 
-def test_optimise_plan_centre_optimisation_optional():
-    # The centre optimisation is a toggle: off keeps the CA's grown centres exactly where they
-    # are; on re-positions them central to their development.
+def test_optimise_plan_centre_modes():
+    # "grown" keeps the CA's centre where it grew (still growing it to a warranted area);
+    # "placed" re-positions it central to the development it serves.
     from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, optimise_plan
 
     g = 40
@@ -501,12 +488,14 @@ def test_optimise_plan_centre_optimisation_optional():
     plan[10:30, 10:30] = PLAN_BUILT  # a 20x20 development (centroid ~ (19, 19))
     edge = (10, 10)  # the simulation grew a centre in the corner
 
-    off = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], optimise_centres=False)
-    assert {(int(y), int(x)) for y, x in np.argwhere(off == PLAN_CENTRE)} == {edge}  # kept as-is
+    grown = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], centre_mode="grown")
+    centres_grown = {(int(y), int(x)) for y, x in np.argwhere(grown == PLAN_CENTRE)}
+    assert edge in centres_grown  # the grown cell stays a centre, unmoved
+    assert len(centres_grown) > 1  # and the centre grew to the area its catchment warrants
 
-    on = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], optimise_centres=True)
-    centres_on = {(int(y), int(x)) for y, x in np.argwhere(on == PLAN_CENTRE)}
-    assert edge not in centres_on  # re-positioned off the corner, toward the centre
+    placed = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], centre_mode="placed")
+    centres_placed = {(int(y), int(x)) for y, x in np.argwhere(placed == PLAN_CENTRE)}
+    assert edge not in centres_placed  # re-positioned off the corner, toward the centre
 
 
 def test_evaluate_plan_transit_coverage_reported():
@@ -770,48 +759,32 @@ def test_select_plan_on_demo(grid):
 
 
 
-def test_refine_centres_spacing_consolidates_beyond_walk():
-    # A spacing LARGER than the walk genuinely consolidates: fewer, larger centres than the
-    # coverage-minimal default. (This is the fix — the spacing used to be capped at the walk.)
-    from isobenefit_qgis.grid import _refine_centres
-
-    g = 100
-    built = np.zeros((g, g), bool)
-    built[15:85, 15:85] = True  # a big block, far larger than one catchment
-    coverage_min = _refine_centres([(50, 50)], [], built, built, 50.0, 400.0)  # spacing defaults to the walk
-    consolidated = _refine_centres([(50, 50)], [], built, built, 50.0, 400.0, spacing_m=1000.0)  # 2.5x the walk
-    assert len(consolidated) < len(coverage_min)  # spacing > walk -> fewer, clumped centres
-    assert consolidated  # ...but still at least one
-
-
-def test_refine_centres_spacing_consolidated_vs_dispersed():
-    # The spacing dial sets how far apart centres sit. A big block with a tight spacing keeps many,
-    # close centres (dispersed); the default (= the walk) keeps the coverage-minimal few (consolidated).
-    from isobenefit_qgis.grid import _refine_centres
-
-    g = 80
-    built = np.zeros((g, g), bool)
-    built[10:70, 10:70] = True  # 60x60 block, far larger than one catchment
-    consolidated = _refine_centres([(40, 40)], [], built, built, 50.0, 800.0)  # spacing defaults to the walk
-    dispersed = _refine_centres([(40, 40)], [], built, built, 50.0, 800.0, spacing_m=300.0)
-    assert len(dispersed) > len(consolidated)  # tighter spacing -> more centres
-    for y, x in dispersed:
-        assert built[y, x]
-
-
-def test_optimise_plan_centre_spacing_disperses():
-    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, _components, optimise_plan
+def test_optimise_plan_minimal_uses_fewer_centres_with_full_coverage():
+    # The minimal mode removes centres only while every home keeps one within the walk, so it
+    # never buys fewer centres with lost coverage.
+    from isobenefit_qgis.grid import (
+        PLAN_BUILT,
+        PLAN_CENTRE,
+        PLAN_EXIST_CENTRE,
+        _components,
+        _walk_distance,
+        optimise_plan,
+    )
 
     g = 80
     plan = np.zeros((g, g), np.uint8)
     plan[10:70, 10:70] = PLAN_BUILT
-    common = dict(ca_centres=[(40, 40)], optimise_centres=True)
-    cons = optimise_plan(plan, 50.0, 400.0, 800.0, centre_spacing_m=800.0, **common)
-    disp = optimise_plan(plan, 50.0, 400.0, 800.0, centre_spacing_m=300.0, **common)
-    # count centre AREAS (connected components), not cells, since centres are grown blobs
-    n_cons = len(_components(cons == PLAN_CENTRE))
-    n_disp = len(_components(disp == PLAN_CENTRE))
-    assert n_disp > n_cons
+    seeds = [(20, 20), (20, 50), (50, 20), (50, 50), (40, 40), (30, 30), (25, 45)]  # over-seeded
+    placed = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=seeds, centre_mode="placed")
+    minimal = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=seeds, centre_mode="minimal")
+    n_placed = len(_components(placed == PLAN_CENTRE))
+    n_minimal = len(_components(minimal == PLAN_CENTRE))
+    assert n_minimal <= n_placed
+    for out in (placed, minimal):
+        centres = np.isin(out, (PLAN_CENTRE, PLAN_EXIST_CENTRE))
+        built = np.isin(out, (PLAN_BUILT, PLAN_CENTRE))
+        d = _walk_distance(centres, 50.0, 800.0)
+        assert (d[built] <= 800.0).all()  # the walk constraint holds in every mode
 
 
 def test_optimise_plan_centre_area_scales_per_person():
@@ -822,7 +795,7 @@ def test_optimise_plan_centre_area_scales_per_person():
     g = 60
     plan = np.zeros((g, g), np.uint8)
     plan[10:50, 10:50] = PLAN_BUILT
-    common = dict(ca_centres=[(30, 30)], optimise_centres=True, centre_spacing_m=700.0)
+    common = dict(ca_centres=[(30, 30)], centre_mode="placed")
     small = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=5.0, **common)
     large = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=30.0, **common)
     assert int((large == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # more provision per person
@@ -863,22 +836,21 @@ def test_evaluate_plan_reports_per_person_provision():
 
 
 def test_every_settlement_keeps_an_anchor_centre():
-    # The anchor invariant: consolidation may thin centres WITHIN a cluster but may never strip a
-    # cluster bare. Two detached settlements within one another's (large) centre spacing across a
-    # green gap must BOTH end up with a directly attached centre, at every clustering strength.
+    # The anchor invariant: the minimal mode may thin centres WITHIN a cluster but may never strip
+    # a cluster bare. Two detached settlements within one another's walk across a green gap must
+    # BOTH end up with a directly attached centre, in every mode.
     from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, _components, optimise_plan
 
     g = 60
     plan = np.zeros((g, g), np.uint8)
     plan[10:26, 10:26] = PLAN_BUILT  # settlement one (16x16)
     plan[38:48, 38:48] = PLAN_BUILT  # settlement two (10x10), ~1.7 km away at 100 m cells
-    for spacing in (400.0, 1500.0, 4000.0):  # dispersed, moderate, aggressively consolidated
+    for mode in ("grown", "placed", "minimal"):
         out = optimise_plan(
-            plan, 100.0, 400.0, 400.0, ca_centres=[(18, 18), (43, 43)],
-            optimise_centres=True, centre_spacing_m=spacing,
+            plan, 100.0, 400.0, 400.0, ca_centres=[(18, 18), (43, 43)], centre_mode=mode,
         )
         for comp in _components((out == PLAN_BUILT) | (out == PLAN_CENTRE)):
-            assert any(out[y, x] == PLAN_CENTRE for y, x in comp), f"unanchored settlement at spacing {spacing}"
+            assert any(out[y, x] == PLAN_CENTRE for y, x in comp), f"unanchored settlement in mode {mode}"
 
 
 def test_contiguity_floor_reverts_orphan_centres():
@@ -893,7 +865,7 @@ def test_contiguity_floor_reverts_orphan_centres():
     plan[5, 5] = PLAN_BUILT  # a 2-cell orphan speck with the CA's grown centre
     plan[5, 6] = PLAN_BUILT
     out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(35, 35), (5, 5)],
-                        optimise_centres=False, centre_min_settlement=1)
+                        centre_mode="grown", centre_min_settlement=1)
     assert out[5, 5] == PLAN_GREEN and out[5, 6] == PLAN_GREEN  # speck reverted, centre gone
     assert (out[20:50, 20:50] == PLAN_CENTRE).sum() >= 1  # the town keeps its centre
 
@@ -906,7 +878,7 @@ def test_optimise_plan_min_settlement_culls_satellite():
     plan = np.zeros((g, g), np.uint8)
     plan[20:60, 20:60] = PLAN_BUILT  # main town
     plan[3:7, 3:7] = PLAN_BUILT  # 4x4 satellite, detached
-    common = dict(ca_centres=[(40, 40), (5, 5)], optimise_centres=True)
+    common = dict(ca_centres=[(40, 40), (5, 5)], centre_mode="placed")
     kept = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=3, **common)
     culled = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=40, **common)
     sat = lambda out: any(y < 10 and x < 10 for y, x in np.argwhere(out == PLAN_CENTRE))  # noqa: E731
@@ -937,7 +909,7 @@ def test_optimise_plan_prunes_centreless_island():
     plan = np.zeros((g, g), np.uint8)
     plan[20:50, 10:40] = PLAN_BUILT  # main development (kept, gets a centre)
     plan[3:6, 53:56] = PLAN_BUILT  # 3x3 stranded speck (9 cells), far from anything, no centre
-    common = dict(ca_centres=[(35, 25)], optimise_centres=True, centre_min_settlement=12)
+    common = dict(ca_centres=[(35, 25)], centre_mode="placed", centre_min_settlement=12)
     pruned = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=True, **common)
     kept = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=False, **common)
     assert (pruned[3:6, 53:56] == PLAN_GREEN).all()  # stranded speck reverted to green
@@ -945,23 +917,46 @@ def test_optimise_plan_prunes_centreless_island():
     assert (pruned[20:50, 10:40] == PLAN_BUILT).any()  # the real development is untouched
 
 
-def test_plan_variants_compactness_options():
-    # plan_variants post-processes ONE run at several centre spacings so the user can compare/pick;
-    # a tighter spacing yields more, closer centre areas than the consolidated default.
-    from isobenefit_qgis.grid import PLAN_CENTRE, _components, plan_variants
+def test_plan_variants_centre_modes():
+    # plan_variants post-processes ONE run at several centre modes so the user can compare/pick;
+    # the minimal mode uses no more centre areas than placed, and every option is fully covered.
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, _components, _walk_distance, plan_variants
 
     g = 80
     state = np.zeros((g, g), np.int16)
     state[10:70, 10:70] = 1  # a big built block (larger than one catchment)
-    state[40, 40] = 2  # one CA-grown centre
-    out = plan_variants(state, 50.0, 400.0, 800.0, {"consolidated": None, "dispersed": 300.0})
-    assert set(out) == {"consolidated", "dispersed"}
-    cons_plan, cons_m = out["consolidated"]
-    disp_plan, _disp_m = out["dispersed"]
-    assert "served_coverage" in cons_m  # each option carries its own metrics
-    n_cons = len(_components(cons_plan == PLAN_CENTRE))
-    n_disp = len(_components(disp_plan == PLAN_CENTRE))
-    assert n_disp > n_cons  # dispersed places more, closer centres
+    for y, x in ((20, 20), (20, 60), (60, 20), (60, 60), (40, 40)):
+        state[y, x] = 2  # the CA's grown centres
+    out = plan_variants(state, 50.0, 400.0, 800.0, {"placed": "placed", "minimal": "minimal"})
+    assert set(out) == {"placed", "minimal"}
+    placed_plan, placed_m = out["placed"]
+    minimal_plan, _minimal_m = out["minimal"]
+    assert "served_coverage" in placed_m  # each option carries its own metrics
+    n_placed = len(_components(placed_plan == PLAN_CENTRE))
+    n_minimal = len(_components(minimal_plan == PLAN_CENTRE))
+    assert n_minimal <= n_placed  # fewest centres never uses more
+    for plan, _ in out.values():
+        d = _walk_distance(plan == PLAN_CENTRE, 50.0, 800.0)
+        assert (d[plan == PLAN_BUILT] <= 800.0).all()  # every home within the walk in every option
+
+
+def test_plan_variants_grown_keeps_ca_centres():
+    # the "grown" mode keeps centre locations exactly where the run grew them (no move, no cull),
+    # while still growing each to the area its catchment warrants; "placed" re-positions instead.
+    from isobenefit_qgis.grid import PLAN_CENTRE, plan_variants
+
+    g = 60
+    state = np.zeros((g, g), np.int16)
+    state[10:50, 10:50] = 1
+    state[20, 20] = 2  # the CA's grown centre, deliberately off-centre
+    out = plan_variants(state, 100.0, 400.0, 800.0, {"grown": "grown", "placed": "placed"})
+    grown_plan, grown_m = out["grown"]
+    assert "served_coverage" in grown_m
+    grown_cs = {(int(y), int(x)) for y, x in np.argwhere(grown_plan == PLAN_CENTRE)}
+    assert (20, 20) in grown_cs  # the grown cell stays a centre, unmoved
+    assert len(grown_cs) > 1  # and grew to the area its catchment warrants
+    placed_cs = {(int(y), int(x)) for y, x in np.argwhere(out["placed"][0] == PLAN_CENTRE)}
+    assert placed_cs != grown_cs  # the placed option re-positions its centres
 
 
 def test_evaluate_plan_marked_unmarked_equivalence():

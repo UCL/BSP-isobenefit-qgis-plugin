@@ -1,8 +1,8 @@
 {
-  "crs": "EPSG:32736",
+  "crs": "EPSG:32618",
   "grid_size_m": 25,
   "max_iterations": 400,
-  "target_population": 60000,
+  "target_population": 40000,
   "build_prob": 0.25,
   "dispersal": "moderate",
   "random_seed": 42,
@@ -14,17 +14,17 @@
   "min_green_span_m": 400,
   "densities_km2": {
     "high": 35000,
-    "medium": 20000,
-    "low": 10000
+    "medium": 18000,
+    "low": 8000
   },
   "shares": {
-    "high": 0.2,
+    "high": 0.3,
     "medium": 0.4,
-    "low": 0.4
+    "low": 0.3
   },
   "ensemble": true,
   "ensemble_runs": 50,
   "schema": "isobenefit-params/1",
-  "name": "kigali_east_tight",
-  "notes": "The same growth, post-processed to fewer, larger mixed-use centres. In QGIS, both clustering options are always written; open the tightly-clustered output layer."
+  "name": "medellin_pajarito_fewest",
+  "notes": "The same growth, post-processed to the fewest centres that keep every home within the centre walk. In QGIS, every centre option is always written; open the fewest-centres output layer."
 }

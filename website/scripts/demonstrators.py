@@ -142,11 +142,11 @@ def _min_settlement():
     return max(1, round(MIN_SETTLEMENT_POP / (_mean_density() * GRAN**2 / 1.0e6)))
 
 
-def to_plan(sub, st, spacing):
+def to_plan(sub, st, mode="placed"):
     plan, _, _, _ = G.select_plan(
         [st], GRAN, GREEN_SPAN, WALK,
         existing_built=sub["origin"] == 1, existing_centres=sub["seeds"],
-        centre_spacing_m=spacing, centre_distance_m=WALK, green_distance_m=GREEN_WALK,
+        centre_mode=mode, centre_distance_m=WALK, green_distance_m=GREEN_WALK,
         centre_min_settlement=_min_settlement(),
     )
     return plan
@@ -363,7 +363,7 @@ def main():
     # THE worked example: grow the real town, snapshotting the growth on the way. The three growth
     # stages are ONE figure (three sub-panels, one shared legend), so they read as a single sequence.
     final, final_dens, snaps = grow(sub, stages=(6, 30))
-    draw(tiered(to_plan(sub, final, 1.5 * WALK)), "demo_recommended_plan", "An idealised scenario: Cambourne, grown")
+    draw(tiered(to_plan(sub, final)), "demo_recommended_plan", "An idealised scenario: Cambourne, grown")
     render_multi(sub, [
         (growth_codes(sub, snaps[6][0], snaps[6][1]), "Iteration 6"),
         (growth_codes(sub, snaps[30][0], snaps[30][1]), "Iteration 30"),
@@ -388,37 +388,41 @@ def main():
         draw(growth_codes(sub, st, dens), f"demo_dispersal_{label}",
              f"Dispersed development: {label.capitalize()}")
 
-    # Centre clustering: the SAME run and buildings, only the centre spacing differs. The two options
-    # are ONE figure (two sub-panels, one shared legend) so they read as a direct comparison. Grown to
-    # a 20,000-person target: at the worked example's 12,000 the settlements stay smaller than either
-    # spacing and the two options collapse to near-identical centres. plan_variants (the plugin's own
-    # path) guarantees both options share one fabric.
+    # Centre options: the SAME run and buildings, only the centre treatment differs. The two
+    # options are ONE figure (two sub-panels, one shared legend) so they read as a direct
+    # comparison. Grown to a 20,000-person target so the settlements are large enough for the
+    # options to differ. plan_variants (the plugin's own path) guarantees both share one fabric,
+    # and both keep every home within the centre walk.
     st, _dens, _ = grow(sub, pop=20000.0, iters=3000)
     _plan, _m, _pre, best_state = G.select_plan(
         [st], GRAN, GREEN_SPAN, WALK,
         existing_built=sub["origin"] == 1, existing_green=sub["origin"] == 0,
-        existing_centres=sub["seeds"], optimise_centres=True, centre_spacing_m=1.5 * WALK,
+        existing_centres=sub["seeds"], centre_mode="placed",
         centre_distance_m=WALK, green_distance_m=GREEN_WALK,
         centre_min_settlement=_min_settlement(), centre_m2_per_person=20.0,
         new_density_km2=_mean_density(),
     )
     variants = G.plan_variants(
-        best_state, GRAN, GREEN_SPAN, WALK, {"moderate": 1.5 * WALK, "tight": 2.5 * WALK},
+        best_state, GRAN, GREEN_SPAN, WALK, {"placed": "placed", "minimal": "minimal"},
         existing_centres=sub["seeds"], existing_built=sub["origin"] == 1,
         existing_green=sub["origin"] == 0,
         centre_distance_m=WALK, green_distance_m=GREEN_WALK,
         centre_min_settlement=_min_settlement(), centre_m2_per_person=20.0,
         new_density_km2=_mean_density(),
     )
+    for key in ("placed", "minimal"):
+        m = variants[key][1]
+        print(f"clustering demo {key}: {m.get('centre_access', 0):.0f} m avg centre walk, "
+              f"{m.get('served_coverage', 0):.0%} served")
     render_multi(sub, [
-        (tiered(variants["moderate"][0]), "Moderately clustered"),
-        (tiered(variants["tight"][0]), "Tightly clustered"),
-    ], "demo_clustering", "Centre clustering options", unb)
+        (tiered(variants["placed"][0]), "Optimised placement"),
+        (tiered(variants["minimal"][0]), "Fewest centres"),
+    ], "demo_clustering", "Centre options", unb)
 
     # Build probability: cap iterations (huge pop) so the same elapsed time shows the RATE
     for label, bp in (("slow", 0.08), ("fast", 0.6)):
         st, _dens, _ = grow(sub, isol=0.0, bp=bp, pop=1_000_000.0, iters=60)
-        draw(tiered(to_plan(sub, st, 1.5 * WALK)), f"demo_buildprob_{label}",
+        draw(tiered(to_plan(sub, st)), f"demo_buildprob_{label}",
              f"Build probability: {label.capitalize()} ({bp})")
 
 

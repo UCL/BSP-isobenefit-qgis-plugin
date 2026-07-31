@@ -85,7 +85,6 @@ class IsobenefitTask(QgsTask):
         self.iface = iface
         self.out_file_name = out_file_name
         self.out_path = str(Path(out_dir_path) / f"{out_file_name}.tif")
-        self.plan_path = str(Path(out_dir_path) / f"{out_file_name}_plan.tif")  # post-processed
         self.pre_path = str(Path(out_dir_path) / f"{out_file_name}_pre.tif")  # raw CA, pre-processing
         self.existing_path = str(Path(out_dir_path) / f"{out_file_name}_existing.tif")  # pre-simulation fabric
         self.report_path = str(Path(out_dir_path) / f"{out_file_name}_report.txt")  # human-readable run record
@@ -456,16 +455,12 @@ class IsobenefitTask(QgsTask):
                 # use. Street-network routing was removed: new development's streets do not
                 # exist yet, so a network metric compares new and existing fabric on
                 # different terms and punishes exactly the thing being designed.
-                centre_walk = self.centre_distance_m or self.max_distance_m
-                # TWO centre-clustering options (centre spacing in metres) that share the SAME built fabric
-                # and differ ONLY in where the centres sit — the user compares + picks one, against the raw
-                # plan saved separately. 1.5x = moderate, 2.5x = tight: a deliberately distinct pair that
-                # stays separated across town sizes (much larger multiples saturate — once a town only needs
-                # N centres to be covered within the spacing, bigger spacings all give the same N). A larger
-                # spacing clusters harder: fewer, larger, more central centres (coverage drops as some homes
-                # end up beyond a walk of one). NB the raw is already ~coverage density, so we don't also
-                # offer a near-1x "spread" option — it would just look like the raw.
-                spacings = {"moderate": 1.5 * centre_walk, "tight": 2.5 * centre_walk}
+                # THREE centre options that share the SAME built fabric, arranged density and hard
+                # walk constraint, differing only in the centres: kept as grown, optimally placed
+                # (same centres, walked into position, plus any the provision rule requires), and
+                # the fewest centres full coverage permits. The user compares and picks, against
+                # the raw plan saved separately. The headline/selection mode is "placed".
+                headline_mode = "placed" if self.optimise_centres else "grown"
                 plan, metrics, pre_plan, best_state = grid.select_plan(
                     states,
                     self.granularity_m,
@@ -475,10 +470,9 @@ class IsobenefitTask(QgsTask):
                     # existing development is frozen (never pruned) and tagged distinctly
                     existing_built=(origin == 1),
                     existing_green=(origin == 0),
-                    optimise_centres=self.optimise_centres,
+                    centre_mode=headline_mode,
                     transit_stops=transit_stops,
                     centre_anchors=station_anchors,
-                    centre_spacing_m=(spacings["moderate"] if self.optimise_centres else None),
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
                     new_density_km2=self._mean_new_density_km2(),
@@ -502,11 +496,19 @@ class IsobenefitTask(QgsTask):
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
                 if pre_plan is not None:  # the chosen run BEFORE post-processing — saved for comparison
-                    # TRULY raw: no density-tier arrangement. Tiers are arranged by walking distance
-                    # to the final centres, a post-processing product, so painting them onto this
-                    # layer would show processing that has not happened. New cells take the flat
-                    # "new development" colour and the report carries no tier breakdown for the raw.
-                    gis_io.write_plan_raster(self.pre_path, pre_plan, geotransform, self.target_crs)
+                    # TRULY raw: coloured by the densities the run actually DREW, exactly where it
+                    # drew them — no post-processing arrangement. The ensemble keeps only each
+                    # member's state, so the winning member is re-run at its own seed
+                    # (deterministic) to recover its drawn per-block density grid.
+                    best_idx = next((i for i, s in enumerate(states) if s is best_state), None)
+                    if best_idx is None:
+                        best_idx = next(i for i, s in enumerate(states) if np.array_equal(s, best_state))
+                    member = isobenefit.run_member(sim, self.random_seed, best_idx)
+                    drawn_km2 = np.asarray(member["density"], dtype=np.float32) / (
+                        self.granularity_m**2 / 1.0e6
+                    )
+                    pre_tiered = grid.to_tiered_plan(pre_plan, drawn_km2, self.density_factors)
+                    gis_io.write_plan_raster(self.pre_path, pre_tiered, geotransform, self.target_crs)
                     self._plan_outputs.append((self.pre_path, "raw (before post-processing)"))
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
@@ -514,12 +516,18 @@ class IsobenefitTask(QgsTask):
                         new_density_km2=self._mean_new_density_km2(), existing_green=(origin == 0),
                     )
                     report_stats.append(self._report_option(
-                        "raw (before post-processing)", "raw", pre_m, self._count_centres(pre_plan), None
+                        "raw (before post-processing)", "raw", pre_m, self._count_centres(pre_plan), pre_tiered
                     ))
-                if self.optimise_centres and best_state is not None:
-                    self._log("Post-processing the chosen run at each centre-clustering option…")
+                if best_state is not None:
+                    self._log("Post-processing the chosen run at each centre option…")
+                    # FOUR outputs: the raw above (untouched, drawn densities in place), then the
+                    # processed options — same fabric, same arranged density, same hard walk
+                    # constraint, different centres. With centre optimisation off only the
+                    # as-grown option is produced.
+                    mode_keys = ("grown", "placed", "minimal") if self.optimise_centres else ("grown",)
                     variants = grid.plan_variants(
-                        best_state, self.granularity_m, self.min_green_span, self.max_distance_m, spacings,
+                        best_state, self.granularity_m, self.min_green_span, self.max_distance_m,
+                        {key: key for key in mode_keys},
                         existing_centres=seeds, existing_built=(origin == 1), existing_green=(origin == 0),
                         centre_anchors=station_anchors,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
@@ -528,24 +536,28 @@ class IsobenefitTask(QgsTask):
                         new_density_km2=self._mean_new_density_km2(),
                     )
                     labels = {
-                        "moderate": "moderately clustered centres",
-                        "tight": "tightly clustered centres",
+                        "grown": "centres as grown",
+                        "placed": "optimised placement",
+                        "minimal": "fewest centres",
                     }
-                    for key in ("moderate", "tight"):
+                    shorts = {"grown": "grown", "placed": "placed", "minimal": "fewest"}
+                    files = {"grown": "grown", "placed": "placed", "minimal": "fewest"}
+                    for key in mode_keys:
                         vplan, vm = variants[key]
                         ncent = self._count_centres(vplan)
-                        vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{key}.tif"))
+                        vpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_{files[key]}.tif"))
                         # put the centre COUNT in the layer name so the difference between the options is
                         # obvious in the QGIS layer panel itself, not only by eyeballing the map. The
                         # density tiers are arranged onto this plan and coloured per tier (built vs centre).
                         vtiered = self._write_tiered_plan(vpath, vplan, f"{labels[key]} ({ncent} centres)")
-                        report_stats.append(self._report_option(labels[key], key, vm, ncent, vtiered))
+                        report_stats.append(self._report_option(labels[key], shorts[key], vm, ncent, vtiered))
                         self._log(  # per-option metrics so the choice is informed, not just visual
                             f"  {labels[key]}: {ncent} centres, {vm.get('served_coverage', 0):.0%} served, "
                             f"centre walk {vm.get('centre_access', 0):.0f} m, green {vm.get('green_access', 0):.0f} m, "
                             f"{vm.get('centre_m2_per_person', 0):.0f} m² centre / person"
                         )
-                    plan, metrics = variants["moderate"]  # headline metrics + audit use the moderate option
+                    # headline metrics + audit use the same mode that drove run selection
+                    plan, metrics = variants[headline_mode]
                     if pre_plan is not None:  # surface the gentle cleanup (raw is kept un-cleaned to compare)
                         removed = pre_m["built_cells"] - metrics["built_cells"]
                         min_pop = (
@@ -556,12 +568,6 @@ class IsobenefitTask(QgsTask):
                             f"(detached new settlements housing fewer than ~{min_pop:,.0f} people); the raw "
                             f"plan is kept un-cleaned so you can see exactly what the cleanup changed."
                         )
-                elif plan is not None:  # centre optimisation off -> a single plan (CA centres kept)
-                    ptiered = self._write_tiered_plan(self.plan_path, plan, "idealised scenario")
-                    if metrics:
-                        report_stats.append(self._report_option(
-                            "idealised scenario", "idealised", metrics, self._count_centres(plan), ptiered
-                        ))
                 if metrics:
                     self._log(
                         f"Idealised scenario: {metrics.get('served_coverage', 0):.0%} of homes within a walk of "

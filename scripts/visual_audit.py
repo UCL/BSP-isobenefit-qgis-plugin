@@ -182,35 +182,34 @@ def s01_centre_optimisation():
     common = dict(ca_centres=seeds)
     figure(
         "01_centre_optimisation",
-        "Centre optimisation: CA corner seeds (A) vs re-centred + grown to areas (B)",
+        "Centre modes: CA corner seeds kept in place (A) vs re-positioned central to their homes (B)",
         [
-            P(_opt(plan, optimise_centres=False, **common), "A — optimise OFF (raw CA seeds)"),
-            P(_opt(plan, optimise_centres=True, **common), "B — optimise ON (re-centred, grown)"),
+            P(_opt(plan, centre_mode="grown", **common), "A — as grown (kept in place, sized)"),
+            P(_opt(plan, centre_mode="placed", **common), "B — optimised placement (re-centred, grown)"),
         ],
     )
 
 
 def s02_centre_clustering():
-    # the two options the run actually saves (alongside the raw): moderate (1.5x walk) vs tight (2.5x walk),
-    # at the real default 400 m centre walk. Same buildings; only the centres differ. A larger spacing
-    # clusters harder (fewer, larger, more central). NB much larger multiples would saturate — once the
-    # town only needs N centres to be covered within the spacing, bigger spacings all give the same N.
+    # the processed options the run actually saves (alongside the raw and as-grown): optimised
+    # placement vs fewest centres, at the real default 400 m centre walk. Same buildings; only the
+    # centres differ, and both keep every home within the walk.
     cw = 400.0
     plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_distance_m=cw)
+    common = dict(ca_centres=[TOWN_CENTRE], centre_distance_m=cw)
     figure(
         "02_centre_clustering",
-        "Centre clustering options — same buildings, fewer & larger centres as spacing grows (coverage trades off)",
+        "Centre options — same buildings; fewest-centres removes only what full coverage can spare",
         [
-            P(_opt(plan, centre_spacing_m=1.5 * cw, **common), "moderately clustered (1.5x walk)", cdist=cw),
-            P(_opt(plan, centre_spacing_m=2.5 * cw, **common), "tightly clustered (2.5x walk)", cdist=cw),
+            P(_opt(plan, centre_mode="placed", **common), "optimised placement", cdist=cw),
+            P(_opt(plan, centre_mode="minimal", **common), "fewest centres", cdist=cw),
         ],
     )
 
 
 def s03_centre_area():
     plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_spacing_m=600)
+    common = dict(ca_centres=[TOWN_CENTRE], centre_mode="placed")
     figure(
         "03_centre_area",
         "Centre area: each centre grows with the population it serves (area per home)",
@@ -225,7 +224,7 @@ def s04_min_settlement():
     # a big town plus a small detached satellite; a CA centre is seeded on each
     plan = block(empty(), *TOWN)
     block(plan, 8, 14, 8, 14)  # 6x6 satellite, far from the town
-    common = dict(ca_centres=[TOWN_CENTRE, (11, 11)], optimise_centres=True)
+    common = dict(ca_centres=[TOWN_CENTRE, (11, 11)], centre_mode="placed")
     figure(
         "04_min_settlement",
         "Minimum settlement size: a small satellite keeps its centre (A) or is too small and loses it (B)",
@@ -238,7 +237,7 @@ def s04_min_settlement():
 
 def s05_centre_walk():
     plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True)
+    common = dict(ca_centres=[TOWN_CENTRE], centre_mode="placed")
     figure(
         "05_centre_walk",
         "Centre walk distance: a shorter walk needs more centres to keep everyone covered",
@@ -264,20 +263,20 @@ def s06_centre_centering():
         "06_centre_centering",
         "Centre centering on concave built: placed at the catchment interior (on built), not in a gap or on a rim",
         [
-            P(_opt(ell, ca_centres=[(82, 40)], optimise_centres=True, centre_distance_m=1200),
+            P(_opt(ell, ca_centres=[(82, 40)], centre_mode="placed", centre_distance_m=1200),
               "L-shaped development (1200 m walk)", cdist=1200),
-            P(_opt(ring, ca_centres=[(60, 60)], optimise_centres=True, centre_distance_m=1200),
+            P(_opt(ring, ca_centres=[(60, 60)], centre_mode="placed", centre_distance_m=1200),
               "ring (hollow centre, 1200 m walk)", cdist=1200),
         ],
     )
 
 
 def s07_clustering_on_dispersed():
-    # The clustering options on a FRAGMENTED development (scattered blobs of different sizes — what
-    # dispersed CA growth actually produces), at the real 400 m walk. Clustering only thins centres
-    # WITHIN a blob big enough to hold several; a small blob keeps its one centre at either setting
-    # (nothing to cluster there). This is why moderate vs tight differ a lot on a big contiguous town
-    # but barely on a finely-dispersed one. Centres still sit at each blob's interior, on built.
+    # The centre options on a FRAGMENTED development (scattered blobs of different sizes — what
+    # dispersed CA growth actually produces), at the real 400 m walk. The minimal mode only thins
+    # centres WITHIN a blob big enough to hold several; a small blob keeps its one centre in both
+    # modes (nothing to spare there). This is why the options differ a lot on a big contiguous
+    # town but barely on a finely-dispersed one. Centres sit at each blob's interior, on built.
     plan = empty()
     seeds = []
     for r, c, h, w in [
@@ -291,13 +290,13 @@ def s07_clustering_on_dispersed():
     ]:
         block(plan, r, r + h, c, c + w)
         seeds.append((r + h // 2, c + w // 2))
-    common = dict(ca_centres=seeds, optimise_centres=True, centre_distance_m=400)
+    common = dict(ca_centres=seeds, centre_distance_m=400)
     figure(
         "07_clustering_on_dispersed",
-        "Clustering on a fragmented development: thins centres only within blobs big enough to hold several",
+        "Centre options on a fragmented development: thins centres only within blobs big enough to spare one",
         [
-            P(_opt(plan, centre_spacing_m=1.5 * 400, **common), "moderately clustered (1.5x walk)", cdist=400),
-            P(_opt(plan, centre_spacing_m=2.5 * 400, **common), "tightly clustered (2.5x walk)", cdist=400),
+            P(_opt(plan, centre_mode="placed", **common), "optimised placement", cdist=400),
+            P(_opt(plan, centre_mode="minimal", **common), "fewest centres", cdist=400),
         ],
     )
 
@@ -306,7 +305,7 @@ def s09_station_anchor():
     # a larger area fraction (few, sizable centres) so the station's grown
     # centre is clearly visible rather than lost among many small spread-out ones
     plan = block(empty(), *TOWN)
-    common = dict(ca_centres=[TOWN_CENTRE], optimise_centres=True, centre_m2_per_person=40.0)
+    common = dict(ca_centres=[TOWN_CENTRE], centre_mode="placed", centre_m2_per_person=40.0)
     figure(
         "09_station_anchor",
         "Station anchoring: no station (A) vs a rail/tram station seeding a (grown) centre at (40, 84) (B)",
@@ -330,7 +329,7 @@ def s11_frozen_existing():
     plan[60, 38] = PLAN_CENTRE
     opt = _opt(
         plan, existing_built=existing_built, existing_centres=existing_centres,
-        ca_centres=[(60, 77)], optimise_centres=True, centre_spacing_m=700,
+        ca_centres=[(60, 77)], centre_mode="placed",
     )
     opt = grid._mark_existing(opt, existing_built=existing_built, existing_centres=existing_centres)
     figure(
@@ -347,7 +346,7 @@ def s15_island_cleanup():
     block(plan, 18, 30, 82, 96)  # viable satellite (12x14 = 168 cells)
     block(plan, 8, 11, 8, 11)  # stranded speck A (3x3 = 9 cells, no centre)
     block(plan, 96, 98, 30, 33)  # stranded speck B (2x3 = 6 cells, no centre)
-    common = dict(ca_centres=[(56, 42), (24, 89)], optimise_centres=True,
+    common = dict(ca_centres=[(56, 42), (24, 89)], centre_mode="placed",
                   centre_min_settlement=12)
     figure(
         "15_island_cleanup",
@@ -407,7 +406,7 @@ def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
     # min settlement size 8: stranded specks are pruned and tiny hamlets don't keep their own centre,
     # so a dispersed run yields only viable settlements (each with a centre), not residential islands.
     return optimise_plan(base, GRAN, MIN_GREEN_SPAN, MAX_DIST,
-                         ca_centres=ca, optimise_centres=True, centre_min_settlement=8)
+                         ca_centres=ca, centre_mode="placed", centre_min_settlement=8)
 
 
 def _run_ca_track(isobenefit):

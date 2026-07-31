@@ -448,13 +448,22 @@ pub fn run_ensemble(
     (member_offset..member_offset + n_members)
         .into_par_iter()
         .map(|member| {
-            let mut sim = template.clone();
-            sim.master_seed = splitmix64(base_seed ^ splitmix64(member as u64));
-            sim.current_iter = 0;
+            let mut sim = member_simulation(template, base_seed, member);
             sim.run();
             sim.state
         })
         .collect()
+}
+
+/// The simulation for global ensemble member `member`: a clone of `template`
+/// re-seeded exactly as `run_ensemble` seeds that member, ready to run. Lets a
+/// caller re-run one member deterministically (e.g. to recover the drawn density
+/// grid of the selected run, which the ensemble does not retain).
+pub fn member_simulation(template: &Simulation, base_seed: u64, member: usize) -> Simulation {
+    let mut sim = template.clone();
+    sim.master_seed = splitmix64(base_seed ^ splitmix64(member as u64));
+    sim.current_iter = 0;
+    sim
 }
 
 /// Runs `n_members` independent simulations from `template` in parallel and

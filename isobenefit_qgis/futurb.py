@@ -310,8 +310,8 @@ class Isobenefit:
             centre_min_settlement = max(1, round(min_settlement_pop / (mean_density_km2 * cell_km2)))
             # centre provision is per person (rule-of-thumb m² of centre land per resident served)
             centre_m2_per_person = _positive(float(self.dlg.centre_m2_person.text()))
-            # centre clustering is no longer chosen here: the run saves two options (moderately and
-            # tightly clustered centres) plus the existing + raw pre-processing plans, to compare and pick.
+            # the centre option is not chosen here: the run saves up to three (centres as grown,
+            # optimised placement, fewest centres) plus the existing + raw plans, to compare and pick.
         except ValueError:
             QMessageBox.warning(
                 self.iface.mainWindow(),

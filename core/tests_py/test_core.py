@@ -118,6 +118,19 @@ def test_ensemble_class_counts() -> None:
     assert centre[15, 15] == 8
 
 
+def test_run_member_reproduces_ensemble_member() -> None:
+    # run_member re-runs ONE ensemble member at its own seed: the state matches the ensemble's
+    # exactly, and the drawn density grid (which the ensemble does not retain) comes with it
+    sim = make_sim(grid=30, seed=7)
+    states = run_ensemble(sim, 2024, 3)
+    member = isobenefit.run_member(sim, 2024, 1)
+    assert np.array_equal(member["state"], states[1])
+    density = member["density"]
+    assert density.shape == (30, 30)
+    new_built = (states[1] == 1) & (density > 0)
+    assert new_built.any()  # new homes carry their drawn per-block densities
+
+
 def test_bad_prob_distribution_raises() -> None:
     grid = 10
     state = np.zeros((grid, grid), dtype=np.int16)

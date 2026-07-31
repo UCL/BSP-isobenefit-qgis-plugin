@@ -259,17 +259,18 @@ const dg = (name: string) => `${base}images/${name}.svg`
       too thin for a service to run frequently.
     </p>
     <p>
-      Finally, centres are offered at two <strong>clustering</strong> strengths. The run and the buildings
-      are the same; only the centre arrangement differs. These are the two options the plugin writes.
-      Under low growth pressure the two options come out the same, and that is expected: while every
-      settlement is smaller across than the centre spacing, each needs the same few centres wherever the
-      spacing dial sits. The options separate once settlements outgrow the spacing, which happens with
-      larger population targets, larger windows, or satellites that merge as they grow. The comparison
-      below is therefore grown to a 20,000-person target rather than the worked example's 12,000.
+      Finally, centres are offered as <strong>options</strong>. The run and the buildings are the same;
+      only the centre treatment differs: <em>as grown</em> keeps the centres where the run grew them,
+      <em>optimised placement</em> re-positions them to cut walking distances, and <em>fewest centres</em>
+      also removes any centre whose loss leaves no home beyond the walk. Every option keeps the model's
+      hard rule: no home further than the centre walk from a centre. Under low growth pressure the placed
+      and fewest options come out the same, and that is expected: a small settlement needs its few centres
+      wherever they sit. They separate once settlements grow large enough to hold redundant centres, so
+      the comparison below is grown to a 20,000-person target rather than the worked example's 12,000.
     </p>
     <figure>
-      <img class="wide" src={dg('demo_clustering')} alt="Two centre-clustering options for the same run: moderately clustered and tightly clustered" />
-      <figcaption>The same run and buildings at two centre spacings: moderately clustered distributes the centres across the settlements, with shorter walks (343 m average here); tightly clustered consolidates them into fewer, larger centres (435 m average). The built cells are identical; the density tiers re-arrange around whichever centres are placed.</figcaption>
+      <img class="wide" src={dg('demo_clustering')} alt="Two centre options for the same run: optimised placement and fewest centres" />
+      <figcaption>The same run and buildings under two centre options: optimised placement keeps the run's centres and walks each central to the homes it serves (555 m average walk here, counted over every home); fewest centres also removes any centre whose loss strands no home, consolidating provision into fewer, larger centres (567 m average). The built cells are identical; the density tiers re-arrange around whichever centres remain, and no home ends beyond the centre walk of one.</figcaption>
     </figure>
     <p>
       Either can be compared against the raw grown state at the end of <a href="#simulation">step 3</a>. The
@@ -282,8 +283,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>An ensemble run writes a small set of layers, each shown above:</p>
     <ul>
       <li><strong>existing development</strong>, the starting grid from <a href="#grid">step 2</a></li>
-      <li><strong>raw (before post-processing)</strong>, the chosen run as it grew (the end of <a href="#simulation">step 3</a>)</li>
-      <li><strong>moderately and tightly clustered centres</strong>, the two scenario options from <a href="#postprocessing">step 5</a>, each coloured by density tier</li>
+      <li><strong>raw (before post-processing)</strong>, the chosen run as it grew (the end of <a href="#simulation">step 3</a>), coloured by the densities the run drew in place</li>
+      <li><strong>centres as grown, optimised placement and fewest centres</strong>, the scenario options from <a href="#postprocessing">step 5</a>, each coloured by arranged density tier</li>
       <li><strong>development likelihood</strong> for built and for green, the uncertainty map from <a href="#plan">step 4</a></li>
       <li><strong><code>_report.txt</code></strong>, a record of the parameters and the per-option statistics</li>
     </ul>
@@ -301,7 +302,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <a href="#simulation">step 3</a> are three such frames.
     </p>
     <p>
-      The figure <a href="#hero-plan">at the top of the page</a> is the moderately clustered scenario
+      The figure <a href="#hero-plan">at the top of the page</a> is the optimised-placement scenario
       from this pipeline.
     </p>
   </section>
@@ -352,9 +353,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li>
         <strong>Post-processing of the grown runs.</strong> The original keeps centres where they seeded.
         The plugin adds a limited cleanup (stranded fragments below a minimum settlement size revert
-        to green) and re-positions the mixed-use centres to the interior of the development they serve,
-        sized by the population in their catchment at a m²-per-person rule of thumb, and offered at two
-        clustering strengths. The raw grown state is saved alongside.
+        to green) and offers centre options that all keep every home within the centre walk: as grown,
+        optimised placement, and fewest centres, each sized by the population in its catchment at a
+        m²-per-person rule of thumb. The raw grown state is saved alongside.
       </li>
       <li>
         <strong>Density tiers arranged toward centres.</strong> The original draws each block's density

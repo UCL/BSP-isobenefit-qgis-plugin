@@ -56,7 +56,7 @@ TIER_STYLE = {
 }
 
 # The curated presets. Each is (id, label, note, overrides); overrides patch the scenario's
-# params.json. "clustering" picks the centre-spacing multiple in post-processing.
+# params.json. "centre_mode" picks the post-processing centre option (default "placed").
 def presets_for(name: str, params: dict) -> list[dict]:
     base = [
         {"id": "baseline", "label": "Baseline run", "note": "The scenario's own params.json, as shipped."},
@@ -73,9 +73,10 @@ def presets_for(name: str, params: dict) -> list[dict]:
         {"id": "denser", "label": "Denser mix",
          "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
          "overrides": {"shares": {"high": 0.5, "medium": 0.3, "low": 0.2}}},
-        {"id": "tight", "label": "Tightly clustered centres",
-         "note": "The same growth, post-processed to fewer, larger mixed-use centres.",
-         "overrides": {"clustering": 2.5}},
+        {"id": "fewest", "label": "Fewest centres",
+         "note": "The same growth, post-processed to the fewest centres that keep every home "
+                 "within the centre walk.",
+         "overrides": {"centre_mode": "minimal"}},
     ]
     if params.get("dispersal") == "off":  # baseline already compact: swap that preset for moderate
         for p in base:
@@ -184,11 +185,10 @@ def run_preset(sub, params, preset):
     )
     sim.run()
     st = np.asarray(sim.snapshot()["state"])
-    spacing = float(over.get("clustering", 1.5)) * walk
     plan, metrics, _pre, _best = G.select_plan(
         [st], gran, float(p.get("min_green_span_m", 400.0)), max_walk,
         existing_built=(sub["origin"] == 1), existing_green=(sub["origin"] == 0),
-        existing_centres=sub["seeds"], centre_spacing_m=spacing,
+        existing_centres=sub["seeds"], centre_mode=str(over.get("centre_mode", "placed")),
         centre_distance_m=walk, green_distance_m=green_walk,
         new_density_km2=sum(s * d for s, d in zip(shares, tiers)),
         # min settlement is a population: convert via the mean density (people / (people/km² × km²/cell))
@@ -266,13 +266,13 @@ def merged_formal_params(params: dict, preset: dict, entry_name: str) -> dict:
     for k, v in preset.get("overrides", {}).items():
         if k in ("shares", "densities_km2"):
             p[k] = v
-        elif k != "clustering":
+        elif k != "centre_mode":
             p[k] = v
     p["schema"] = "isobenefit-params/1"
     p["name"] = f"{entry_name}_{preset['id']}"
     note = preset["note"]
-    if preset.get("overrides", {}).get("clustering"):
-        note += " In QGIS, both clustering options are always written; open the tightly-clustered output layer."
+    if preset.get("overrides", {}).get("centre_mode"):
+        note += " In QGIS, every centre option is always written; open the fewest-centres output layer."
     p["notes"] = note
     return p
 

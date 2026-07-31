@@ -37,16 +37,21 @@ would produce, so the plan is never read off the averaged surfaces.
    - The green network is kept exactly as the run grew it. The growth rules
      already enforce the minimum green span, so the plan does not re-carve
      parks.
-   - Centres start from the run's own grown centres. When centre optimisation
-     is on (the default), each is re-positioned onto new land, central to the
-     new homes it serves; centres are added where new development is
-     under-served, redundant or tiny ones are culled, and each is grown to an
-     area sized by the residents it serves. A centre must reach enough new
-     homes to hold the minimum settlement population, the same threshold that
-     prunes failed satellites, so a stray infill patch inside existing fabric
-     never earns one. Existing centres and rail or tram station anchors are
-     fixed and never culled, and every settlement whose new development meets
-     that threshold keeps at least one attached centre.
+   - Centres start from the run's own grown centres and are handled per
+     option (below). Every option keeps the walk constraint the growth rules
+     enforced: no edit may leave a new home beyond the centre walk of a
+     centre. Each centre grows to an area sized by the residents it serves.
+     Existing centres and rail or tram station anchors are fixed and never
+     removed, and every settlement with new development keeps at least one
+     attached centre.
+   - The centre options: **as grown** keeps every centre exactly where the
+     run grew it; **optimised placement** re-positions the run's centres
+     central to the homes they serve and adds one wherever new development
+     lacks provision within the walk (existing centres serve the existing
+     town, not new growth); **fewest centres** additionally removes centres
+     one at a time for as long as every home keeps one within the walk, the
+     smallest number the constraint permits. A repositioning that would
+     strand a home is discarded.
 3. **Select the best run.** Every candidate is scored on the same yardstick
    and the plan with the lowest mean walk to amenities wins. The score is
    threshold coverage: a home within the chosen walking distance of a centre,
@@ -62,11 +67,12 @@ would produce, so the plan is never read off the averaged surfaces.
    the final centres. The tier mix, and therefore the population, is fixed by
    the run itself.
 
-The chosen run's raw pre-processing state is written alongside the plan, so
+The chosen run's raw pre-processing state is written alongside the options, so
 every edit the post-processing made stays visible, and the run report records
-the coverage numbers for both. The raw layer shows new development in a single
-flat colour: the density tiers are arranged by post-processing, so they appear
-only on the processed options.
+the coverage numbers for all of them. The raw layer is coloured by the density
+tiers the run actually drew, exactly where it drew them (the winning ensemble
+member is deterministically re-run to recover its drawn density grid); the
+processed options show the arranged tiers instead.
 
 ## Why the best single run, not a consensus
 

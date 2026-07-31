@@ -25,6 +25,6 @@
   "ensemble": true,
   "ensemble_runs": 50,
   "schema": "isobenefit-params/1",
-  "name": "dnipro_tight",
-  "notes": "The same growth, post-processed to fewer, larger mixed-use centres. In QGIS, both clustering options are always written; open the tightly-clustered output layer."
+  "name": "dnipro_fewest",
+  "notes": "The same growth, post-processed to the fewest centres that keep every home within the centre walk. In QGIS, every centre option is always written; open the fewest-centres output layer."
 }

@@ -8,8 +8,8 @@ use crate::access::walk_distance as core_walk_distance;
 use crate::neighbours::label_components as core_label_components;
 use crate::sim::{
     ensemble_class_counts as core_ensemble_class_counts,
-    ensemble_probability as core_ensemble_probability, run_ensemble as core_run_ensemble, Params,
-    Simulation,
+    ensemble_probability as core_ensemble_probability, member_simulation as core_member_simulation,
+    run_ensemble as core_run_ensemble, Params, Simulation,
 };
 use ndarray::Array2;
 use numpy::{IntoPyArray, PyArray2, PyReadonlyArray2, ToPyArray};
@@ -151,6 +151,29 @@ fn run_ensemble(
         .collect()
 }
 
+/// Re-run ONE ensemble member to completion and return its final grids as a dict
+/// with `state` (int16) and the drawn per-block `density` (float32), seeded
+/// exactly as `run_ensemble` seeds global member `member`. The ensemble retains
+/// only each member's state; this recovers the selected run's drawn densities
+/// deterministically instead of holding every member's density grid in memory.
+#[pyfunction]
+fn run_member<'py>(
+    py: Python<'py>,
+    template: &PySimulation,
+    base_seed: u64,
+    member: usize,
+) -> PyResult<Bound<'py, PyDict>> {
+    let sim = py.allow_threads(|| {
+        let mut sim = core_member_simulation(&template.inner, base_seed, member);
+        sim.run();
+        sim
+    });
+    let d = PyDict::new_bound(py);
+    d.set_item("state", sim.state.to_pyarray_bound(py))?;
+    d.set_item("density", sim.density.to_pyarray_bound(py))?;
+    Ok(d)
+}
+
 /// Run `n_members` simulations from `template` in parallel and return a
 /// probability-of-development grid (fraction of members urban per cell) as a
 /// float32 numpy array. Releases the GIL during compute.
@@ -222,6 +245,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<PySimulation>()?;
     m.add_function(wrap_pyfunction!(run_ensemble, m)?)?;
+    m.add_function(wrap_pyfunction!(run_member, m)?)?;
     m.add_function(wrap_pyfunction!(walk_distance, m)?)?;
     m.add_function(wrap_pyfunction!(label_components, m)?)?;
     m.add_function(wrap_pyfunction!(ensemble_probability, m)?)?;

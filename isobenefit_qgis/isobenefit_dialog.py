@@ -134,17 +134,18 @@ class IsobenefitDialog(QtWidgets.QDialog):
         acc.addRow("Green walk (m)", self.green_walk_dist)
 
         # --- Post-processing ----------------------------------------------------------
-        # Turns the raw CA result into an idealised scenario. With it on, the plugin saves the existing
-        # fabric, the raw (pre-processing) plan and two clustering options (moderately / tightly
-        # clustered centres), so the effect of post-processing is visible: pick from the outputs.
+        # Turns the raw CA result into scenario options. The plugin saves the existing fabric, the
+        # raw (pre-processing) plan and up to three centre options (as grown / optimised placement /
+        # fewest centres), all keeping every home within the centre walk: pick from the outputs.
         pp = _group("Post-processing")
         self.optimise_centres_check = QtWidgets.QCheckBox("Optimise centre placement", self)
         self.optimise_centres_check.setChecked(True)
         self.optimise_centres_check.setToolTip(
-            "On: re-position centres central to their development, add centres where new development is "
-            "under-served, remove redundant ones, and save two options — moderately clustered and "
-            "tightly clustered centres.\n"
-            "Off: keep the centres exactly where the simulation grew them (a single plan)."
+            "On: alongside the as-grown option, save two more — optimised placement (the run's centres "
+            "re-positioned to cut walking distances, plus any the provision rule requires) and fewest "
+            "centres (the smallest number that keeps every home within the centre walk).\n"
+            "Off: save only the as-grown option (centres kept where the simulation grew them, each "
+            "still sized to its catchment)."
         )
         pp.addRow(self.optimise_centres_check)
         self.centre_m2_person = QtWidgets.QLineEdit("20", self)

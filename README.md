@@ -63,7 +63,7 @@ Set the parameters and run. A single run is written iteration-by-iteration as a
 categorical GeoTIFF and loaded as a temporal animation (press play in the Temporal
 Controller). An **ensemble** of runs instead produces development-likelihood layers
 plus **idealised planning scenarios** to compare (the existing fabric, the raw
-as-grown state, and moderately and tightly clustered centre arrangements),
+run, and the centre options: as grown, optimised placement, fewest centres),
 alongside a `_report.txt` summarising the run. A demo project is in
 [`scenarios/cambourne/`](scenarios/cambourne/) (`cambourne.qgz`), and further worked scenarios sit alongside it in [`scenarios/`](scenarios/).
 
