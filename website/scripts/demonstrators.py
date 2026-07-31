@@ -419,10 +419,12 @@ def main():
         (tiered(variants["minimal"][0]), "Fewest centres"),
     ], "demo_clustering", "Centre options", unb)
 
-    # Build probability: cap iterations (huge pop) so the same elapsed time shows the RATE
+    # Build probability: cap iterations (huge pop) so the same elapsed time shows the RATE.
+    # RAW grown state, as in the dispersal panels: at 60 iterations the growth is still below the
+    # minimum settlement size, so the post-processed plan would prune it all away and show nothing.
     for label, bp in (("slow", 0.08), ("fast", 0.6)):
-        st, _dens, _ = grow(sub, isol=0.0, bp=bp, pop=1_000_000.0, iters=60)
-        draw(tiered(to_plan(sub, st)), f"demo_buildprob_{label}",
+        st, dens, _ = grow(sub, isol=0.0, bp=bp, pop=1_000_000.0, iters=60)
+        draw(growth_codes(sub, st, dens), f"demo_buildprob_{label}",
              f"Build probability: {label.capitalize()} ({bp})")
 
 

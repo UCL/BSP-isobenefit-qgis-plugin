@@ -329,7 +329,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </div>
 
     <h3>Build probability</h3>
-    <p>This is the per-step growth rate: each eligible cell builds with this probability per iteration, so a higher value grows more, and spreads farther, in the same number of iterations.</p>
+    <p>This is the per-step growth rate: each eligible cell builds with this probability per iteration, so a higher value grows more, and spreads farther, in the same number of iterations. These panels show the raw grown state after 60 iterations: growth that young sits below the minimum settlement size, so a post-processed plan would prune it away entirely.</p>
     <div class="demo-row">
       <figure><img class="demo" src={dg('demo_buildprob_slow')} alt="" /><figcaption><strong>Slow (0.08).</strong> Growth stays compact.</figcaption></figure>
       <figure><img class="demo" src={dg('demo_buildprob_fast')} alt="" /><figcaption><strong>Fast (0.6).</strong> Far more is grown in the same time.</figcaption></figure>
