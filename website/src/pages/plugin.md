@@ -194,7 +194,9 @@ missing.
 **Ensemble mode** writes a family of files into the output folder, sharing the run name:
 `<name>.tif` (the
 built and green likelihood bands), `<name>_existing.tif` (the starting fabric),
-`<name>_pre.tif` (the chosen run before post-processing), `<name>_moderate.tif` and
+`<name>_pre.tif` (the chosen run before post-processing; new development in one flat colour,
+since density tiers are arranged by post-processing and so never appear on the raw layer),
+`<name>_moderate.tif` and
 `<name>_tight.tif` (the two clustering options, each coloured by density tier: built as a
 yellow-to-brown ramp, mixed-use centres as a reds ramp, existing fabric muted),
 `<name>_report.txt` (the run record) and `<name>_params.json` (the

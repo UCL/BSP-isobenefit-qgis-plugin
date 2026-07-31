@@ -64,7 +64,9 @@ would produce, so the plan is never read off the averaged surfaces.
 
 The chosen run's raw pre-processing state is written alongside the plan, so
 every edit the post-processing made stays visible, and the run report records
-the coverage numbers for both.
+the coverage numbers for both. The raw layer shows new development in a single
+flat colour: the density tiers are arranged by post-processing, so they appear
+only on the processed options.
 
 ## Why the best single run, not a consensus
 

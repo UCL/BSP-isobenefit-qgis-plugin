@@ -502,14 +502,19 @@ class IsobenefitTask(QgsTask):
                     gis_io.write_plan_raster(self.existing_path, existing_plan, geotransform, self.target_crs)
                     self._plan_outputs.append((self.existing_path, "existing development"))
                 if pre_plan is not None:  # the chosen run BEFORE post-processing — saved for comparison
-                    pre_tiered = self._write_tiered_plan(self.pre_path, pre_plan, "raw (before post-processing)")
+                    # TRULY raw: no density-tier arrangement. Tiers are arranged by walking distance
+                    # to the final centres, a post-processing product, so painting them onto this
+                    # layer would show processing that has not happened. New cells take the flat
+                    # "new development" colour and the report carries no tier breakdown for the raw.
+                    gis_io.write_plan_raster(self.pre_path, pre_plan, geotransform, self.target_crs)
+                    self._plan_outputs.append((self.pre_path, "raw (before post-processing)"))
                     pre_m = grid.evaluate_plan(
                         pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         new_density_km2=self._mean_new_density_km2(), existing_green=(origin == 0),
                     )
                     report_stats.append(self._report_option(
-                        "raw (before post-processing)", "raw", pre_m, self._count_centres(pre_plan), pre_tiered
+                        "raw (before post-processing)", "raw", pre_m, self._count_centres(pre_plan), None
                     ))
                 if self.optimise_centres and best_state is not None:
                     self._log("Post-processing the chosen run at each centre-clustering option…")
