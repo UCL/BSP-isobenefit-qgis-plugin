@@ -206,17 +206,17 @@ def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
 
 
 def green_unviable_pockets(state, origin, min_settlement_cells: int) -> int:
-    """Reclassify geometrically doomed buildable pockets as protected green, in place.
+    """Reclassify buildable pockets too small for the minimum settlement as protected green.
 
     Growth is contiguous, so a new settlement can never outgrow the connected component of
-    buildable land it starts in. A component that touches no existing built fabric and is
-    smaller than the minimum settlement size therefore cannot host viable development: any
-    growth there would be a failed satellite that pruning removes after the run. Marking such
-    pockets as fixed green (``origin`` 0) rules them out before the run instead — they stay
-    walkable and count as green, exactly like other protected green — so dispersal cannot seed
-    a doomed satellite and the likelihood layers show no build probability where nothing could
-    ever be delivered. A component touching existing fabric is potential infill anchored on the
-    town's centres and is left alone, whatever its size.
+    buildable land it starts in. A component smaller than the minimum settlement size is a
+    pocket: detached in open land it could only host a failed satellite that pruning would
+    remove, and enclosed inside a town it is usually a mapping artefact (an unmapped road, a
+    small park, an awkward plot) whose piecemeal infill serves nobody. Marking such pockets as
+    fixed green (``origin`` 0) settles both before the run: they stay walkable and count as
+    green, exactly like other protected green — the enclosed ones become pocket parks — and no
+    growth or centre provision is spent on them. Land at a town's edge connects to the open
+    landscape and so belongs to a large component; ordinary attached infill is unaffected.
 
     ``state``/``origin`` follow the simulation convention (state: -1 unbuildable, 0 nature,
     1 built; origin: 1 existing built, 0 fixed green, -1 free). ``origin`` is modified in
@@ -227,21 +227,9 @@ def green_unviable_pockets(state, origin, min_settlement_cells: int) -> int:
     buildable = (state == 0) & (np.asarray(origin) != 0)
     if not buildable.any():
         return 0
-    built = state == 1
-    near_built = built.copy()  # 8-connected dilation: cells beside existing fabric
-    near_built[:-1, :] |= built[1:, :]
-    near_built[1:, :] |= built[:-1, :]
-    near_built[:, :-1] |= built[:, 1:]
-    near_built[:, 1:] |= built[:, :-1]
-    near_built[:-1, :-1] |= built[1:, 1:]
-    near_built[1:, 1:] |= built[:-1, :-1]
-    near_built[:-1, 1:] |= built[1:, :-1]
-    near_built[1:, :-1] |= built[:-1, 1:]
     n = 0
     for comp in _components(buildable):
         if len(comp) >= min_cells:
-            continue
-        if any(near_built[y, x] for y, x in comp):
             continue
         for y, x in comp:
             origin[y, x] = 0

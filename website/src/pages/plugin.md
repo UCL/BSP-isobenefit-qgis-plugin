@@ -146,7 +146,7 @@ coverage figures and steers the centre re-positioning.
 | --- | --- | --- |
 | Optimise centre placement | on | Alongside the as-grown option, save two more: optimised placement (the run's centres re-positioned to cut walking distances, plus any the provision rule requires; a nearby existing centre does not stand in for new development) and fewest centres (the smallest number that keeps every home within the centre walk). Off saves only the as-grown option. Every option keeps every home within the centre walk |
 | Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
-| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); a cluster grown against existing development is kept whatever its size, since its growth was anchored on the town's centres. Before the run, buildable pockets detached from existing development and too small for this minimum are set aside as protected green; the raw plan keeps everything else for comparison |
+| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); a cluster grown against existing development is kept whatever its size, since its growth was anchored on the town's centres. Before the run, buildable pockets too small for this minimum are set aside as protected green (an enclosed one becomes a pocket park); the raw plan keeps everything else for comparison |
 | Min green span (m) | 400 | A green patch must span this to count as a park; also a build rule protecting corridors |
 
 **Development density.** Three densities (people per km²) for the high, medium and low tiers,

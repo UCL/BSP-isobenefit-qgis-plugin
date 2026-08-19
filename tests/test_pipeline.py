@@ -614,9 +614,9 @@ def test_optimise_plan_culls_tiny_ca_centre():
 
 
 def test_green_unviable_pockets():
-    # A buildable pocket detached from existing fabric and smaller than the minimum settlement
-    # is reclassified as protected green; an attached pocket of the same size and a large
-    # detached region both stay buildable.
+    # A buildable pocket smaller than the minimum settlement is reclassified as protected
+    # green wherever it sits: a detached quadrant becomes green, and a tiny pocket enclosed
+    # against the town becomes a pocket park. The large open region stays buildable.
     from isobenefit_qgis.grid import green_unviable_pockets
 
     g = 40
@@ -626,15 +626,15 @@ def test_green_unviable_pockets():
     origin[10:20, 10:20] = 1
     state[:, 30] = -1  # barrier column
     state[30, :] = -1  # barrier row: the south-east quadrant (81 cells) is detached
-    state[22, 9:13] = -1  # barriers enclosing a 4-cell pocket attached to the town's south edge
-    state[20:22, 9] = -1
+    state[22, 9:13] = -1  # barriers enclosing a 4-cell pocket against the town's south edge
+    state[19:22, 9] = -1  # includes the corner cell, so the pocket has no diagonal leak
     state[20:22, 12] = -1
     n = green_unviable_pockets(state, origin, 100)
-    assert n == 81  # the detached quadrant is marked
-    assert (origin[31:, 31:] == 0).all()  # as protected green
+    assert n == 85  # the detached quadrant and the enclosed pocket are both marked
+    assert (origin[31:, 31:] == 0).all()  # the quadrant becomes protected green
     assert (state[31:, 31:] == 0).all()  # still nature, still walkable
-    assert (origin[20:22, 10:12] == -1).all()  # the attached pocket is potential infill: kept
-    assert origin[5, 5] == -1  # the large north-west region is untouched
+    assert (origin[20:22, 10:12] == 0).all()  # the enclosed pocket becomes a pocket park
+    assert origin[5, 5] == -1  # the large open region is untouched
 
 
 def test_optimise_plan_keeps_attached_infill():
