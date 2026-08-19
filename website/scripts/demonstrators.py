@@ -113,6 +113,7 @@ def substrate():
     origin[green & ~built] = 0
     state[unbuild & ~built] = -1
     seeds = [(int(r), int(c)) for r, c in np.argwhere(cent & built)]
+    G.green_unviable_pockets(state, origin, _min_settlement())
     return {"state": state, "origin": origin, "density": density, "seeds": seeds,
             "rows": rows, "cols": cols, "window": (xmin, ymin, xmax, ymax)}
 

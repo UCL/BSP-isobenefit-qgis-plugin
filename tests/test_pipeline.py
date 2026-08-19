@@ -613,13 +613,34 @@ def test_optimise_plan_culls_tiny_ca_centre():
     assert not any(y < 5 and x >= 35 for y, x in cs)  # the 2-cell speck's centre is culled
 
 
-def test_optimise_plan_absorbs_subthreshold_infill():
-    # End to end: a CA run infills a few cells against an existing town and seeds a centre on them.
-    # With min-settlement at 20 cells the patch is absorbed into the existing fabric — the odd free
-    # cell inside a town is usually an unmapped road, park or awkward lot, not developable land —
-    # so it is no longer called new development and earns no centre.
-    from isobenefit_qgis.grid import PLAN_EXIST_BUILT
+def test_green_unviable_pockets():
+    # A buildable pocket detached from existing fabric and smaller than the minimum settlement
+    # is reclassified as protected green; an attached pocket of the same size and a large
+    # detached region both stay buildable.
+    from isobenefit_qgis.grid import green_unviable_pockets
 
+    g = 40
+    state = np.zeros((g, g), np.int16)  # all nature
+    origin = np.full((g, g), -1, np.int16)
+    state[10:20, 10:20] = 1  # existing town
+    origin[10:20, 10:20] = 1
+    state[:, 30] = -1  # barrier column
+    state[30, :] = -1  # barrier row: the south-east quadrant (81 cells) is detached
+    state[22, 9:13] = -1  # barriers enclosing a 4-cell pocket attached to the town's south edge
+    state[20:22, 9] = -1
+    state[20:22, 12] = -1
+    n = green_unviable_pockets(state, origin, 100)
+    assert n == 81  # the detached quadrant is marked
+    assert (origin[31:, 31:] == 0).all()  # as protected green
+    assert (state[31:, 31:] == 0).all()  # still nature, still walkable
+    assert (origin[20:22, 10:12] == -1).all()  # the attached pocket is potential infill: kept
+    assert origin[5, 5] == -1  # the large north-west region is untouched
+
+
+def test_optimise_plan_keeps_attached_infill():
+    # A CA run infills a few cells against an existing town. Growth there was anchored on the
+    # town's centres, so the patch is legitimate infill: it stays new development (it is not
+    # folded into the existing fabric) and keeps a centre within the walk.
     g = 40
     plan = np.zeros((g, g), np.uint8)
     plan[10:20, 10:20] = PLAN_BUILT
@@ -630,17 +651,15 @@ def test_optimise_plan_absorbs_subthreshold_infill():
         plan, 100.0, 400.0, 800.0, existing_centres=[(15, 15)], existing_built=existing,
         ca_centres=[(15, 21)], centre_min_settlement=20,
     )
-    assert (out[14:16, 20:22] == PLAN_EXIST_BUILT).all()  # absorbed, not new development
+    infill = out[14:16, 20:22]
+    assert np.isin(infill, (PLAN_BUILT, PLAN_CENTRE)).all()  # still new development
     cs = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
-    assert cs == [(15, 15)]  # only the existing centre
+    assert any(abs(y - 15) <= 8 and abs(x - 21) <= 8 for y, x in cs)  # a centre within the walk
 
 
-def test_optimise_plan_absorbs_scattered_scraps_per_cluster():
-    # Absorption judges each contiguous new cluster on its own, not the settlement's new total:
-    # scattered scraps across a town are absorbed even when together they would clear the
-    # threshold, while a real attached district of the same era stays new development.
-    from isobenefit_qgis.grid import PLAN_EXIST_BUILT
-
+def test_optimise_plan_keeps_scattered_infill_clusters():
+    # Each attached new cluster stays new development regardless of its own size: scattered
+    # scraps against a town and a larger attached district are all counted as new growth.
     g = 40
     plan = np.zeros((g, g), np.uint8)
     plan[8:28, 8:24] = PLAN_BUILT
@@ -648,17 +667,16 @@ def test_optimise_plan_absorbs_scattered_scraps_per_cluster():
     existing[8:28, 8:24] = True
     scraps = ((10, slice(24, 26)), (14, slice(24, 27)), (26, slice(24, 26)))  # 2+3+2 cells
     for row, span in scraps:
-        plan[row, span] = PLAN_BUILT  # together 7 cells — the threshold — but each cluster tiny
-    plan[20:25, 24:29] = PLAN_BUILT  # a real 25-cell district against the town's edge
+        plan[row, span] = PLAN_BUILT
+    plan[20:25, 24:29] = PLAN_BUILT  # a 25-cell district against the town's edge
     out = optimise_plan(
         plan, 100.0, 400.0, 800.0, existing_centres=[(18, 16)], existing_built=existing,
         centre_min_settlement=7,
     )
     for row, span in scraps:
-        assert (out[row, span] == PLAN_EXIST_BUILT).all()  # every scrap absorbed
+        assert np.isin(out[row, span], (PLAN_BUILT, PLAN_CENTRE)).all()  # scraps stay new
     district = np.isin(out[20:25, 24:29], (PLAN_BUILT, PLAN_CENTRE))
     assert district.all()  # the district is still new development
-    assert (out[20:25, 24:29] == PLAN_CENTRE).any()  # and earns its own centre
 
 
 def test_walk_distance_routes_around_green_barrier():

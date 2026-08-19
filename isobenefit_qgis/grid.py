@@ -205,6 +205,50 @@ def _nearest_built(built: np.ndarray, y: int, x: int) -> tuple[int, int]:
     return y, x
 
 
+def green_unviable_pockets(state, origin, min_settlement_cells: int) -> int:
+    """Reclassify geometrically doomed buildable pockets as protected green, in place.
+
+    Growth is contiguous, so a new settlement can never outgrow the connected component of
+    buildable land it starts in. A component that touches no existing built fabric and is
+    smaller than the minimum settlement size therefore cannot host viable development: any
+    growth there would be a failed satellite that pruning removes after the run. Marking such
+    pockets as fixed green (``origin`` 0) rules them out before the run instead — they stay
+    walkable and count as green, exactly like other protected green — so dispersal cannot seed
+    a doomed satellite and the likelihood layers show no build probability where nothing could
+    ever be delivered. A component touching existing fabric is potential infill anchored on the
+    town's centres and is left alone, whatever its size.
+
+    ``state``/``origin`` follow the simulation convention (state: -1 unbuildable, 0 nature,
+    1 built; origin: 1 existing built, 0 fixed green, -1 free). ``origin`` is modified in
+    place; the count of reclassified cells is returned.
+    """
+    state = np.asarray(state)
+    min_cells = max(int(min_settlement_cells), MIN_SETTLEMENT_CELLS)
+    buildable = (state == 0) & (np.asarray(origin) != 0)
+    if not buildable.any():
+        return 0
+    built = state == 1
+    near_built = built.copy()  # 8-connected dilation: cells beside existing fabric
+    near_built[:-1, :] |= built[1:, :]
+    near_built[1:, :] |= built[:-1, :]
+    near_built[:, :-1] |= built[:, 1:]
+    near_built[:, 1:] |= built[:, :-1]
+    near_built[:-1, :-1] |= built[1:, 1:]
+    near_built[1:, 1:] |= built[:-1, :-1]
+    near_built[:-1, 1:] |= built[1:, :-1]
+    near_built[1:, :-1] |= built[:-1, 1:]
+    n = 0
+    for comp in _components(buildable):
+        if len(comp) >= min_cells:
+            continue
+        if any(near_built[y, x] for y, x in comp):
+            continue
+        for y, x in comp:
+            origin[y, x] = 0
+        n += len(comp)
+    return n
+
+
 def sanitise_seeds(seeds, state, granularity_m, max_snap_m):
     """Re-home or drop centre seeds that fall on unbuildable land (state -1).
 
@@ -923,7 +967,7 @@ def optimise_plan(
     walk_cache: dict | None = None,
 ) -> np.ndarray:
     """Post-process a single CA run's plan into a recommended plan: prune failed-satellite specks,
-    absorb sub-threshold infill, handle the centres per ``centre_mode``, and grow each centre to
+    handle the centres per ``centre_mode``, and grow each centre to
     an area sized by the residents it serves. The CA's green network is kept as-is. Returns a new
     plan. Every mode keeps the walk constraint the growth rules enforced: every new home within
     the centre walk of a centre.
@@ -945,8 +989,8 @@ def optimise_plan(
     ``centre_m2_per_person`` of centre land per resident it serves (population estimated per cell
     from ``new_density_km2``; existing fabric counts zero — only new residents size a centre).
     ``centre_min_settlement`` is the minimum settlement size (in cells): a detached new cluster
-    below it is pruned; one grown against existing fabric is absorbed into that fabric (tagged
-    ``PLAN_EXIST_BUILT``, no longer new development).
+    below it is pruned. A new cluster grown against existing fabric is infill anchored on the
+    town's centres and stays new development; it is never folded away.
     """
     if centre_mode not in ("grown", "placed", "minimal"):
         raise ValueError(f"unknown centre_mode: {centre_mode!r}")
@@ -986,26 +1030,9 @@ def optimise_plan(
                 for y, x in comp:
                     plan[y, x] = PLAN_GREEN  # the land reverts to nature, blending with its surroundings
 
-    # Absorb sub-threshold infill: a contiguous cluster of NEW cells grown against existing fabric,
-    # smaller than the minimum settlement size, is not called new development at all. The odd free
-    # cell or three inside a town is usually an artefact of the mapping (an unmapped road, a park,
-    # an awkward lot) rather than developable land, and such a patch could never support a centre of
-    # its own; it joins the existing fabric and drops out of every account of new development.
-    # A detached cluster of the same size was pruned to green above instead.
-    built_all = (plan == PLAN_BUILT) | (plan == PLAN_CENTRE)
-    new_mask = built_all & ~frozen
-    if frozen.any() and new_mask.any():
-        comp_id = np.full(plan.shape, -1, dtype=int)
-        for i, comp in enumerate(_components(built_all)):
-            for y, x in comp:
-                comp_id[y, x] = i
-        frozen_comps = set(np.unique(comp_id[frozen & built_all]))
-        for cluster in _components(new_mask):
-            y0, x0 = cluster[0]
-            if len(cluster) < centre_min_settlement and int(comp_id[y0, x0]) in frozen_comps:
-                for y, x in cluster:
-                    plan[y, x] = PLAN_EXIST_BUILT
-
+    # A new cluster grown against existing fabric is NOT judged by its own size: growth there was
+    # anchored on the town's centres (the growth rules require a centre within the walk), so it is
+    # legitimate infill and stays new development. Only detached clusters were candidates above.
     n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
     if n_built == 0:
         return plan

@@ -177,8 +177,18 @@ def run_preset(sub, params, preset):
     walk = float(p.get("centre_walk_m", 800.0))
     green_walk = float(p.get("green_walk_m", walk))
     max_walk = max(walk, green_walk)
+    # min settlement is a population: convert via the mean density (people / (people/km² × km²/cell))
+    min_cells = max(
+        1,
+        round(
+            float(p.get("min_settlement_pop", 1000.0))
+            / (sum(s * d for s, d in zip(shares, tiers)) * gran**2 / 1.0e6)
+        ),
+    )
+    state, origin = sub["state"].copy(), sub["origin"].copy()
+    G.green_unviable_pockets(state, origin, min_cells)
     sim = isobenefit.Simulation(
-        sub["state"].copy(), sub["origin"].copy(), np.zeros_like(sub["state"], np.float32), sub["seeds"],
+        state, origin.copy(), np.zeros_like(state, np.float32), sub["seeds"],
         gran, max_walk, float(p["target_population"]), float(p.get("min_green_span_m", 400.0)),
         float(p.get("build_prob", 0.25)), 0.01, DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
         0.8, shares, tiers, int(p.get("max_iterations", 300)), int(p.get("random_seed", 42)),
@@ -187,18 +197,11 @@ def run_preset(sub, params, preset):
     st = np.asarray(sim.snapshot()["state"])
     plan, metrics, _pre, _best = G.select_plan(
         [st], gran, float(p.get("min_green_span_m", 400.0)), max_walk,
-        existing_built=(sub["origin"] == 1), existing_green=(sub["origin"] == 0),
+        existing_built=(origin == 1), existing_green=(origin == 0),
         existing_centres=sub["seeds"], centre_mode=str(over.get("centre_mode", "placed")),
         centre_distance_m=walk, green_distance_m=green_walk,
         new_density_km2=sum(s * d for s, d in zip(shares, tiers)),
-        # min settlement is a population: convert via the mean density (people / (people/km² × km²/cell))
-        centre_min_settlement=max(
-            1,
-            round(
-                float(p.get("min_settlement_pop", 1000.0))
-                / (sum(s * d for s, d in zip(shares, tiers)) * gran**2 / 1.0e6)
-            ),
-        ),
+        centre_min_settlement=min_cells,
     )
     dens = G.derive_density(plan, gran, walk, tiers, shares)
     disp = G.to_tiered_plan(plan, dens, tiers)

@@ -141,6 +141,15 @@ _overpass_cache.xml
 # scenario data ZIPs are published site content, not build artefacts
 !website/public/scenarios/*.zip
 
+# LaTeX build artefacts (latexmk regenerates them from paper/main.tex)
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.out
+paper/main.pdf
+
 # Claude Code per-user grants and worktrees stay local
 .claude/settings.local.json
 .claude/worktrees/

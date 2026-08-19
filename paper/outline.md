@@ -1,0 +1,218 @@
+# Paper outline
+
+Target: Article in Humanities and Social Sciences Communications, collection
+"Isobenefit Urbanism" (guest editors L. S. D'Acci, T. Gabrieli). Limits: about
+8,000 words excluding abstract, tables, figure legends and references; abstract
+up to about 300 words, no subheadings or references, avoid first person; at most
+12 display items; parenthetical (Harvard) citations; data availability,
+code availability, competing interests and author contributions statements
+required. Collection deadline 15 August 2026; an extension has been requested.
+
+## Working title
+
+Isobenefit Urbanism on real terrain: an open-source QGIS plugin for
+simulating and planning walkable growth
+
+Alternative: From abstract plain to OpenStreetMap: implementing Isobenefit
+Urbanism as a reproducible GIS planning tool
+
+Authors: Gareth Simons and Tommaso Gabrieli. Wider project team goes in the
+acknowledgements; D'Acci and Gabrieli guest-editor roles declared under
+competing interests.
+
+## Contribution claims
+
+1. A reworking of the published Isobenefit rules for real geography: frozen
+   built fabric, protected green, water and infrastructure barriers, slope
+   limits, and walkable (grid-walk) distances in place of straight lines.
+2. A plan-derivation pipeline on top of the cellular automaton: ensembles with
+   likelihood surfaces, selection of the best single run, and four outputs
+   (raw, grown, placed, fewest) in which the walk constraint is hard.
+3. An open, reproducible implementation: Rust engine on PyPI, thin QGIS
+   plugin, seven worked scenarios on committed OSM data, deterministic under
+   parallelism, verified end to end in CI.
+4. A validation exercise: remove Rieselfeld and Vauban from the Freiburg
+   inputs, regrow to their combined population, compare against what was
+   actually built. (Not yet executed; see open items.)
+
+## Section plan (word budgets sum to ~7,800)
+
+### Abstract (~280 words)
+
+Problem, approach, the four outputs, headline case-study numbers, validation
+result, availability.
+
+### 1. Introduction (~900 words)
+
+- Isobenefit Urbanism in one paragraph: equal benefit of access to centres and
+  green, growth guided by a few rules, form left to emerge. Source: prose in
+  `website/src/pages/index.astro` (Concept and rationale).
+- The gap: the published model grows on a uniform abstract plain; real places
+  arrive with fragmented green, rivers, motorways and existing towns.
+- What a planner needs beyond a simulator: a defensible plan drawing, not a
+  raster of probabilities. States the two-products framing (likelihood layers
+  for pattern questions, a recommended plan for the drawing) from
+  `docs/recommended-plan.md`.
+- Contributions list and paper structure.
+
+### 2. Background (~800 words)
+
+- D'Acci (2019, J. Environmental Management 246:128-140); D'Acci and Voto
+  (2023, SoftwareX 22:101408) and the isobenefit-cities code, with its
+  published defaults (build prob 0.5, T* = 5 cells ~ 1 km, cap 500,000,
+  density tiers at 0.7/0.3/0).
+- Adjacent literature: 15-minute city, walkability thresholds (WHO and
+  Natural England 400 m everyday green; 800 m as a ten-minute walk), urban CA
+  models, generative planning tools.
+- Positioning: this work implements and extends the published model rather
+  than proposing a rival one; every departure is tabulated.
+
+### 3. Methods (~2,600 words)
+
+3.1 Real inputs (~500). Nine OSM layers per scenario (built, green, centres,
+unbuildable, streets, stops, stations, railways, industrial), Copernicus
+GLO-30 slope bands, rasterisation to a working grid, corridor carving for
+major roads, railways and rivers. Source: `plugin.md`, `scenarios/README.md`.
+
+3.2 Rule adaptations (~700). Condense the 14-row table from
+`website/src/pages/theory.md` into Display item 1, with each row tagged
+unchanged, reparameterised, modified or extension. Text walks the
+substantive modifications: walkable distance in place of straight lines,
+local green-span rules in place of global connectivity, seeding guards,
+shuffled visit order, new-residents-only population accounting.
+
+3.3 Ensembles and selection (~350). Fifty runs, likelihood surfaces, why the
+best single run and not a consensus (averaging blurs run-level coherence;
+scored on identical terms a repaired consensus never matched a good single
+run). The raw output is recovered by deterministic re-run of the winning
+member at its own seed. Source: `docs/recommended-plan.md`, commit history.
+
+3.4 Post-processing and the four outputs (~650). The boundary statement:
+growth rules produce the raw grown state; everything after is post-processing
+that improves presentation and centre arrangement without adding or removing
+population. The three processed options share identical fabric and density;
+only the centres differ. Walk constraint is hard in every option: moves that
+strand a home are discarded, gap-fill adds centres ungated, removals proceed
+only while coverage holds. Min-settlement pruning and per-cluster infill
+absorption. Source: `isobenefit_qgis/sim_runner.py`, `grid.py`,
+`docs/recommended-plan.md`.
+
+3.5 Distance metric and transit (~400). One bounded grid-walk metric for both
+growth and scoring. Street-network routing was implemented and then removed:
+a new settlement's streets do not exist yet, so a network metric measures new
+and existing fabric on different terms. Stations join the centre seeds and are
+pinned in post-processing; stops and stations feed reported transit metrics
+that do not influence selection.
+
+3.6 Software and reproducibility (~300). Rust core (PyO3, abi3) on PyPI,
+thin QGIS plugin (the plugin repository does not permit shipping binaries),
+determinism independent of thread count via per-work-item seeding and
+order-independent reductions, Rust/Python cross-check tests, single verify
+script mirrored by CI, committed scenario data so every artefact rebuilds
+offline from source at fixed seeds.
+
+### 4. Case studies (~1,600 words)
+
+Three cases, chosen for contrast in constraint type; the remaining library
+scenarios (Dnipro, Celina, Kigali) are named once as available in the
+repository and otherwise dropped from the paper.
+
+- Cambourne (new settlement, the reference demo): the four-output report
+  table (population, coverage, walks, centre counts) and the reading of it
+  (placement cut the average centre walk 482 to 436 m; fewest gave most of it
+  back for two fewer centres).
+- Crews Hill, London (green-belt release, ~5,500 homes around a rail
+  station): policy-live UK case; walkable extension versus car-led sprawl.
+- Medellin Pajarito (hillside expansion, slopes over 20 degrees unbuildable
+  across ~30% of the window, Metrocable anchors): topography as the binding
+  constraint.
+- Display item: three-scenario settings table (grid, target, tiers, shares,
+  dispersal, slope) from `scenarios/`.
+- Cross-scenario centre-walk sweep (400 / 800 / 1600 m) as the main
+  comparative table, with the accounting caveat stated plainly: coverage
+  counts every home including existing fabric.
+- Numbers caveat: gallery metrics are computed at preview resolution with
+  seed 42; regenerate at full scenario resolution before submission.
+
+### 5. Validation: Freiburg regrow (~700 words)
+
+Protocol from the scenario notes: delete Rieselfeld and Vauban from the built
+layer, regrow toward their real combined population (~16,000), compare form,
+density and access against what was built (Rieselfeld ~60 dw/ha, Vauban ~145
+persons/ha). Report spatial overlap, density distribution and walk metrics
+for real versus grown. This section does not exist yet as results; it is the
+main outstanding work item.
+
+### 6. Discussion and limitations (~900 words)
+
+- What the rule changes buy on real terrain, and what they cost in
+  comparability with the published model.
+- Known limitations, candid list from `docs/recommended-plan.md`: benefit is
+  a threshold not a gradient; any qualifying green serves its whole catchment
+  regardless of quality; the pipeline is exercised most heavily on Cambourne.
+- The cleanup gap (Cambourne window: raw 82% of target versus 51% after
+  cleanup) and what it says about min-settlement thresholds.
+- Scope statement inherited from the README: research software for discussion
+  with domain experts; the scenarios are not plans to build from.
+
+### 7. Conclusion (~300 words)
+
+### Statements
+
+- Data availability: scenario inputs committed in the repository; OSM under
+  ODbL; slope from Copernicus GLO-30.
+- Code availability: AGPL-3.0-or-later; engine on PyPI (`isobenefit`), plugin
+  on the QGIS repository; archive a tagged release on Zenodo for a DOI.
+- Author contributions: project team per site credits (Gabrieli, D'Acci,
+  Kwon, Marshall, Marin Maureira, Simons); to be settled with the team.
+- Competing interests: D'Acci is a guest editor of the target collection and
+  a project member; declare and rely on independent editorial handling.
+
+## Display item budget (max 12)
+
+1. Rule-comparison table (condensed from theory.md).
+2. Pipeline diagram: inputs, CA, ensemble, selection, post-processing, four
+   outputs.
+3. Cambourne four-output map panel (existing, raw, grown, placed, fewest).
+4. Cambourne report metrics table.
+5. Seven-scenario summary table.
+6. Centre-walk sweep chart across scenarios.
+7. Freiburg validation map (real versus regrown).
+8. Freiburg validation metrics table.
+9. One or two additional scenario map panels.
+
+Leaves two or three slots spare.
+
+## Open items before submission
+
+1. Freiburg comparison: EXECUTED 2026-08-12 as a comparative case study
+   (`scripts/validate_freiburg.py`, two variants: pre-plan green removed vs
+   present-day green kept). A land-classification audit
+   (`check_freiburg_landclass.py`, `check_freiburg_builtgap.py`) found the
+   landuse-derived built layer missing the Stuhlinger hospital campus and
+   the Bruhl cemetery, so a reality layer (hospital/university/railway/
+   construction to built, cemeteries to unbuildable, cached as
+   `_reality.geojson`) now applies identically to both substrates. Final
+   numbers: pre-plan grows 10,944 of 16,000 with 100% inside the boundaries
+   but IoU 0.10 and higher likelihood on the reserve (0.20) than the built
+   half (0.14); present-day grows NOTHING anywhere in the window. Vauban is
+   capped at 9 cells by the 400 m green span (verified by relaxation test);
+   the green-span sweep (200/400/600 via `--min-green-span`) shows IoU
+   falling 0.15/0.10/0.07 and the real districts' own served coverage
+   falling 54%/49%/37%, so the districts were built at a finer green grain
+   than the default.
+   FACT-CHECK before submission: the claim that the Freiburger Rieselfeld
+   reserve was designated as compensation for the district development.
+2. RESOLVED 2026-08-18: the paper no longer cites gallery numbers.
+   `scripts/paper_metrics.py` computes all case-study metrics at full
+   scenario resolution (fifty-run ensembles); the gallery anomalies remain
+   a website matter only. NB full resolution changed headline numbers
+   substantially (Cambourne baseline 10,075 of 30,000 vs preview 19,230;
+   walks now reported as within-reach means).
+3. Decide whether the Cambourne 51%-of-target cleanup result stands or the
+   min-settlement threshold gets revisited first; the paper cites whichever.
+4. Confirm authorship list and order with the UCL team.
+5. Reference list: gather DOIs (two core sources are in theory.md; add
+   15-minute-city, WHO and Natural England green-access sources).
+6. APC funding or waiver.
+7. Editor reply on the deadline extension.

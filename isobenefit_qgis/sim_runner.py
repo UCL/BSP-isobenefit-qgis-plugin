@@ -326,6 +326,13 @@ class IsobenefitTask(QgsTask):
                     state, self.unbuildable_layer, self.target_crs, geotransform, -1, all_touched=True
                 )
                 self._log("Carved unbuildable land + barrier corridors (motorways/railways/rivers).")
+            n_pocket = grid.green_unviable_pockets(state, origin, self.centre_min_settlement)
+            if n_pocket:
+                self._log(
+                    f"Marked {n_pocket} cell(s) of unviable pockets as protected green: "
+                    "buildable land detached from existing fabric and too small to host the "
+                    "minimum settlement."
+                )
             density = np.zeros((rows, cols), dtype=np.float32)
             seeds = []
             if self.centre_seeds_layer is not None:
