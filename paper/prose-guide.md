@@ -38,7 +38,6 @@ paper have distinct definitions, and synonym rotation costs precision.
 | Tier proportions | the shares | the mix (fine once, defined), weights |
 | Cleanup of stranded growth | pruning and absorption | filtering, sanitising |
 | The blended ensemble rasters | the likelihood layers (their per-cell value: the build likelihood) | likelihood surfaces, probability maps |
-| The Freiburg availability variants | the pre-plan reading, the present-day reading | scenarios, versions |
 | Where new people go | the target counts new residents only | population cap (published model only) |
 | The tool's stage of use | the early stages of planning (or of the planning process) | plan-making, the earliest stage, the initial stage |
 | The worked cases' status | hypothetical demonstration (a demonstration case, a demonstration setting) | validation, a test of the pipeline, showcase, pilot |

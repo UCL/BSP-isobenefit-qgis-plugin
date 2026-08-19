@@ -33,7 +33,6 @@ Every scenario downloads as a single ZIP (extents, all input layers including th
 | 4 | [Celina, Texas](#celina) | US suburbia at the metropolitan fringe | [ZIP](celina_tx.zip) |
 | 5 | [Kigali, Rwanda](#kigali) | Plan-guided rapid urbanisation | [ZIP](kigali_east.zip) |
 | 6 | [Medellín, Colombia](#medellin) | Planned hillside expansion on steep terrain | [ZIP](medellin_pajarito.zip) |
-| 7 | [Freiburg, Germany](#freiburg) | Validation against built walkable districts | [ZIP](freiburg_rieselfeld.zip) |
 
 <h2 id="cambourne">1. Cambourne, UK: the reference demo</h2>
 
@@ -130,23 +129,6 @@ Folder: [`scenarios/medellin_pajarito/`](https://github.com/UCL/BSP-isobenefit-q
 - **Terrain:** slopes over 20° preclude development (`slope_max_deg: 20`; about 30% of the study
   window). The bands are in the editable `steep.geojson`, from Copernicus GLO-30.
 - The boundary and numbers are indicative, to be confirmed against the POT zoning.
-
-<h2 id="freiburg">7. Freiburg, Germany: a validation scenario</h2>
-
-Rieselfeld and Vauban in western Freiburg are two widely studied walkable districts, planned in
-the 1990s and often cited as models of the form this plugin aims for. The scenario runs the
-model where a good answer already exists: delete the two districts from the `built` layer
-(keeping a reference copy), let the model regrow the same land toward the districts' real
-population, and compare the result against what was built. The comparison shows which behaviours
-the growth rules capture and which they miss.
-Folder: [`scenarios/freiburg_rieselfeld/`](https://github.com/UCL/BSP-isobenefit-qgis-plugin/tree/main/scenarios/freiburg_rieselfeld).
-
-- **Tiers (indicative values, household 2.0, centred on the districts' real densities):**
-  8,000 / 14,000 / 22,000 people/km², shares 0.2 / 0.6 / 0.2 (low / medium / high).
-- **Target:** about 16,000 residents (the two districts' combined population). **Walks:** 800 m to a centre, 400 m to green.
-  **Grid:** 25 m, EPSG:25832. **Dispersal:** off (both districts are contiguous extensions).
-- The boundary is indicative; the validation protocol (remove, regrow, compare) is described in
-  the folder's `params.json` notes.
 
 ## Adding a scenario
 

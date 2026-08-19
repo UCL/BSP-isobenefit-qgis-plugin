@@ -342,7 +342,6 @@ TITLES = {
     "celina_tx": ("Celina, Texas", "US suburbia at the metropolitan fringe"),
     "kigali_east": ("Kigali, Rwanda", "Plan-guided rapid urbanisation"),
     "medellin_pajarito": ("Medellín, Colombia", "Planned hillside expansion"),
-    "freiburg_rieselfeld": ("Freiburg, Germany", "Validation against Rieselfeld and Vauban"),
 }
 
 

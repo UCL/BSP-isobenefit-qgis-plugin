@@ -31,9 +31,6 @@ competing interests.
 3. An open, reproducible implementation: Rust engine on PyPI, thin QGIS
    plugin, seven worked scenarios on committed OSM data, deterministic under
    parallelism, verified end to end in CI.
-4. A validation exercise: remove Rieselfeld and Vauban from the Freiburg
-   inputs, regrow to their combined population, compare against what was
-   actually built. (Not yet executed; see open items.)
 
 ## Section plan (word budgets sum to ~7,800)
 
@@ -134,15 +131,6 @@ repository and otherwise dropped from the paper.
 - Numbers caveat: gallery metrics are computed at preview resolution with
   seed 42; regenerate at full scenario resolution before submission.
 
-### 5. Validation: Freiburg regrow (~700 words)
-
-Protocol from the scenario notes: delete Rieselfeld and Vauban from the built
-layer, regrow toward their real combined population (~16,000), compare form,
-density and access against what was built (Rieselfeld ~60 dw/ha, Vauban ~145
-persons/ha). Report spatial overlap, density distribution and walk metrics
-for real versus grown. This section does not exist yet as results; it is the
-main outstanding work item.
-
 ### 6. Discussion and limitations (~900 words)
 
 - What the rule changes buy on real terrain, and what they cost in
@@ -177,32 +165,18 @@ main outstanding work item.
 4. Cambourne report metrics table.
 5. Seven-scenario summary table.
 6. Centre-walk sweep chart across scenarios.
-7. Freiburg validation map (real versus regrown).
-8. Freiburg validation metrics table.
-9. One or two additional scenario map panels.
+7. One or two additional scenario map panels.
 
 Leaves two or three slots spare.
 
 ## Open items before submission
 
-1. Freiburg comparison: EXECUTED 2026-08-12 as a comparative case study
-   (`scripts/validate_freiburg.py`, two variants: pre-plan green removed vs
-   present-day green kept). A land-classification audit
-   (`check_freiburg_landclass.py`, `check_freiburg_builtgap.py`) found the
-   landuse-derived built layer missing the Stuhlinger hospital campus and
-   the Bruhl cemetery, so a reality layer (hospital/university/railway/
-   construction to built, cemeteries to unbuildable, cached as
-   `_reality.geojson`) now applies identically to both substrates. Final
-   numbers: pre-plan grows 10,944 of 16,000 with 100% inside the boundaries
-   but IoU 0.10 and higher likelihood on the reserve (0.20) than the built
-   half (0.14); present-day grows NOTHING anywhere in the window. Vauban is
-   capped at 9 cells by the 400 m green span (verified by relaxation test);
-   the green-span sweep (200/400/600 via `--min-green-span`) shows IoU
-   falling 0.15/0.10/0.07 and the real districts' own served coverage
-   falling 54%/49%/37%, so the districts were built at a finer green grain
-   than the default.
-   FACT-CHECK before submission: the claim that the Freiburger Rieselfeld
-   reserve was designated as compensation for the district development.
+1. REMOVED 2026-08-19: the Freiburg comparison is out of the paper and the
+   repository. A realised district embodies expert design and constraints the
+   model never sees, so scoring the output against it implied a replication
+   test the paper does not intend. The scenario, validation scripts, audit
+   scripts, cached layers, and gallery entry were deleted (recoverable from
+   git history at e9419eb and earlier).
 2. RESOLVED 2026-08-18: the paper no longer cites gallery numbers.
    `scripts/paper_metrics.py` computes all case-study metrics at full
    scenario resolution (fifty-run ensembles); the gallery anomalies remain
