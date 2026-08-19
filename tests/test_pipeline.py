@@ -614,9 +614,9 @@ def test_optimise_plan_culls_tiny_ca_centre():
 
 
 def test_green_unviable_pockets():
-    # A buildable pocket smaller than the minimum settlement is reclassified as protected
-    # green wherever it sits: a detached quadrant becomes green, and a tiny pocket enclosed
-    # against the town becomes a pocket park. The large open region stays buildable.
+    # Developable land must be locally wide and belong to a rook-connected wide region that
+    # can hold the minimum settlement. An undersized detached quadrant, a tiny enclosed
+    # pocket, and a one-cell-wide sliver all become protected green; the open region stays.
     from isobenefit_qgis.grid import green_unviable_pockets
 
     g = 40
@@ -627,14 +627,41 @@ def test_green_unviable_pockets():
     state[:, 30] = -1  # barrier column
     state[30, :] = -1  # barrier row: the south-east quadrant (81 cells) is detached
     state[22, 9:13] = -1  # barriers enclosing a 4-cell pocket against the town's south edge
-    state[19:22, 9] = -1  # includes the corner cell, so the pocket has no diagonal leak
+    state[19:22, 9] = -1
     state[20:22, 12] = -1
     n = green_unviable_pockets(state, origin, 100)
-    assert n == 85  # the detached quadrant and the enclosed pocket are both marked
-    assert (origin[31:, 31:] == 0).all()  # the quadrant becomes protected green
+    assert (origin[31:, 31:] == 0).all()  # the undersized quadrant becomes protected green
     assert (state[31:, 31:] == 0).all()  # still nature, still walkable
     assert (origin[20:22, 10:12] == 0).all()  # the enclosed pocket becomes a pocket park
     assert origin[5, 5] == -1  # the large open region is untouched
+    assert n >= 85  # quadrant + pocket, plus any barrier-side slivers the width test drops
+
+
+def test_green_unviable_pockets_slivers_and_diagonals():
+    # A one-cell-wide corridor is never developable, even though it connects two open areas,
+    # and a diagonal corner touch does not connect a pocket to the open land (rook grouping).
+    from isobenefit_qgis.grid import green_unviable_pockets
+
+    g = 40
+    state = np.full((g, g), -1, np.int16)
+    origin = np.full((g, g), -1, np.int16)
+    state[2:38, 2:18] = 0  # a wide western field
+    state[20, 18:30] = 0  # a one-cell-wide corridor leading east
+    state[18:23, 30:34] = 0  # a small eastern paddock at its end (20 cells)
+    green_unviable_pockets(state, origin, 100)
+    assert (origin[20, 18:30] == 0).all()  # the corridor is marked green
+    assert (origin[18:23, 30:34] == 0).all()  # the undersized paddock is marked green
+    assert origin[10, 10] == -1  # the wide field stays developable
+
+    state2 = np.full((g, g), -1, np.int16)
+    origin2 = np.full((g, g), -1, np.int16)
+    state2[2:38, 2:18] = 0  # the wide field again
+    state2[2:12, 19:29] = 0  # a 100-cell block touching the field only at a diagonal corner
+    state2[2:38, 18] = -1  # a barrier column severing every edge contact
+    state2[12, 18] = 0  # one buildable cell giving a single diagonal kiss at (12,18)-(11,19)
+    green_unviable_pockets(state2, origin2, 150)
+    assert origin2[10, 10] == -1  # the 36x16 field alone clears 150 cells: kept
+    assert (origin2[2:12, 19:29] == 0).all()  # the diagonal kiss does not connect: block marked
 
 
 def test_optimise_plan_keeps_attached_infill():

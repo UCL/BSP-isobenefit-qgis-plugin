@@ -54,9 +54,9 @@ pipeline: a new settlement at Cambourne, a green-belt release at Crews
 Hill in London, and a hillside expansion at Pajarito in Medell\'in. A
 fourth case removes the Rieselfeld and Vauban districts from Freiburg and
 regrows the window toward their real population under two readings of
-available land. The outcome ranges from regrowth concentrated inside
-the district boundaries to growth that avoids them almost entirely, so
-the outputs depend strongly on which land counts as available. All scenario data, parameters, and code are public, and the
+available land. The outcome ranges from regrowth almost wholly inside
+the district boundaries to almost no growth, so the outputs depend
+strongly on which land counts as available. All scenario data, parameters, and code are public, and the
 results rebuild from committed sources at fixed seeds.
 \end{abstract}
 
@@ -138,10 +138,11 @@ discussion.
 The Isobenefit-cities simulator \citep{dacci_voto2023} grows settlements on a
 square grid in which every cell starts as nature. Each simulation step scans
 the grid against a frozen copy. A nature cell adjacent to built land is
-eligible to become built if a centrality lies within the walkable
-radius T\(^*\), typically set to about one kilometre or a
-fifteen-minute walk, and the change would not break the nature rules. Those rules
-keep nature as one continuously connected region that retains a minimum
+eligible to become built on two conditions: the location must remain
+within walkable reach of a centrality, the radius T\(^*\), typically
+set to about one kilometre or a fifteen-minute walk, and building the
+cell must not impinge on the green-space rules. Those rules
+keep nature as one continuously connected region with a minimum
 width of T\(^*\), so at no point does green space between built areas
 narrow to below the walkable radius. An eligible cell builds by a random draw at each
 step, so the built edge advances irregularly. If the build probability
@@ -228,14 +229,17 @@ bounded grid walk detours around them and development cannot extend
 across them. The remaining street geometry stays on the map as context
 only.
 
-Preparation also sets aside buildable pockets. Growth is contiguous,
-so a new settlement can never outgrow the connected patch of buildable
-land it starts in, and a patch smaller than the minimum settlement
-size therefore cannot host viable development. Such a patch is
-reclassified as protected green, which keeps it walkable and counted
-as green space. In open land this rules out doomed satellites, and a
-small patch enclosed by a town becomes a pocket park instead of
-receiving piecemeal infill.
+Preparation also separates developable land from land that cannot
+carry development. Developable land must be locally wide, spanning a
+three-by-three block of open cells or lying immediately beside one,
+and it must belong to a contiguous wide region large enough to hold
+the minimum settlement, where contiguity counts shared edges only.
+Land that fails either test is reclassified as protected green: it
+stays walkable and counts as green space, and a sliver between
+buildings or an enclave inside a town reads as a pocket park. Growth,
+seeding, and centre provision are never spent on it, so doomed
+satellites and piecemeal infill of scraps are ruled out before the
+run.
 
 Freezing also separates existing development from new. The input data
 rarely support a rigorous estimate of the existing population or its
@@ -260,9 +264,9 @@ A run proceeds in iterations. Each iteration applies the growth rules
 to every land cell, visiting the cells in a shuffled order to avoid the
 directional bias of a fixed scan. A cell is a candidate for building
 when it is empty, buildable, and touches built land, which keeps growth
-attached to the existing fabric. A candidate must hold a centre within
-the centre walk, which keeps new homes within walkable reach of shops
-and services. Building it must also leave the green network
+attached to the existing fabric. A candidate must remain within
+the centre walk of a centre, which keeps new homes within walkable
+reach of shops and services. Building it must also leave the green network
 intact: a green corridor between developments may not narrow below the
 minimum green span, and a split must leave each fragment a minimum
 contiguous area. A candidate that passes every check builds at the
@@ -270,13 +274,16 @@ configured build probability, which makes growth stochastic, staggers
 the built edge, and sets the pace of growth. Each built cell draws one
 of the three density tiers at the configured shares.
 
-Centres follow the same logic. When built land outgrows the service of
-its existing centres, a new centre may seed nearby, again by a random
-draw at a configurable seeding probability, with at most one new
+New centres arise in two ways. Where the settlement has outgrown its
+centres, so that a cell at the growing edge would exceed the centre
+walk to every existing and grown centre, that cell may itself become a
+new centre and seed development around it. The conversion is again a
+random draw at a configurable seeding probability, at most one new
 centre per iteration, and seeding stops once the run reaches 80\% of
-the population target. With dispersal enabled, isolated centres also
-seed on open land by a per-cell draw, at a rate the dispersal setting
-controls, and begin new satellite settlements. A run stops when it
+the population target. Separately, a dispersal probability allows
+leapfrogging: an isolated centre may seed on open land by a per-cell
+draw, at a rate the dispersal setting controls, and begin a new
+satellite settlement around it. A run stops when it
 reaches the population target.
 
 \subsection{Ensembles and selection}
@@ -322,10 +329,13 @@ steps before the centre options: pruning of these fragments and a
 density arrangement.
 
 Pruning reverts a detached sub-threshold cluster to nature, because it
-is not viable development. A cluster grown against existing fabric is
-kept whatever its size, because its growth was anchored on the town's
-centres and counts as legitimate infill; existing fabric itself is
-also never pruned. Pruning is the only step that changes the
+is not viable development. An outlying hamlet receives the same
+judgment: where a settlement of existing fabric is itself below the
+minimum size and has no centre of its own, its new growth reverts,
+while the existing buildings stay. A cluster grown against a centred
+town is kept whatever its size, because its growth was anchored on
+that town's centres and counts as legitimate infill. Existing fabric
+is never pruned, and pruning is the only step that changes the
 population, so a plan option can carry less than the raw state.
 
 Density arrangement then revisits the tiers the run drew. Each new
@@ -342,8 +352,9 @@ identical built fabric and identical
 arranged density and differ only in centres. \emph{As grown} keeps every
 centre exactly where the run seeded it. \emph{Optimised placement}
 repositions each centre central to the homes it serves and adds one
-wherever new development lacks provision within the walk; existing centres
-serve only the existing fabric. \emph{Fewest centres} additionally
+wherever new development lacks provision within the walk; existing
+centres serve the existing fabric and any sub-threshold infill within
+their walk, so a scrap of infill does not receive a centre of its own. \emph{Fewest centres} additionally
 removes centres one at a time for as long as every home keeps one within
 the walk.
 
@@ -453,9 +464,9 @@ barriers, centres, stops, and stations &
 Extension \\
 \addlinespace
 All nature is available to build &
-Buildable pockets smaller than the minimum settlement are reclassified
-as protected green before the run; a pocket enclosed by a town becomes
-a pocket park &
+Developable land must be locally wide and belong to an edge-connected
+wide region able to hold the minimum settlement; all other open land
+is reclassified as protected green before the run &
 Extension \\
 \addlinespace
 Centralities stay where seeded &
@@ -544,23 +555,25 @@ Cambourne, a fast-growing Cambridgeshire new settlement, is the reference
 case. The 30{,}000 target is hypothetical and reflects no assessment of
 local housing need. Figure~\ref{fig:cambourne} shows the study window before growth and under
 three centre-walk settings. At the baseline 800~m walk, the plan
-accommodates about 21{,}800 of the 30{,}000 target with 98\% of all homes
+accommodates about 13{,}600 of the 30{,}000 target with 86\% of all homes
 served (within the walk of both a centre and green), a mean centre walk
-of 222~m, and a mean green walk of 94~m.
+of 295~m, and a mean green walk of 94~m. The window's developable land,
+after the availability rule sets aside what cannot carry a settlement,
+does not hold the full target at the baseline settings.
 
 Table~\ref{tab:fouroutputs} reproduces the run report for a smaller
 12{,}000-person Cambourne window used as the worked demonstration of the
-four outputs, which \path{scripts/demo_run_report.py} regenerates. The raw grown state credits 82\% of the target, and pruning reduces
-this to 59\%. This window grows part of its population as detached
+four outputs, which \path{scripts/demo_run_report.py} regenerates. The raw grown state credits 84\% of the target, and pruning reduces
+this to 62\%. This window grows part of its population as detached
 satellite clusters that stay below the 1{,}000-person minimum, and
-pruning reverts them to nature. Served coverage holds at 96--98\%
+pruning reverts them to nature. Served coverage holds at 93--97\%
 across all four outputs. Among the three plan options, which differ
-only in centres, optimised placement cuts the mean centre walk from 255
-to 210~m with eight more centre areas than as grown (28 against 20),
-and fewest centres keeps most of that reduction (216~m) with one fewer.
-Fewest centres starts from the optimised placement and removes centres
-only while every home keeps one within the walk, so its count of 27 can
-exceed the as-grown 20.
+only in centres, optimised placement cuts the mean centre walk from 259
+to 235~m with one more centre area than as grown (19 against 18), and
+fewest centres removes two of those centre areas at the cost of most
+of the reduction (255~m). Fewest centres starts from the optimised
+placement and removes centres only while every home keeps one within
+the walk.
 
 \begin{table}[t]
 \centering
@@ -572,15 +585,15 @@ target): the raw grown state and the three plan options.}
 \toprule
 Metric & Raw & As grown & Optimised placement & Fewest centres \\
 \midrule
-Population accommodated & 9{,}897 & 7{,}082 & 7{,}068 & 7{,}068 \\
-Share of target & 82\% & 59\% & 59\% & 59\% \\
-Built cells (incl.\ existing) & 2{,}042 & 1{,}643 & 1{,}643 & 1{,}643 \\
-Mixed-use centre areas & 27 & 20 & 28 & 27 \\
-Served coverage (centre and green) & 96\% & 97\% & 98\% & 98\% \\
-Mean walk to a centre (m) & 276 & 255 & 210 & 216 \\
-Mean walk to green (m) & 115 & 115 & 115 & 115 \\
-Centre \sqm{} per person & 5 & 19 & 22 & 22 \\
-Green \sqm{} per person & 814 & 1{,}279 & 1{,}281 & 1{,}281 \\
+Population accommodated & 10{,}132 & 7{,}410 & 7{,}396 & 7{,}396 \\
+Share of target & 84\% & 62\% & 62\% & 62\% \\
+Built cells (incl.\ existing) & 2{,}075 & 1{,}691 & 1{,}691 & 1{,}691 \\
+Mixed-use centre areas & 25 & 18 & 19 & 17 \\
+Served coverage (centre and green) & 97\% & 93\% & 93\% & 93\% \\
+Mean walk to a centre (m) & 291 & 259 & 235 & 255 \\
+Mean walk to green (m) & 113 & 114 & 114 & 114 \\
+Centre \sqm{} per person & 4 & 19 & 19 & 19 \\
+Green \sqm{} per person & 674 & 1{,}051 & 1{,}053 & 1{,}053 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -612,11 +625,11 @@ the site boundary and the allocation's scale, as a hypothetical reading
 of the site. Whether the release should proceed is a question for the
 plan's examination and its public consultation.
 
-At the baseline walk the plan accommodates about 13{,}000 residents,
-effectively meeting the 13{,}000
-target with 76\% of homes served, a mean centre walk of 241~m, and a mean
-green walk of 108~m (Figure~\ref{fig:crewshill}). Shifting the shares
-one step toward the high tier houses 3\% more people on 5\% fewer built
+At the baseline walk the plan accommodates about 11{,}700 of the
+13{,}000
+target with 75\% of homes served, a mean centre walk of 271~m, and a mean
+green walk of 106~m (Figure~\ref{fig:crewshill}). Shifting the shares
+one step toward the high tier houses 7\% more people on 4\% fewer built
 cells, so within the release boundary the denser preset saves land
 without a population cost. The station anchor holds the main centre against the rail
 line, so the walkable structure forms around the site's one existing
@@ -647,15 +660,15 @@ km\(^2\)) reflects the area's housing towers. The scenario is a
 hypothetical exercise on the district's terrain and carries no
 recommendation for its future development.
 
-At the baseline walk the plan accommodates about 31{,}500 of the 40{,}000
-target with 73\% of homes served and a mean centre walk of 167~m
+At the baseline walk the plan accommodates about 29{,}400 of the 40{,}000
+target with 76\% of homes served and a mean centre walk of 221~m
 (Figure~\ref{fig:medellin}), with the steep-slope mask fragmenting the
 buildable land. The coverage figure counts the substantial existing hillside fabric
 in the window as well as the new growth, so it reads low even where new
 growth is well served. Turning dispersal off
-raises the accommodated population to about 40{,}600 and lowers
-coverage to 62\%, because the denser contiguous fabric pushes more
-homes beyond the green walk.
+lowers both the accommodated population (25{,}100) and coverage
+(54\%), because contiguous growth cannot reach the buildable benches
+that only satellite seeding can start.
 
 \begin{figure}[p]
 \centering
@@ -673,13 +686,13 @@ fragment the buildable land. Full scenario resolution, seed 42.}
 \subsection{Sensitivity to the centre walk}
 
 Table~\ref{tab:sweep} sweeps the centre walk across 400, 800, and
-1{,}600~m for the three cases. A longer permitted walk raises served
-coverage and lengthens the mean walk in every case. The effect is
-largest at Crews Hill, where coverage runs from 64\% at 400~m to 90\%
-at 1{,}600~m, and smallest at Pajarito, where the terrain mask binds
-the form before the centre walk does. Windows dominated by existing
-fabric sit lower on the coverage metric, which counts every home in
-the window (Section~\ref{sec:discussion}).
+1{,}600~m for the three cases. A longer permitted walk lengthens the
+mean walk in every case and raises served coverage at Cambourne (74\%
+to 99\%) and Crews Hill (61\% to 88\%). Pajarito moves least, and not
+monotonically, because the terrain mask binds the form before the
+centre walk does and each figure comes from one selected run. Windows
+dominated by existing fabric sit lower on the coverage metric, which
+counts every home in the window (Section~\ref{sec:discussion}).
 
 \begin{table}[t]
 \centering
@@ -694,9 +707,9 @@ fabric; the mean walk averages over homes within reach of a centre.}
 \multicolumn{2}{c}{1{,}600~m} \\
 Scenario & Cov. & Walk & Cov. & Walk & Cov. & Walk \\
 \midrule
-Cambourne & 91\% & 157~m & 98\% & 222~m & 99\% & 260~m \\
-Crews Hill & 64\% & 132~m & 76\% & 241~m & 90\% & 408~m \\
-Pajarito & 68\% & 104~m & 73\% & 167~m & 73\% & 224~m \\
+Cambourne & 74\% & 163~m & 86\% & 295~m & 99\% & 433~m \\
+Crews Hill & 61\% & 146~m & 75\% & 271~m & 88\% & 392~m \\
+Pajarito & 63\% & 110~m & 76\% & 221~m & 72\% & 280~m \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -746,40 +759,39 @@ development. The present-day reading keeps every committed green
 designation intact. Table~\ref{tab:freiburg} and Figure~\ref{fig:freiburg}
 report both.
 
-Under the pre-plan reading, the model regrows 1{,}681 cells housing about
-15{,}100 residents, and 87\% of that growth falls inside the district
-boundaries, with Rieselfeld taking 1{,}457 cells. The concentration
+Under the pre-plan reading, the model regrows 1{,}304 cells housing about
+11{,}700 residents, and over 99\% of that growth falls inside the
+district boundaries, nearly all of it in Rieselfeld. The containment
 stops short of footprint agreement, because
 the cell-level overlap with the real footprint is weak (intersection over
-union 0.11) and the build likelihood sits higher on the land the
-planners set aside for the reserve (0.21) than on the land they built
-(0.15). The regrown plan's mean walks are shorter than the real
-districts' (360~m against 397~m to a centre), which follows from the
+union 0.12) and the build likelihood sits higher on the land the
+planners set aside for the reserve (0.18) than on the land they built
+(0.14). The regrown plan's mean walks are shorter than the real
+districts' (368~m against 397~m to a centre), which follows from the
 construction: the scored output is optimised placement, whose objective
 minimises the mean centre walk under the 800~m cap, and run selection
 keeps the lowest-mean-walk run.
 
-The concentration follows from two growth rules: growth must touch existing
-fabric and keep a centre within the 800~m walk. At the start only 15 of
-the Rieselfeld field's roughly 4{,}400 growable cells qualify, and they
-all lie beside the one existing centre on the field's eastern edge. Every
-run therefore enters the field where the real district also attaches to
-the town, and the growth outside the boundaries is contiguous extension
-of the existing fabric elsewhere in the window, since dispersal is off
-in this scenario. Vauban's land is open in the inputs (446 growable
-cells, an existing centre 71~m from its edge), and every run grows
-exactly nine cells there and stops, because the minimum green span
-admits no more. The
-district's open strip is narrower than 400~m, so any further build would
-pinch the green corridor below the minimum. The nine cells stay in the
-plan as infill against the existing fabric, and the real Vauban sits
-outside what the growth rules permit at their default green span.
-Halving the span to 200~m lifts the regrowth there to 124 cells.
+The containment follows from the availability rule and two growth
+rules. The availability rule leaves the Rieselfeld field as the one
+large developable region near the removed districts, while the
+scattered growable land elsewhere in the window fails the width or
+capacity test and is set aside. Growth must then touch existing fabric
+and keep a centre within the 800~m walk, and at the start only a
+handful of the field's cells lie within the walk of the one existing
+centre on its eastern edge, so every
+run enters the field where the real district also attaches to
+the town. Vauban's open strip fares differently: it is narrower than
+the minimum width over most of its length, so the availability rule
+sets nearly all of it aside as protected green, and the two or three
+cells that remain grow and stop. The real Vauban sits outside what the
+availability and growth rules permit at their defaults, at every green
+span in the sweep.
 
 We varied the minimum green span, which is the rule that binds here,
 across 200, 400, and 600~m (Table~\ref{tab:span}). Footprint
 agreement with the real districts falls as the span grows, from an
-intersection over union of 0.15 at 200~m to 0.09 at 600~m. The real
+intersection over union of 0.15 at 200~m to 0.08 at 600~m. The real
 districts also score lower on the model's own served coverage as the span
 grows, because fewer of their internal parks qualify (54\% at 200~m
 against 37\% at 600~m). The 49\% score at the default span reads the same
@@ -787,9 +799,9 @@ way, since park qualification scales with the span
 (Section~\ref{sec:ensemble}) and served coverage is a threshold score.
 Both movements indicate that
 Rieselfeld and Vauban were built at a green grain finer than the model's
-default 400~m. Vauban's regrowth holds at nine cells at the 400 and
-600~m spans and reaches 124 cells only at 200~m, because the green span
-is what bounds it.
+default 400~m. Vauban's regrowth stays at two or three cells across
+the sweep, because the availability rule, not the green span, is what
+bounds it.
 
 \begin{table}[t]
 \centering
@@ -801,25 +813,24 @@ placement, best of fifty runs at 25~m resolution).}
 \toprule
 Minimum green span & 200~m & 400~m (default) & 600~m \\
 \midrule
-New cells & 1{,}608 & 1{,}681 & 1{,}256 \\
-Population & 14{,}472 & 15{,}129 & 11{,}304 \\
-Growth inside the district boundaries & 83\% & 87\% & 90\% \\
-Footprint overlap (intersection over union) & 0.15 & 0.11 & 0.09 \\
-Mean walk to a centre (m) & 360 & 360 & 366 \\
-Mean walk to green (m) & 189 & 190 & 179 \\
+New cells & 1{,}673 & 1{,}304 & 1{,}135 \\
+Population & 15{,}057 & 11{,}736 & 10{,}215 \\
+Growth inside the district boundaries & 99\% & 100\% & 100\% \\
+Footprint overlap (intersection over union) & 0.15 & 0.12 & 0.08 \\
+Mean walk to a centre (m) & 373 & 368 & 372 \\
+Mean walk to green (m) & 188 & 193 & 184 \\
 Real districts' served coverage at this span & 54\% & 49\% & 37\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Under the present-day reading, the districts stay almost untouched. The
-mean build likelihood on their real footprint is 0.003, and only 4\% of
-the regrown plan's growth falls inside the boundaries, because
-present-day green designations, the carved rail corridors, and the
-withheld land leave almost no admissible parcel inside the districts
-reachable from the existing fabric. The model instead places about
-2{,}000 residents against the existing fabric elsewhere in the window.
-The districts could not be regrown under the designations that now
+Under the present-day reading, growth is extinguished almost entirely.
+Present-day green designations, the carved rail corridors, and the
+withheld land leave no developable region inside the districts and
+almost none elsewhere, so the plan grows six cells housing about 50
+residents in the whole window, none inside the boundaries, and the
+build likelihood on the districts' real footprint is zero. The
+districts could not be regrown under the designations that now
 surround them.
 
 The outputs depend strongly on which land counts as available, and the
@@ -839,13 +850,13 @@ and the real-district scoring).}
 \toprule
 Metric & Real districts & Pre-plan reading & Present-day reading \\
 \midrule
-Built cells (district / new) & 1{,}929 & 1{,}681 & 223 \\
-Population & 16{,}000 & 15{,}129 & 2{,}007 \\
-Mean walk to a centre (m) & 397 & 360 & 380 \\
-Mean walk to green (m) & 171 & 190 & 196 \\
-Growth inside the district boundaries & --- & 87\% & 4\% \\
-Footprint overlap (intersection over union) & --- & 0.11 & 0.002 \\
-Mean build likelihood on the real footprint & --- & 0.15 & 0.003 \\
+Built cells (district / new) & 1{,}929 & 1{,}304 & 6 \\
+Population & 16{,}000 & 11{,}736 & 54 \\
+Mean walk to a centre (m) & 397 & 368 & 398 \\
+Mean walk to green (m) & 171 & 193 & 195 \\
+Growth inside the district boundaries & --- & 100\% & 0\% \\
+Footprint overlap (intersection over union) & --- & 0.12 & 0.00 \\
+Mean build likelihood on the real footprint & --- & 0.14 & 0.00 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -859,9 +870,9 @@ Mean build likelihood on the real footprint & --- & 0.15 & 0.003 \\
 \caption{The Freiburg window as built (top left), with Rieselfeld and
 Vauban as the development under assessment, and the regrown plan under
 the pre-plan reading at minimum green spans of 200~m (top right), 400~m
-(bottom left), and 600~m (bottom right). Regrown development
-concentrates inside the district boundaries (83\% at 200~m, 87\% at
-400~m, 90\% at 600~m). Optimised placement, best of fifty runs, 25~m grid.}
+(bottom left), and 600~m (bottom right). Regrown development falls
+almost wholly inside the district boundaries (99\% at 200~m, 100\% at
+400 and 600~m). Optimised placement, best of fifty runs, 25~m grid.}
 \label{fig:freiburg}
 \end{figure}
 
@@ -887,7 +898,7 @@ the same terms while never crossing motorways, railways, and rivers.
 
 \subsection{The post-processing gap}
 
-The gap between the raw grown state and the plan options (82\% against 59\%
+The gap between the raw grown state and the plan options (84\% against 62\%
 of target in the Cambourne demonstration window) is produced by pruning
 alone. The pruned clusters are detached satellites that stayed below
 the configured 1{,}000-person minimum when the run met its target, and
@@ -909,7 +920,7 @@ across windows with different shares of existing fabric, and
 within-scenario comparisons are the intended reading. Every reported
 figure comes from the best single run at one master seed and carries no
 across-run spread, so we do not interpret small differences between
-settings, such as footprint overlaps of 0.15 against 0.11 or mean walks a
+settings, such as footprint overlaps of 0.15 against 0.12 or mean walks a
 few metres apart. The pipeline has
 been exercised most heavily on Cambourne, and the Freiburg comparison is
 a single case.
