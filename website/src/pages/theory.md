@@ -50,12 +50,13 @@ published model). Parameter names in brackets are the plugin's settings.
 | Cells are scanned in a fixed raster order against a frozen copy of the grid | Cells are visited in a shuffled order each iteration, which removes the scan-direction bias | Modified |
 | One run, one output | Ensembles: many runs blended into likelihood layers, with the best single run selected as the scenario | Extension |
 | The grid starts as uniform nature | Real inputs from OpenStreetMap: existing built fabric (frozen), protected green, unbuildable land including corridors carved from major roads, railways and rivers, centre areas, stops and stations | Extension |
+| All nature is available to build | Buildable pockets detached from existing fabric and too small to hold the minimum settlement are set aside as protected green before the run | Extension |
 | Centralities stay where they seeded | Post-processing offers centre options that all keep every home within the centre walk: as grown (locations untouched), optimised placement (re-positioned central to the development served, added wherever new development lacks provision; existing centres serve the existing town, not new growth), and fewest centres (redundant ones removed while full coverage holds). Each centre is sized by the population in its catchment | Extension |
 | Distances are straight lines over an abstract plain | One metric for growth and scoring: bounded walks over the grid, blocked by unbuildable land. Street-network distances were tried and removed, since a new settlement's streets do not exist yet and a network metric measures new and existing fabric on different terms | Modified: walkable distance |
 
 Most of the modifications have one motivation: the published model assumes a uniform
-abstract plain, while real places arrive with fragmented green, rivers, motorways and
-existing towns.
+abstract plain, while in real-world use the model must deal with fragmented green,
+rivers, motorways and existing towns.
 
 ## Where the automaton ends and post-processing begins
 
@@ -63,8 +64,8 @@ The growth rules above produce the raw grown state, which the plugin always save
 Everything else is post-processing on that state: pruning stranded settlements below
 the minimum size, re-positioning and sizing centres, arranging the drawn densities,
 scoring runs, and selecting the best. The walkability guarantees are enforced by the
-growth rules during the run; post-processing improves the presentation and the centre
-arrangement without adding or removing population. The
+growth rules during the run. Pruning is the only post-processing step that removes
+population; the rest re-arranges what the run grew, and never adds anything. The
 [recommended-plan notes](https://github.com/UCL/BSP-isobenefit-qgis-plugin/blob/main/docs/recommended-plan.md)
 document that pipeline.
 
