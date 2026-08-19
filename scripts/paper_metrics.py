@@ -18,14 +18,12 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import sys
 import time
 
 import numpy as np
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-import sys
-
 sys.path.insert(0, REPO)
 
 import isobenefit  # noqa: E402

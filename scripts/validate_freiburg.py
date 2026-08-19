@@ -185,7 +185,10 @@ def fetch_reality(extent) -> dict[str, list]:
                     feats.append(
                         {
                             "type": "Feature",
-                            "properties": {"role": role, **{k: tags[k] for k in ("landuse", "amenity", "name") if k in tags}},
+                            "properties": {
+                                "role": role,
+                                **{k: tags[k] for k in ("landuse", "amenity", "name") if k in tags},
+                            },
                             "geometry": json.loads(shapely.to_geojson(p)),
                         }
                     )

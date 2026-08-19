@@ -143,7 +143,6 @@ def main():
     extent = extents["main"]
     gran = float(params["grid_size_m"])
     districts = _val.fetch_districts()
-    union = shapely.unary_union(list(districts.values()))
     real_sub = _gallery.substrate(extent, layers, gran)
     dmask = _val.district_mask(real_sub, districts)
 
