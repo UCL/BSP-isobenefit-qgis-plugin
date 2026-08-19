@@ -51,12 +51,8 @@ three plan options that share identical fabric and density, differ only
 in centre arrangement, and keep every new home within the centre walk.
 Three cases, each dominated by a different constraint, demonstrate the
 pipeline: a new settlement at Cambourne, a green-belt release at Crews
-Hill in London, and a hillside expansion at Pajarito in Medell\'in. A
-fourth case removes the Rieselfeld and Vauban districts from Freiburg and
-regrows the window toward their real population under two readings of
-available land. The outcome ranges from regrowth almost wholly inside
-the district boundaries to almost no growth, so the outputs depend
-strongly on which land counts as available. All scenario data, parameters, and code are public, and the
+Hill in London, and a hillside expansion at Pajarito in Medell\'in.
+All scenario data, parameters, and code are public, and the
 results rebuild from committed sources at fixed seeds.
 \end{abstract}
 
@@ -123,19 +119,20 @@ stages of planning. They let a planner explore walkable
 growth that retains the isobenefit principle, and they give residents
 and other experts something concrete to discuss. We
 demonstrate the pipeline on three case studies, each dominated by a
-different constraint, and on a comparative case study that regrows two
-well-studied walkable districts in Freiburg to show how the stochastic
-outputs should be read against a realised outcome.
+different constraint.
 Sections~\ref{sec:background} to~\ref{sec:discussion} cover the background,
-the methods, the case studies, the Freiburg comparison, and the
-discussion.
+the methods, the case studies, and the discussion.
 
 \section{Background}
 \label{sec:background}
 
 \subsection{The published model}
 
-The Isobenefit-cities simulator \citep{dacci_voto2023} grows settlements on a
+The Isobenefit-cities simulator \citep{dacci_voto2023} belongs to a
+long line of cellular models of urban form \citep{white_engelen1993,
+batty2005, sante2010}, and differs from models fitted to observed
+growth in that its rules enforce a walkability guarantee while growth
+proceeds. It grows settlements on a
 square grid in which every cell starts as nature. Each simulation step scans
 the grid against a frozen copy. A nature cell adjacent to built land is
 eligible to become built on two conditions: the location must remain
@@ -153,10 +150,6 @@ outgrown its centres or on open land, and each built block draws its
 population density from one of three tiers. The run stops at a
 population cap. These rates, the tiers, and the cap are settings in
 this implementation (Section~\ref{sec:rules}).
-
-The automaton belongs to a long line of cellular models of urban form
-\citep{white_engelen1993, batty2005, sante2010}. Unlike models fitted to observed
-growth, its rules enforce a walkability guarantee while growth proceeds.
 
 \subsection{Walking distances and standards}
 
@@ -187,18 +180,10 @@ layers can instead be supplied from the user's own data. Alternatively,
 the user can download the layers and then edit them to reflect
 different parameters or constraints. The simulation tool passes these inputs to the
 engine, published on PyPI, which applies the growth rules and the
-post-processing.
-
-A scenario runs in a fixed sequence. The input layers set where growth
-may occur, and the simulation tool rasterises them to a working grid.
-The automaton then grows the settlement cell by cell: an empty cell
-beside built land may build when a centre lies within the centre walk
-and building would not break the green-space rules, and new centres
-seed as the settlement outgrows its existing ones. An ensemble of runs
-is blended into the likelihood layers, and the best single run is kept,
-judged on walkable access. Post-processing then derives the plan
-options from that run. The subsections below describe each of these
-steps in turn.
+post-processing. The subsections below follow that sequence: the input
+layers, the grid they become, the growth rules, the ensemble and the
+selection of the best single run, and the post-processing that derives
+the plan options.
 
 \subsection{Real inputs}
 \label{sec:inputs}
@@ -219,43 +204,28 @@ join the unbuildable layer.
 \subsection{Grid preparation}
 \label{sec:gridprep}
 
-The simulation tool prepares the grid before growth begins. It
-rasterises the input layers to a working grid at a user-selected cell
-size, typically up to 50~m, though it may be preferable to work at a
-higher resolution. Existing built fabric is frozen, meaning
-the simulation leaves it unchanged. Corridors are carved from motorways,
-trunk roads, railways, and rivers and marked unbuildable, so the
-bounded grid walk detours around them and development cannot extend
-across them. The remaining street geometry stays on the map as context
-only.
+The simulation tool rasterises the input layers to a working grid at a
+user-selected cell size of 50~m or finer. Corridors along motorways,
+trunk roads, railways, and rivers are marked unbuildable, so walking
+routes detour around them and development cannot cross them. Other
+street geometry is retained for display only.
 
-Preparation also separates developable land from land that cannot
-carry development. Developable land must be locally wide, spanning a
-three-by-three block of open cells or lying immediately beside one,
-and it must belong to a contiguous wide region large enough to hold
-the minimum settlement, where contiguity counts shared edges only.
-Land that fails either test is reclassified as protected green: it
-stays walkable and counts as green space, and a sliver between
-buildings or an enclave inside a town reads as a pocket park. Growth,
-seeding, and centre provision are never spent on it, so doomed
-satellites and piecemeal infill of scraps are ruled out before the
-run.
+Existing built fabric is frozen: the simulation leaves it unchanged,
+treats its residents as served, and counts only new residents toward
+the population target.
 
-Freezing also separates existing development from new. The input data
-rarely support a rigorous estimate of the existing population or its
-distribution, so the model treats existing residents as served by
-their existing centres and counts only new residents toward the
-population target. A given target therefore represents the same amount
-of new development in an empty study window and in one that contains
-an existing town.
+Slivers and pockets that cannot carry viable development are
+eliminated from consideration: open land too narrow to build on, or in
+a region too small to hold the minimum settlement, is reclassified as
+protected green before the run and still counts toward green access.
 
-Growth and scoring share one distance metric, the bounded grid walk,
-which is blocked by unbuildable land and computed with a Dijkstra
-search bounded at the maximum walking distance. Street-network distances
-were tested in earlier releases and removed because the streets of a
-new settlement do not yet exist, which forced a hybrid of network
-distances over existing streets and assumed routes over new fabric
-that was difficult to justify.
+Growth and scoring both measure distance with the bounded grid walk: a
+shortest path over traversable cells, blocked by unbuildable land,
+bounded at the maximum walking distance, and computed by Dijkstra
+search. Street-network distances were tested in earlier releases and
+removed. A new settlement's streets do not yet exist, so the metric
+combined network distances over existing streets with assumed routes
+over new fabric, and the two are not comparable.
 
 \subsection{The growth rules}
 \label{sec:growth}
@@ -368,7 +338,7 @@ written alongside the options and the run report records coverage for
 all four outputs, so every edit the post-processing made stays visible
 and comparable. Optimised placement is the recommended plan, so run
 selection scores each run's optimised-placement candidate, and the case
-studies and the Freiburg comparison below report that option.
+studies below report that option.
 
 \subsection{Public transport}
 \label{sec:transit}
@@ -508,7 +478,7 @@ different constraint dominates the outcome: a
 free-standing new settlement (Cambourne, UK), a green-belt release at a
 metropolitan edge (Crews Hill, London), and a topography-bound hillside
 expansion (Pajarito, Medell\'in). Four further scenarios (Dnipro, Celina,
-Kigali East, and the Freiburg comparison of Section~\ref{sec:freiburg})
+Kigali East, and Freiburg)
 ship in the repository with the same file anatomy. Table~\ref{tab:scenarios}
 gives the settings; we translated local density norms into the model's
 three-tier control.
@@ -714,168 +684,6 @@ Pajarito & 63\% & 110~m & 76\% & 221~m & 72\% & 280~m \\
 \end{tabular}
 \end{table}
 
-\section{A comparative case study: regrowing Rieselfeld and Vauban}
-\label{sec:freiburg}
-
-Rieselfeld and Vauban in western Freiburg are two widely studied walkable
-districts, which were planned in the 1990s and are often cited as models
-of the form this tool aims for. We ran the model where a realised outcome
-exists, to show how the outputs read against a known answer. A stochastic
-workflow generates many valid outcomes, and the realised districts are one
-of them. The exercise is retrospective, and we draw from it no
-implication for Freiburg's planning. The two district boundaries, which are fetched from
-OpenStreetMap and cached with the scenario, are removed from the built
-input together with the one centre seed inside them. The model then regrows the window toward the
-districts' real combined population of about 16{,}000, using the committed
-scenario parameters at the full 25~m resolution with fifty runs: dispersal
-off, tiers of 22{,}000 / 14{,}000 / 8{,}000 people per km\(^2\) at shares
-0.2 / 0.6 / 0.2, and the default walks, minimum settlement, and green
-span. We scored the optimised-placement output and the real districts on
-the same metrics. Their built cells count as the development
-under assessment, the OpenStreetMap-mapped centres in the window stay
-active, and the centres inside the districts count as the districts' own.
-
-The comparison is only meaningful if the real world and the simulation
-start from the same availability of land. The scenario's built layer
-derives from OpenStreetMap landuse polygons, and we audited an early run
-(the scripts \path{check_freiburg_landclass.py} and
-\path{check_freiburg_builtgap.py}) and found growth escaping to land
-those polygons show as open, which on inspection was a hospital campus
-and a cemetery. A
-supplementary availability layer therefore closes the gap identically in
-the simulation inputs and in the real-district scoring: hospital and
-university campuses, railway land, and construction sites join the frozen
-built fabric, and cemeteries join unbuildable land. The audit and the
-patch preceded the concentration result reported below, so the patched
-layer contributes to that result. Regional-plan set-asides may not
-reach OpenStreetMap, so some open land may still be withheld in practice.
-
-What counted as available land then admits two readings, and we ran
-both. The pre-plan reading also removes the protected
-green inside the boundaries, because the whole former sewage field was
-open to the 1990s planners and the Freiburger Rieselfeld reserve beside
-the built district was designated as compensation as part of its
-development. The present-day reading keeps every committed green
-designation intact. Table~\ref{tab:freiburg} and Figure~\ref{fig:freiburg}
-report both.
-
-Under the pre-plan reading, the model regrows 1{,}304 cells housing about
-11{,}700 residents, and over 99\% of that growth falls inside the
-district boundaries, nearly all of it in Rieselfeld. The containment
-stops short of footprint agreement, because
-the cell-level overlap with the real footprint is weak (intersection over
-union 0.12) and the build likelihood sits higher on the land the
-planners set aside for the reserve (0.18) than on the land they built
-(0.14). The regrown plan's mean walks are shorter than the real
-districts' (368~m against 397~m to a centre), which follows from the
-construction: the scored output is optimised placement, whose objective
-minimises the mean centre walk under the 800~m cap, and run selection
-keeps the lowest-mean-walk run.
-
-The containment follows from the availability rule and two growth
-rules. The availability rule leaves the Rieselfeld field as the one
-large developable region near the removed districts, while the
-scattered growable land elsewhere in the window fails the width or
-capacity test and is set aside. Growth must then touch existing fabric
-and keep a centre within the 800~m walk, and at the start only a
-handful of the field's cells lie within the walk of the one existing
-centre on its eastern edge, so every
-run enters the field where the real district also attaches to
-the town. Vauban's open strip fares differently: it is narrower than
-the minimum width over most of its length, so the availability rule
-sets nearly all of it aside as protected green, and the two or three
-cells that remain grow and stop. The real Vauban sits outside what the
-availability and growth rules permit at their defaults, at every green
-span in the sweep.
-
-We varied the minimum green span, which is the rule that binds here,
-across 200, 400, and 600~m (Table~\ref{tab:span}). Footprint
-agreement with the real districts falls as the span grows, from an
-intersection over union of 0.15 at 200~m to 0.08 at 600~m. The real
-districts also score lower on the model's own served coverage as the span
-grows, because fewer of their internal parks qualify (54\% at 200~m
-against 37\% at 600~m). The 49\% score at the default span reads the same
-way, since park qualification scales with the span
-(Section~\ref{sec:ensemble}) and served coverage is a threshold score.
-Both movements indicate that
-Rieselfeld and Vauban were built at a green grain finer than the model's
-default 400~m. Vauban's regrowth stays at two or three cells across
-the sweep, because the availability rule, not the green span, is what
-bounds it.
-
-\begin{table}[t]
-\centering
-\caption{Minimum-green-span sweep under the pre-plan reading (optimised
-placement, best of fifty runs at 25~m resolution).}
-\label{tab:span}
-\small
-\begin{tabular}{l r r r}
-\toprule
-Minimum green span & 200~m & 400~m (default) & 600~m \\
-\midrule
-New cells & 1{,}673 & 1{,}304 & 1{,}135 \\
-Population & 15{,}057 & 11{,}736 & 10{,}215 \\
-Growth inside the district boundaries & 99\% & 100\% & 100\% \\
-Footprint overlap (intersection over union) & 0.15 & 0.12 & 0.08 \\
-Mean walk to a centre (m) & 373 & 368 & 372 \\
-Mean walk to green (m) & 188 & 193 & 184 \\
-Real districts' served coverage at this span & 54\% & 49\% & 37\% \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Under the present-day reading, growth is extinguished almost entirely.
-Present-day green designations, the carved rail corridors, and the
-withheld land leave no developable region inside the districts and
-almost none elsewhere, so the plan grows six cells housing about 50
-residents in the whole window, none inside the boundaries, and the
-build likelihood on the districts' real footprint is zero. The
-districts could not be regrown under the designations that now
-surround them.
-
-The outputs depend strongly on which land counts as available, and the
-realised districts embody designation decisions that the growth rules
-cannot infer.
-
-\begin{table}[t]
-\centering
-\caption{Freiburg comparison: the real districts against the regrown plan
-under two readings of available land (optimised placement, best of fifty
-runs at 25~m resolution, identical availability in the simulation inputs
-and the real-district scoring).}
-\label{tab:freiburg}
-\small
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{l r r r}
-\toprule
-Metric & Real districts & Pre-plan reading & Present-day reading \\
-\midrule
-Built cells (district / new) & 1{,}929 & 1{,}304 & 6 \\
-Population & 16{,}000 & 11{,}736 & 54 \\
-Mean walk to a centre (m) & 397 & 368 & 398 \\
-Mean walk to green (m) & 171 & 193 & 195 \\
-Growth inside the district boundaries & --- & 100\% & 0\% \\
-Footprint overlap (intersection over union) & --- & 0.12 & 0.00 \\
-Mean build likelihood on the real footprint & --- & 0.14 & 0.00 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[p]
-\centering
-\includegraphics[width=0.48\textwidth]{figures/freiburg_validation_real.png}\hfill
-\includegraphics[width=0.48\textwidth]{figures/freiburg_validation_regrown_span200.png}\\[2pt]
-\includegraphics[width=0.48\textwidth]{figures/freiburg_validation_regrown.png}\hfill
-\includegraphics[width=0.48\textwidth]{figures/freiburg_validation_regrown_span600.png}
-\caption{The Freiburg window as built (top left), with Rieselfeld and
-Vauban as the development under assessment, and the regrown plan under
-the pre-plan reading at minimum green spans of 200~m (top right), 400~m
-(bottom left), and 600~m (bottom right). Regrown development falls
-almost wholly inside the district boundaries (99\% at 200~m, 100\% at
-400 and 600~m). Optimised placement, best of fifty runs, 25~m grid.}
-\label{fig:freiburg}
-\end{figure}
-
 \section{Discussion}
 \label{sec:discussion}
 
@@ -920,10 +728,8 @@ across windows with different shares of existing fabric, and
 within-scenario comparisons are the intended reading. Every reported
 figure comes from the best single run at one master seed and carries no
 across-run spread, so we do not interpret small differences between
-settings, such as footprint overlaps of 0.15 against 0.12 or mean walks a
-few metres apart. The pipeline has
-been exercised most heavily on Cambourne, and the Freiburg comparison is
-a single case.
+settings, such as mean walks a few metres apart. The pipeline has
+been exercised most heavily on Cambourne.
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -968,11 +774,7 @@ Slope layers derive from the Copernicus GLO-30 digital elevation model.
 
 The simulation engine is published on PyPI as \texttt{isobenefit} and the
 QGIS plugin through the official QGIS plugin repository; both are developed
-in the repository above under the AGPL-3.0-or-later licence. The comparison
-of Section~\ref{sec:freiburg} reruns with
-\texttt{scripts/validate\_freiburg.py}: the default invocation gives the
-pre-plan reading, \texttt{-{}-keep-green} the present-day reading, and
-\texttt{-{}-min-green-span} 200 or 600 the span sweep.
+in the repository above under the AGPL-3.0-or-later licence.
 \pending{archive a tagged release on Zenodo and cite the DOI here.}
 
 \subsection*{Author contributions}
