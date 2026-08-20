@@ -41,9 +41,9 @@ preview grids and single runs; the paper no longer cites it.
 ## Before submission
 
 `outline.md` keeps the authoritative list under "Open items before
-submission". As of 2026-08-19 it covers: resolving the gallery anomalies (a zero population in one
-Crews Hill preset, fewest identical to baseline in four scenarios) before
-citing those numbers, deciding whether the Cambourne cleanup result stands or
-the min-settlement threshold gets revisited, confirming the authorship list,
-completing the reference DOIs, settling APC funding, and the editor's reply on
-the deadline extension.
+submission". As of 2026-08-20 it covers: pushing the v0.13.0 release tag once
+the paper state is signed off, deciding the Cambourne target against the
+window's measured capacity, the gallery preview-resolution question for the
+availability rule, confirming the authorship list, completing the reference
+DOIs, settling APC funding, and the editor's reply on the deadline
+extension.

@@ -179,14 +179,26 @@ Leaves two or three slots spare.
    git history at e9419eb and earlier).
 2. RESOLVED 2026-08-18: the paper no longer cites gallery numbers.
    `scripts/paper_metrics.py` computes all case-study metrics at full
-   scenario resolution (fifty-run ensembles); the gallery anomalies remain
-   a website matter only. NB full resolution changed headline numbers
-   substantially (Cambourne baseline 10,075 of 30,000 vs preview 19,230;
-   walks now reported as within-reach means).
-3. Decide whether the Cambourne 51%-of-target cleanup result stands or the
-   min-settlement threshold gets revisited first; the paper cites whichever.
-4. Confirm authorship list and order with the UCL team.
-5. Reference list: gather DOIs (two core sources are in theory.md; add
+   scenario resolution (fifty-run ensembles).
+3. RESOLVED 2026-08-19 (v0.13.0, tag not yet pushed): absorption removed,
+   availability rule added at grid preparation (local width via a 3x3
+   opening plus rook-connected region capacity), hamlet prune, and the
+   infill provision exception. All numbers in the paper are regenerated
+   under this behaviour. The old 51%-of-target question is superseded: the
+   demonstration window now credits 84% raw against 62% in the plan
+   options, with pruning of failed satellites as the only cause.
+4. Push the v0.13.0 tag once Gareth signs off the paper state; the tag
+   triggers CI to publish the core to PyPI and the plugin zip.
+5. Decide the Cambourne scenario target: at baseline settings the window's
+   developable land holds about 13,600 of the 30,000 target, which the
+   paper currently reports as a capacity finding. Lowering the target is
+   the alternative.
+6. Gallery preview resolution: the availability width test is measured in
+   cells, so coarse preview grids (Dnipro at 135 m) exclude much more land
+   than the full-resolution runs. Decide whether previews should run finer
+   or the width should be defined in metres.
+7. Confirm authorship list and order with the UCL team.
+8. Reference list: gather DOIs (two core sources are in theory.md; add
    15-minute-city, WHO and Natural England green-access sources).
-6. APC funding or waiver.
-7. Editor reply on the deadline extension.
+9. APC funding or waiver.
+10. Editor reply on the deadline extension.
