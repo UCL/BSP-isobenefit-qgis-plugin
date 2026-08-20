@@ -63,27 +63,26 @@ settlement should be distributed evenly. Its prefix \emph{iso} means
 equal: wherever one lives, a local centre with shops, services, and
 workplaces should be within a walk, and so should green space. The idea originates
 in scenario work on isobenefit cities \citep{dacci2013}, and D'Acci later
-formalised it as a cellular-automaton morphogenesis, which was published
+formalised it as a cellular-automaton morphogenesis, published
 with a Python simulator \citep{dacci_voto2023, voto_code}. The automaton
-grows a grid of land cells under a small set of rules from seeded
-centralities (the published model's term for centres),
+grows a grid of land cells from seeded centralities (the published
+model's term for centres) under a small set of rules,
 and the walkability guarantee holds at every step however large the
 settlement becomes. The approach sits between master-planning and
 laissez-faire growth, because a few simple rules guide development while
-the detailed form emerges spontaneously \citep{dacci_banister_white2024}. Urban simulation models can become useful planning instruments, as
-UrbanSim, an open model of land use and transport, did when it entered
+the detailed form emerges \citep{dacci_banister_white2024}. Urban simulation models can become planning instruments, as
+UrbanSim, an open land-use and transport model, did when it entered
 use with metropolitan planning agencies \citep{waddell2002}. We
-likewise aim to operationalise Isobenefit Urbanism by adapting it to
-real-world constraints, so that planners can use it as part of the
-planning process, to conceptualise options and to engage in dialogue
-and feedback with residents and experts in their respective fields.
+aim to operationalise Isobenefit Urbanism in the same way, by adapting
+it to real-world constraints so that planners can use it to
+conceptualise options and to consult residents and experts.
 
 The published model runs on an abstract grid, in which every cell
 starts as nature, distances are straight lines, and a single radius, typically set to an
 approximately fifteen-minute walk, governs access both to
 centres and to green. This abstraction keeps the morphology of the
-rules easy to study. In real-world use, however, the model must
-accommodate existing constraints: towns, fragmented green space,
+rules easy to study. In real-world use the model must
+accommodate what is already there: towns, fragmented green space,
 rivers, railways, motorways, and steep slopes.
 Its outputs must also be in a GIS format that planners can work with.
 We therefore add the inputs, the modelling constraints, and the
@@ -99,8 +98,8 @@ The contributions are:
   Departures from the published model are tabulated
   (Table~\ref{tab:rules}).
 \item An open, reproducible implementation: a QGIS plugin that wraps a
-  simulation engine published on PyPI, and accompanying documentation
-  with explanatory material and worked scenarios.
+  simulation engine published on PyPI, with documentation and worked
+  scenarios.
 \item A plan-derivation pipeline on top of the automaton. An ensemble
   of runs yields likelihood layers, which show where development is
   robust across runs, and plan options derived from the best single
@@ -123,17 +122,13 @@ batty2005, sante2010}, and differs from models fitted to observed
 growth in that its rules enforce a walkability guarantee while growth
 proceeds. It grows settlements on a
 square grid in which every cell starts as nature. Each simulation step scans
-the grid against a frozen copy. A nature cell adjacent to built land is
-eligible to become built on two conditions: the location must remain
-within walkable reach of a centrality, the radius T\(^*\), typically
-set to about one kilometre or a fifteen-minute walk, and building the
-cell must not impinge on the green-space rules. Those rules
-keep nature as one continuously connected region with a minimum
-width of T\(^*\), so at no point does green space between built areas
-narrow to below the walkable radius. An eligible cell builds by a random draw at each
-step, so the built edge advances irregularly. If the build probability
-is set to 0.5, for example, an eligible cell has an even chance of
-building at each step. New
+the grid against a frozen copy. A nature cell adjacent to built land may
+become built on two conditions: a centrality must lie within the
+radius T\(^*\), typically about one kilometre or a fifteen-minute
+walk, and building the cell must not breach the green-space rules,
+which keep nature as one connected region whose width never falls
+below T\(^*\). An eligible cell builds by a random draw at each
+step, so the built edge advances irregularly. New
 centralities seed by rarer draws, either beside built land that has
 outgrown its centres or on open land. Each built block takes its
 population density from one of three tiers, high, medium, or low,
@@ -168,10 +163,9 @@ Section~\ref{sec:cases} sweeps the centre walk across 400, 800, and
 
 The QGIS plugin comprises two tools, one for data preparation and one
 for simulation. The preparation tool downloads a scenario's input
-layers from OpenStreetMap. This step is optional, because equivalent
-layers can instead be supplied from the user's own data. Alternatively,
-the user can download the layers and then edit them to reflect
-different parameters or constraints. The simulation tool passes these inputs to the
+layers from OpenStreetMap. This step is optional: users can supply
+equivalent layers from their own data, or download the layers and
+edit them. The simulation tool passes these inputs to the
 engine, published on PyPI, which applies the growth rules and the
 post-processing. The subsections below follow that sequence.
 
@@ -188,7 +182,7 @@ streets, public-transport stops, rail and tram stations,
 railways, and industrial land. Terrain slope is mapped from the Copernicus GLO-30 elevation model
 \citep{copernicus_glo30} as bands steeper than 15, 20, 25, and 30
 degrees. The bands are a separate layer that users can edit from local
-knowledge, and bands above the scenario's slope limit count as
+knowledge, and bands above the scenario's slope limit are
 unbuildable.
 
 \subsection{Grid preparation}
@@ -218,12 +212,12 @@ parks (Section~\ref{sec:growth}).
 In both the growth rules and the scoring, the simulation measures
 distance with the bounded grid walk: a shortest path over traversable
 cells, blocked by unbuildable land, bounded at the maximum walking
-distance, and computed by Dijkstra search. In earlier releases we experimented with a hybrid measure,
-street-network distances over the existing fabric joined to grid
-walks over new growth, which has no streets until a later design
-stage. We decided on principle not to proceed, because a distance
-measured partly over streets and partly over the grid has no
-consistent meaning.
+distance, and computed by Dijkstra search. Earlier releases
+experimented with a hybrid measure that used street-network distances
+over the existing fabric and grid walks over new growth, which has no
+streets until a later design stage. We set the hybrid aside on
+principle, because a distance measured partly over streets and partly
+over the grid has no consistent meaning.
 
 \subsection{The growth rules}
 \label{sec:growth}
@@ -244,10 +238,10 @@ span, and new development may not shrink a park below the park area,
 whether by splitting it or by building along its edge. New development
 must also keep a park within the green walk of the new home and of
 every built cell, the existing fabric included. Green areas smaller than a park
-are not counted for green access and may be built over. A candidate
+provide no green access and may be built over. A candidate
 that passes every check builds at the
-configured build probability, which makes growth stochastic, staggers
-the built edge, and sets the pace of growth. Each built cell draws one
+configured build probability, which staggers
+the built edge and sets the pace of growth. Each built cell draws one
 of the three density tiers at the configured shares.
 
 New centres arise in two ways. Where the settlement has outgrown its
@@ -258,9 +252,8 @@ random draw at a configurable seeding probability, at most one new
 centre per iteration, and seeding stops once the run reaches 80\% of
 the population target. Separately, a dispersal probability allows
 leapfrogging: an isolated centre may seed on open land by a per-cell
-draw, at a rate the dispersal setting controls, and begin a new
-satellite settlement around it. The dispersal probability can be set
-to zero where leapfrogging is undesirable. A run stops when it
+draw and begin a new satellite settlement. Setting the probability to
+zero disables leapfrogging. A run stops when it
 reaches the population target.
 
 \subsection{Ensembles and selection}
@@ -275,9 +268,9 @@ cell, the fraction of runs in which it ended built or green. A cell
 built in most runs is a robust development location, and a cell built
 in only a few is contingent.
 
-The likelihood layers are for information only. Because they average
-runs that disagree cell by cell, the layers do not themselves satisfy
-the constraints. We therefore post-process each run into a candidate
+Because the layers average runs that disagree cell by cell, they do
+not themselves satisfy the constraints and are informational
+only. We therefore post-process each run into a candidate
 plan and select the run whose new homes have the lowest mean walk to
 a centre and to green as the final plan. Section~\ref{sec:fouroutputs}
 describes the post-processing.
@@ -285,8 +278,8 @@ describes the post-processing.
 We also
 report served coverage, the share of new homes within the chosen
 walks of both a centre and a park. The growth rules guarantee both
-walks for every new home, so this figure doubles as a check that
-post-processing preserved the guarantee. A companion figure blends in
+walks for every new home, so the figure verifies that post-processing
+preserved the guarantee. A companion figure blends in
 the existing fabric, which carries no guarantee: the model assumes
 existing homes are served by their own centres, and the growth rules
 promise only that new development never removes an existing home's
@@ -306,8 +299,8 @@ steps before the centre options: pruning of these fragments and a
 density arrangement.
 
 Pruning reverts a detached sub-threshold cluster to nature, because it
-is not viable development. An outlying hamlet receives the same
-judgment: where a settlement of existing fabric is itself below the
+is not viable development. The same rule applies to an outlying
+hamlet: where a settlement of existing fabric is itself below the
 minimum size and has no centre of its own, its new growth reverts,
 while the existing buildings stay. A cluster grown against a centred
 town is kept whatever its size, because its growth was anchored on
@@ -470,9 +463,9 @@ plugin offers to install it on first run.
 
 Results are deterministic and independent of thread count. Every stochastic
 draw derives from a per-work-item seed, and parallel reductions are
-order-independent integer sums. Cross-checks between the Rust engine and a
-reference Python implementation of the walk metric and component labelling
-run in the test suite. A single verification script runs the full gate
+order-independent integer sums. The test suite cross-checks the Rust
+engine against a reference Python implementation of the walk metric
+and the component labelling. A single verification script runs the full gate
 (formatting, linting, Rust and Python tests, and the website build) and mirrors CI
 exactly; releases are tagged, version-locked between engine and plugin, and
 published automatically. All scenario inputs are committed, so every result
