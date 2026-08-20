@@ -31,6 +31,22 @@ This repository contains two deliverables:
 The split exists because the QGIS plugin repository does not permit shipping
 binaries: the compiled engine is installed from PyPI rather than bundled.
 
+### Documentation map
+
+- [`core/README.md`](core/README.md): building, testing, and releasing the engine.
+- [`docs/recommended-plan.md`](docs/recommended-plan.md): the plan-derivation
+  pipeline (cleanup, centre options, scoring) as currently implemented.
+- [`docs/backlog.md`](docs/backlog.md): open design questions and deferred work.
+- [`docs/prose-review.md`](docs/prose-review.md): the prose review pass for
+  user-facing text.
+- [`paper/README.md`](paper/README.md): how the manuscript's numbers and
+  figures regenerate; [`paper/outline.md`](paper/outline.md) holds the
+  authoritative "Open items before submission" list.
+- [`website/README.md`](website/README.md): building and deploying the
+  overview site.
+- [`scenarios/README.md`](scenarios/README.md): the committed scenario
+  library and its file anatomy.
+
 ## Installation
 
 1. Either install from the plugin manager, once the repository listing is live
