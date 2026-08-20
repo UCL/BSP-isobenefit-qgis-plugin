@@ -2,11 +2,11 @@
 //!
 //! `agg_dijkstra_cont` replaces the original O(N^2) "scan the whole pending grid
 //! each step" search with a proper binary-heap Dijkstra bounded by `max_distance`.
-//! `prepare_green_arrs` builds the green-periphery / green-access surfaces as a
+//! `prepare_park_arrs` builds the park mask and park-access surfaces as a
 //! parallel (rayon) map-reduce; the reduction is an integer sum, so the result is
 //! identical regardless of how the work is split across threads.
 
-use crate::neighbours::iter_nbs;
+use crate::neighbours::{iter_nbs, label_components};
 use ndarray::Array2;
 use rayon::prelude::*;
 use std::cmp::Ordering;
@@ -23,6 +23,9 @@ pub struct DijkstraOpts {
     pub break_count: Option<i64>,
     /// Rook (orthogonal-only) traversal; otherwise queen (diagonals allowed).
     pub rook: bool,
+    /// Treat this cell as absent: never traversed and never counted as a
+    /// target. Lets a caller probe a tentative build without cloning the grid.
+    pub exclude: Option<(usize, usize)>,
 }
 
 impl DijkstraOpts {
@@ -33,6 +36,7 @@ impl DijkstraOpts {
             break_first: false,
             break_count: None,
             rook: false,
+            exclude: None,
         }
     }
 }
@@ -100,6 +104,9 @@ pub fn agg_dijkstra_cont(
             continue;
         }
         for (ny, nx) in iter_nbs(rows, cols, y, x, opts.rook) {
+            if opts.exclude == Some((ny, nx)) {
+                continue;
+            }
             let ystep = (ny as f64 - y as f64).abs();
             let xstep = (nx as f64 - x as f64).abs();
             let nd = d + ystep.hypot(xstep) * opts.granularity_m;
@@ -230,47 +237,55 @@ pub fn walk_distance(
     dist
 }
 
-/// Builds the green-periphery (`green_itx`) and green-access (`green_acc`) arrays.
-///
-/// `green_itx`: unbuildable cells -> -1; built/centre cells -> 1; green cells
-/// rook-adjacent to built -> 2 (the developable periphery). `green_acc`: for every
-/// periphery (==2) cell, the accessibility footprint summed together — computed in
-/// parallel. Footprints traverse `[0, 1, 2]` only, so unbuildable cells (water,
-/// carved corridors) block green access exactly as they block centre access.
-pub fn prepare_green_arrs(
-    state: &Array2<i16>,
-    max_distance_m: f64,
-    granularity_m: f64,
-) -> (Array2<i16>, Array2<i32>) {
-    let (rows, cols) = state.dim();
-    let mut green_itx = Array2::<i16>::zeros((rows, cols));
-    for y in 0..rows {
-        for x in 0..cols {
-            if state[[y, x]] < 0 {
-                green_itx[[y, x]] = -1;
-            } else if state[[y, x]] > 0 {
-                green_itx[[y, x]] = 1;
-                for (ny, nx) in iter_nbs(rows, cols, y, x, true) {
-                    if state[[ny, nx]] == 0 {
-                        green_itx[[ny, nx]] = 2;
-                    }
-                }
-            }
-        }
-    }
+/// The number of cells a park-qualifying green area must hold, from the minimum
+/// park area in square metres. This is the scoring rule's park test, shared here
+/// so the growth guard and the served-coverage metric use one park definition.
+pub fn park_threshold_cells(min_park_area_m2: f64, granularity_m: f64) -> i64 {
+    ((min_park_area_m2 / (granularity_m * granularity_m)).round() as i64).max(1)
+}
 
-    let sources: Vec<(usize, usize)> = (0..rows)
-        .flat_map(|y| (0..cols).map(move |x| (y, x)))
-        .filter(|&(y, x)| green_itx[[y, x]] == 2)
+/// Builds the park mask and park-access count for the green-access guard.
+///
+/// `park`: green (state 0) cells whose rook-connected green component holds at
+/// least [`park_threshold_cells`] cells. `green_acc[c]`: how many park cells lie
+/// within the green walk of `c`, traversing everything except unbuildable land —
+/// each park cell's bounded footprint, summed in parallel. Unbuildable land never
+/// changes and built land stays traversable, so every footprint is constant for
+/// the whole run and the count stays exact under the single-cell removals
+/// `try_build` applies.
+pub fn prepare_park_arrs(
+    state: &Array2<i16>,
+    green_distance_m: f64,
+    granularity_m: f64,
+    min_park_area_m2: f64,
+) -> (Array2<bool>, Array2<i32>) {
+    let (rows, cols) = state.dim();
+    let threshold = park_threshold_cells(min_park_area_m2, granularity_m);
+    let mask = state.mapv(|v| v == 0);
+    let labels = label_components(&mask, false);
+    let n_labels = labels.iter().copied().max().unwrap_or(0) as usize;
+    let mut areas = vec![0i64; n_labels + 1];
+    for &l in labels.iter() {
+        areas[l as usize] += 1;
+    }
+    let park = Array2::from_shape_fn((rows, cols), |(y, x)| {
+        let l = labels[[y, x]];
+        l > 0 && areas[l as usize] >= threshold
+    });
+
+    let sources: Vec<(usize, usize)> = park
+        .indexed_iter()
+        .filter(|&(_, &is_park)| is_park)
+        .map(|(idx, _)| idx)
         .collect();
 
-    let opts = DijkstraOpts::new(max_distance_m, granularity_m);
+    let opts = DijkstraOpts::new(green_distance_m, granularity_m);
     let green_acc = sources
         .par_iter()
-        .map(|&(y, x)| agg_dijkstra_cont(&green_itx, y, x, &[0, 1, 2], &[0, 1, 2], &opts))
+        .map(|&(y, x)| agg_dijkstra_cont(state, y, x, &[0, 1, 2], &[0, 1, 2], &opts))
         .reduce(|| Array2::<i32>::zeros((rows, cols)), |a, b| a + b);
 
-    (green_itx, green_acc)
+    (park, green_acc)
 }
 
 #[cfg(test)]
@@ -336,37 +351,66 @@ mod tests {
     }
 
     #[test]
-    fn unbuildable_blocks_green_access() {
-        // built column at x=0, unbuildable column at x=2: periphery footprints
-        // from x=1 must not cross the barrier to reach x>=3
+    fn unbuildable_blocks_park_access() {
+        // built column at x=0, unbuildable column at x=2: the park east of the
+        // barrier is unreachable from the west side within the walk
         let mut state = Array2::<i16>::zeros((5, 5));
         for y in 0..5 {
             state[[y, 0]] = 1;
             state[[y, 2]] = -1;
         }
-        let (itx, acc) = prepare_green_arrs(&state, 300.0, 100.0);
+        // 9 ha at 100 m cells -> threshold 9: west green (5 cells) is not a
+        // park; east green (10 cells) is
+        let (park, acc) = prepare_park_arrs(&state, 300.0, 100.0, 90_000.0);
         for y in 0..5 {
-            assert_eq!(itx[[y, 2]], -1);
-            assert_eq!(itx[[y, 1]], 2);
-            assert_eq!(acc[[y, 3]], 0);
-            assert_eq!(acc[[y, 4]], 0);
-            assert!(acc[[y, 1]] > 0);
+            assert!(!park[[y, 1]]);
+            assert!(park[[y, 3]] && park[[y, 4]]);
+            // west of the barrier no park is reachable; east cells reach their own
+            assert_eq!(acc[[y, 0]], 0);
+            assert_eq!(acc[[y, 1]], 0);
+            assert!(acc[[y, 3]] > 0);
         }
     }
 
     #[test]
-    fn prepare_green_arrs_marks_periphery() {
-        // a single built cell in a green field -> its rook neighbours become itx==2
-        let mut state = Array2::<i16>::zeros((3, 3));
-        state[[1, 1]] = 1;
-        let (itx, acc) = prepare_green_arrs(&state, 100.0, 100.0);
-        assert_eq!(itx[[1, 1]], 1);
-        assert_eq!(itx[[0, 1]], 2);
-        assert_eq!(itx[[1, 0]], 2);
-        assert_eq!(itx[[2, 1]], 2);
-        assert_eq!(itx[[1, 2]], 2);
-        // corners are not rook-adjacent to the built cell
-        assert_eq!(itx[[0, 0]], 0);
-        assert!(acc.sum() > 0);
+    fn park_threshold_matches_scoring_rule() {
+        // max(1, round(area / cell area)), the scoring park test; 16 ha default
+        assert_eq!(park_threshold_cells(160_000.0, 50.0), 64);
+        assert_eq!(park_threshold_cells(160_000.0, 100.0), 16);
+        assert_eq!(park_threshold_cells(10_000.0, 100.0), 1);
+        assert_eq!(park_threshold_cells(0.0, 100.0), 1);
+    }
+
+    #[test]
+    fn small_components_are_not_parks() {
+        // a lone green cell walled by unbuildable land, and a big open field:
+        // only the field qualifies at threshold 4, and access counts field cells
+        let mut state = Array2::<i16>::zeros((5, 5));
+        for y in 0..5 {
+            state[[y, 1]] = -1;
+        }
+        // column 0 is a 5-cell strip (>= 4 -> park); make it 3 cells instead
+        state[[0, 0]] = -1;
+        state[[1, 0]] = -1;
+        let (park, acc) = prepare_park_arrs(&state, 200.0, 100.0, 40_000.0);
+        for y in 2..5 {
+            assert!(
+                !park[[y, 0]],
+                "3-cell strip must not qualify at threshold 4"
+            );
+            assert_eq!(acc[[y, 0]], 0);
+        }
+        assert!(park[[0, 2]]);
+        assert!(acc[[0, 2]] > 0);
+    }
+
+    #[test]
+    fn exclude_cell_blocks_traversal_and_counting() {
+        // 1x5 all green; excluding the middle cell cuts the row in two
+        let state = Array2::<i16>::zeros((1, 5));
+        let mut opts = DijkstraOpts::new(10.0, 1.0);
+        opts.exclude = Some((0, 2));
+        let targets = agg_dijkstra_cont(&state, 0, 0, &[0], &[0], &opts);
+        assert_eq!(targets.sum(), 2); // cells 0 and 1 only
     }
 }

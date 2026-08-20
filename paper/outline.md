@@ -190,9 +190,10 @@ Leaves two or three slots spare.
 4. Push the v0.13.0 tag once Gareth signs off the paper state; the tag
    triggers CI to publish the core to PyPI and the plugin zip.
 5. Decide the Cambourne scenario target: at baseline settings the window's
-   developable land holds about 13,600 of the 30,000 target, which the
-   paper currently reports as a capacity finding. Lowering the target is
-   the alternative.
+   developable land holds about 13,200 of the 30,000 target (recomputed
+   2026-08-20 with true-area existing-centre seeds), which the paper
+   currently reports as a capacity finding. Lowering the target is the
+   alternative.
 6. Gallery preview resolution: the availability width test is measured in
    cells, so coarse preview grids (Dnipro at 135 m) exclude much more land
    than the full-resolution runs. Decide whether previews should run finer

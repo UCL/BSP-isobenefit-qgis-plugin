@@ -80,6 +80,7 @@ class IsobenefitTask(QgsTask):
         centre_m2_per_person=grid.CENTRE_M2_PER_PERSON,
         centre_distance_m=None,
         green_distance_m=None,
+        min_park_area_m2=None,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -118,6 +119,7 @@ class IsobenefitTask(QgsTask):
         self.centre_m2_per_person = float(centre_m2_per_person)
         self.centre_distance_m = None if centre_distance_m is None else float(centre_distance_m)
         self.green_distance_m = None if green_distance_m is None else float(green_distance_m)
+        self.min_park_area_m2 = None if min_park_area_m2 is None else float(min_park_area_m2)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -176,12 +178,20 @@ class IsobenefitTask(QgsTask):
             f"CRS:       {self.target_crs.authid()}",
         ]
 
+    def _centre_walk(self) -> float:
+        """The centre walk in metres, falling back to the single max distance."""
+        return self.centre_distance_m or self.max_distance_m
+
+    def _green_walk(self) -> float:
+        """The green walk in metres, falling back to the single max distance."""
+        return self.green_distance_m or self.max_distance_m
+
     def _report_param_lines(self) -> list[str]:
         dispersal = {0.0: "Off", 0.0001: "Moderate", 0.04: "Aggressive"}.get(
             round(self.cent_prob_isol, 4), f"{self.cent_prob_isol:g}"
         )
-        cwalk = self.centre_distance_m or self.max_distance_m
-        gwalk = self.green_distance_m or self.max_distance_m
+        cwalk = self._centre_walk()
+        gwalk = self._green_walk()
         min_pop = self.centre_min_settlement * self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
         hi, md, lo = self.density_factors
         ph, pm, pl = self.prob_distribution
@@ -198,6 +208,7 @@ class IsobenefitTask(QgsTask):
             f"  Centre walk           : {cwalk:.0f} m",
             f"  Green walk            : {gwalk:.0f} m",
             f"  Min green span        : {self.min_green_span:.0f} m",
+            f"  Min park area         : {(self.min_park_area_m2 or grid.DEFAULT_MIN_PARK_AREA_M2) / 1.0e4:.0f} ha",
             f"  Density               : {dens}",
             f"  Min settlement        : ~{min_pop:,.0f} people ({self.centre_min_settlement} cells)",
             f"  Optimise centres      : {'on' if self.optimise_centres else 'off'}",
@@ -251,10 +262,12 @@ class IsobenefitTask(QgsTask):
         reach the target at a similar point."""
         sample = isobenefit.Simulation(
             state, origin, density, seeds,
-            self.granularity_m, self.max_distance_m, self.max_populat, self.min_green_span,
+            self.granularity_m, self._centre_walk(), self._green_walk(),
+            self.max_populat, self.min_green_span,
             self.build_prob, self.cent_prob_nb, self.cent_prob_isol, self.pop_target_cent_threshold,
             self.prob_distribution, self.density_factors,
             self.total_iters, self.random_seed,
+            min_park_area_m2=self.min_park_area_m2,
         )
         iters = 0
         while sample.current_iter < self.total_iters and sample.pop_target_ratio < 1.0:
@@ -403,7 +416,8 @@ class IsobenefitTask(QgsTask):
                 density,
                 sim_seeds,
                 self.granularity_m,
-                self.max_distance_m,
+                self._centre_walk(),
+                self._green_walk(),
                 self.max_populat,
                 self.min_green_span,
                 self.build_prob,
@@ -414,6 +428,7 @@ class IsobenefitTask(QgsTask):
                 self.density_factors,
                 self.total_iters,
                 self.random_seed,
+                min_park_area_m2=self.min_park_area_m2,
             )
             # Only NEW development is counted, so a run always starts from zero population and grows
             # toward the new-only target; existing fabric is context and never contributes here.
@@ -471,7 +486,6 @@ class IsobenefitTask(QgsTask):
                 plan, metrics, pre_plan, best_state = grid.select_plan(
                     states,
                     self.granularity_m,
-                    self.min_green_span,
                     self.max_distance_m,
                     existing_centres=seeds,
                     # existing development is frozen (never pruned) and tagged distinctly
@@ -480,6 +494,8 @@ class IsobenefitTask(QgsTask):
                     centre_mode=headline_mode,
                     transit_stops=transit_stops,
                     centre_anchors=station_anchors,
+                    target_population=self.max_populat,
+                    min_park_area_m2=self.min_park_area_m2,
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
                     new_density_km2=self._mean_new_density_km2(),
@@ -518,9 +534,10 @@ class IsobenefitTask(QgsTask):
                     gis_io.write_plan_raster(self.pre_path, pre_tiered, geotransform, self.target_crs)
                     self._plan_outputs.append((self.pre_path, "raw (before post-processing)"))
                     pre_m = grid.evaluate_plan(
-                        pre_plan, self.granularity_m, self.max_distance_m, min_green_span_m=self.min_green_span,
+                        pre_plan, self.granularity_m, self.max_distance_m,
                         centre_distance_m=self.centre_distance_m, green_distance_m=self.green_distance_m,
                         new_density_km2=self._mean_new_density_km2(), existing_green=(origin == 0),
+                        min_park_area_m2=self.min_park_area_m2,
                     )
                     report_stats.append(self._report_option(
                         "raw (before post-processing)", "raw", pre_m, self._count_centres(pre_plan), pre_tiered
@@ -533,7 +550,7 @@ class IsobenefitTask(QgsTask):
                     # as-grown option is produced.
                     mode_keys = ("grown", "placed", "minimal") if self.optimise_centres else ("grown",)
                     variants = grid.plan_variants(
-                        best_state, self.granularity_m, self.min_green_span, self.max_distance_m,
+                        best_state, self.granularity_m, self.max_distance_m,
                         {key: key for key in mode_keys},
                         existing_centres=seeds, existing_built=(origin == 1), existing_green=(origin == 0),
                         centre_anchors=station_anchors,
@@ -541,6 +558,7 @@ class IsobenefitTask(QgsTask):
                         centre_min_settlement=self.centre_min_settlement,
                         centre_m2_per_person=self.centre_m2_per_person,
                         new_density_km2=self._mean_new_density_km2(),
+                        min_park_area_m2=self.min_park_area_m2,
                     )
                     labels = {
                         "grown": "centres as grown",

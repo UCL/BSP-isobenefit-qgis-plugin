@@ -271,13 +271,16 @@ class Isobenefit:
         try:
             total_iters = _positive(int(self.dlg.n_iterations.text()))
             granularity_m = _positive(int(self.dlg.grid_size_m.text()))
-            # Split walks: centres and green each have their own. The CA grows by the LARGER
-            # walk; the recommended plan judges each amenity against its own.
+            # Split walks: centres and green each have their own, enforced separately in the
+            # CA (centre access at the centre walk, the green-access guard at the green walk);
+            # the recommended plan judges each amenity against its own. max_distance_m (the
+            # larger) remains the shared bound for extent checks and post-processing fields.
             centre_distance_m = _positive(int(self.dlg.centre_walk_dist.text()))
             green_distance_m = _positive(int(self.dlg.green_walk_dist.text()))
             max_distance_m = max(centre_distance_m, green_distance_m)
             max_populat = _positive(int(self.dlg.max_populat.text()))
             min_green_span = _positive(int(self.dlg.min_green_span.text()))
+            min_park_area_ha = _positive(float(self.dlg.min_park_area.text()))
             random_seed = int(self.dlg.random_seed.text())
             build_prob = float(self.dlg.build_prob.text())
             if not 0.0 < build_prob <= 1.0:
@@ -356,6 +359,7 @@ class Isobenefit:
             centre_m2_per_person=centre_m2_per_person,
             centre_distance_m=centre_distance_m,
             green_distance_m=green_distance_m,
+            min_park_area_m2=min_park_area_ha * 1.0e4,
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)
@@ -386,6 +390,7 @@ class Isobenefit:
                     "centre_m2_per_person": centre_m2_per_person,
                     "min_settlement_pop": min_settlement_pop,
                     "min_green_span_m": min_green_span,
+                    "min_park_area_ha": min_park_area_ha,
                     "densities_km2": dict(zip(("high", "medium", "low"), density_factors)),
                     "shares": dict(zip(("high", "medium", "low"), prob_distribution)),
                     "ensemble": self.dlg.ensemble_check.isChecked(),

@@ -47,7 +47,7 @@ def main():
     sub = _demo.substrate()
     template = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
-        _demo.GRAN, max(_demo.WALK, _demo.GREEN_WALK), TARGET, _demo.GREEN_SPAN,
+        _demo.GRAN, _demo.WALK, _demo.GREEN_WALK, TARGET, _demo.GREEN_SPAN,
         BUILD_PROB, 0.01, 0.0001, 0.8, _demo.TIER_PROBS, _demo.DENSITY_TIERS, 400, SEED,
     )
     states = [np.asarray(s) for s in isobenefit.run_ensemble(template, SEED, RUNS)]
@@ -55,11 +55,12 @@ def main():
     min_cells = _demo._min_settlement()
 
     _plan, _metrics, pre_plan, best_state = G.select_plan(
-        states, _demo.GRAN, _demo.GREEN_SPAN, max(_demo.WALK, _demo.GREEN_WALK),
+        states, _demo.GRAN, max(_demo.WALK, _demo.GREEN_WALK),
         existing_built=(sub["origin"] == 1), existing_green=(sub["origin"] == 0),
         existing_centres=sub["seeds"], centre_mode="placed",
         centre_distance_m=_demo.WALK, green_distance_m=_demo.GREEN_WALK,
         new_density_km2=mean_density, centre_min_settlement=min_cells,
+        target_population=TARGET,
     )
 
     options = []
@@ -67,14 +68,13 @@ def main():
     member = isobenefit.run_member(template, SEED, best_idx)
     pre_m = G.evaluate_plan(
         pre_plan, _demo.GRAN, max(_demo.WALK, _demo.GREEN_WALK),
-        min_green_span_m=_demo.GREEN_SPAN,
         centre_distance_m=_demo.WALK, green_distance_m=_demo.GREEN_WALK,
         new_density_km2=mean_density, existing_green=(sub["origin"] == 0),
     )
     options.append({"short": "raw", "metrics": pre_m, "n_centres": _count_centres(pre_plan)})
 
     variants = G.plan_variants(
-        best_state, _demo.GRAN, _demo.GREEN_SPAN, max(_demo.WALK, _demo.GREEN_WALK),
+        best_state, _demo.GRAN, max(_demo.WALK, _demo.GREEN_WALK),
         {key: key for key in ("grown", "placed", "minimal")},
         existing_centres=sub["seeds"], existing_built=(sub["origin"] == 1),
         existing_green=(sub["origin"] == 0),

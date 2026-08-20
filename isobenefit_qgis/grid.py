@@ -35,8 +35,8 @@ _BUILT_HIGH = (204, 122, 41)
 _CENTRE_LOW = (252, 187, 161)
 _CENTRE_MED = (239, 101, 72)
 _CENTRE_HIGH = (179, 18, 24)
-_EXIST_BUILT = (150, 134, 122)  # a cool grey-taupe so existing fabric recedes and reads apart from the warm new ramp
-_EXIST_CENTRE = (150, 40, 85)
+_EXIST_BUILT = (197, 180, 218)  # light purple: existing fabric recedes yet stays off the new ramps and exclusion greys
+_EXIST_CENTRE = (69, 72, 158)  # indigo, no red content: an isolated centre dot must read new-or-existing on its own
 _GREEN = (54, 109, 35)
 
 # (class code, (r, g, b), legend label) — the single-run animation palette.
@@ -140,6 +140,17 @@ def _label_components(mask: np.ndarray, queen: bool):
         return isobenefit.label_components(np.ascontiguousarray(mask, dtype=bool), queen)
     except (ImportError, AttributeError):
         return None
+
+
+DEFAULT_MIN_PARK_AREA_M2 = 20_000.0  # 2 ha: Natural England's accessible natural greenspace standard
+
+
+def park_threshold_cells(granularity_m: float, min_park_area_m2: float | None = None) -> int:
+    """Cells a park-qualifying green area must hold: the minimum park area (2 ha default,
+    the accessible-greenspace standard) over the cell area, matching the engine's park
+    rule. An area of zero yields a one-cell threshold, so any green counts."""
+    area = DEFAULT_MIN_PARK_AREA_M2 if min_park_area_m2 is None else float(min_park_area_m2)
+    return max(1, round(area / (granularity_m * granularity_m)))
 
 
 def _keep_large_components(mask: np.ndarray, min_cells: int) -> np.ndarray:
@@ -800,47 +811,63 @@ def evaluate_plan(
     plan: np.ndarray,
     granularity_m: float,
     max_distance_m: float,
-    min_green_span_m: float | None = None,
     transit_stops: np.ndarray | None = None,
     centre_distance_m: float | None = None,
     green_distance_m: float | None = None,
     new_density_km2: float = MEAN_NEW_DENSITY_KM2,
     existing_green: np.ndarray | None = None,
+    target_population: float | None = None,
+    min_park_area_m2: float | None = None,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
-    A home is *served* if it is within ``max_distance_m`` of both a centre and a real
-    park (within the walk = okay; not a gradient). Only green patches of at least
-    ``min_green_span_m`` across count as parks (specks don't). Returns shares in
-    ``[0, 1]``:
+    A home is *served* if it is within the walk of both a centre and a real park
+    (within the walk = okay; not a gradient). Only green patches of at least the
+    minimum park area (``min_park_area_m2``, 2 ha default) qualify as parks,
+    matching the growth rules' park definition; an area of zero lets any green
+    qualify. The headline metrics cover NEW homes only: the growth
+    rules guarantee every new home a centre within the centre walk and a park
+    within the green walk, so ``served_coverage`` doubles as the check that
+    post-processing preserved the guarantee. Existing fabric carries no guarantee
+    (it is assumed served by its own centres, and the growth rules only promise
+    never to worsen its park access), so it appears solely in the
+    ``incl_existing`` blend and the supply-side ratios. The split follows the
+    existing-* plan codes, so pass plans through ``_mark_existing`` first; an
+    untagged plan reads as all new. Returns shares in ``[0, 1]``:
 
-    - ``centre_coverage`` / ``green_coverage`` — share of homes within a walk of each;
-    - ``served_coverage`` — share within a walk of *both* (the headline);
-    - ``unserved_fraction`` — share left out (the equity headline);
-    - ``access_cost`` — average walk (m) to amenities over every home (unreachable counted
-      at a penalty); the **selection metric** (lower better). ``centre_access`` /
-      ``green_access`` are its two halves — avg walk to a centre, and to green, separately;
-    - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk to each (reachable only);
+    - ``centre_coverage`` / ``green_coverage`` — share of new homes within a walk of each;
+    - ``served_coverage`` — share of new homes within a walk of *both* (the headline);
+    - ``unserved_fraction`` — share of new homes left out (expected 0 by construction);
+    - ``served_coverage_incl_existing`` — the same test over every home in the
+      window, existing fabric included (descriptive only: no guarantee attaches);
+    - ``existing_served_coverage`` and the existing walk means — the existing
+      fabric alone, as context for comparison with the new development (present
+      only when the plan carries existing homes);
+    - ``access_cost`` — the **selection metric** (lower better): average walk (m) to
+      amenities over every new home, with unreachable homes counted at a penalty and,
+      when ``target_population`` is given, the unhoused remainder of the target counted
+      at the penalty distance too (so housing fewer people never wins selection).
+      ``centre_access`` / ``green_access`` are the plain per-amenity averages over new
+      homes, without the shortfall term;
+    - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk of served new homes to each;
     - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
 
     If ``transit_stops`` (a bool mask of public-transport stop cells) is given, also reports
-    ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` — walkable access to a
-    stop, as a third dimension alongside centre and green. These are *reported only*: transit
-    does not yet feed ``access_cost`` (the run-selection metric), so it cannot distort which
-    plan is chosen until the dimension is validated.
+    ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` — new homes' walkable
+    access to a stop, as a third dimension alongside centre and green. These are *reported
+    only*: transit does not yet feed ``access_cost`` (the run-selection metric), so it cannot
+    distort which plan is chosen until the dimension is validated.
     """
-    # Count existing fabric too, so scoring is the same whether the plan is still raw or has been
-    # tagged with the existing-* codes (otherwise a marked pre_plan silently drops existing built/centres
-    # and its metrics — and the raw-vs-option built-cell delta — come out inconsistent).
-    built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
+    new_homes = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE))
+    exist_homes = np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
+    built = new_homes | exist_homes
     n_built = int(built.sum())
     if n_built == 0:
         return {"built_cells": 0}
 
     green_mask = plan == PLAN_GREEN
-    if min_green_span_m:  # only real parks count, matching recommended_plan
-        green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
-        green_mask = _keep_large_components(green_mask, green_min)
+    # only real parks count, matching the growth rules
+    green_mask = _keep_large_components(green_mask, park_threshold_cells(granularity_m, min_park_area_m2))
 
     # Walking distances: the bounded grid walk (queen moves, barriers block) — the same
     # metric the growth rules use, so growth and scoring always agree.
@@ -856,18 +883,44 @@ def evaluate_plan(
     def _dist(mask):
         return _walk_distance(mask, granularity_m, field_bound, blocked=walk_blocked)
 
-    d_cent = _dist(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE)))[built]
-    d_green = _dist(green_mask)[built]
-    near_cent = d_cent <= centre_distance_m
-    near_green = d_green <= green_distance_m
-    served = near_cent & near_green
+    d_cent_field = _dist(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE)))
+    d_green_field = _dist(green_mask)
 
-    # selection metric: average walk to amenities over EVERY home, with anyone who
-    # can't reach within the limit counted at a penalty distance (so a plan can't
-    # score well by abandoning the fringe). Lower is better.
-    centre_access = float(np.where(near_cent, d_cent, 2.0 * centre_distance_m).mean())
-    green_access = float(np.where(near_green, d_green, 2.0 * green_distance_m).mean())
-    access_cost = 0.5 * (centre_access + green_access)
+    def _near(mask):
+        dc, dg = d_cent_field[mask], d_green_field[mask]
+        return dc, dg, dc <= centre_distance_m, dg <= green_distance_m
+
+    d_cent, d_green, near_cent, near_green = _near(new_homes)
+    served = near_cent & near_green
+    _dc_all, _dg_all, near_cent_all, near_green_all = _near(built)
+    served_all = near_cent_all & near_green_all
+
+    # selection metric: average walk to amenities over every NEW home, with anyone
+    # who can't reach within the limit counted at a penalty distance (so a plan
+    # can't score well by abandoning the fringe). When ``target_population`` is
+    # given, the unhoused remainder of the target enters the average as homes at
+    # the penalty distance, so a run cannot win selection by housing fewer
+    # people; with the target met this reduces to the plain mean walk.
+    has_new = bool(new_homes.any())
+    n_new = int(new_homes.sum())
+    cell_km2 = granularity_m * granularity_m / 1e6
+    population = n_new * new_density_km2 * cell_km2
+    if has_new:
+        centre_access = float(np.where(near_cent, d_cent, 2.0 * centre_distance_m).mean())
+        green_access = float(np.where(near_green, d_green, 2.0 * green_distance_m).mean())
+    else:  # a degenerate plan with no new development: worst-case penalty
+        centre_access = 2.0 * centre_distance_m
+        green_access = 2.0 * green_distance_m
+    shortfall_cells = 0.0
+    if target_population and new_density_km2:
+        shortfall_cells = max(0.0, float(target_population) - population) / (new_density_km2 * cell_km2)
+    denom = n_new + shortfall_cells
+    if denom:
+        sel_centre = (centre_access * n_new + 2.0 * centre_distance_m * shortfall_cells) / denom
+        sel_green = (green_access * n_new + 2.0 * green_distance_m * shortfall_cells) / denom
+    else:
+        sel_centre, sel_green = 2.0 * centre_distance_m, 2.0 * green_distance_m
+    access_cost = 0.5 * (sel_centre + sel_green)
 
     rows, cols = plan.shape
     adj = 0
@@ -875,36 +928,42 @@ def evaluate_plan(
         a = built[: rows - dy, : cols - dx] & built[dy:, dx:]
         adj += 2 * int(a.sum())  # each shared edge counts for both cells
 
-    # supply-side efficiency: how well-used each centre / unit of green is. Existing centres
-    # count too — the numerator (homes near ANY centre) does, and no metric may depend on
-    # whether the plan is tagged with the EXIST_* codes.
+    # supply-side efficiency: how well-used each centre / unit of green is, over the
+    # whole town — existing homes use new centres and parks too.
     n_centres = int(np.isin(plan, (PLAN_CENTRE, PLAN_EXIST_CENTRE)).sum())
     n_green = int(green_mask.sum())
 
     metrics = {
         "built_cells": n_built,
-        "centre_coverage": float(near_cent.mean()),
-        "green_coverage": float(near_green.mean()),
-        "served_coverage": float(served.mean()),
-        "unserved_fraction": float((~served).mean()),
-        "access_cost": access_cost,  # mean of the two below — the selection metric (lower better)
-        "centre_access": centre_access,  # avg walk to a centre over all homes (penalised)
-        "green_access": green_access,  # avg walk to green over all homes (penalised)
+        "new_cells": int(new_homes.sum()),
+        "centre_coverage": float(near_cent.mean()) if has_new else 0.0,
+        "green_coverage": float(near_green.mean()) if has_new else 0.0,
+        "served_coverage": float(served.mean()) if has_new else 0.0,
+        "unserved_fraction": float((~served).mean()) if has_new else 0.0,
+        "served_coverage_incl_existing": float(served_all.mean()),
+        "access_cost": access_cost,  # the selection metric (lower better; includes the shortfall term)
+        "centre_access": centre_access,  # avg walk to a centre over new homes (penalised)
+        "green_access": green_access,  # avg walk to green over new homes (penalised)
         "centre_walk_mean": float(d_cent[near_cent].mean()) if near_cent.any() else math.inf,
         "green_walk_mean": float(d_green[near_green].mean()) if near_green.any() else math.inf,
         "compactness": adj / (4.0 * n_built),
-        "centre_efficiency": float(near_cent.sum()) / n_centres if n_centres else 0.0,  # homes served per centre
-        "green_efficiency": float(near_green.sum()) / n_green if n_green else 0.0,  # homes served per green cell
+        "centre_efficiency": float(near_cent_all.sum()) / n_centres if n_centres else 0.0,  # homes served per centre
+        "green_efficiency": float(near_green_all.sum()) / n_green if n_green else 0.0,  # homes served per green cell
     }
+    # the existing fabric on its own, as context for comparison with the new
+    # development: no guarantee attaches, and nothing selects on these
+    if exist_homes.any():
+        d_ce, d_ge, near_ce, near_ge = _near(exist_homes)
+        served_exist = near_ce & near_ge
+        metrics["existing_served_coverage"] = float(served_exist.mean())
+        metrics["existing_centre_walk_mean"] = float(d_ce[near_ce].mean()) if near_ce.any() else math.inf
+        metrics["existing_green_walk_mean"] = float(d_ge[near_ge].mean()) if near_ge.any() else math.inf
     # per-person provision (rule-of-thumb readouts): NEW amenity over NEW population only. Existing
     # fabric carries no population (it is assumed served by its own centres), so the honest ratio is
     # what the plan ADDS — new mixed-use centre land, and new green — per new resident. Pass
     # ``existing_green`` (a bool mask) to exclude pre-existing green from the provision numerator;
     # without it, all qualifying green counts as new. NB these depend on the existing-* tagging,
     # unlike the coverage metrics above (evaluate marked plans for honest splits).
-    cell_km2 = granularity_m * granularity_m / 1e6
-    n_exist = int(np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE)).sum())
-    population = (n_built - n_exist) * new_density_km2 * cell_km2
     n_new_centres = int((plan == PLAN_CENTRE).sum())
     new_green_mask = green_mask if existing_green is None else green_mask & ~np.asarray(existing_green, dtype=bool)
     n_new_green = int(new_green_mask.sum())
@@ -916,8 +975,8 @@ def evaluate_plan(
     # so it cannot distort run-selection until validated).
     if transit_stops is not None:
         stops = np.asarray(transit_stops, dtype=bool)
-        if stops.any():
-            d_stop = _dist(stops)[built]
+        if stops.any() and has_new:
+            d_stop = _dist(stops)[new_homes]
             near_stop = d_stop <= max_distance_m
             metrics["transit_coverage"] = float(near_stop.mean())
             metrics["transit_access"] = float(np.where(near_stop, d_stop, 2.0 * max_distance_m).mean())
@@ -994,7 +1053,6 @@ def audit_centres(plan, granularity_m, max_distance_m):
 def optimise_plan(
     plan: np.ndarray,
     granularity_m: float,
-    min_green_span_m: float,  # accepted for signature stability; green qualification happens in _state_to_plan
     max_distance_m: float,
     existing_centres=None,
     existing_built=None,
@@ -1212,14 +1270,14 @@ def class_probabilities(states):
     )
 
 
-def _state_to_plan(state, min_green_span_m, granularity_m, existing_green=None) -> np.ndarray:
+def _state_to_plan(state, granularity_m, existing_green=None, min_park_area_m2=None) -> np.ndarray:
     """Map a single run's final state to a PLAN_* layout: built/centre -> built (the
     optimiser re-places centres), green kept only as qualifying parks (>= min-span).
     ``existing_green`` cells are always kept as green so existing parks are never lost."""
     state = np.asarray(state)
     plan = np.zeros(state.shape, dtype=np.uint8)
     plan[(state == 1) | (state == 2)] = PLAN_BUILT
-    green_min = max(1, round((min_green_span_m / granularity_m) ** 2))
+    green_min = park_threshold_cells(granularity_m, min_park_area_m2)
     plan[_keep_large_components(state == 0, green_min)] = PLAN_GREEN
     if existing_green is not None:
         plan[np.asarray(existing_green, dtype=bool)] = PLAN_GREEN  # never drop existing green
@@ -1246,7 +1304,6 @@ def _mark_existing(plan: np.ndarray, existing_built=None, existing_centres=None)
 def select_plan(
     states,
     granularity_m,
-    min_green_span_m,
     max_distance_m,
     existing_centres=None,
     max_eval=None,
@@ -1262,6 +1319,8 @@ def select_plan(
     centre_min_settlement=3,
     prune_islands=True,
     progress=None,
+    target_population=None,
+    min_park_area_m2=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run (at
     ``centre_mode``; see ``optimise_plan``) and keep the one with the lowest average walk
@@ -1290,8 +1349,9 @@ def select_plan(
         st = np.asarray(st)
         ca_centres = [(int(y), int(x)) for y, x in np.argwhere(st == 2)]  # the CA's grown centres
         opt = optimise_plan(
-            _state_to_plan(st, min_green_span_m, granularity_m, existing_green=existing_green),
-            granularity_m, min_green_span_m, max_distance_m,
+            _state_to_plan(st, granularity_m, existing_green=existing_green,
+                           min_park_area_m2=min_park_area_m2),
+            granularity_m, max_distance_m,
             existing_centres=existing_centres,
             existing_built=existing_built, ca_centres=ca_centres,
             centre_mode=centre_mode, centre_anchors=centre_anchors,
@@ -1301,11 +1361,15 @@ def select_plan(
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
             walk_cache=walk_cache,
         )
+        # tag before scoring: the coverage metrics and the selection metric read
+        # the existing-* codes to confine themselves to new homes
+        opt = _mark_existing(opt, existing_built=existing_built, existing_centres=existing_centres)
         m = evaluate_plan(
-            opt, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
+            opt, granularity_m, max_distance_m,
             transit_stops=transit_stops,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
-            new_density_km2=new_density_km2,
+            new_density_km2=new_density_km2, existing_green=existing_green,
+            target_population=target_population, min_park_area_m2=min_park_area_m2,
         )
         return opt, m
 
@@ -1323,18 +1387,10 @@ def select_plan(
             best_plan, best, best_state = opt, m, st
     pre_plan = None
     if best_plan is not None:
-        best_plan = _mark_existing(best_plan, existing_built=existing_built, existing_centres=existing_centres)
-        # re-score the marked plan: coverage metrics are basis-independent, but the per-person
-        # readouts need the existing/new split (new amenity over new population only)
-        best = evaluate_plan(
-            best_plan, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
-            transit_stops=transit_stops,
-            centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
-            new_density_km2=new_density_km2, existing_green=existing_green,
-        )
         # the chosen run BEFORE post-processing — its raw CA development + grown centres + qualifying
         # green — tagged with existing-* codes so it lines up with the post-processed plan
-        pre_plan = _state_to_plan(best_state, min_green_span_m, granularity_m, existing_green=existing_green)
+        pre_plan = _state_to_plan(best_state, granularity_m,
+                                  existing_green=existing_green, min_park_area_m2=min_park_area_m2)
         pre_plan[np.asarray(best_state) == 2] = PLAN_CENTRE  # show the CA's own grown centres
         pre_plan = _mark_existing(pre_plan, existing_built=existing_built, existing_centres=existing_centres)
     return best_plan, best, pre_plan, best_state
@@ -1421,7 +1477,6 @@ def to_tiered_plan(plan, density, density_factors_km2):
 def plan_variants(
     state,
     granularity_m,
-    min_green_span_m,
     max_distance_m,
     modes,
     *,
@@ -1435,6 +1490,7 @@ def plan_variants(
     new_density_km2=MEAN_NEW_DENSITY_KM2,
     centre_min_settlement=3,
     prune_islands=True,
+    min_park_area_m2=None,
 ):
     """Post-process one chosen CA run ``state`` at several centre modes, so the user can compare
     the options and pick rather than choosing up front. ``modes`` maps a label to a
@@ -1442,11 +1498,12 @@ def plan_variants(
     ``{label: (plan, metrics)}``; each plan is tagged with the existing-* codes."""
     state = np.asarray(state)
     ca_centres = [(int(y), int(x)) for y, x in np.argwhere(state == 2)]
-    base = _state_to_plan(state, min_green_span_m, granularity_m, existing_green=existing_green)
+    base = _state_to_plan(state, granularity_m, existing_green=existing_green,
+                          min_park_area_m2=min_park_area_m2)
     out: dict = {}
     for label, mode in modes.items():
         plan = optimise_plan(
-            base, granularity_m, min_green_span_m, max_distance_m,
+            base, granularity_m, max_distance_m,
             existing_centres=existing_centres, existing_built=existing_built, ca_centres=ca_centres,
             centre_mode=mode, centre_anchors=centre_anchors,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
@@ -1455,12 +1512,13 @@ def plan_variants(
             centre_min_settlement=centre_min_settlement, prune_islands=prune_islands,
         )
         marked = _mark_existing(plan, existing_built=existing_built, existing_centres=existing_centres)
-        # scored on the MARKED plan: coverage is basis-independent, and the per-person readouts
-        # need the existing/new split (new amenity over new population only)
+        # scored on the MARKED plan: the coverage metrics, the selection metric, and the
+        # per-person readouts all need the existing/new split
         metrics = evaluate_plan(
-            marked, granularity_m, max_distance_m, min_green_span_m=min_green_span_m,
+            marked, granularity_m, max_distance_m,
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2, existing_green=existing_green,
+            min_park_area_m2=min_park_area_m2,
         )
         out[label] = (marked, metrics)
     return out

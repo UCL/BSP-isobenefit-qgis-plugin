@@ -38,7 +38,8 @@ CENTRE_LOW, CENTRE_MED, CENTRE_HIGH = _hex(G._CENTRE_LOW), _hex(G._CENTRE_MED), 
 EXIST_BUILT, EXIST_CENTRE = _hex(G._EXIST_BUILT), _hex(G._EXIST_CENTRE)
 GREEN = _hex((89, 176, 60))  # nature
 RED = "#D32333"  # site-theme red for headings (centre dots use the CENTRE_* ramp)
-UNBUILDABLE = "#6f9fcf"  # water / industrial / barrier corridors, matching the input-layer panels
+UNBUILDABLE = "#c8c8c8"  # excluded cells (industrial / barriers / airfields) read as neutral void
+WATER = "#a8c8e4"  # excluded cells that are actually water: shown as water, light blue
 STREET = "#a9a9a9"
 INK = "#333333"  # legend and label text
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -107,6 +108,7 @@ def substrate():
     origin = np.full((rows, cols), -1, np.int16)
     density = np.zeros((rows, cols), np.float32)
     built, green, unbuild, cent = mask("built"), mask("green"), mask("unbuildable"), mask("centres")
+    water = mask("water")
     state[built] = 1
     origin[built] = 1
     # existing fabric carries no density and no population — it is context only
@@ -115,7 +117,8 @@ def substrate():
     seeds = [(int(r), int(c)) for r, c in np.argwhere(cent & built)]
     G.green_unviable_pockets(state, origin, _min_settlement())
     return {"state": state, "origin": origin, "density": density, "seeds": seeds,
-            "rows": rows, "cols": cols, "window": (xmin, ymin, xmax, ymax)}
+            "rows": rows, "cols": cols, "window": (xmin, ymin, xmax, ymax),
+            "water": water & unbuild & ~built}
 
 
 def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, stages=()):
@@ -123,7 +126,7 @@ def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, sta
     at ``stages``). Density is carried so growth stages can be coloured by their drawn tier."""
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
-        GRAN, WALK, pop, GREEN_SPAN, bp, nb, isol, 0.8, TIER_PROBS, DENSITY_TIERS, iters, seed,
+        GRAN, WALK, GREEN_WALK, pop, GREEN_SPAN, bp, nb, isol, 0.8, TIER_PROBS, DENSITY_TIERS, iters, seed,
     )
     snaps = {}
     while sim.current_iter < iters and sim.pop_target_ratio < 1.0:
@@ -145,7 +148,7 @@ def _min_settlement():
 
 def to_plan(sub, st, mode="placed"):
     plan, _, _, _ = G.select_plan(
-        [st], GRAN, GREEN_SPAN, WALK,
+        [st], GRAN, WALK,
         existing_built=sub["origin"] == 1, existing_centres=sub["seeds"],
         centre_mode=mode, centre_distance_m=WALK, green_distance_m=GREEN_WALK,
         centre_min_settlement=_min_settlement(),
@@ -234,12 +237,14 @@ def render_likelihood(prob, sub, name, title, underlay=""):
     cw, ch = Wc * P + 2 * x0, y0 + H * P + 120
     out = [f'<rect width="{cw}" height="{ch}" fill="white"/>',
            f'<text x="{x0}" y="34" fill="{RED}" font-weight="800" font-size="26">{title}</text>', underlay]
-    exist, unb = sub["origin"] == 1, sub["state"] == -1
+    exist, unb, wat = sub["origin"] == 1, sub["state"] == -1, sub["water"]
     for r in range(H):
         for c in range(Wc):
             x, y = x0 + c * P + P / 2, y0 + r * P + P / 2
             if exist[r, c]:
                 out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.42:.1f}" fill="{EXIST_BUILT}"/>')
+            elif wat[r, c]:
+                out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.3:.1f}" fill="{WATER}"/>')
             elif unb[r, c]:
                 out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{P * 0.3:.1f}" fill="{UNBUILDABLE}"/>')
             elif prob[r, c] > 0.04:
@@ -252,7 +257,8 @@ def render_likelihood(prob, sub, name, title, underlay=""):
         ("Development likelihood", [("built in most runs", BUILT_MED, 8, 1.0),
                                     ("built in few runs", BUILT_MED, 8, 0.35)]),
         ("Existing", [("existing built", EXIST_BUILT, 8, 1.0)]),
-        ("Other", [("nature", GREEN, 6, 1.0), ("unbuildable", UNBUILDABLE, 6, 1.0)]),
+        ("Other", [("nature", GREEN, 6, 1.0), ("water", WATER, 6, 1.0),
+                   ("unbuildable", UNBUILDABLE, 6, 1.0)]),
     ], x0, y0 + H * P + 24, Wc * P))
     doc = (f'<?xml version="1.0" encoding="UTF-8"?>'
            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {cw} {ch}" font-family="Arial, sans-serif">'
@@ -262,7 +268,7 @@ def render_likelihood(prob, sub, name, title, underlay=""):
     print(f"wrote {os.path.join(OUT, name)}.svg  ({Wc}x{H} cells)")
 
 
-def _grid_dots(codes, ox, oy, P, unbuildable) -> str:
+def _grid_dots(codes, ox, oy, P, unbuildable, water=None) -> str:
     """One dot per cell for a tier-coded grid, drawn at origin (ox, oy) and pitch P."""
     out = []
     H, Wc = codes.shape
@@ -273,6 +279,8 @@ def _grid_dots(codes, ox, oy, P, unbuildable) -> str:
             if v in TIER_STYLE:
                 color, radf = TIER_STYLE[v]
                 out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{P * radf:.1f}" fill="{color}"/>')
+            elif water is not None and water[r, c]:
+                out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{P * 0.3:.1f}" fill="{WATER}"/>')
             elif unbuildable is not None and unbuildable[r, c]:
                 out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{P * 0.3:.1f}" fill="{UNBUILDABLE}"/>')
             else:
@@ -286,7 +294,7 @@ _TIER_LEGEND = [
     ("Mixed-use centre", [("high", CENTRE_HIGH, 8, 1.0), ("medium", CENTRE_MED, 8, 1.0),
                           ("low", CENTRE_LOW, 8, 1.0)]),
     ("Existing", [("existing built", EXIST_BUILT, 8, 1.0), ("existing centre", EXIST_CENTRE, 8, 1.0)]),
-    ("Other", [("nature", GREEN, 6, 1.0), ("unbuildable", UNBUILDABLE, 6, 1.0)]),
+    ("Other", [("nature", GREEN, 6, 1.0), ("water", WATER, 6, 1.0), ("unbuildable", UNBUILDABLE, 6, 1.0)]),
 ]
 
 # the starting grid has no new development, so its key drops the New built / Mixed-use tier columns
@@ -303,7 +311,7 @@ def _write_svg(name, cw, ch, out) -> None:
     print(f"wrote {os.path.join(OUT, name)}.svg")
 
 
-def render(plan, name, title, underlay="", unbuildable=None, legend=None):
+def render(plan, name, title, underlay="", unbuildable=None, legend=None, water=None):
     """Render a tier-coded plan (from ``tiered`` or ``growth_codes``): each cell takes its tier's
     colour via TIER_STYLE, so new built reads as a yellow->brown ramp and mixed-use centres as reds."""
     H, Wc = plan.shape
@@ -312,12 +320,12 @@ def render(plan, name, title, underlay="", unbuildable=None, legend=None):
     out = [f'<rect width="{cw}" height="{ch}" fill="white"/>',
            f'<text x="{cw / 2:.1f}" y="34" fill="{RED}" font-weight="800" font-size="26" '
            f'text-anchor="middle">{title}</text>', underlay,
-           _grid_dots(plan, x0, y0, P, unbuildable),
+           _grid_dots(plan, x0, y0, P, unbuildable, water),
            _legend(legend or _TIER_LEGEND, x0, y0 + H * P + 24, Wc * P)]
     _write_svg(name, cw, ch, out)
 
 
-def render_multi(sub, panels, name, title, unbuildable):
+def render_multi(sub, panels, name, title, unbuildable, water=None):
     """Several sub-maps in ONE figure under one title, sharing a single legend (no per-panel legend).
     ``panels`` is a list of ``(tier_codes, subtitle)``. Used for the growth stages and the clustering
     options, so the sub-figures read as one comparison rather than separate images."""
@@ -335,7 +343,7 @@ def render_multi(sub, panels, name, title, unbuildable):
         out.append(f'<text x="{ox + pw / 2:.1f}" y="{y0 - 14:.1f}" fill="{INK}" font-size="16" '
                    f'font-weight="700" text-anchor="middle">{subtitle}</text>')
         out.append(streets_underlay(sub, P, ox, y0))
-        out.append(_grid_dots(codes, ox, y0, P, unbuildable))
+        out.append(_grid_dots(codes, ox, y0, P, unbuildable, water))
     out.append(_legend(_TIER_LEGEND, x0, y0 + H * P + 42, total_w))  # clear gap between panels and legend
     _write_svg(name, cw, ch, out)
 
@@ -347,10 +355,10 @@ def main():
           f"{int((sub['state'] == -1).sum())} unbuildable cells")
     P, x0, y0 = 9, 16, 54  # must match render()'s grid transform so the street underlay aligns
     streets = streets_underlay(sub, P, x0, y0)
-    unb = sub["state"] == -1
+    unb, wat = sub["state"] == -1, sub["water"]
 
     def draw(plan, name, title):
-        render(plan, name, title, underlay=streets, unbuildable=unb)
+        render(plan, name, title, underlay=streets, unbuildable=unb, water=wat)
 
     # The data -> grid bridge: the downloaded layers rasterised to the simulation's cells,
     # including exactly which cells are carved out as unbuildable.
@@ -359,7 +367,7 @@ def main():
         start[r, c] = G.PLAN_EXIST_CENTRE
     # the starting grid has no new development, so drop the New built / Mixed-use tiers from its key
     render(start, "demo_substrate", "The town as cells: the starting grid",
-           underlay=streets, unbuildable=unb, legend=_EXISTING_LEGEND)
+           underlay=streets, unbuildable=unb, legend=_EXISTING_LEGEND, water=wat)
 
     # THE worked example: grow the real town, snapshotting the growth on the way. The three growth
     # stages are ONE figure (three sub-panels, one shared legend), so they read as a single sequence.
@@ -369,12 +377,12 @@ def main():
         (growth_codes(sub, snaps[6][0], snaps[6][1]), "Iteration 6"),
         (growth_codes(sub, snaps[30][0], snaps[30][1]), "Iteration 30"),
         (growth_codes(sub, final, final_dens), "Target met (raw)"),
-    ], "demo_growth", "The rules at work on the real town", unb)
+    ], "demo_growth", "The rules at work on the real town", unb, water=wat)
 
     # The ensemble's uncertainty map: many runs -> share of runs each cell ends built
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
-        GRAN, WALK, 12000.0, GREEN_SPAN, 0.3, 0.01, 0.0001, 0.8, TIER_PROBS, DENSITY_TIERS, 400, 11,
+        GRAN, WALK, GREEN_WALK, 12000.0, GREEN_SPAN, 0.3, 0.01, 0.0001, 0.8, TIER_PROBS, DENSITY_TIERS, 400, 11,
     )
     prob = np.asarray(isobenefit.ensemble_probability(sim, 11, 24))
     render_likelihood(prob, sub, "demo_likelihood", "Development likelihood: 24 runs blended",
@@ -396,7 +404,7 @@ def main():
     # and both keep every home within the centre walk.
     st, _dens, _ = grow(sub, pop=20000.0, iters=3000)
     _plan, _m, _pre, best_state = G.select_plan(
-        [st], GRAN, GREEN_SPAN, WALK,
+        [st], GRAN, WALK,
         existing_built=sub["origin"] == 1, existing_green=sub["origin"] == 0,
         existing_centres=sub["seeds"], centre_mode="placed",
         centre_distance_m=WALK, green_distance_m=GREEN_WALK,
@@ -404,7 +412,7 @@ def main():
         new_density_km2=_mean_density(),
     )
     variants = G.plan_variants(
-        best_state, GRAN, GREEN_SPAN, WALK, {"placed": "placed", "minimal": "minimal"},
+        best_state, GRAN, WALK, {"placed": "placed", "minimal": "minimal"},
         existing_centres=sub["seeds"], existing_built=sub["origin"] == 1,
         existing_green=sub["origin"] == 0,
         centre_distance_m=WALK, green_distance_m=GREEN_WALK,
@@ -418,7 +426,7 @@ def main():
     render_multi(sub, [
         (tiered(variants["placed"][0]), "Optimised placement"),
         (tiered(variants["minimal"][0]), "Fewest centres"),
-    ], "demo_clustering", "Centre options", unb)
+    ], "demo_clustering", "Centre options", unb, water=wat)
 
     # Build probability: cap iterations (huge pop) so the same elapsed time shows the RATE.
     # RAW grown state, as in the dispersal panels: at 60 iterations the growth is still below the

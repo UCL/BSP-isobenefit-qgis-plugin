@@ -59,10 +59,9 @@ results rebuild from committed sources at fixed seeds.
 \section{Introduction}
 
 Isobenefit Urbanism \citep{dacci2019} proposes that the benefits of a
-settlement should be distributed evenly, as implied by the prefix
-\emph{iso}, which means equal. Regardless of where one lives, a local
-centre with shops, services, and workplaces, and open green land, are
-both within a walk. The idea originates
+settlement should be distributed evenly. Its prefix \emph{iso} means
+equal: wherever one lives, a local centre with shops, services, and
+workplaces should be within a walk, and so should green space. The idea originates
 in scenario work on isobenefit cities \citep{dacci2013}, and D'Acci later
 formalised it as a cellular-automaton morphogenesis, which was published
 with a Python simulator \citep{dacci_voto2023, voto_code}. The automaton
@@ -71,54 +70,44 @@ centralities (the published model's term for centres),
 and the walkability guarantee holds at every step however large the
 settlement becomes. The approach sits between master-planning and
 laissez-faire growth, because a few simple rules guide development while
-the detailed form emerges \citep{dacci_banister_white2024}. As with
-UrbanSim, an open model of land use and transport that entered use with
-metropolitan planning agencies \citep{waddell2002}, an open simulation
-tool can become a useful planning instrument. By incorporating
-real-world constraints, we aim to make the isobenefit model similarly
-useful for the early stages of the planning process.
+the detailed form emerges spontaneously \citep{dacci_banister_white2024}. Urban simulation models can become useful planning instruments, as
+UrbanSim, an open model of land use and transport, did when it entered
+use with metropolitan planning agencies \citep{waddell2002}. We
+likewise aim to operationalise Isobenefit Urbanism by adapting it to
+real-world constraints, so that planners can use it as part of the
+planning process, to conceptualise options and to engage in dialogue
+and feedback with residents and experts in their respective fields.
 
 The published model runs on an abstract grid, in which every cell
 starts as nature, distances are straight lines, and a single radius, typically set to an
 approximately fifteen-minute walk, governs access both to
 centres and to green. This abstraction keeps the morphology of the
-rules easy to study. In real-world use the model meets existing towns,
-fragmented green space, rivers, railways, motorways, and steep slopes,
-and its stochastic runs must become a drawing a planner can work with.
-We therefore add the inputs, the constraints, and the post-processing
-that carry the rules into this setting.
+rules easy to study. In real-world use, however, the model must
+accommodate existing constraints: towns, fragmented green space,
+rivers, railways, motorways, and steep slopes.
+Its outputs must also be in a GIS format that planners can work with.
+We therefore add the inputs, the modelling constraints, and the
+post-processing, and implement the result as a QGIS plugin.
 
 The contributions are:
 
 \begin{enumerate}
-\item An adaptation of the published rules to real geography. Existing
-  fabric is frozen, so the model keeps built-up areas as they stand and
-  focuses growth on open land. Designated green space is protected from
-  development. Major roads, railways, and rivers become barriers
-  that walking routes must detour around, slopes above a limit are
-  treated as unsuitable for building, and distances are bounded grid
-  walks, walking routes
-  traced across the grid around these obstacles, in place of straight
-  lines. Every departure from the published model is tabulated
+\item An adaptation of the published rules to real geography. The
+  model keeps existing settlements and protected green space as they
+  stand, simulates growth within land released for development, and
+  measures access as walks that detour around barriers and terrain.
+  Departures from the published model are tabulated
   (Table~\ref{tab:rules}).
 \item An open, reproducible implementation: a QGIS plugin that wraps a
   simulation engine published on PyPI, and accompanying documentation
   with explanatory material and worked scenarios.
-\item A plan-derivation pipeline on top of the automaton. The
-  likelihood layers blend an ensemble of runs and record how often each
-  cell ends built, separating robust development locations from
-  contingent ones. The plan options come from the best single run,
-  judged on the lowest mean walk to centres and green. An optional
-  post-processing refinement step improves the placement and
-  arrangement of centres to consolidate access and arranges the highest
-  densities around them, while the walk constraint is retained.
+\item A plan-derivation pipeline on top of the automaton. An ensemble
+  of runs yields likelihood layers, which show where development is
+  robust across runs, and plan options derived from the best single
+  run, with centres and densities arranged for walkable access.
 \end{enumerate}
 
-The likelihood layers and the plan options are sketches for the early
-stages of planning. They let a planner explore walkable
-growth that retains the isobenefit principle, and they give residents
-and other experts something concrete to discuss. We
-demonstrate the pipeline on three case studies, each dominated by a
+We demonstrate the pipeline on three case studies, each dominated by a
 different constraint.
 Sections~\ref{sec:background} to~\ref{sec:discussion} cover the background,
 the methods, the case studies, and the discussion.
@@ -143,13 +132,13 @@ keep nature as one continuously connected region with a minimum
 width of T\(^*\), so at no point does green space between built areas
 narrow to below the walkable radius. An eligible cell builds by a random draw at each
 step, so the built edge advances irregularly. If the build probability
-is set to 0.5, for example, a cell has an even chance of building at
-each step. New
+is set to 0.5, for example, an eligible cell has an even chance of
+building at each step. New
 centralities seed by rarer draws, either beside built land that has
-outgrown its centres or on open land, and each built block draws its
-population density from one of three tiers. The run stops at a
-population cap. These rates, the tiers, and the cap are settings in
-this implementation (Section~\ref{sec:rules}).
+outgrown its centres or on open land. Each built block takes its
+population density from one of three tiers, high, medium, or low,
+drawn at set shares, and the run stops when the total population
+reaches its cap.
 
 \subsection{Walking distances and standards}
 
@@ -164,7 +153,11 @@ everyday errands are of the same order \citep{yang_diezroux2012}. For
 green space, the WHO Regional Office for Europe advises everyday access
 within about 300~m straight-line distance \citep{who2016}, and Natural
 England's accessible natural greenspace standard uses the same figure
-\citep{naturalengland2010}. The 400~m starting default is slightly
+\citep{naturalengland2010}. Both standards also set a minimum size
+for qualifying green space: the WHO advice concerns spaces of at
+least half a hectare to one hectare, and the Natural England standard
+applies from 2 hectares, which is the starting default for the
+minimum park area (Section~\ref{sec:growth}). The 400~m starting default is slightly
 longer than the advised 300~m because a walking route goes around
 obstacles and covers more distance than the straight line.
 Section~\ref{sec:cases} sweeps the centre walk across 400, 800, and
@@ -180,10 +173,7 @@ layers can instead be supplied from the user's own data. Alternatively,
 the user can download the layers and then edit them to reflect
 different parameters or constraints. The simulation tool passes these inputs to the
 engine, published on PyPI, which applies the growth rules and the
-post-processing. The subsections below follow that sequence: the input
-layers, the grid they become, the growth rules, the ensemble and the
-selection of the best single run, and the post-processing that derives
-the plan options.
+post-processing. The subsections below follow that sequence.
 
 \subsection{Real inputs}
 \label{sec:inputs}
@@ -195,37 +185,45 @@ these layers from OpenStreetMap
 built fabric, green space to preserve, existing mixed-use centres,
 unbuildable land (the areas treated as unavailable for development),
 streets, public-transport stops, rail and tram stations,
-railways, and industrial land. Terrain slope bands at 15, 20, 25, and 30
-degrees are derived from the Copernicus GLO-30 elevation model
-\citep{copernicus_glo30} and ship as a separate editable layer, so users
-can trim or extend them from local knowledge before the selected bands
-join the unbuildable layer.
+railways, and industrial land. Terrain slope is mapped from the Copernicus GLO-30 elevation model
+\citep{copernicus_glo30} as bands steeper than 15, 20, 25, and 30
+degrees. The bands are a separate layer that users can edit from local
+knowledge, and bands above the scenario's slope limit count as
+unbuildable.
 
 \subsection{Grid preparation}
 \label{sec:gridprep}
 
 The simulation tool rasterises the input layers to a working grid at a
-user-selected cell size of 50~m or finer. Corridors along motorways,
-trunk roads, railways, and rivers are marked unbuildable, so walking
-routes detour around them and development cannot cross them. Other
-street geometry is retained for display only.
+user-selected cell size, such as 50~m, though a finer grid may be
+preferable where the extent and the available computation allow. Each
+cell takes a class from the layers that cover it: existing built
+fabric, green space, unbuildable land, or open land. Corridors along
+motorways, trunk roads, railways, and rivers are also marked
+unbuildable. The remaining street geometry is kept for display
+only.
 
-Existing built fabric is frozen: the simulation leaves it unchanged,
-treats its residents as served, and counts only new residents toward
-the population target.
+The simulation models new development and holds existing fabric
+fixed. Population densities for the existing fabric are generally
+unavailable from OpenStreetMap, so the model assigns density tiers,
+centres, and resident counts to new development only. The population
+target therefore refers to new residents.
 
-Slivers and pockets that cannot carry viable development are
-eliminated from consideration: open land too narrow to build on, or in
-a region too small to hold the minimum settlement, is reclassified as
-protected green before the run and still counts toward green access.
+The simulation tool then screens the open land for viability. Slivers
+too narrow to build on, and pockets too small to hold a settlement of
+the configured minimum size, are reclassified as protected green
+before the run; those that reach the minimum park area qualify as
+parks (Section~\ref{sec:growth}).
 
-Growth and scoring both measure distance with the bounded grid walk: a
-shortest path over traversable cells, blocked by unbuildable land,
-bounded at the maximum walking distance, and computed by Dijkstra
-search. Street-network distances were tested in earlier releases and
-removed. A new settlement's streets do not yet exist, so the metric
-combined network distances over existing streets with assumed routes
-over new fabric, and the two are not comparable.
+In both the growth rules and the scoring, the simulation measures
+distance with the bounded grid walk: a shortest path over traversable
+cells, blocked by unbuildable land, bounded at the maximum walking
+distance, and computed by Dijkstra search. In earlier releases we experimented with a hybrid measure,
+street-network distances over the existing fabric joined to grid
+walks over new growth, which has no streets until a later design
+stage. We decided on principle not to proceed, because a distance
+measured partly over streets and partly over the grid has no
+consistent meaning.
 
 \subsection{The growth rules}
 \label{sec:growth}
@@ -237,9 +235,17 @@ when it is empty, buildable, and touches built land, which keeps growth
 attached to the existing fabric. A candidate must remain within
 the centre walk of a centre, which keeps new homes within walkable
 reach of shops and services. Building it must also leave the green network
-intact: a green corridor between developments may not narrow below the
-minimum green span, and a split must leave each fragment a minimum
-contiguous area. A candidate that passes every check builds at the
+intact. A park is a contiguous green area of at least the minimum
+park area, a parameter whose 2-hectare default follows Natural
+England's accessible natural greenspace standard
+\citep{naturalengland2010}. A
+green corridor between developments may not narrow below the minimum
+span, and new development may not shrink a park below the park area,
+whether by splitting it or by building along its edge. New development
+must also keep a park within the green walk of the new home and of
+every built cell, the existing fabric included. Green areas smaller than a park
+are not counted for green access and may be built over. A candidate
+that passes every check builds at the
 configured build probability, which makes growth stochastic, staggers
 the built edge, and sets the pace of growth. Each built cell draws one
 of the three density tiers at the configured shares.
@@ -253,14 +259,15 @@ centre per iteration, and seeding stops once the run reaches 80\% of
 the population target. Separately, a dispersal probability allows
 leapfrogging: an isolated centre may seed on open land by a per-cell
 draw, at a rate the dispersal setting controls, and begin a new
-satellite settlement around it. A run stops when it
+satellite settlement around it. The dispersal probability can be set
+to zero where leapfrogging is undesirable. A run stops when it
 reaches the population target.
 
 \subsection{Ensembles and selection}
 \label{sec:ensemble}
 
-An ensemble comprises a configurable number of runs, which is fifty in
-every scenario reported here. Each run starts from the same inputs,
+An ensemble consists of a configurable number of runs, set to fifty
+in the scenarios reported here. Each run starts from the same inputs,
 draws its own seed, and grows into a complete settlement pattern that
 satisfies the constraints. Because the draws differ, different runs
 build in different places. The likelihood layers record, for each
@@ -268,25 +275,25 @@ cell, the fraction of runs in which it ended built or green. A cell
 built in most runs is a robust development location, and a cell built
 in only a few is contingent.
 
-Each run satisfies the constraints, but a blend of many runs can
-violate them, because the runs disagree cell by cell. One run keeps a
-cell open as part of a green corridor while another builds on it, so
-the layers record an intermediate fraction there, and a map assembled
-from the most frequently built cells follows the corridor routing of
-no single run. The layers therefore show where development is likely,
-and we do not read the plan off them. Instead, we post-process every
-run in the same way into a candidate plan
-(Section~\ref{sec:fouroutputs}) and select the one with the lowest
-mean walk to a centre and to green.
+The likelihood layers are for information only. Because they average
+runs that disagree cell by cell, the layers do not themselves satisfy
+the constraints. We therefore post-process each run into a candidate
+plan and select the run whose new homes have the lowest mean walk to
+a centre and to green as the final plan. Section~\ref{sec:fouroutputs}
+describes the post-processing.
 
 We also
-report served coverage, the share of homes within the chosen walks of
-both a centre and a qualifying park. A contiguous green patch
-qualifies as a park when its area reaches the square of the minimum
-green span, which is 16 hectares at the 400~m default. Both measures
-use the bounded grid walk of the growth rules, judging the centre and
-the green distance each against its own walk, and a reported mean walk
-averages over the homes within that walk of the amenity.
+report served coverage, the share of new homes within the chosen
+walks of both a centre and a park. The growth rules guarantee both
+walks for every new home, so this figure doubles as a check that
+post-processing preserved the guarantee. A companion figure blends in
+the existing fabric, which carries no guarantee: the model assumes
+existing homes are served by their own centres, and the growth rules
+promise only that new development never removes an existing home's
+park within the green walk. All measures use the bounded grid walk of the growth
+rules, judging the centre and the green distance each against its own
+walk, and a reported mean walk averages over the new homes within
+that walk of the amenity.
 
 \subsection{Post-processing and the four outputs}
 \label{sec:fouroutputs}
@@ -388,12 +395,13 @@ Reparam. \\
 \addlinespace
 Nature continuously connected, with a minimum width of T\(^*\) &
 Local rules: no green corridor between developments may pinch below the
-minimum span (strips bounded by water or a carved corridor exempt), and a
-split must leave each fragment a minimum contiguous area &
+minimum span (strips bounded by water or a carved corridor exempt), and
+new development may not shrink a park below the minimum park area &
 Modified \\
 \addlinespace
 Every built cell keeps nature within T\(^*\) &
-Same, as a bounded walk; the check also covers the newly built cell &
+Same: a park must stay within the green walk of every built cell,
+the newly built cell included &
 Unchanged \\
 \addlinespace
 New centralities seed near under-served built land, probability 0.005 &
@@ -477,8 +485,11 @@ We ran the pipeline on three demonstration cases, in each of which a
 different constraint dominates the outcome: a
 free-standing new settlement (Cambourne, UK), a green-belt release at a
 metropolitan edge (Crews Hill, London), and a topography-bound hillside
-expansion (Pajarito, Medell\'in). Three further scenarios (Dnipro,
-Celina, and Kigali East)
+expansion (Pajarito, Medell\'in). Each case's figure varies the setting
+its constraints make most legible: the centre walk at Cambourne, the
+density mix at Crews Hill, and dispersal at Pajarito; the centre-walk
+sweep of Table~\ref{tab:sweep} covers all three. Three further
+scenarios (Dnipro, Celina, and Kigali East)
 ship in the repository with the same file anatomy. Table~\ref{tab:scenarios}
 gives the settings; we translated local density norms into the model's
 three-tier control.
@@ -500,7 +511,7 @@ seed 42), which \path{scripts/paper_metrics.py} regenerates.
 \caption{Case-study settings. Tiers are people per km\(^2\) (high / medium /
 low) with shares in the same order; all cases use an 800~m centre walk,
 400~m green walk, a 1{,}000-person minimum settlement, 400~m minimum green
-span, and fifty ensemble runs.}
+span, a 2-hectare minimum park area, and fifty ensemble runs.}
 \label{tab:scenarios}
 \small
 \begin{tabularx}{\textwidth}{l L L L}
@@ -525,45 +536,49 @@ Cambourne, a fast-growing Cambridgeshire new settlement, is the reference
 case. The 30{,}000 target is hypothetical and reflects no assessment of
 local housing need. Figure~\ref{fig:cambourne} shows the study window before growth and under
 three centre-walk settings. At the baseline 800~m walk, the plan
-accommodates about 13{,}600 of the 30{,}000 target with 86\% of all homes
-served (within the walk of both a centre and green), a mean centre walk
-of 295~m, and a mean green walk of 94~m. The window's developable land,
+accommodates about 16{,}300 of the 30{,}000 target. Every new home is
+served, coverage including existing fabric is 89\%, and new homes
+average a 212~m walk to a centre and 108~m to green. The window's developable land,
 after the availability rule sets aside what cannot carry a settlement,
 does not hold the full target at the baseline settings.
 
 Table~\ref{tab:fouroutputs} reproduces the run report for a smaller
 12{,}000-person Cambourne window used as the worked demonstration of the
-four outputs, which \path{scripts/demo_run_report.py} regenerates. The raw grown state credits 84\% of the target, and pruning reduces
-this to 62\%. This window grows part of its population as detached
+four outputs, which \path{scripts/demo_run_report.py} regenerates. The raw grown state credits 78\% of the target, and pruning reduces
+this to 61\%. This window grows part of its population as detached
 satellite clusters that stay below the 1{,}000-person minimum, and
-pruning reverts them to nature. Served coverage holds at 93--97\%
-across all four outputs. Among the three plan options, which differ
-only in centres, optimised placement cuts the mean centre walk from 259
-to 235~m with one more centre area than as grown (19 against 18), and
-fewest centres removes two of those centre areas at the cost of most
-of the reduction (255~m). Fewest centres starts from the optimised
+pruning reverts them to nature. Every new home is served in all four
+outputs; with the existing fabric blended in, coverage reads
+94--99\%. Among the three plan options, which differ
+only in centres, optimised placement cuts the mean centre walk from 233
+to 179~m with the same eighteen centre areas as grown, and
+fewest centres removes one centre area at the cost of part
+of the reduction (204~m). Fewest centres starts from the optimised
 placement and removes centres only while every home keeps one within
 the walk.
 
 \begin{table}[t]
 \centering
 \caption{Run report for the Cambourne demonstration window (12{,}000-person
-target): the raw grown state and the three plan options.}
+target): the raw grown state and the three plan options. Coverage and walks
+are measured over new homes; the incl.-existing row blends in the frozen
+fabric, which carries no guarantee.}
 \label{tab:fouroutputs}
 \small
 \begin{tabular}{l r r r r}
 \toprule
 Metric & Raw & As grown & Optimised placement & Fewest centres \\
 \midrule
-Population accommodated & 10{,}132 & 7{,}410 & 7{,}396 & 7{,}396 \\
-Share of target & 84\% & 62\% & 62\% & 62\% \\
-Built cells (incl.\ existing) & 2{,}075 & 1{,}691 & 1{,}691 & 1{,}691 \\
-Mixed-use centre areas & 25 & 18 & 19 & 17 \\
-Served coverage (centre and green) & 97\% & 93\% & 93\% & 93\% \\
-Mean walk to a centre (m) & 291 & 259 & 235 & 255 \\
-Mean walk to green (m) & 113 & 114 & 114 & 114 \\
-Centre \sqm{} per person & 4 & 19 & 19 & 19 \\
-Green \sqm{} per person & 674 & 1{,}051 & 1{,}053 & 1{,}053 \\
+Population accommodated & 9{,}327 & 7{,}360 & 7{,}353 & 7{,}353 \\
+Share of target & 78\% & 61\% & 61\% & 61\% \\
+Built cells (incl.\ existing) & 1{,}962 & 1{,}685 & 1{,}685 & 1{,}685 \\
+Mixed-use centre areas & 26 & 18 & 18 & 17 \\
+Served coverage, new homes & 100\% & 100\% & 100\% & 100\% \\
+Incl.\ existing fabric (no guarantee) & 99\% & 94\% & 94\% & 94\% \\
+Mean walk to a centre (m) & 274 & 233 & 179 & 204 \\
+Mean walk to green (m) & 104 & 109 & 109 & 109 \\
+Centre \sqm{} per person & 5 & 19 & 19 & 19 \\
+Green \sqm{} per person & 779 & 1{,}081 & 1{,}082 & 1{,}082 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -573,11 +588,12 @@ Green \sqm{} per person & 674 & 1{,}051 & 1{,}053 & 1{,}053 \\
 \includegraphics[width=0.48\textwidth]{figures/cambourne_existing.png}\hfill
 \includegraphics[width=0.48\textwidth]{figures/cambourne_baseline.png}\\[2pt]
 \includegraphics[width=0.48\textwidth]{figures/cambourne_walk400.png}\hfill
-\includegraphics[width=0.48\textwidth]{figures/cambourne_walk1600.png}
+\includegraphics[width=0.48\textwidth]{figures/cambourne_walk1600.png}\\[6pt]
+\includegraphics[width=\textwidth]{figures/legend.png}
 \caption{The Cambourne window before growth (top left) and the
 recommended plan at centre walks of 800~m (top right), 400~m (bottom
-left), and 1{,}600~m (bottom right). Served coverage rises with the
-permitted walk. Full scenario resolution, seed 42.}
+left), and 1{,}600~m (bottom right). Coverage including existing
+fabric rises with the permitted walk. Full scenario resolution, seed 42.}
 \label{fig:cambourne}
 \end{figure}
 
@@ -595,13 +611,15 @@ the site boundary and the allocation's scale, as a hypothetical reading
 of the site. Whether the release should proceed is a question for the
 plan's examination and its public consultation.
 
-At the baseline walk the plan accommodates about 11{,}700 of the
-13{,}000
-target with 75\% of homes served, a mean centre walk of 271~m, and a mean
-green walk of 106~m (Figure~\ref{fig:crewshill}). Shifting the shares
-one step toward the high tier houses 7\% more people on 4\% fewer built
-cells, so within the release boundary the denser preset saves land
-without a population cost. The station anchor holds the main centre against the rail
+At the baseline walk the plan reaches 12{,}936 of the 13{,}000 target;
+coverage including existing fabric is 77\%, and new homes
+average a 74~m walk to a centre and 76~m to green.
+Figure~\ref{fig:crewshill} varies the density
+mix on the fixed boundary. Shifting the shares one step toward the high
+tier houses 1\% more people on 5\% fewer built cells; one step toward
+the low tier takes 7\% more built cells for the same population.
+Across the two directions, populations within 1\% of each other span a
+13\% difference in land take within the release. The station anchor holds the main centre against the rail
 line, so the walkable structure forms around the site's one existing
 piece of transport infrastructure.
 
@@ -609,13 +627,16 @@ piece of transport infrastructure.
 \centering
 \includegraphics[width=0.48\textwidth]{figures/london_crews_hill_existing.png}\hfill
 \includegraphics[width=0.48\textwidth]{figures/london_crews_hill_baseline.png}\\[2pt]
-\includegraphics[width=0.48\textwidth]{figures/london_crews_hill_walk400.png}\hfill
-\includegraphics[width=0.48\textwidth]{figures/london_crews_hill_walk1600.png}
+\includegraphics[width=0.48\textwidth]{figures/london_crews_hill_lower.png}\hfill
+\includegraphics[width=0.48\textwidth]{figures/london_crews_hill_denser.png}\\[6pt]
+\includegraphics[width=\textwidth]{figures/legend.png}
 \caption{The Crews Hill window before growth (top left) and the
-recommended plan, with dispersal off, at centre walks of 800~m (top
-right), 400~m (bottom left), and 1{,}600~m (bottom right). The station
-anchor holds the main centre against the rail line at every setting.
-Full scenario resolution, seed 42.}
+recommended plan, with dispersal off, at three density mixes: the
+baseline shares (top right), shares shifted one step toward the low
+tier (bottom left), and one step toward the high tier (bottom right).
+The same target takes visibly different amounts of the release. The
+station anchor holds the main centre against the rail line in every
+mix. Full scenario resolution, seed 42.}
 \label{fig:crewshill}
 \end{figure}
 
@@ -630,26 +651,33 @@ km\(^2\)) reflects the area's housing towers. The scenario is a
 hypothetical exercise on the district's terrain and carries no
 recommendation for its future development.
 
-At the baseline walk the plan accommodates about 29{,}400 of the 40{,}000
-target with 76\% of homes served and a mean centre walk of 221~m
+At the baseline walk the plan accommodates about 32{,}200 of the 40{,}000
+target with coverage including existing fabric at 94\% and a 56~m mean
+centre walk for new homes
 (Figure~\ref{fig:medellin}), with the steep-slope mask fragmenting the
-buildable land. The coverage figure counts the substantial existing hillside fabric
-in the window as well as the new growth, so it reads low even where new
-growth is well served. Turning dispersal off
-lowers both the accommodated population (25{,}100) and coverage
-(54\%), because contiguous growth cannot reach the buildable benches
-that only satellite seeding can start.
+buildable land. Figure~\ref{fig:medellin} varies dispersal, and
+the moderate baseline does best of the three settings. Turning
+dispersal off lowers the accommodated population (22{,}900 people, with
+coverage including existing fabric at 93\%), because contiguous growth
+cannot reach the buildable
+benches that only satellite seeding can start. Aggressive dispersal
+also underperforms the baseline (27{,}700 people at 91\%):
+some dispersal is needed to reach the benches, and past that point
+further scatter fragments the growth without housing more people.
 
 \begin{figure}[p]
 \centering
 \includegraphics[width=0.48\textwidth]{figures/medellin_pajarito_existing.png}\hfill
 \includegraphics[width=0.48\textwidth]{figures/medellin_pajarito_baseline.png}\\[2pt]
-\includegraphics[width=0.48\textwidth]{figures/medellin_pajarito_walk400.png}\hfill
-\includegraphics[width=0.48\textwidth]{figures/medellin_pajarito_walk1600.png}
+\includegraphics[width=0.48\textwidth]{figures/medellin_pajarito_compact.png}\hfill
+\includegraphics[width=0.48\textwidth]{figures/medellin_pajarito_dispersed.png}\\[6pt]
+\includegraphics[width=\textwidth]{figures/legend.png}
 \caption{The Pajarito window before growth (top left) and the recommended
-plan at centre walks of 800~m (top right), 400~m (bottom left), and
-1{,}600~m (bottom right). Slopes over 20\(^\circ\) are unbuildable and
-fragment the buildable land. Full scenario resolution, seed 42.}
+plan under three dispersal settings: the moderate baseline (top right),
+dispersal off (bottom left), and aggressive (bottom right). Slopes over
+20\(^\circ\) are unbuildable and fragment the buildable land into
+benches that contiguous growth cannot reach. Full scenario resolution,
+seed 42.}
 \label{fig:medellin}
 \end{figure}
 
@@ -657,18 +685,16 @@ fragment the buildable land. Full scenario resolution, seed 42.}
 
 Table~\ref{tab:sweep} sweeps the centre walk across 400, 800, and
 1{,}600~m for the three cases. A longer permitted walk lengthens the
-mean walk in every case and raises served coverage at Cambourne (74\%
-to 99\%) and Crews Hill (61\% to 88\%). Pajarito moves least, and not
-monotonically, because the terrain mask binds the form before the
-centre walk does and each figure comes from one selected run. Windows
-dominated by existing fabric sit lower on the coverage metric, which
-counts every home in the window (Section~\ref{sec:discussion}).
+mean walk and raises coverage including existing fabric in every
+case. The rise is largest at Pajarito between the 400 and 800~m
+settings, because many existing hillside homes sit within 800~m of a
+centre but beyond 400~m. Each figure comes from one selected run.
 
 \begin{table}[t]
 \centering
-\caption{Served coverage and mean centre walk under three centre-walk
-settings. Coverage counts all homes in the window, including existing
-fabric; the mean walk averages over homes within reach of a centre.}
+\caption{Coverage including existing fabric, and the mean centre walk of
+new homes, under three centre-walk settings. Every new home is served by
+construction; the existing fabric carries no guarantee.}
 \label{tab:sweep}
 \small
 \begin{tabular}{l rr rr rr}
@@ -677,9 +703,9 @@ fabric; the mean walk averages over homes within reach of a centre.}
 \multicolumn{2}{c}{1{,}600~m} \\
 Scenario & Cov. & Walk & Cov. & Walk & Cov. & Walk \\
 \midrule
-Cambourne & 74\% & 163~m & 86\% & 295~m & 99\% & 433~m \\
-Crews Hill & 61\% & 146~m & 75\% & 271~m & 88\% & 392~m \\
-Pajarito & 63\% & 110~m & 76\% & 221~m & 72\% & 280~m \\
+Cambourne & 78\% & 159~m & 89\% & 212~m & 99\% & 280~m \\
+Crews Hill & 63\% & 47~m & 77\% & 74~m & 91\% & 88~m \\
+Pajarito & 67\% & 44~m & 94\% & 56~m & 97\% & 71~m \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -706,12 +732,12 @@ the same terms while never crossing motorways, railways, and rivers.
 
 \subsection{The post-processing gap}
 
-The gap between the raw grown state and the plan options (84\% against 62\%
+The gap between the raw grown state and the plan options (78\% against 61\%
 of target in the Cambourne demonstration window) is produced by pruning
 alone. The pruned clusters are detached satellites that stayed below
 the configured 1{,}000-person minimum when the run met its target, and
 keeping them as free-standing settlements would overstate coverage. A
-threshold that removes more than a quarter
+threshold that removes about a fifth
 of the grown population indicates that dispersal settings and the minimum
 settlement size interact strongly, so the threshold warrants per-scenario
 scrutiny in place of one universal default.
@@ -721,11 +747,13 @@ scrutiny in place of one universal default.
 Benefit is scored as a threshold, so 80~m and 780~m to a centre count the
 same and coverage overstates the benefit of homes near the limit. A
 distance-decay score would be more faithful to the isobenefit idea of
-graded benefit. Any qualifying park serves its whole catchment regardless
+graded benefit. Any park serves its whole catchment regardless
 of quality, which overstates green provision where park quality is poor.
-Coverage counts every home in the window, so the metric does not compare
-across windows with different shares of existing fabric, and
-within-scenario comparisons are the intended reading. Every reported
+Served coverage over new homes holds by construction, so it verifies
+the pipeline rather than discriminating between settings. Coverage
+including existing fabric counts every home in the window, so it does
+not compare across windows with different shares of existing fabric,
+and within-scenario comparisons are the intended reading. Every reported
 figure comes from the best single run at one master seed and carries no
 across-run spread, so we do not interpret small differences between
 settings, such as mean walks a few metres apart. The pipeline has

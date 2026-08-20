@@ -130,7 +130,8 @@ def _make(grid, total_iters=50, seed=42):
         grid["density"],
         grid["seeds"],
         GRAN,
-        800.0,
+        800.0,  # centre walk
+        400.0,  # green walk
         10_000_000.0,
         100.0,
         0.25,
@@ -194,8 +195,8 @@ def test_evaluate_plan_only_real_parks_count():
     g = 24
     plan = np.full((g, g), PLAN_BUILT, np.uint8)
     plan[0, 0] = PLAN_GREEN  # a single-cell speck, not a park
-    assert evaluate_plan(plan, 100.0, 800.0)["green_coverage"] > 0.0  # speck counts when unfiltered
-    assert evaluate_plan(plan, 100.0, 800.0, min_green_span_m=400.0)["green_coverage"] == 0.0  # filtered out
+    assert evaluate_plan(plan, 100.0, 800.0, min_park_area_m2=0.0)["green_coverage"] > 0.0  # area 0: any green
+    assert evaluate_plan(plan, 100.0, 800.0, min_park_area_m2=160_000.0)["green_coverage"] == 0.0  # filtered out
 
 
 def test_evaluate_empty_plan():
@@ -340,7 +341,7 @@ def test_select_plan_progress_abort():
     st = np.zeros((30, 30), np.int16)
     st[10:20, 10:20] = 1
     st[15, 15] = 2
-    out = select_plan([st, st], 100.0, 400.0, 800.0, progress=lambda d, t: False)
+    out = select_plan([st, st], 100.0, 800.0, progress=lambda d, t: False)
     assert out == (None, None, None, None)
 
 
@@ -375,7 +376,7 @@ def test_select_plan_walk_query_budget(monkeypatch):
 
     monkeypatch.setattr(G, "_walk_distance", counting)
     plan, metrics, _pre, _best = G.select_plan(
-        [st], 50.0, 400.0, 800.0, existing_built=existing,
+        [st], 50.0, 800.0, existing_built=existing,
         centre_distance_m=800.0, green_distance_m=400.0,
     )
     assert plan is not None and metrics is not None
@@ -488,12 +489,12 @@ def test_optimise_plan_centre_modes():
     plan[10:30, 10:30] = PLAN_BUILT  # a 20x20 development (centroid ~ (19, 19))
     edge = (10, 10)  # the simulation grew a centre in the corner
 
-    grown = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], centre_mode="grown")
+    grown = optimise_plan(plan, 50.0, 800.0, ca_centres=[edge], centre_mode="grown")
     centres_grown = {(int(y), int(x)) for y, x in np.argwhere(grown == PLAN_CENTRE)}
     assert edge in centres_grown  # the grown cell stays a centre, unmoved
     assert len(centres_grown) > 1  # and the centre grew to the area its catchment warrants
 
-    placed = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[edge], centre_mode="placed")
+    placed = optimise_plan(plan, 50.0, 800.0, ca_centres=[edge], centre_mode="placed")
     centres_placed = {(int(y), int(x)) for y, x in np.argwhere(placed == PLAN_CENTRE)}
     assert edge not in centres_placed  # re-positioned off the corner, toward the centre
 
@@ -531,10 +532,10 @@ def test_optimise_plan_anchors_centre_at_station():
     plan[10:30, 10:30] = PLAN_BUILT
 
     anchor = (12, 12)  # a station near the development edge
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[], centre_anchors=[anchor])
+    out = optimise_plan(plan, 50.0, 800.0, ca_centres=[], centre_anchors=[anchor])
     assert anchor in {(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)}  # anchored + kept
 
-    out2 = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[], centre_anchors=[(0, 0)])
+    out2 = optimise_plan(plan, 50.0, 800.0, ca_centres=[], centre_anchors=[(0, 0)])
     assert (0, 0) not in {(int(y), int(x)) for y, x in np.argwhere(out2 == PLAN_CENTRE)}  # off built -> ignored
 
 
@@ -545,7 +546,7 @@ def test_optimise_plan_grows_station_anchor():
     g = 50
     plan = np.zeros((g, g), np.uint8)
     plan[10:40, 10:40] = PLAN_BUILT  # 30x30 development around the station
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[], centre_anchors=[(15, 15)])
+    out = optimise_plan(plan, 50.0, 800.0, ca_centres=[], centre_anchors=[(15, 15)])
     centres = {(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)}
     assert (15, 15) in centres  # the station is a centre
     comp = next(c for c in _components(out == PLAN_CENTRE) if (15, 15) in c)
@@ -595,7 +596,7 @@ def test_optimise_plan_grows_centre_into_area():
     g = 50
     plan = np.zeros((g, g), np.uint8)
     plan[10:40, 10:40] = PLAN_BUILT  # a 30x30 = 900-cell development
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(25, 25)])
+    out = optimise_plan(plan, 50.0, 800.0, ca_centres=[(25, 25)])
     centre_cells = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
     assert len(centre_cells) > 1  # grew into an area, not a single cell
     assert all(10 <= y < 40 and 10 <= x < 40 for y, x in centre_cells)  # stays on the development
@@ -607,7 +608,7 @@ def test_optimise_plan_culls_tiny_ca_centre():
     plan = np.zeros((g, g), np.uint8)
     plan[10:30, 10:30] = PLAN_BUILT  # real development
     plan[2, 36:38] = PLAN_BUILT  # an isolated 2-cell speck
-    out = optimise_plan(plan, 100.0, 400.0, 800.0, ca_centres=[(20, 20), (2, 36)])
+    out = optimise_plan(plan, 100.0, 800.0, ca_centres=[(20, 20), (2, 36)])
     cs = [(int(y), int(x)) for y, x in np.argwhere(out == PLAN_CENTRE)]
     assert any(10 <= y < 30 and 10 <= x < 30 for y, x in cs)  # real development keeps a centre
     assert not any(y < 5 and x >= 35 for y, x in cs)  # the 2-cell speck's centre is culled
@@ -675,7 +676,7 @@ def test_optimise_plan_keeps_attached_infill():
     existing[10:20, 10:20] = True
     plan[14:16, 20:22] = PLAN_BUILT  # 4 new infill cells against the town's edge
     out = optimise_plan(
-        plan, 100.0, 400.0, 800.0, existing_centres=[(15, 15)], existing_built=existing,
+        plan, 100.0, 800.0, existing_centres=[(15, 15)], existing_built=existing,
         ca_centres=[(15, 21)], centre_min_settlement=20,
     )
     infill = out[14:16, 20:22]
@@ -697,7 +698,7 @@ def test_optimise_plan_keeps_scattered_infill_clusters():
         plan[row, span] = PLAN_BUILT
     plan[20:25, 24:29] = PLAN_BUILT  # a 25-cell district against the town's edge
     out = optimise_plan(
-        plan, 100.0, 400.0, 800.0, existing_centres=[(18, 16)], existing_built=existing,
+        plan, 100.0, 800.0, existing_centres=[(18, 16)], existing_built=existing,
         centre_min_settlement=7,
     )
     for row, span in scraps:
@@ -732,7 +733,7 @@ def test_centres_do_not_bridge_open_gaps():
     plan = np.zeros((g, g), np.uint8)
     plan[5:35, 4:16] = PLAN_BUILT  # left built-up area
     plan[5:35, 24:36] = PLAN_BUILT  # right built-up area (open gap cols 16-23)
-    out = optimise_plan(plan, 100.0, 400.0, 800.0)
+    out = optimise_plan(plan, 100.0, 800.0)
     xs = [int(x) for _, x in np.argwhere(out == PLAN_CENTRE)]
     assert any(x < 16 for x in xs)  # left served
     assert any(x >= 24 for x in xs)  # right served
@@ -748,7 +749,7 @@ def test_optimise_never_prunes_existing_built():
     existing = np.zeros((g, g), bool)
     existing[3:5, 3:5] = True  # ...that is EXISTING (frozen), so the prune must leave it
     out = optimise_plan(
-        plan, 50.0, 400.0, 800.0, existing_built=existing, ca_centres=[(20, 20)], centre_min_settlement=12
+        plan, 50.0, 800.0, existing_built=existing, ca_centres=[(20, 20)], centre_min_settlement=12
     )
     assert (out[3:5, 3:5] != PLAN_GREEN).all()  # the existing cluster is not pruned to green
 
@@ -759,7 +760,7 @@ def test_select_plan_freezes_and_tags_existing():
     existing_built = np.zeros((g, g), bool)
     existing_built[0:20, :] = True  # top half already developed
     plan, _m, _pre, _st = select_plan(
-        [state], 100.0, 400.0, 800.0, existing_centres=[(5, 5)], existing_built=existing_built
+        [state], 100.0, 800.0, existing_centres=[(5, 5)], existing_built=existing_built
     )
     assert plan is not None
     assert not ((plan == PLAN_GREEN) & existing_built).any()  # existing never pruned to green
@@ -774,7 +775,7 @@ def test_true_area_centres_marked_on_plan():
     plan = np.zeros((g, g), np.uint8)
     plan[5:35, 5:35] = PLAN_BUILT  # built block
     centre_cells = [(r, c) for r in range(10, 16) for c in range(10, 16)]  # 6x6 centre area
-    out = optimise_plan(plan, 100.0, 400.0, 800.0, existing_centres=centre_cells)
+    out = optimise_plan(plan, 100.0, 800.0, existing_centres=centre_cells)
     assert set(np.unique(out)).issubset({PLAN_NONE, PLAN_GREEN, PLAN_BUILT, PLAN_CENTRE})
     for r, c in centre_cells:
         assert out[r, c] == PLAN_CENTRE  # every covered, built cell is a centre cell
@@ -791,7 +792,7 @@ def test_class_probabilities():
 
 def test_select_plan_on_demo(grid):
     states = isobenefit.run_ensemble(_make(grid), 7, 6)
-    plan, m, pre, st = select_plan(states, GRAN, 400.0, 800.0, existing_centres=grid["seeds"])
+    plan, m, pre, st = select_plan(states, GRAN, 800.0, existing_centres=grid["seeds"])
     assert plan.shape == (grid["rows"], grid["cols"])
     assert pre is not None and pre.shape == plan.shape  # the raw (pre-processing) plan is returned too
     assert st is not None and st.shape == plan.shape  # the chosen run's state, for compactness variants
@@ -820,8 +821,8 @@ def test_optimise_plan_minimal_uses_fewer_centres_with_full_coverage():
     plan = np.zeros((g, g), np.uint8)
     plan[10:70, 10:70] = PLAN_BUILT
     seeds = [(20, 20), (20, 50), (50, 20), (50, 50), (40, 40), (30, 30), (25, 45)]  # over-seeded
-    placed = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=seeds, centre_mode="placed")
-    minimal = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=seeds, centre_mode="minimal")
+    placed = optimise_plan(plan, 50.0, 800.0, ca_centres=seeds, centre_mode="placed")
+    minimal = optimise_plan(plan, 50.0, 800.0, ca_centres=seeds, centre_mode="minimal")
     n_placed = len(_components(placed == PLAN_CENTRE))
     n_minimal = len(_components(minimal == PLAN_CENTRE))
     assert n_minimal <= n_placed
@@ -841,10 +842,10 @@ def test_optimise_plan_centre_area_scales_per_person():
     plan = np.zeros((g, g), np.uint8)
     plan[10:50, 10:50] = PLAN_BUILT
     common = dict(ca_centres=[(30, 30)], centre_mode="placed")
-    small = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=5.0, **common)
-    large = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=30.0, **common)
+    small = optimise_plan(plan, 50.0, 800.0, centre_m2_per_person=5.0, **common)
+    large = optimise_plan(plan, 50.0, 800.0, centre_m2_per_person=30.0, **common)
     assert int((large == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # more provision per person
-    dense = optimise_plan(plan, 50.0, 400.0, 800.0, centre_m2_per_person=5.0, new_density_km2=9000.0, **common)
+    dense = optimise_plan(plan, 50.0, 800.0, centre_m2_per_person=5.0, new_density_km2=9000.0, **common)
     assert int((dense == PLAN_CENTRE).sum()) > int((small == PLAN_CENTRE).sum())  # more people, same dial
 
 
@@ -856,24 +857,24 @@ def test_evaluate_plan_reports_per_person_provision():
     plan[10:30, 10:30] = PLAN_BUILT
     plan[19:21, 19:21] = PLAN_CENTRE
     plan[10:30, 32:38] = PLAN_GREEN
-    m = evaluate_plan(plan, 100.0, 800.0, min_green_span_m=200.0, new_density_km2=4000.0)
+    m = evaluate_plan(plan, 100.0, 800.0, min_park_area_m2=40_000.0, new_density_km2=4000.0)
     assert m["population"] == pytest.approx(400 * 4000.0 * 0.01)  # 400 cells x 1 ha at 4000/km²
     assert m["centre_m2_per_person"] == pytest.approx(4 * 100.0 * 100.0 / m["population"])
     assert m["green_m2_per_person"] > 0.0
     # existing fabric carries NO population: marking half the fabric existing halves the count
     marked = plan.copy()
     marked[10:30, 10:20] = PLAN_EXIST_BUILT
-    m2 = evaluate_plan(marked, 100.0, 800.0, min_green_span_m=200.0, new_density_km2=4000.0)
+    m2 = evaluate_plan(marked, 100.0, 800.0, min_park_area_m2=40_000.0, new_density_km2=4000.0)
     assert m2["population"] == pytest.approx(0.5 * m["population"])
     # existing centres do not count as provided amenity (only PLAN_CENTRE does)
     marked2 = plan.copy()
     marked2[19:21, 19:21] = PLAN_EXIST_CENTRE
-    m3 = evaluate_plan(marked2, 100.0, 800.0, min_green_span_m=200.0, new_density_km2=4000.0)
+    m3 = evaluate_plan(marked2, 100.0, 800.0, min_park_area_m2=40_000.0, new_density_km2=4000.0)
     assert m3["centre_m2_per_person"] == 0.0
     # pre-existing green is excluded from the green provision when the mask is supplied
     exist_green = np.zeros((g, g), bool)
     exist_green[10:30, 32:38] = True
-    m4 = evaluate_plan(plan, 100.0, 800.0, min_green_span_m=200.0,
+    m4 = evaluate_plan(plan, 100.0, 800.0, min_park_area_m2=40_000.0,
                        new_density_km2=4000.0, existing_green=exist_green)
     assert m4["green_m2_per_person"] == 0.0
     # coverage metrics are unaffected by the tagging (basis-independent)
@@ -892,7 +893,7 @@ def test_every_settlement_keeps_an_anchor_centre():
     plan[38:48, 38:48] = PLAN_BUILT  # settlement two (10x10), ~1.7 km away at 100 m cells
     for mode in ("grown", "placed", "minimal"):
         out = optimise_plan(
-            plan, 100.0, 400.0, 400.0, ca_centres=[(18, 18), (43, 43)], centre_mode=mode,
+            plan, 100.0, 400.0, ca_centres=[(18, 18), (43, 43)], centre_mode=mode,
         )
         for comp in _components((out == PLAN_BUILT) | (out == PLAN_CENTRE)):
             assert any(out[y, x] == PLAN_CENTRE for y, x in comp), f"unanchored settlement in mode {mode}"
@@ -909,7 +910,7 @@ def test_contiguity_floor_reverts_orphan_centres():
     plan[20:50, 20:50] = PLAN_BUILT  # the real town
     plan[5, 5] = PLAN_BUILT  # a 2-cell orphan speck with the CA's grown centre
     plan[5, 6] = PLAN_BUILT
-    out = optimise_plan(plan, 50.0, 400.0, 800.0, ca_centres=[(35, 35), (5, 5)],
+    out = optimise_plan(plan, 50.0, 800.0, ca_centres=[(35, 35), (5, 5)],
                         centre_mode="grown", centre_min_settlement=1)
     assert out[5, 5] == PLAN_GREEN and out[5, 6] == PLAN_GREEN  # speck reverted, centre gone
     assert (out[20:50, 20:50] == PLAN_CENTRE).sum() >= 1  # the town keeps its centre
@@ -924,8 +925,8 @@ def test_optimise_plan_min_settlement_culls_satellite():
     plan[20:60, 20:60] = PLAN_BUILT  # main town
     plan[3:7, 3:7] = PLAN_BUILT  # 4x4 satellite, detached
     common = dict(ca_centres=[(40, 40), (5, 5)], centre_mode="placed")
-    kept = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=3, **common)
-    culled = optimise_plan(plan, 50.0, 400.0, 800.0, centre_min_settlement=40, **common)
+    kept = optimise_plan(plan, 50.0, 800.0, centre_min_settlement=3, **common)
+    culled = optimise_plan(plan, 50.0, 800.0, centre_min_settlement=40, **common)
     sat = lambda out: any(y < 10 and x < 10 for y, x in np.argwhere(out == PLAN_CENTRE))  # noqa: E731
     assert sat(kept)  # satellite (16 cells) keeps a centre when the minimum is small
     assert not sat(culled)  # ...and loses it when the minimum (40) exceeds its catchment
@@ -955,8 +956,8 @@ def test_optimise_plan_prunes_centreless_island():
     plan[20:50, 10:40] = PLAN_BUILT  # main development (kept, gets a centre)
     plan[3:6, 53:56] = PLAN_BUILT  # 3x3 stranded speck (9 cells), far from anything, no centre
     common = dict(ca_centres=[(35, 25)], centre_mode="placed", centre_min_settlement=12)
-    pruned = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=True, **common)
-    kept = optimise_plan(plan, 50.0, 400.0, 800.0, prune_islands=False, **common)
+    pruned = optimise_plan(plan, 50.0, 800.0, prune_islands=True, **common)
+    kept = optimise_plan(plan, 50.0, 800.0, prune_islands=False, **common)
     assert (pruned[3:6, 53:56] == PLAN_GREEN).all()  # stranded speck reverted to green
     assert not (kept[3:6, 53:56] == PLAN_GREEN).any()  # ...only when cleanup is on (off: speck kept/developed)
     assert (pruned[20:50, 10:40] == PLAN_BUILT).any()  # the real development is untouched
@@ -972,7 +973,7 @@ def test_plan_variants_centre_modes():
     state[10:70, 10:70] = 1  # a big built block (larger than one catchment)
     for y, x in ((20, 20), (20, 60), (60, 20), (60, 60), (40, 40)):
         state[y, x] = 2  # the CA's grown centres
-    out = plan_variants(state, 50.0, 400.0, 800.0, {"placed": "placed", "minimal": "minimal"})
+    out = plan_variants(state, 50.0, 800.0, {"placed": "placed", "minimal": "minimal"})
     assert set(out) == {"placed", "minimal"}
     placed_plan, placed_m = out["placed"]
     minimal_plan, _minimal_m = out["minimal"]
@@ -994,7 +995,7 @@ def test_plan_variants_grown_keeps_ca_centres():
     state = np.zeros((g, g), np.int16)
     state[10:50, 10:50] = 1
     state[20, 20] = 2  # the CA's grown centre, deliberately off-centre
-    out = plan_variants(state, 100.0, 400.0, 800.0, {"grown": "grown", "placed": "placed"})
+    out = plan_variants(state, 100.0, 800.0, {"grown": "grown", "placed": "placed"})
     grown_plan, grown_m = out["grown"]
     assert "served_coverage" in grown_m
     grown_cs = {(int(y), int(x)) for y, x in np.argwhere(grown_plan == PLAN_CENTRE)}
@@ -1004,30 +1005,56 @@ def test_plan_variants_grown_keeps_ca_centres():
     assert placed_cs != grown_cs  # the placed option re-positions its centres
 
 
-def test_evaluate_plan_marked_unmarked_equivalence():
-    # evaluate_plan must score a plan identically whether existing development is tagged with the
-    # EXIST_* codes or folded into the plain codes — sim_runner compares a marked pre_plan against
-    # unmarked variants, so any basis-dependence corrupts the raw-vs-processed accounting.
-    rng = np.random.default_rng(42)
+def test_evaluate_plan_new_homes_basis():
+    # The headline coverage and the selection metric read NEW homes only (the existing-* codes
+    # carry no guarantee); the blend appears solely as served_coverage_incl_existing. An
+    # unmarked plan reads as all new, so its headline equals the marked plan's blend.
     g = 30
     marked = np.zeros((g, g), np.uint8)
-    marked[2:12, 2:12] = PLAN_BUILT
-    marked[6, 6] = PLAN_CENTRE
-    marked[15:28, 4:20] = PLAN_EXIST_BUILT
-    marked[20, 10] = PLAN_EXIST_CENTRE
-    marked[2:8, 20:28] = PLAN_GREEN
-    for y, x in rng.integers(0, g, size=(30, 2)):  # scattered existing specks
-        if marked[y, x] == PLAN_NONE:
-            marked[y, x] = PLAN_EXIST_BUILT
+    # a fully served new block: 4x4 homes, centre in reach of every cell, park adjacent
+    marked[2:6, 2:6] = PLAN_BUILT
+    marked[4, 4] = PLAN_CENTRE
+    marked[2:6, 6:10] = PLAN_GREEN  # 16 cells >= the 4-cell park threshold
+    # a far existing block with its own centre but no park in reach
+    marked[20:28, 15:25] = PLAN_EXIST_BUILT
+    marked[24, 20] = PLAN_EXIST_CENTRE
     unmarked = marked.copy()
     unmarked[unmarked == PLAN_EXIST_BUILT] = PLAN_BUILT
     unmarked[unmarked == PLAN_EXIST_CENTRE] = PLAN_CENTRE
-    m1 = evaluate_plan(marked, 100.0, 400.0, min_green_span_m=200.0)
-    m2 = evaluate_plan(unmarked, 100.0, 400.0, min_green_span_m=200.0)
-    for key in ("built_cells", "served_coverage", "centre_coverage", "green_coverage",
-                "unserved_fraction", "access_cost", "compactness",
-                "centre_efficiency", "green_efficiency"):
+    m1 = evaluate_plan(marked, 100.0, 400.0, min_park_area_m2=40_000.0)
+    m2 = evaluate_plan(unmarked, 100.0, 400.0, min_park_area_m2=40_000.0)
+    # form and totals do not depend on the tagging
+    for key in ("built_cells", "compactness", "centre_efficiency", "green_efficiency"):
         assert m1[key] == m2[key], f"{key}: marked={m1[key]} unmarked={m2[key]}"
+    # the marked headline covers the new block only, where service is complete
+    assert m1["new_cells"] == 16
+    assert m1["served_coverage"] == 1.0
+    assert m1["unserved_fraction"] == 0.0
+    # the blend dilutes it with the unserved existing block, and the untagged
+    # plan's headline equals that blend (everything reads as new)
+    assert m1["served_coverage"] > m1["served_coverage_incl_existing"]
+    assert m1["served_coverage_incl_existing"] == m2["served_coverage"]
+    assert m2["served_coverage"] == m2["served_coverage_incl_existing"]
+    # the selection metric follows the new-homes basis
+    assert m1["access_cost"] != m2["access_cost"]
+
+
+def test_selection_metric_counts_target_shortfall():
+    # a run cannot win selection by housing fewer people: the unhoused remainder of
+    # the target enters access_cost at the penalty distance, and with the target met
+    # the metric reduces to the plain mean walk
+    g = 20
+    plan = np.zeros((g, g), np.uint8)
+    plan[2:6, 2:6] = PLAN_BUILT
+    plan[4, 4] = PLAN_CENTRE
+    plan[2:6, 6:10] = PLAN_GREEN
+    kwargs = dict(min_park_area_m2=40_000.0, new_density_km2=10000.0)
+    met = evaluate_plan(plan, 100.0, 400.0, **kwargs)
+    same = evaluate_plan(plan, 100.0, 400.0, target_population=met["population"], **kwargs)
+    short = evaluate_plan(plan, 100.0, 400.0, target_population=4 * met["population"], **kwargs)
+    assert same["access_cost"] == met["access_cost"]
+    assert short["access_cost"] > same["access_cost"]
+    assert short["centre_access"] == same["centre_access"]  # reported walks stay plain
 
 
 def test_select_plan_cleanup_accounting_non_negative():
@@ -1042,8 +1069,8 @@ def test_select_plan_cleanup_accounting_non_negative():
     exist = np.zeros((g, g), bool)
     exist[15:20, 4:9] = True
     state[15:20, 4:9] = 1
-    _best, best_m, pre_plan, _st = select_plan([state], 100.0, 200.0, 400.0, existing_built=exist)
-    pre_m = evaluate_plan(pre_plan, 100.0, 400.0, min_green_span_m=200.0)
+    _best, best_m, pre_plan, _st = select_plan([state], 100.0, 400.0, existing_built=exist)
+    pre_m = evaluate_plan(pre_plan, 100.0, 400.0, min_park_area_m2=40_000.0)
     removed = pre_m["built_cells"] - best_m["built_cells"]
     assert removed >= 0
     assert removed >= 1  # the speck really was cleaned up

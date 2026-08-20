@@ -165,8 +165,15 @@ class IsobenefitDialog(QtWidgets.QDialog):
         )
         pp.addRow("Min settlement (people)", self.min_settlement)
         self.min_green_span = QtWidgets.QLineEdit("400", self)
-        self.min_green_span.setToolTip("A green patch must span at least this distance to count as a usable park.")
+        self.min_green_span.setToolTip("No green corridor between developments may narrow below this span.")
         pp.addRow("Min green span (m)", self.min_green_span)
+        self.min_park_area = QtWidgets.QLineEdit("2", self)
+        self.min_park_area.setToolTip(
+            "A contiguous green area must reach this size to qualify as a park, during growth "
+            "and in the scores. The 2 ha default follows Natural England's accessible natural "
+            "greenspace standard."
+        )
+        pp.addRow("Min park area (ha)", self.min_park_area)
 
         # --- Density ------------------------------------------------------------------
         # Three development-density tiers (people per km²), each drawn at a probability. Every new
@@ -440,6 +447,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "centre_walk_m": (self.centre_walk_dist, "centre walk"),
             "green_walk_m": (self.green_walk_dist, "green walk"),
             "min_green_span_m": (self.min_green_span, "min green span"),
+            "min_park_area_ha": (self.min_park_area, "min park area"),
             "min_settlement_pop": (self.min_settlement, "min settlement"),
             "centre_m2_per_person": (self.centre_m2_person, "centre m² per person"),
         }

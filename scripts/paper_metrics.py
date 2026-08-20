@@ -39,7 +39,10 @@ _spec.loader.exec_module(_gallery)
 OUT = os.path.join(REPO, "temp", "paper_metrics")
 FIGS = os.path.join(REPO, "paper", "figures")
 
-# scenario -> presets the manuscript cites (id, params overrides)
+# scenario -> presets the manuscript cites (id, params overrides). Each case-study FIGURE
+# demonstrates one dial where its scenario binds hardest (Cambourne: centre walk; Crews Hill:
+# density mix; Pajarito: dispersal); the walk presets are computed for every case because the
+# cross-scenario sweep table cites them.
 PLAN = {
     "cambourne": [
         ("baseline", {}),
@@ -51,12 +54,14 @@ PLAN = {
         ("walk400", {"centre_walk_m": 400.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
         ("denser", {"shares": {"high": 0.5, "medium": 0.3, "low": 0.2}}),
+        ("lower", {"shares": {"high": 0.1, "medium": 0.3, "low": 0.6}}),
     ],
     "medellin_pajarito": [
         ("baseline", {}),
         ("walk400", {"centre_walk_m": 400.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
         ("compact", {"dispersal": "off"}),
+        ("dispersed", {"dispersal": "aggressive"}),
     ],
 }
 
@@ -68,12 +73,12 @@ PAPER_PANELS = {
     ("cambourne", "walk1600"): "cambourne_walk1600.png",
     ("london_crews_hill", "existing"): "london_crews_hill_existing.png",
     ("london_crews_hill", "baseline"): "london_crews_hill_baseline.png",
-    ("london_crews_hill", "walk400"): "london_crews_hill_walk400.png",
-    ("london_crews_hill", "walk1600"): "london_crews_hill_walk1600.png",
+    ("london_crews_hill", "lower"): "london_crews_hill_lower.png",
+    ("london_crews_hill", "denser"): "london_crews_hill_denser.png",
     ("medellin_pajarito", "existing"): "medellin_pajarito_existing.png",
     ("medellin_pajarito", "baseline"): "medellin_pajarito_baseline.png",
-    ("medellin_pajarito", "walk400"): "medellin_pajarito_walk400.png",
-    ("medellin_pajarito", "walk1600"): "medellin_pajarito_walk1600.png",
+    ("medellin_pajarito", "compact"): "medellin_pajarito_compact.png",
+    ("medellin_pajarito", "dispersed"): "medellin_pajarito_dispersed.png",
 }
 
 
@@ -87,6 +92,7 @@ def run_preset(sub, params, overrides, runs=50):
     mean_density = sum(s * d for s, d in zip(shares, tiers))
     walk = float(p.get("centre_walk_m", 800.0))
     green_walk = float(p.get("green_walk_m", 400.0))
+    park_m2 = float(p["min_park_area_ha"]) * 1.0e4 if p.get("min_park_area_ha") else None
     max_walk = max(walk, green_walk)
     cell_km2 = gran * gran / 1e6
     min_cells = max(1, round(float(p.get("min_settlement_pop", 1000.0)) / (mean_density * cell_km2)))
@@ -99,27 +105,31 @@ def run_preset(sub, params, overrides, runs=50):
         sim = isobenefit.Simulation(
             base_state.copy(), base_origin.copy(),
             np.zeros_like(base_state, np.float32), sub["seeds"],
-            gran, max_walk, float(p["target_population"]),
+            gran, walk, green_walk, float(p["target_population"]),
             float(p.get("min_green_span_m", 400.0)), float(p.get("build_prob", 0.25)), 0.01,
             _gallery.DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
             0.8, shares, tiers, int(p.get("max_iterations", 300)),
             int(p.get("random_seed", 42)) + i,
+            min_park_area_m2=park_m2,
         )
         sim.run()
         states.append(np.asarray(sim.snapshot()["state"]))
     sim_s = time.time() - t0
 
     plan, metrics, _pre, _best = G.select_plan(
-        states, gran, float(p.get("min_green_span_m", 400.0)), max_walk,
+        states, gran, max_walk,
         existing_built=(base_origin == 1), existing_green=(base_origin == 0),
         existing_centres=sub["seeds"], centre_mode="placed",
         centre_distance_m=walk, green_distance_m=green_walk, new_density_km2=mean_density,
         centre_min_settlement=min_cells,
+        target_population=float(p["target_population"]),
+        min_park_area_m2=park_m2,
     )
     keep = {
         k: round(float(metrics.get(k, 0)), 3)
         for k in (
-            "served_coverage", "centre_coverage", "green_coverage", "centre_access",
+            "served_coverage", "served_coverage_incl_existing",
+            "centre_coverage", "green_coverage", "centre_access",
             "green_access", "centre_walk_mean", "green_walk_mean", "population",
             "centre_m2_per_person", "green_m2_per_person", "built_cells",
         )
@@ -132,6 +142,7 @@ def run_preset(sub, params, overrides, runs=50):
 def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(FIGS, exist_ok=True)
+    _gallery.render_legend(os.path.join(FIGS, "legend.png"))
     results = {}
     for name, presets in PLAN.items():
         folder = os.path.join(REPO, "scenarios", name)

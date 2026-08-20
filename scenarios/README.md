@@ -12,8 +12,10 @@ Folder anatomy:
 - `params.json`: the plugin's parameters format. Load it via the run dialog's *Load parameters*
   button; every plugin run also writes this format back as a `*_params.json` sidecar next to its
   output.
-- `built / green / centres / unbuildable / streets / stops / stations / railways / industrial
-  .geojson`: OSM input layers, pre-fetched with the plugin's own extraction rules.
+- `built / green / centres / unbuildable / streets / stops / stations / railways / industrial /
+  water.geojson`: OSM input layers, pre-fetched with the plugin's own extraction rules. The
+  water layer repeats the water features folded into unbuildable, so renders can colour water
+  separately; it does not affect the simulation.
 - `osm_download_extent.geojson`: the convex hull of the extents features, the window the OSM
   data was fetched for.
 - `steep.geojson`: terrain slope bands from Copernicus GLO-30, where terrain matters; the

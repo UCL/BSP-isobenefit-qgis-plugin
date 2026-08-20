@@ -24,7 +24,8 @@ def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25) -> Simulation
         density,
         [(grid // 2, grid // 2)],  # centre_seeds (row, col)
         100.0,  # granularity_m
-        600.0,  # max_distance_m
+        600.0,  # centre_distance_m
+        600.0,  # green_distance_m
         1_000_000.0,  # max_populat
         100.0,  # min_green_span_m
         0.6,  # build_prob
@@ -143,6 +144,7 @@ def test_bad_prob_distribution_raises() -> None:
             density,
             [(5, 5)],
             100.0,
+            600.0,
             600.0,
             1_000_000.0,
             100.0,

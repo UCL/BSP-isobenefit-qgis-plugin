@@ -1,27 +1,40 @@
-//! The Isobenefit growth simulation: state machine, the `green_to_built`
-//! decision, and the parallel `run_ensemble`.
+//! The Isobenefit growth simulation: state machine, the `try_build` decision,
+//! and the parallel `run_ensemble`.
 //!
 //! State grid values: -1 unbuildable, 0 nature/green, 1 built, 2 centre.
 //! All GIS concerns (rasterization, CRS, IO) live in the QGIS plugin; this
 //! module only sees numpy-shaped integer/float grids.
 
-use crate::access::{agg_dijkstra_cont, agg_dijkstra_dist, prepare_green_arrs, DijkstraOpts};
+use crate::access::{
+    agg_dijkstra_cont, agg_dijkstra_dist, park_threshold_cells, prepare_park_arrs, DijkstraOpts,
+};
 use crate::density::{random_density, rng_for, splitmix64};
 use crate::neighbours::{count_cont_nbs, green_spans, iter_nbs};
 use ndarray::Array2;
 use rand_chacha::ChaCha8Rng;
 use rayon::prelude::*;
 
+/// The default minimum park area: 2 hectares, Natural England's accessible
+/// natural greenspace standard.
+pub const DEFAULT_MIN_PARK_AREA_M2: f64 = 20_000.0;
+
 /// Scalar simulation parameters (densities already converted to per-block).
 #[derive(Clone, Copy)]
 pub struct Params {
     pub granularity_m: f64,
-    pub max_distance_m: f64,
+    /// The centre walk: centre accessibility (building and seeding) is bounded here.
+    pub centre_distance_m: f64,
+    /// The green walk: the green-access guard in `try_build` is bounded here.
+    pub green_distance_m: f64,
     pub max_populat: f64,
-    /// Minimum green span / min-park side length, in **metres**, consistent
+    /// Minimum green span, in **metres**, consistent
     /// throughout. (An earlier numba port of this project mixed metres and km
     /// here; the published simulator works in cells and never had the bug.)
     pub min_green_span_m: f64,
+    /// Minimum park area in square metres: the size a green component must hold
+    /// to qualify as a park. Defaults to [`DEFAULT_MIN_PARK_AREA_M2`]
+    /// (2 ha) when the caller passes none.
+    pub min_park_area_m2: f64,
     pub build_prob: f64,
     pub cent_prob_nb: f64,
     pub cent_prob_isol: f64,
@@ -38,7 +51,8 @@ impl Params {
     #[allow(clippy::too_many_arguments)]
     pub fn from_raw(
         granularity_m: f64,
-        max_distance_m: f64,
+        centre_distance_m: f64,
+        green_distance_m: f64,
         max_populat: f64,
         min_green_span_m: f64,
         build_prob: f64,
@@ -47,12 +61,16 @@ impl Params {
         pop_target_cent_threshold: f64,
         prob_distribution: (f64, f64, f64),
         density_factors_km2: (f64, f64, f64),
+        min_park_area_m2: Option<f64>,
     ) -> Result<Params, String> {
+        let min_park_area_m2 = min_park_area_m2.unwrap_or(DEFAULT_MIN_PARK_AREA_M2);
         let all_inputs = [
             granularity_m,
-            max_distance_m,
+            centre_distance_m,
+            green_distance_m,
             max_populat,
             min_green_span_m,
+            min_park_area_m2,
             build_prob,
             cent_prob_nb,
             cent_prob_isol,
@@ -70,11 +88,17 @@ impl Params {
         if granularity_m <= 0.0 {
             return Err("granularity_m must be positive".to_string());
         }
-        if max_distance_m < granularity_m {
-            return Err("max_distance_m must be at least one block (granularity_m)".to_string());
+        if centre_distance_m < granularity_m {
+            return Err("centre_distance_m must be at least one block (granularity_m)".to_string());
+        }
+        if green_distance_m < granularity_m {
+            return Err("green_distance_m must be at least one block (granularity_m)".to_string());
         }
         if min_green_span_m < 0.0 {
             return Err("min_green_span_m must not be negative".to_string());
+        }
+        if min_park_area_m2 < 0.0 {
+            return Err("min_park_area_m2 must not be negative".to_string());
         }
         for (name, p) in [
             ("build_prob", build_prob),
@@ -109,9 +133,11 @@ impl Params {
         let block = granularity_m * granularity_m / 1.0e6;
         Ok(Params {
             granularity_m,
-            max_distance_m,
+            centre_distance_m,
+            green_distance_m,
             max_populat,
             min_green_span_m,
+            min_park_area_m2,
             build_prob,
             cent_prob_nb,
             cent_prob_isol,
@@ -124,95 +150,99 @@ impl Params {
     }
 }
 
-/// Attempt to convert green cell `(y, x)` to built land, returning the updated
-/// `(green_itx, green_acc)` arrays on success or `None` if the move is rejected
-/// (would create a runaway streak, crimp a green corridor, split green below the
-/// minimum area, or cut off a built cell's green access).
+/// Attempt to convert green cell `(y, x)` to built land. Every check runs before
+/// any mutation; on success `park` and `green_acc` are updated in place and the
+/// caller sets the cell's state. The candidate is rejected when building it
+/// would create a runaway streak, crimp a green corridor below the minimum
+/// span, leave an adjacent park fragment below the park area (whether by
+/// splitting the park or by building along its edge), or leave the new home,
+/// or any built cell that currently has one (the existing fabric included),
+/// without a park within the green walk.
 #[allow(clippy::too_many_arguments)]
-pub fn green_to_built(
+pub fn try_build(
     y: usize,
     x: usize,
     state: &Array2<i16>,
-    old_itx: &Array2<i16>,
-    old_acc: &Array2<i32>,
+    park: &mut Array2<bool>,
+    green_acc: &mut Array2<i32>,
     granularity_m: f64,
-    max_distance_m: f64,
+    green_distance_m: f64,
     min_green_span_m: f64,
-) -> Option<(Array2<i16>, Array2<i32>)> {
+    min_park_area_m2: f64,
+) -> bool {
     let (rows, cols) = state.dim();
-    let mut new_itx = old_itx.clone();
-    let mut new_acc = old_acc.clone();
 
-    let (_tot, longest_urban_run, urban_regions) = count_cont_nbs(state, y, x, &[1, 2]);
+    let (_tot, longest_urban_run, _urban_regions) = count_cont_nbs(state, y, x, &[1, 2]);
     // a single urban neighbour is only allowed if that neighbour is a centrality
     if longest_urban_run == 1 {
         let (_t, longest_cent_run, _r) = count_cont_nbs(state, y, x, &[2]);
         if longest_cent_run != 1 {
-            return None;
+            return false;
         }
     }
     // don't crimp a green corridor below the minimum span
     if !green_spans(state, y, x, granularity_m, min_green_span_m) {
-        return None;
+        return false;
     }
-    // if this build would split green into multiple regions, ensure each green
-    // neighbour still reaches at least a minimum contiguous green area
-    if urban_regions > 1 {
-        // number of cells for a min_green_span x min_green_span area (metres)
-        let target_count =
-            (min_green_span_m * min_green_span_m / (granularity_m * granularity_m)).round() as i64;
-        let mut mock = state.clone();
-        mock[[y, x]] = 1; // tentatively built
-        let mut opts = DijkstraOpts::new(max_distance_m * 2.0, granularity_m);
-        opts.break_count = Some(target_count);
-        opts.rook = true; // rook only, else diagonal hops cheat the contiguity
-        for (ny, nx) in iter_nbs(rows, cols, y, x, false) {
-            if state[[ny, nx]] != 0 {
+
+    // no adjacent park fragment may fall below the park area. A connected green
+    // region of >= N cells always shows N cells within N-1 rook steps of any
+    // member, so bounding the search at N steps is exact and terminates fast.
+    // Sub-park green (never promised to anyone) is exempt and stays consumable.
+    let threshold = park_threshold_cells(min_park_area_m2, granularity_m);
+    let mut frag_opts = DijkstraOpts::new(threshold as f64 * granularity_m, granularity_m);
+    frag_opts.break_count = Some(threshold);
+    frag_opts.rook = true; // rook only, else diagonal hops cheat the contiguity
+    frag_opts.exclude = Some((y, x)); // probe with the candidate treated as built
+    for (ny, nx) in iter_nbs(rows, cols, y, x, true) {
+        if state[[ny, nx]] != 0 || !park[[ny, nx]] {
+            continue;
+        }
+        let frag = agg_dijkstra_cont(state, ny, nx, &[0], &[0], &frag_opts);
+        if (frag.sum() as i64) < threshold {
+            return false;
+        }
+    }
+
+    if !park[[y, x]] {
+        // no park cell is removed, so no one's access changes; the new home
+        // itself must already reach a park
+        return green_acc[[y, x]] > 0;
+    }
+
+    // the cell leaves the park: subtract its footprint — every cell it served.
+    // Footprints are static (built land stays traversable, unbuildable land
+    // never changes), so this decrement is exact.
+    let acc_opts = DijkstraOpts::new(green_distance_m, granularity_m);
+    let dec = agg_dijkstra_cont(state, y, x, &[0, 1, 2], &[0, 1, 2], &acc_opts);
+    let reach = (green_distance_m / granularity_m).ceil() as usize + 1;
+    let (y0, y1) = (y.saturating_sub(reach), (y + reach + 1).min(rows));
+    let (x0, x1) = (x.saturating_sub(reach), (x + reach + 1).min(cols));
+    for y2 in y0..y1 {
+        for x2 in x0..x1 {
+            if dec[[y2, x2]] == 0 {
                 continue;
             }
-            let nb_acc = agg_dijkstra_cont(&mock, ny, nx, &[0], &[0], &opts);
-            if (nb_acc.sum() as i64) < target_count {
-                return None;
+            let left = green_acc[[y2, x2]] - 1;
+            if (y2, x2) == (y, x) {
+                // the new home loses its own park cell; another must remain
+                if left <= 0 {
+                    return false;
+                }
+            } else if state[[y2, x2]] > 0 && left <= 0 {
+                // a served built cell would be stranded (cells that never had
+                // access have acc 0 and no footprint covers them)
+                return false;
             }
         }
     }
-
-    let acc_opts = DijkstraOpts::new(max_distance_m, granularity_m);
-    // the cell becomes built; if it was periphery, its access footprint goes with it
-    // (an isolated centre plants on plain green, itx 0, and has no footprint to remove)
-    if new_itx[[y, x]] == 2 {
-        new_itx[[y, x]] = 1;
-        let dec = agg_dijkstra_cont(&new_itx, y, x, &[0, 1, 2], &[0, 1, 2], &acc_opts);
-        new_acc = new_acc - dec;
-    } else {
-        new_itx[[y, x]] = 1;
-    }
-    // newly exposed green neighbours become periphery; add their access footprint.
-    // only true green qualifies: unbuildable neighbours keep itx -1 and stay barriers.
-    for (ny, nx) in iter_nbs(rows, cols, y, x, true) {
-        if state[[ny, nx]] == 0 && new_itx[[ny, nx]] == 0 {
-            new_itx[[ny, nx]] = 2;
-            let inc = agg_dijkstra_cont(&new_itx, ny, nx, &[0, 1, 2], &[0, 1, 2], &acc_opts);
-            new_acc = new_acc + inc;
+    for y2 in y0..y1 {
+        for x2 in x0..x1 {
+            green_acc[[y2, x2]] -= dec[[y2, x2]];
         }
     }
-
-    // reject if the new cell itself would have no green access
-    if new_acc[[y, x]] <= 0 {
-        return None;
-    }
-    // reject if any existing built cell would lose all green access
-    for y2 in 0..rows {
-        for x2 in 0..cols {
-            if state[[y2, x2]] > 0
-                && new_acc[[y2, x2]] <= 0
-                && old_acc[[y2, x2]] > new_acc[[y2, x2]]
-            {
-                return None;
-            }
-        }
-    }
-    Some((new_itx, new_acc))
+    park[[y, x]] = false;
+    true
 }
 
 /// The full simulation state. Construct via [`Simulation::new`], then drive with
@@ -222,7 +252,10 @@ pub struct Simulation {
     pub state: Array2<i16>,
     pub origin: Array2<i16>,
     pub density: Array2<f32>,
-    pub green_itx: Array2<i16>,
+    /// Green cells belonging to a park-qualifying component (the guard's
+    /// destination set). Only ever loses cells, one per accepted build.
+    pub park: Array2<bool>,
+    /// Per cell: how many park cells lie within the green walk.
     pub green_acc: Array2<i32>,
     pub cent_acc: Array2<i32>,
     pub params: Params,
@@ -255,7 +288,7 @@ impl Simulation {
         // re-visited: `step` skips any cell whose state is already built).
         // seed centres and aggregate their accessibility
         let mut cent_acc = Array2::<i32>::zeros(dim);
-        let cent_opts = DijkstraOpts::new(params.max_distance_m, params.granularity_m);
+        let cent_opts = DijkstraOpts::new(params.centre_distance_m, params.granularity_m);
         for &(r, c) in centre_seeds {
             if r >= dim.0 || c >= dim.1 {
                 return Err("centre seed falls outside the grid".to_string());
@@ -268,14 +301,18 @@ impl Simulation {
             cent_acc =
                 cent_acc + agg_dijkstra_cont(&state, r, c, &[0, 1, 2], &[0, 1, 2], &cent_opts);
         }
-        let (green_itx, green_acc) =
-            prepare_green_arrs(&state, params.max_distance_m, params.granularity_m);
+        let (park, green_acc) = prepare_park_arrs(
+            &state,
+            params.green_distance_m,
+            params.granularity_m,
+            params.min_park_area_m2,
+        );
         let pop_target_ratio = density.sum() as f64 / params.max_populat;
         Ok(Simulation {
             state,
             origin,
             density,
-            green_itx,
+            park,
             green_acc,
             cent_acc,
             params,
@@ -304,7 +341,7 @@ impl Simulation {
 
     fn plant_centre(&mut self, y: usize, x: usize) {
         self.state[[y, x]] = 2;
-        let opts = DijkstraOpts::new(self.params.max_distance_m, self.params.granularity_m);
+        let opts = DijkstraOpts::new(self.params.centre_distance_m, self.params.granularity_m);
         // the distance field gives the access footprint (finite == reachable within a walk,
         // matching the old path==target==[0,1,2] agg)
         let d = agg_dijkstra_dist(&self.state, y, x, &[0, 1, 2], &opts);
@@ -341,72 +378,66 @@ impl Simulation {
             if self.origin[[y, x]] == 0 {
                 continue;
             }
-            if self.green_itx[[y, x]] == 2 {
-                // require at least one urban neighbour (no double steps)
-                let (tot_urban, _, _) = count_cont_nbs(&old_state, y, x, &[1, 2]);
-                if tot_urban == 0 {
-                    continue;
-                }
+            // candidacy against the pre-iteration state, so a cell built this
+            // iteration cannot seed its neighbours in the same pass
+            let attached = iter_nbs(rows, cols, y, x, true)
+                .into_iter()
+                .any(|(ny, nx)| old_state[[ny, nx]] > 0);
+            if attached {
                 if self.cent_acc[[y, x]] > 0 {
-                    if rng.gen::<f64>() < p.build_prob {
-                        if let Some((ni, na)) = green_to_built(
+                    if rng.gen::<f64>() < p.build_prob
+                        && try_build(
                             y,
                             x,
                             &self.state,
-                            &self.green_itx,
-                            &self.green_acc,
+                            &mut self.park,
+                            &mut self.green_acc,
                             p.granularity_m,
-                            p.max_distance_m,
+                            p.green_distance_m,
                             p.min_green_span_m,
-                        ) {
-                            self.state[[y, x]] = 1;
-                            self.green_itx = ni;
-                            self.green_acc = na;
-                            self.assign_density(y, x, &mut rng);
-                        }
+                            p.min_park_area_m2,
+                        )
+                    {
+                        self.state[[y, x]] = 1;
+                        self.assign_density(y, x, &mut rng);
                     }
                 } else if !centrality_this_iter
                     && self.pop_target_ratio <= p.pop_target_cent_threshold
                     && rng.gen::<f64>() < p.cent_prob_nb
-                {
-                    if let Some((ni, na)) = green_to_built(
+                    && try_build(
                         y,
                         x,
                         &self.state,
-                        &self.green_itx,
-                        &self.green_acc,
+                        &mut self.park,
+                        &mut self.green_acc,
                         p.granularity_m,
-                        p.max_distance_m,
+                        p.green_distance_m,
                         p.min_green_span_m,
-                    ) {
-                        self.green_itx = ni;
-                        self.green_acc = na;
-                        self.plant_centre(y, x);
-                        self.assign_density(y, x, &mut rng);
-                        centrality_this_iter = true;
-                    }
-                }
-            } else if !centrality_this_iter
-                && self.state[[y, x]] == 0
-                && self.pop_target_ratio <= p.pop_target_cent_threshold
-                && rng.gen::<f64>() < p.cent_prob_isol
-            {
-                if let Some((ni, na)) = green_to_built(
-                    y,
-                    x,
-                    &self.state,
-                    &self.green_itx,
-                    &self.green_acc,
-                    p.granularity_m,
-                    p.max_distance_m,
-                    p.min_green_span_m,
-                ) {
-                    self.green_itx = ni;
-                    self.green_acc = na;
+                        p.min_park_area_m2,
+                    )
+                {
                     self.plant_centre(y, x);
                     self.assign_density(y, x, &mut rng);
                     centrality_this_iter = true;
                 }
+            } else if !centrality_this_iter
+                && self.pop_target_ratio <= p.pop_target_cent_threshold
+                && rng.gen::<f64>() < p.cent_prob_isol
+                && try_build(
+                    y,
+                    x,
+                    &self.state,
+                    &mut self.park,
+                    &mut self.green_acc,
+                    p.granularity_m,
+                    p.green_distance_m,
+                    p.min_green_span_m,
+                    p.min_park_area_m2,
+                )
+            {
+                self.plant_centre(y, x);
+                self.assign_density(y, x, &mut rng);
+                centrality_this_iter = true;
             }
         }
         self.pop_target_ratio = self.density.sum() as f64 / p.max_populat;
@@ -528,7 +559,8 @@ mod tests {
     fn growth_params() -> Params {
         Params::from_raw(
             100.0,           // granularity_m
-            600.0,           // max_distance_m
+            600.0,           // centre_distance_m
+            600.0,           // green_distance_m
             1_000_000.0,     // max_populat (high, so tests never short-circuit on target)
             100.0,           // min_green_span_m (1 block -> the span check never blocks)
             0.6,             // build_prob
@@ -537,6 +569,7 @@ mod tests {
             0.8,             // pop_target_cent_threshold
             (0.4, 0.4, 0.2), // prob distribution
             (6000.0, 3000.0, 1000.0),
+            None, // min_park_area_m2 -> the 2 ha default
         )
         .unwrap()
     }
@@ -563,6 +596,7 @@ mod tests {
         let err = Params::from_raw(
             100.0,
             800.0,
+            400.0,
             1.0,
             800.0,
             0.1,
@@ -571,6 +605,7 @@ mod tests {
             0.8,
             (0.5, 0.4, 0.2),
             (3.0, 2.0, 1.0),
+            None,
         );
         assert!(err.is_err());
     }
@@ -580,6 +615,7 @@ mod tests {
         let err = Params::from_raw(
             100.0,
             800.0,
+            400.0,
             1.0,
             800.0,
             0.1,
@@ -588,6 +624,7 @@ mod tests {
             0.8,
             (0.4, 0.4, 0.2),
             (1.0, 2.0, 3.0),
+            None,
         );
         assert!(err.is_err());
     }
@@ -752,6 +789,7 @@ mod tests {
         let err = Params::from_raw(
             100.0,
             800.0,
+            400.0,
             0.0,
             800.0,
             0.1,
@@ -760,6 +798,7 @@ mod tests {
             0.8,
             (0.4, 0.4, 0.2),
             (3.0, 2.0, 1.0),
+            None,
         );
         assert!(err.is_err());
     }
@@ -779,6 +818,7 @@ mod tests {
         let params = Params::from_raw(
             100.0,
             600.0,
+            600.0,
             1_000_000.0,
             100.0,
             0.6,
@@ -787,45 +827,129 @@ mod tests {
             0.8,
             (0.4, 0.4, 0.2),
             (6000.0, 3000.0, 1000.0),
+            None,
         )
         .unwrap();
         let mut sim = Simulation::new(state, origin, density, &[(12, 4)], params, 40, 42).unwrap();
         sim.run();
         assert!(sim.population() > 0.0, "expected growth");
-        let (fresh_itx, fresh_acc) =
-            prepare_green_arrs(&sim.state, params.max_distance_m, params.granularity_m);
-        assert_eq!(sim.green_itx, fresh_itx);
+        let (fresh_park, fresh_acc) = prepare_park_arrs(
+            &sim.state,
+            params.green_distance_m,
+            params.granularity_m,
+            params.min_park_area_m2,
+        );
+        assert_eq!(sim.park, fresh_park);
         assert_eq!(sim.green_acc, fresh_acc);
-        // the strip itself must never be marked as periphery or built
+        // the strip itself must never be built on or counted as park
         for y in 0..grid {
             assert_eq!(sim.state[[y, 10]], -1);
-            assert_eq!(sim.green_itx[[y, 10]], -1);
+            assert!(!sim.park[[y, 10]]);
         }
     }
 
     #[test]
-    fn rejects_build_that_leaves_itself_without_green_access() {
-        // 1x5 row: periphery green | built | built | centre | candidate green.
-        // the only other periphery (index 0) is 400m from the candidate, beyond the
-        // 300m walk, so building index 4 leaves it with no green access
+    fn rejects_build_that_leaves_itself_without_park_access() {
+        // 1x5 row: green | built | built | centre | candidate green. Threshold 1
+        // (span == granularity), so both single green cells are parks. The only
+        // other park (index 0) is 400m from the candidate, beyond the 300m green
+        // walk, so building index 4 leaves the new home without a park.
         let state = Array2::from_shape_vec((1, 5), vec![0i16, 1, 1, 2, 0]).unwrap();
-        let (itx, acc) = prepare_green_arrs(&state, 300.0, 100.0);
-        let result = green_to_built(0, 4, &state, &itx, &acc, 100.0, 300.0, 100.0);
-        assert!(result.is_none());
-        // the built cells themselves keep access via index 0, so only the
-        // candidate's own check can have rejected this move
-        let dec = agg_dijkstra_cont(
-            &itx,
-            0,
-            4,
-            &[0, 1, 2],
-            &[0, 1, 2],
-            &DijkstraOpts::new(300.0, 100.0),
-        );
-        let after = &acc - &dec;
+        let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 10_000.0);
+        assert!(!try_build(
+            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 100.0, 10_000.0
+        ));
+        // rejection must leave the arrays untouched
+        let (park2, acc2) = prepare_park_arrs(&state, 300.0, 100.0, 10_000.0);
+        assert_eq!(park, park2);
+        assert_eq!(acc, acc2);
+        // the built cells themselves keep access via index 0
         for x in 1..4 {
-            assert!(after[[0, x]] > 0);
+            assert!(acc[[0, x]] > 0);
         }
+    }
+
+    #[test]
+    fn green_guard_uses_green_walk_not_the_centre_walk() {
+        // as above at a 300m green walk the build is rejected; rebuilt at a 600m
+        // green walk, the far park is within reach and the same move is accepted
+        let state = Array2::from_shape_vec((1, 5), vec![0i16, 1, 1, 2, 0]).unwrap();
+        let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 10_000.0);
+        assert!(!try_build(
+            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 100.0, 10_000.0
+        ));
+        let (mut park6, mut acc6) = prepare_park_arrs(&state, 600.0, 100.0, 10_000.0);
+        assert!(try_build(
+            0, 4, &state, &mut park6, &mut acc6, 100.0, 600.0, 100.0, 10_000.0
+        ));
+        // the accepted build removed the candidate from the park set and its
+        // footprint from the counts
+        assert!(!park6[[0, 4]]);
+        assert_eq!(acc6[[0, 4]], 1); // index 0 still covers it at 400m
+    }
+
+    #[test]
+    fn sub_park_green_does_not_satisfy_the_guard() {
+        // [-1, green, green, centre]: the 2-cell green region is below the park
+        // threshold of 4 (span 200 at 100m cells), so although green sits right
+        // next door, the candidate has no park within the walk and is rejected
+        let state = Array2::from_shape_vec((1, 4), vec![-1i16, 0, 0, 2]).unwrap();
+        let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
+        assert!(!park[[0, 1]] && !park[[0, 2]]);
+        assert!(!try_build(
+            0, 2, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+        ));
+
+        // extend the row with a 4-cell park within the walk: the same build now
+        // passes, and consuming the sub-park green never touches the counts
+        let state = Array2::from_shape_vec((1, 8), vec![-1i16, 0, 0, 2, 0, 0, 0, 0]).unwrap();
+        let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
+        assert!(!park[[0, 1]] && !park[[0, 2]] && park[[0, 4]]);
+        let acc_before = acc.clone();
+        assert!(try_build(
+            0, 2, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+        ));
+        assert_eq!(acc, acc_before);
+    }
+
+    #[test]
+    fn parks_cannot_shrink_below_the_threshold() {
+        // [-1, g, g, g, g, centre]: one park of exactly the threshold (4 cells at
+        // span 200, 100m cells). Building any of its cells would leave a 3-cell
+        // fragment, so the nibble is rejected even though every home keeps access.
+        let state = Array2::from_shape_vec((1, 6), vec![-1i16, 0, 0, 0, 0, 2]).unwrap();
+        let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
+        assert!(park[[0, 4]]);
+        assert!(!try_build(
+            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+        ));
+
+        // with one spare cell (a 5-cell park) the same build passes and the
+        // remaining fragment stays a valid park
+        let state = Array2::from_shape_vec((1, 7), vec![-1i16, 0, 0, 0, 0, 0, 2]).unwrap();
+        let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
+        assert!(try_build(
+            0, 5, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+        ));
+        assert!(!park[[0, 5]]);
+        let mut after = state.clone();
+        after[[0, 5]] = 1;
+        let (fresh_park, fresh_acc) = prepare_park_arrs(&after, 300.0, 100.0, 40_000.0);
+        assert_eq!(park, fresh_park);
+        assert_eq!(acc, fresh_acc);
+    }
+
+    #[test]
+    fn park_area_parameter_decouples_from_the_span() {
+        // the park test follows min_park_area_m2, not the corridor span: with a
+        // 4-cell park area, a 2-cell green region is not a park regardless of span
+        let state = Array2::from_shape_vec((1, 4), vec![-1i16, 0, 0, 2]).unwrap();
+        let (park, acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
+        assert!(!park[[0, 1]] && !park[[0, 2]]);
+        assert_eq!(acc.sum(), 0);
+        // and Params defaults the area to the 2 ha standard when none is given
+        let p = growth_params();
+        assert_eq!(p.min_park_area_m2, DEFAULT_MIN_PARK_AREA_M2);
     }
 
     #[test]
@@ -845,6 +969,7 @@ mod tests {
             Params::from_raw(
                 granularity_m,
                 600.0,
+                400.0,
                 1000.0,
                 100.0,
                 build_prob,
@@ -853,6 +978,7 @@ mod tests {
                 0.8,
                 (0.4, 0.4, 0.2),
                 (high, 3000.0, 1000.0),
+                None,
             )
         };
         assert!(base(f64::NAN, 100.0, 6000.0).is_err()); // NaN probability

@@ -1,10 +1,12 @@
 # Prose guide (local companion)
 
 The manuscript follows the portable prose guide at
-`~/.claude/prose_guide.md`, which governs construction: the target register,
-the gate, the fault catalogue (F1 to F23), and the revision pass. This file
-holds only what is paper-specific, as that guide's section 12 prescribes:
-the terminology table and the recorded exceptions.
+`~/.claude/prose_guide.md`, reduced on 2026-08-20 to two rules: write in
+strict academic register, with efficiency of words and a narrative arc;
+the rules bind drafted text only, and the author's corrections are the
+record of what the first rule means in practice. This file holds what is
+paper-specific: the journal limits, the terminology table, and the
+recorded exceptions.
 
 Journal limits (Humanities and Social Sciences Communications, Article):
 about 8,000 words excluding abstract, tables, figure legends, and

@@ -18,7 +18,7 @@ import os
 # green, centre/accent = brand red, candidate = blue; existing fabric gets its own muted shades so
 # "already there" reads apart from "newly recommended".
 RED, GREEN, BLUE, BUILT = "#D32333", "#2f7d33", "#1f6fbf", "#cc7a29"
-EXIST_BUILT, EXIST_CENTRE = "#96867a", "#962858"  # existing built matches grid.py's cool grey-taupe
+EXIST_BUILT, EXIST_CENTRE = "#c5b4da", "#45489e"  # matches grid.py: light-purple fabric, indigo existing centres
 # transit gets its own hue: BLUE already means unbuildable cells and candidate locations on this
 # site, and the water polygons are a softer blue, so stops are a deep teal with a white halo (the
 # same teal the plugin applies to fetched stop/station layers)
@@ -469,9 +469,12 @@ def d_plan_cleanup():
 # provably compose — and the SAME window is the growth demonstrators' substrate.
 STREET = "#9a9a9a"
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-# one colour language across the whole site: EXISTING fabric/centres take the same brown/magenta as
-# the demonstrators' existing dots (the warm built colour + brand red are what the SIMULATION adds)
-BUILT_AREA, GREEN_AREA, WATER_AREA, CENTRE_AREA, IND_AREA = EXIST_BUILT, "#3f8f47", "#6f9fcf", EXIST_CENTRE, "#7b6d8f"
+# one colour language across the whole site: EXISTING fabric/centres take the same purple family as
+# the demonstrators' existing dots (the warm built colour + brand red are what the SIMULATION adds).
+# Water keeps its literal blue here (these panels draw real OSM water polygons); industrial is a
+# neutral grey so the purple family stays reserved for existing fabric.
+BUILT_AREA, GREEN_AREA, WATER_AREA, CENTRE_AREA, IND_AREA = EXIST_BUILT, "#3f8f47", "#a8c8e4", EXIST_CENTRE, "#8c8c8c"
+UNB_AREA = "#c8c8c8"  # non-water exclusions: the same neutral grey as excluded cells on the maps
 
 
 def _features(name):
@@ -558,11 +561,11 @@ def input_layers():
         print(f"wrote {os.path.join(OUT, name)}.svg")
 
     panel("input_extents", "Extents (the area of interest)", extents_rect())
-    panel("input_built", "Existing built fabric", polys("built", BUILT_AREA, "#5e4a30"))
+    panel("input_built", "Existing built fabric", polys("built", BUILT_AREA, "#8a74a8"))
     panel("input_green", "Green space", polys("green", GREEN_AREA, "#2f7d33"))
-    panel("input_centres", "Urban centres", polys("centres", CENTRE_AREA, "#6e1d40"))
+    panel("input_centres", "Urban centres", polys("centres", CENTRE_AREA, "#2c2f6b"))
     panel("input_unbuildable", "Unbuildable (water, industrial, barriers)",
-          polys("unbuildable", WATER_AREA, "#5a86b5"))
+          polys("unbuildable", UNB_AREA, "#a0a0a0") + polys("water", WATER_AREA, "#78a0c8"))
     panel("input_industrial", "Industrial land", polys("industrial", IND_AREA, "#645a78"))
     panel("input_streets", "Street network", street_lines())
     panel("input_pt", "Public-transport stops", stop_markers())
@@ -570,10 +573,11 @@ def input_layers():
     panel(
         "input_composite", "All layers together",
         polys("green", GREEN_AREA, "#2f7d33")
-        + polys("unbuildable", WATER_AREA, "#5a86b5")
+        + polys("unbuildable", UNB_AREA, "#a0a0a0")
+        + polys("water", WATER_AREA, "#78a0c8")
         + polys("industrial", IND_AREA, "#645a78")
-        + polys("built", BUILT_AREA, "#5e4a30")
-        + polys("centres", CENTRE_AREA, "#6e1d40")
+        + polys("built", BUILT_AREA, "#8a74a8")
+        + polys("centres", CENTRE_AREA, "#2c2f6b")
         + street_lines(minor=False)
         + stop_markers()
         + extents_rect(),

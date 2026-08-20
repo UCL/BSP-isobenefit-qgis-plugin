@@ -70,6 +70,7 @@ from isobenefit_qgis.grid import (  # noqa: E402
 )
 
 GRAN, MIN_GREEN_SPAN, MAX_DIST = 50.0, 400.0, 800.0
+GREEN_DIST = 400.0  # the green walk: the CA's green-access guard distance
 G = 120  # substrate side in cells -> a 6 km x 6 km square at 50 m, big enough to see the differences
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "visual_audit")
 
@@ -80,8 +81,8 @@ COLORS = {
     PLAN_GREEN: (54, 109, 35),
     PLAN_BUILT: (196, 140, 74),
     PLAN_CENTRE: (210, 35, 35),
-    PLAN_EXIST_BUILT: (120, 92, 62),
-    PLAN_EXIST_CENTRE: (150, 40, 85),
+    PLAN_EXIST_BUILT: (197, 180, 218),
+    PLAN_EXIST_CENTRE: (69, 72, 158),
 }
 LEGEND = [
     (PLAN_NONE, "empty"),
@@ -170,7 +171,7 @@ TOWN_CENTRE = (60, 60)
 
 
 def _opt(plan, **kw):
-    return optimise_plan(plan.copy(), GRAN, MIN_GREEN_SPAN, MAX_DIST, **kw)
+    return optimise_plan(plan.copy(), GRAN, MAX_DIST, **kw)
 
 
 # ---------------------------------------------------------------- post-process track
@@ -396,16 +397,16 @@ def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
     density = np.zeros((n, n), dtype=np.float32)
     seeds = [(40, 40)]  # one centre seed so the core has centre access and growth can start
     sim = isobenefit.Simulation(
-        state, origin, density, seeds, GRAN, MAX_DIST, 20000.0, MIN_GREEN_SPAN,
+        state, origin, density, seeds, GRAN, MAX_DIST, GREEN_DIST, 20000.0, MIN_GREEN_SPAN,
         build_prob, 0.0, cent_prob_isol, 0.8,
-        (0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0), 2000.0, 200, seed,  # density factors descending
+        (0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0), 200, seed,  # density factors descending
     )
     st = np.asarray(isobenefit.run_ensemble(sim, seed, 1)[0])
     ca = [(int(y), int(x)) for y, x in np.argwhere(st == 2)]
-    base = grid._state_to_plan(st, MIN_GREEN_SPAN, GRAN)
+    base = grid._state_to_plan(st, GRAN)
     # min settlement size 8: stranded specks are pruned and tiny hamlets don't keep their own centre,
     # so a dispersed run yields only viable settlements (each with a centre), not residential islands.
-    return optimise_plan(base, GRAN, MIN_GREEN_SPAN, MAX_DIST,
+    return optimise_plan(base, GRAN, MAX_DIST,
                          ca_centres=ca, centre_mode="placed", centre_min_settlement=8)
 
 

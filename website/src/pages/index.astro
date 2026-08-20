@@ -25,7 +25,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <img class="hero" src={dg('demo_recommended_plan')} alt="An idealised scenario for Cambourne: new settlements with walkable centres woven through a green matrix around the existing town" />
       <figcaption>An idealised scenario for <strong>Cambourne</strong>, grown from the downloaded layers shown
       below. New settlements, coloured by density from pale (low) to deep (high), with their mixed-use centres
-      in red, join the existing town (muted taupe), and new homes stay within a walk of a centre and of
+      in red, join the existing town (light purple), and new homes stay within a walk of a centre and of
       green. The same example is used throughout this page.</figcaption>
     </figure>
     <nav class="toc">
@@ -125,9 +125,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <figure>
       <img class="hero" src={dg('demo_substrate')} alt="Cambourne rasterised to the simulation grid" />
-      <figcaption>The town as cells. The taupe dots are the existing built fabric, the magenta dots its
-      existing centres, and the blue dots are unbuildable cells; the A428 corridor and the waterways stand
-      out. The small green dots are free land, and the real street network stays visible beneath.</figcaption>
+      <figcaption>The town as cells. The light purple dots are the existing built fabric, the indigo dots its
+      existing centres, the light blue dots water, and the light grey dots other unbuildable cells; the A428
+      corridor and the waterways stand out. The small green dots are free land, and the real street network stays visible beneath.</figcaption>
     </figure>
   </section>
 
@@ -294,8 +294,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
       fabric is shown for context and is assumed to be served by its own centres, so it is never counted.
       The per-person readouts follow the same convention: <em>m² of centre per person</em> is new mixed-use
       centre land over new residents, and <em>m² of walkable green per person</em> is new green over new
-      residents. The coverage percentages, by contrast, include every home, existing and new, since a walk
-      to a centre matters to everyone.
+      residents. Coverage is reported twice: over new homes, where the growth rules guarantee a centre
+      and a park within the walks, and including every existing home, which carries no guarantee.
     </p>
     <p>
       A <em>single</em> run, with the ensemble checkbox off, is instead written step by step as a growth
@@ -380,8 +380,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
         <strong>Green connectivity is enforced locally rather than globally.</strong> The published model keeps all
         nature as one connected region. Real landscapes arrive already fragmented by rivers, roads and
         towns, so that rule cannot hold on real data. The plugin instead refuses to pinch a green corridor
-        between developments below the minimum green span and, where a build would split green, requires
-        each resulting fragment to keep at least a minimum contiguous area. A green strip bounded by water
+        between developments below the minimum green span and, where new development would split green,
+        requires each resulting fragment to keep at least the minimum park area. A green strip bounded by water
         or a carved road corridor is exempt from the span rule: it is not a corridor between developments,
         and land beside a barrier may be built right up to it.
       </li>

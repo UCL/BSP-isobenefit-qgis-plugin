@@ -172,6 +172,8 @@ def main() -> None:
         # buffer > half a 50 m cell so the corridor registers under centre-of-cell sampling
         if osm_queries.is_barrier_line(tags):
             add("unbuildable", LineString(project(coords)).buffer(30.0), tags)
+        if osm_queries.is_waterway_line(tags):
+            add("water", LineString(project(coords)).buffer(30.0), tags)
         for ds in line_ds:
             if osm_queries.feature_matches(ds, tags):
                 add(ds, LineString(project(coords)), tags)

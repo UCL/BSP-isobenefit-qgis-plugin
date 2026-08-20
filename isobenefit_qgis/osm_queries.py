@@ -72,6 +72,17 @@ DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
         ("node", '["railway"~"^(station|halt|tram_stop)$"]'),
         ("node", '["public_transport"="station"]'),
     ],
+    # Water on its own: the same water features that fold into unbuildable, kept as a
+    # separate layer so maps can show water as water (light blue) rather than generic
+    # exclusion. Rivers/canals/streams are fetched as lines and buffered to ribbons by
+    # the scenario fetch.
+    "water": [
+        ("way", '["natural"="water"]'),
+        ("relation", '["natural"="water"]'),
+        ("way", '["waterway"~"^(riverbank|dock)$"]'),
+        ("relation", '["waterway"~"^(riverbank|dock)$"]'),
+        ("way", '["waterway"~"^(river|canal|stream)$"]'),
+    ],
     # Unbuildable land: water, airports/airfields, military, quarries/landfill, industrial.
     "unbuildable": [
         ("way", '["natural"="water"]'),
@@ -105,6 +116,7 @@ DATASETS: dict[str, dict[str, str]] = {
     "railways": {"label": "Railways", "osm_layer": "lines", "geom_type": "MultiLineString"},
     "stops": {"label": "Public-transport stops", "osm_layer": "points", "geom_type": "Point"},
     "stations": {"label": "Rail / tram stations", "osm_layer": "points", "geom_type": "Point"},
+    "water": {"label": "Water", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "unbuildable": {
         "label": "Unbuildable (water, airports, military, industrial)",
         "osm_layer": "multipolygons",
@@ -122,22 +134,24 @@ DATASET_ORDER: tuple[str, ...] = (
     "railways",
     "stops",
     "stations",
+    "water",
     "unbuildable",
 )
 
 # Fixed styling applied when fetched layers load into QGIS, so every download shares one colour
-# language instead of QGIS's random symbology: green space is green, water-led unbuildable land
-# is the soft blue, existing fabric the muted taupe of the plan rasters, transit the teal also
-# used on the project website. Values are plain "r,g,b[,a]" strings so the table stays importable
+# language instead of QGIS's random symbology: green space is green, unbuildable land the light
+# grey of excluded cells, existing fabric the light purple of the plan rasters, transit the teal
+# also used on the project website. Values are plain "r,g,b[,a]" strings so the table stays importable
 # without QGIS; ``gis_io.apply_osm_style`` turns each entry into a renderer. Polygon fills carry
 # an alpha so a basemap stays legible underneath. Keys: polygons use fill/outline (optional
 # outline_style), lines use line/width (optional line_style), points use marker/fill/outline/size.
 LAYER_STYLES: dict[str, dict[str, str]] = {
-    "built": {"fill": "150,134,122,140", "outline": "94,74,48"},
+    "built": {"fill": "197,180,218,140", "outline": "138,116,168"},
     "green": {"fill": "63,143,71,140", "outline": "47,125,51"},
-    "centres": {"fill": "150,40,85,150", "outline": "110,29,64"},
-    "industrial": {"fill": "123,109,143,130", "outline": "100,90,120"},
-    "unbuildable": {"fill": "111,159,207,130", "outline": "90,134,181"},
+    "centres": {"fill": "69,72,158,150", "outline": "44,47,107"},
+    "industrial": {"fill": "140,140,140,130", "outline": "110,110,110"},
+    "water": {"fill": "168,200,228,150", "outline": "120,160,195"},
+    "unbuildable": {"fill": "200,200,200,130", "outline": "160,160,160"},
     "extents": {"fill": "0,0,0,0", "outline": "211,35,51", "outline_style": "dash"},
     "streets": {"line": "154,154,154", "width": "0.35"},
     "railways": {"line": "77,77,77", "width": "0.5", "line_style": "dash"},
@@ -174,6 +188,10 @@ _POLYGON_FILTERS: dict[str, dict[str, set[str] | None]] = {
     },
     "centres": {"landuse": {"retail", "commercial"}},
     "industrial": {"landuse": {"industrial"}},
+    "water": {
+        "natural": {"water"},
+        "waterway": {"riverbank", "dock"},
+    },
     "unbuildable": {
         "natural": {"water"},
         "waterway": {"riverbank", "dock"},
@@ -268,6 +286,11 @@ def point_is_station(tags: dict[str, str]) -> bool:
 def point_is_stop(tags: dict[str, str]) -> bool:
     """An ordinary public-transport stop (bus stop, platform, stop position)."""
     return tags.get("highway") == "bus_stop" or tags.get("public_transport") in _STOP_PUBLIC_TRANSPORT
+
+
+def is_waterway_line(tags: dict[str, str]) -> bool:
+    """A river/canal/stream line — buffered into a water ribbon by the scenario fetch."""
+    return tags.get("waterway") in _BARRIER_WATERWAY
 
 
 def is_barrier_line(tags: dict[str, str]) -> bool:

@@ -100,14 +100,15 @@ parameters for a run.
   finish, Esc to cancel) or the union of an existing polygon layer. The polygon's bounding box
   drives the download; results are trimmed to the polygon.
 - **Datasets**: built-up areas, green space, mixed-use centres, industrial land, streets,
-  railways, public-transport stops, rail/tram stations, and unbuildable land. The unbuildable
-  dataset combines water, airfields, military land, quarries, industrial land, and buffered
-  corridors along major roads (motorway, trunk and primary), railways and rivers. Untick
-  anything not needed.
+  railways, public-transport stops, rail/tram stations, water, and unbuildable land. The
+  unbuildable dataset combines water, airfields, military land, quarries, industrial land, and
+  buffered corridors along major roads (motorway, trunk and primary), railways and rivers; the
+  water dataset carries the water features on their own, so maps can colour them separately
+  from other unbuildable land. Untick anything not needed.
 - **Output**: one GeoPackage; every dataset becomes a layer in it, added to the project under an
-  "OSM" group. The layers arrive pre-styled in a fixed colour scheme (green space green, water-led
-  unbuildable land blue, built fabric the muted taupe of the plan rasters, transit stops and
-  stations teal), so every download looks the same.
+  "OSM" group. The layers arrive pre-styled in a fixed colour scheme (green space green, water light
+  blue, unbuildable land light grey, built fabric the light purple of the plan rasters,
+  transit stops and stations teal), so every download looks the same.
 
 Downloading and simulating are separate steps. The layers are on disk and can be edited or
 swapped before any run. The simulation dialog recognises the downloaded layers and pre-selects
@@ -147,7 +148,8 @@ coverage figures and steers the centre re-positioning.
 | Optimise centre placement | on | Alongside the as-grown option, save two more: optimised placement (the run's centres re-positioned to cut walking distances, plus any the provision rule requires; a nearby existing centre does not stand in for new development) and fewest centres (the smallest number that keeps every home within the centre walk). Off saves only the as-grown option. Every option keeps every home within the centre walk |
 | Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
 | Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); a cluster grown against existing development is kept whatever its size, since its growth was anchored on the town's centres. Before the run, open land is developable only where it is locally wide and part of an edge-connected region able to hold this minimum; slivers and enclaves are set aside as protected green (pocket parks). New growth in an outlying settlement below this minimum with no centre of its own also reverts; the raw plan keeps everything for comparison |
-| Min green span (m) | 400 | A green patch must span this to count as a park; also a build rule protecting corridors |
+| Min green span (m) | 400 | No green corridor between developments may narrow below this span |
+| Min park area (ha) | 2 | A contiguous green area must reach this size to qualify as a park, in growth and in the scores; the default follows Natural England's accessible natural greenspace standard |
 
 **Development density.** Three densities (people per km²) for the high, medium and low tiers,
 each with a share. The dialog requires positive, strictly descending densities and shares
@@ -212,45 +214,38 @@ This excerpt is from a run on the Cambourne window used throughout the
 [introduction](../) (12,000-person target, default walks and densities):
 
 ```text
-PLAN OPTIONS (side by side; the walkability figures count every home)
+PLAN OPTIONS (side by side; coverage and walks count new homes)
 ----------------------------------------
-  Metric                                 raw  grown  placed  fewest
-  -----------------------------------  -----  -----  ------  ------
-  population accommodated              9,818  6,085   6,085   6,085
-  share of target                        82%    51%     51%     51%
-  built cells (incl. existing)         2,031  1,784   1,784   1,784
-  mixed-use centre areas                  27     15      18      16
-  served coverage (centre AND green)     95%    87%     88%     88%
-  avg walk to a centre (m)               292    482     436     442
-  avg walk to green (m)                  145    130     130     130
-  m2 mixed-use centre / person             5     17      20      19
-  m2 walkable green / person             867  1,500   1,500   1,500
-
-ACHIEVED DENSITY MIX (new development only)
-----------------------------------------
-  Tier (people/km2)  share drawn  placed: cells  placed: people
-  -----------------  -----------  -------------  --------------
-  high (6,000)               20%            171           2,565
-  medium (3,000)             30%            256           1,920
-  low (1,500)                50%            427           1,601
-  total                     100%            854           6,086
+  Metric                                           raw  grown  placed  fewest
+  ---------------------------------------------  -----  -----  ------  ------
+  population accommodated                        9,619  6,584   6,569   6,569
+  share of target                                  80%    55%     55%     55%
+  built cells (incl. existing)                   2,003  1,575   1,575   1,575
+  mixed-use centre areas                            25     16      16      15
+  served coverage, new homes (centre AND green)   100%   100%    100%    100%
+  incl. existing fabric (no guarantee)             98%    94%     94%     94%
+  avg walk to a centre (m)                         283    240     191     218
+  avg walk to green (m)                            102    101     101     101
+  m2 mixed-use centre / person                       5     19      18      18
+  m2 walkable green / person                       744  1,250   1,253   1,253
 ```
 
 Reading it: the four columns are the raw run and the three centre options. The options share the
 same cleaned fabric and differ only in their centres, so the rows that move between them are the
 centre count, the walks and the centre provision; optimised placement cut the average centre
-walk from 482 m to 436 m against the as-grown arrangement, and fewest centres gave most of that
-back for two fewer centres. The gap between raw and the options is the cleanup: this window
+walk from 240 m to 191 m against the as-grown arrangement, and fewest centres gave part of that
+back for one fewer centre. Every new home is served in all four columns, because the growth
+rules enforce both walks; the incl.-existing row blends in the frozen fabric, which carries no
+guarantee. The gap between raw and the options is the cleanup: this window
 grows much of its population as clusters below the 1,000-person minimum, which revert to green
-(detached) or join the existing fabric (infill), so the options credit 51% of the target against
-the raw run's 82%. The density mix landed on the drawn 20/30/50 shares. A full report adds the
-walk means, compactness, transit readouts where stops were supplied, and the centre audit (the
-excerpt shows one option's density-mix columns; the file carries all four).
+(detached) or join the existing fabric (infill), so the options credit 55% of the target against
+the raw run's 80%. A full report adds the
+walk means, compactness, transit readouts where stops were supplied, the achieved density mix
+per tier, and the centre audit.
 
 Every population figure counts **new residents only**; existing fabric is assumed served by its
 own centres. The per-person readouts follow the same convention: m² of mixed-use centre per person is new centre
-land over new residents, and m² of green per person is new green over new residents. Coverage
-percentages include every home, existing and new.
+land over new residents, and m² of green per person is new green over new residents.
 
 **Single-run mode** writes one band per growth step, plus its own `<name>_report.txt` (the
 parameters and the outcome: population accommodated, iterations used). QGIS loads the raster as

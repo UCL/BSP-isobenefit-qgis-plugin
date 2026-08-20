@@ -28,10 +28,11 @@ impl PySimulation {
     #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
         state, origin, density, centre_seeds,
-        granularity_m, max_distance_m, max_populat, min_green_span_m,
+        granularity_m, centre_distance_m, green_distance_m, max_populat, min_green_span_m,
         build_prob, cent_prob_nb, cent_prob_isol, pop_target_cent_threshold,
         prob_distribution, density_factors_km2,
         total_iters, random_seed,
+        min_park_area_m2 = None,
     ))]
     fn new(
         py: Python<'_>,
@@ -40,7 +41,8 @@ impl PySimulation {
         density: PyReadonlyArray2<f32>,
         centre_seeds: Vec<(usize, usize)>,
         granularity_m: f64,
-        max_distance_m: f64,
+        centre_distance_m: f64,
+        green_distance_m: f64,
         max_populat: f64,
         min_green_span_m: f64,
         build_prob: f64,
@@ -51,10 +53,12 @@ impl PySimulation {
         density_factors_km2: (f64, f64, f64),
         total_iters: usize,
         random_seed: u64,
+        min_park_area_m2: Option<f64>,
     ) -> PyResult<Self> {
         let params = Params::from_raw(
             granularity_m,
-            max_distance_m,
+            centre_distance_m,
+            green_distance_m,
             max_populat,
             min_green_span_m,
             build_prob,
@@ -63,6 +67,7 @@ impl PySimulation {
             pop_target_cent_threshold,
             prob_distribution,
             density_factors_km2,
+            min_park_area_m2,
         )
         .map_err(PyValueError::new_err)?;
         let state = state.as_array().to_owned();
@@ -122,6 +127,7 @@ impl PySimulation {
         d.set_item("state", self.inner.state.to_pyarray_bound(py))?;
         d.set_item("density", self.inner.density.to_pyarray_bound(py))?;
         d.set_item("origin", self.inner.origin.to_pyarray_bound(py))?;
+        d.set_item("park", self.inner.park.to_pyarray_bound(py))?;
         d.set_item("green_acc", self.inner.green_acc.to_pyarray_bound(py))?;
         d.set_item("cent_acc", self.inner.cent_acc.to_pyarray_bound(py))?;
         Ok(d)

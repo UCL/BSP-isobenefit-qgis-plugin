@@ -40,7 +40,8 @@ def _hex(rgb):
 BUILT_LOW, BUILT_MED, BUILT_HIGH = _hex(G._BUILT_LOW), _hex(G._BUILT_MED), _hex(G._BUILT_HIGH)
 CENTRE_LOW, CENTRE_MED, CENTRE_HIGH = _hex(G._CENTRE_LOW), _hex(G._CENTRE_MED), _hex(G._CENTRE_HIGH)
 EXIST_BUILT, EXIST_CENTRE = _hex(G._EXIST_BUILT), _hex(G._EXIST_CENTRE)
-GREEN, UNBUILDABLE, STEEP, STREET, INK = _hex((89, 176, 60)), "#6f9fcf", "#b5885c", "#a9a9a9", "#333333"
+GREEN, STREET, INK = _hex((89, 176, 60)), "#a9a9a9", "#333333"
+UNBUILDABLE, STEEP, WATER = "#c8c8c8", "#6e6e6e", "#a8c8e4"
 TIER_STYLE = {
     G.PLAN_GREEN: (GREEN, 0.18),
     G.PLAN_EXIST_BUILT: (EXIST_BUILT, 0.42),
@@ -91,7 +92,7 @@ def load_scenario(folder: str):
     with open(os.path.join(folder, "params.json"), encoding="utf-8") as fh:
         params = json.load(fh)
     layers = {}
-    for name in ("built", "green", "unbuildable", "centres", "streets"):
+    for name in ("built", "green", "unbuildable", "centres", "streets", "water"):
         path = os.path.join(folder, f"{name}.geojson")
         if os.path.exists(path):
             with open(path, encoding="utf-8") as fh:
@@ -143,20 +144,25 @@ def substrate(extent, layers, gran):
     green = mask(layers.get("green", [])) & inside
     unb = mask(layers.get("unbuildable", [])) & inside
     steep = mask(layers.get("steep", [])) & inside
+    water = mask(layers.get("water", [])) & inside
     state[built] = 1
     origin[built] = 1
     origin[green & ~built] = 0
     state[unb & ~built] = -1
     state[steep & ~built] = -1
-    seeds = []
+    # Existing centres seed as TRUE AREAS, exactly as the plugin rasterises polygon centre
+    # layers: every covered built cell, not one cell at the centroid. A polygon too small to
+    # cover any cell centre falls back to its representative point so no centre is lost.
+    cent = mask(layers.get("centres", [])) & built
+    seeds = [(int(r), int(c)) for r, c in np.argwhere(cent)]
     for geom in layers.get("centres", []):
         p = geom if geom.geom_type == "Point" else geom.representative_point()
         c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
-        if 0 <= r < rows and 0 <= c < cols and built[r, c]:
+        if 0 <= r < rows and 0 <= c < cols and built[r, c] and not cent[r, c]:
             seeds.append((r, c))
     return {"state": state, "origin": origin, "seeds": sorted(set(seeds)), "gt": gt,
             "rows": rows, "cols": cols, "extent": extent, "inside": inside_mask,
-            "steep": steep & ~built}
+            "steep": steep & ~built, "water": water & ~built}
 
 
 def _rgb(hexcol):
@@ -176,6 +182,7 @@ def run_preset(sub, params, preset):
     shares = (p["shares"]["high"], p["shares"]["medium"], p["shares"]["low"])
     walk = float(p.get("centre_walk_m", 800.0))
     green_walk = float(p.get("green_walk_m", walk))
+    park_m2 = float(p["min_park_area_ha"]) * 1.0e4 if p.get("min_park_area_ha") else None
     max_walk = max(walk, green_walk)
     # min settlement is a population: convert via the mean density (people / (people/km² × km²/cell))
     min_cells = max(
@@ -189,19 +196,21 @@ def run_preset(sub, params, preset):
     G.green_unviable_pockets(state, origin, min_cells)
     sim = isobenefit.Simulation(
         state, origin.copy(), np.zeros_like(state, np.float32), sub["seeds"],
-        gran, max_walk, float(p["target_population"]), float(p.get("min_green_span_m", 400.0)),
+        gran, walk, green_walk, float(p["target_population"]), float(p.get("min_green_span_m", 400.0)),
         float(p.get("build_prob", 0.25)), 0.01, DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
         0.8, shares, tiers, int(p.get("max_iterations", 300)), int(p.get("random_seed", 42)),
+        min_park_area_m2=park_m2,
     )
     sim.run()
     st = np.asarray(sim.snapshot()["state"])
     plan, metrics, _pre, _best = G.select_plan(
-        [st], gran, float(p.get("min_green_span_m", 400.0)), max_walk,
+        [st], gran, max_walk,
         existing_built=(origin == 1), existing_green=(origin == 0),
         existing_centres=sub["seeds"], centre_mode=str(over.get("centre_mode", "placed")),
         centre_distance_m=walk, green_distance_m=green_walk,
         new_density_km2=sum(s * d for s, d in zip(shares, tiers)),
         centre_min_settlement=min_cells,
+        min_park_area_m2=park_m2,
     )
     dens = G.derive_density(plan, gran, walk, tiers, shares)
     disp = G.to_tiered_plan(plan, dens, tiers)
@@ -233,15 +242,19 @@ def render_png(codes, layers, sub, gran, path):
     unbuildable = (sub["state"] == -1) & inside
     steep = sub.get("steep")
     steep = steep & unbuildable if steep is not None else np.zeros_like(unbuildable)
+    water = sub.get("water")
+    water = water & unbuildable if water is not None else np.zeros_like(unbuildable)
     for r in range(H):
         for c in range(W):
             v = int(codes[r, c])
             if v in TIER_STYLE:
                 col, radf = TIER_STYLE[v]
+            elif water[r, c]:
+                col, radf = WATER, 0.3  # water bodies and river corridors
             elif steep[r, c]:
-                col, radf = STEEP, 0.3  # steep terrain: excluded for slope, not water
+                col, radf = STEEP, 0.3  # steep terrain: excluded for slope
             elif unbuildable[r, c]:
-                col, radf = UNBUILDABLE, 0.3  # water and barrier corridors: visibly excluded
+                col, radf = UNBUILDABLE, 0.3  # other exclusions: airfields, military, barriers
             elif inside[r, c]:
                 col, radf = GREEN, 0.18  # untouched land inside the extents
             else:
@@ -249,6 +262,43 @@ def render_png(codes, layers, sub, gran, path):
             cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
             rad = P * radf
             draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(col))
+    im = im.resize((cw // 2, ch // 2), Image.LANCZOS)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    im.save(path, optimize=True)
+
+
+# the shared map key: the website legend's grouped layout, drawn as a strip the manuscript
+# includes under each map figure (the panels themselves stay legend-free for the gallery)
+LEGEND_GROUPS = [
+    ("New built", [("high", BUILT_HIGH), ("medium", BUILT_MED), ("low", BUILT_LOW)]),
+    ("Mixed-use centre", [("high", CENTRE_HIGH), ("medium", CENTRE_MED), ("low", CENTRE_LOW)]),
+    ("Existing", [("existing built", EXIST_BUILT), ("existing centre", EXIST_CENTRE)]),
+    ("Other", [("nature", GREEN), ("water", WATER), ("steep terrain", STEEP),
+               ("unbuildable", UNBUILDABLE)]),
+]
+
+
+def render_legend(path):
+    """One legend strip for all map figures, supersampled 2x like the panels."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    col_w, row_h, top, margin = 880, 78, 96, 40
+    rows = max(len(items) for _, items in LEGEND_GROUPS)
+    cw, ch = margin * 2 + col_w * len(LEGEND_GROUPS), top + rows * row_h + margin
+    im = Image.new("RGB", (cw, ch), (255, 255, 255))
+    draw = ImageDraw.Draw(im)
+    try:
+        title_f = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 46)
+        label_f = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 42)
+    except OSError:
+        title_f = label_f = ImageFont.load_default()
+    for gi, (title, items) in enumerate(LEGEND_GROUPS):
+        x = margin + gi * col_w
+        draw.text((x, margin), title, fill=_rgb(INK), font=title_f)
+        for ri, (label, colour) in enumerate(items):
+            cy = top + ri * row_h + row_h / 2
+            draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(colour))
+            draw.text((x + 68, cy - 24), label, fill=_rgb(INK), font=label_f)
     im = im.resize((cw // 2, ch // 2), Image.LANCZOS)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path, optimize=True)
@@ -315,7 +365,8 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
         rel = f"{name}/{preset['id']}.png"
         render_png(disp, layers, sub, gran, os.path.join(OUT, rel))
         keep = {k: round(float(metrics.get(k, 0)), 3) for k in
-                ("served_coverage", "centre_access", "green_access", "population",
+                ("served_coverage", "served_coverage_incl_existing",
+                 "centre_access", "green_access", "population",
                  "centre_m2_per_person", "green_m2_per_person", "built_cells")}
         formal = merged_formal_params(params, preset, name)
         params_rel = f"{name}/{preset['id']}_params.json"

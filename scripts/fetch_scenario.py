@@ -222,6 +222,8 @@ def fetch(folder: str) -> None:
                 add(ds, Polygon(project(coords)), tags)
         if osm_queries.is_barrier_line(tags):
             add("unbuildable", LineString(project(coords)).buffer(BARRIER_BUFFER_M), tags)
+        if osm_queries.is_waterway_line(tags):
+            add("water", LineString(project(coords)).buffer(BARRIER_BUFFER_M), tags)
         for ds in line_ds:
             if osm_queries.feature_matches(ds, tags):
                 add(ds, LineString(project(coords)), tags)

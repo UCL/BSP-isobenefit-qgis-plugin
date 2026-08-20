@@ -14,7 +14,8 @@ fn make_sim(rows: usize, cols: usize, seed: u64) -> Simulation {
     let density = Array2::<f32>::zeros((rows, cols));
     let params = Params::from_raw(
         100.0,       // granularity_m
-        800.0,       // max_distance_m
+        800.0,       // centre_distance_m
+        400.0,       // green_distance_m
         5_000_000.0, // max_populat (high so it never stops early)
         100.0,       // min_green_span_m
         0.25,        // build_prob
@@ -23,6 +24,7 @@ fn make_sim(rows: usize, cols: usize, seed: u64) -> Simulation {
         0.8,         // pop_target_cent_threshold
         (0.4, 0.4, 0.2),
         (6000.0, 3000.0, 1000.0),
+        None, // min_park_area_m2 -> the 2 ha default
     )
     .unwrap();
     Simulation::new(

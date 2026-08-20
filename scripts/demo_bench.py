@@ -82,7 +82,8 @@ def main() -> None:
             density,
             seeds,
             GRAN,
-            800.0,
+            800.0,  # centre walk
+            400.0,  # green walk
             MAX_POPULAT,
             100.0,
             0.25,
@@ -91,7 +92,6 @@ def main() -> None:
             0.8,
             (0.4, 0.4, 0.2),
             (6000.0, 3000.0, 1000.0),
-            2000.0,
             TOTAL_ITERS,
             42,
         )
