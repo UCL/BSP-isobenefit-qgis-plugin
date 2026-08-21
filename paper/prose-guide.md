@@ -1,12 +1,7 @@
-# Prose guide (local companion)
+# Prose guide
 
-The manuscript follows the portable prose guide at
-`~/.claude/prose_guide.md`, reduced on 2026-08-20 to two rules: write in
-strict academic register, with efficiency of words and a narrative arc;
-the rules bind drafted text only, and the author's corrections are the
-record of what the first rule means in practice. This file holds what is
-paper-specific: the journal limits, the terminology table, and the
-recorded exceptions.
+This file holds what is paper-specific: the journal limits, the
+terminology table, and the recorded exceptions.
 
 Journal limits (Humanities and Social Sciences Communications, Article):
 about 8,000 words excluding abstract, tables, figure legends, and
@@ -26,17 +21,20 @@ paper have distinct definitions, and synonym rotation costs precision.
 | The two walking limits | the centre walk, the green walk | radius, buffer, threshold, catchment distance, T* (published model only) |
 | The distance metric | the grid walk (bounded, blocked by unbuildable land) | network distance (only for the removed alternative), crow-fly |
 | A home within both walks | served | covered, satisfied, within reach |
-| The headline metric | served coverage | walkability score, accessibility |
+| The headline metrics | population accommodated and the mean walks (coverage removed from the paper 2026-08-21; served coverage survives only as the run report's audit) | coverage, served coverage, walkability score, accessibility |
 | The stochastic model | the automaton, the growth rules | the CA (after first definition), the algorithm, the simulator (published model only) |
 | One execution | a run | a simulation, an iteration (reserved for steps within a run) |
 | The set of runs | the ensemble | the batch, the sweep (reserved for parameter sweeps) |
 | The chosen run | the best single run | the winner, the consensus (that is the rejected alternative) |
 | The unedited output | the raw grown state, raw | the pre-plan, the untouched run |
+| The pipeline's final plan | the selected plan | the recommended plan (2026-08-21 correction), the final plan, the output plan |
 | The three centre arrangements | as grown, optimised placement, fewest centres | grown/placed/minimal (code names), variants |
 | All four together | the four outputs | the four plans (raw is not a plan) |
 | Pre-existing development | existing fabric | legacy fabric, the existing town (fine informally, once) |
 | Land that cannot be built | unbuildable land, defined at first Methods use ("the areas treated as unavailable for development"); plain phrasing before the definition (abstract, introduction) | barriers (reserved for carved corridors), exclusions, bare "unbuildable" ahead of the definition |
+| Land reclassified as off-limits green | protected green space | protected green (bare "green" as a noun, 2026-08-21 correction) |
 | Density levels | the three tiers (high, medium, low) | bands, classes |
+| The settlement viability floor | the service viability threshold (a population; "the threshold" after first use) | minimum settlement, minimum settlement size |
 | Tier proportions | the shares | the mix (fine once, defined), weights |
 | Cleanup of stranded growth | pruning and absorption | filtering, sanitising |
 | The blended ensemble rasters | the likelihood layers (their per-cell value: the build likelihood) | likelihood surfaces, probability maps |
@@ -47,8 +45,8 @@ paper have distinct definitions, and synonym rotation costs precision.
 
 ## Recorded exceptions
 
-When a rule in the portable guide would obscure a claim, the claim wins
-and the exception is recorded here with its date and reason.
+When a convention would obscure a claim, the claim wins and the
+exception is recorded here with its date and reason.
 
 - 2026-08-18, degree notation: slopes are written as "20 degrees" in prose
   and with the degree symbol in tables and captions. Display items keep
