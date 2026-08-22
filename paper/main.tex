@@ -79,11 +79,9 @@ grows a grid of land cells from seeded centralities (the published
 model's term for centres) under a small set of rules that maintain
 the walking limits as the settlement grows. The approach sits between master-planning and
 laissez-faire growth, because a few simple rules guide development while
-the detailed form emerges spontaneously \citep{dacci_banister_white2024}. This paper operationalises Isobenefit Urbanism: we adapt the model
-to real-world constraints and deliver it as a QGIS plugin, an
-instrument that can be incorporated into planning workflows for
-conceptualising options and consulting residents and experts
-\citep[cf.][]{waddell2002}.
+the detailed form emerges spontaneously \citep{dacci_banister_white2024}. This paper operationalises Isobenefit Urbanism as a QGIS plugin, an
+instrument planning workflows can incorporate for conceptualising
+options and consulting residents and experts \citep[cf.][]{waddell2002}.
 
 The published model runs on an abstract grid, in which every cell
 starts as nature, distances are straight lines, and a single radius, typically set to an
@@ -96,12 +94,12 @@ be standard GIS layers.
 The plugin therefore incorporates the inputs,
 runs the model under these constraints, post-processes the results,
 and writes the derived plans as GIS layers.
-Isobenefit Urbanism shares its walkable-access premise with
-transit-oriented development, which holds that growth and density
-belong within walking reach of transit \citep{calthorpe1993,
-cervero_kockelman1997, ibraeva2020}. The plugin accordingly anchors
-a mixed-use centre at each rail and tram station and can draw
-growth toward transit corridors, existing or proposed.
+The same walkable-access premise underlies transit-oriented
+development, which holds that growth and density belong within
+walking reach of transit \citep{calthorpe1993, cervero_kockelman1997,
+ibraeva2020}, so the plugin anchors a mixed-use centre at each rail
+and tram station and can draw growth toward transit corridors,
+existing or proposed.
 
 The contributions are:
 
