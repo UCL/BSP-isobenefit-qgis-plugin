@@ -40,19 +40,25 @@ uniform abstract plain. This paper adapts the growth rules to real
 terrain, where existing towns, fragmented green space, rivers,
 railways, motorways, and steep slopes constrain development, and
 implements them as an open-source QGIS plugin. Inputs come
-from OpenStreetMap and the Copernicus GLO-30 elevation model, and
-distances are bounded grid walks that detour around land unsuitable
-for building. Existing fabric is frozen and served by its own centres,
-so the population target counts new residents only. Because the growth
-rules are stochastic, the plugin runs a fifty-run ensemble and
-summarises it as likelihood layers, which indicate where development
-is more likely under the constraints. The plan comes from the best
-single run, selected for the lowest mean walks to a centre and to
-green space, and post-processed into four outputs that keep every new
-home within the centre walk. Three hypothetical cases, each dominated
+from OpenStreetMap and the Copernicus GLO-30 elevation model.
+Existing fabric is fixed and served by its own centres, and new
+growth expands toward a population target that counts new residents
+only, while the rules keep a mixed-use centre and green space within
+a walk of every new home. These walks are bounded grid walks, which
+detour around land unsuitable for building. Transit hubs,
+stations or points the planner designates, anchor pinned mixed-use
+centres, and a corridor preference concentrates growth within the
+walkable catchment of existing or proposed transit. The growth rules
+are stochastic, so the plugin runs an ensemble and maps where
+development is more likely under the constraints. The plan is drawn
+from a single run and post-processed into four outputs that keep
+every new home within the centre walk. Three hypothetical cases,
+each dominated
 by a different constraint, demonstrate the pipeline: a new settlement
 at Cambourne, a green-belt release at Crews Hill in London, and a
-hillside expansion at Pajarito in Medell\'in. The outputs are scenario
+hillside expansion at Pajarito in Medell\'in. A further Cambourne run
+strings growth along a proposed bus corridor, with a bus rapid
+transit hub anchoring a new settlement. The outputs are scenario
 sketches for discussion and feedback at the early stages of planning,
 ahead of expert review and development. All scenario data, parameters,
 and code are public, and the results rebuild from committed sources at
@@ -131,7 +137,7 @@ batty2005, sante2010}, and differs from models fitted to observed
 growth in that its rules enforce a walkability guarantee while growth
 proceeds. It grows settlements on a
 square grid in which every cell starts as nature. Each simulation step scans
-the grid against a frozen copy. A nature cell adjacent to built land may
+the grid against an unchanged copy. A nature cell adjacent to built land may
 become built on two conditions: a centrality must lie within the
 radius T\(^*\), typically about one kilometre or a fifteen-minute
 walk, and building the cell must not breach the green-space rules,
@@ -463,7 +469,7 @@ Run stops at a population cap &
 Same stop; the target counts new residents only &
 Modified \\
 \addlinespace[2pt]
-Fixed raster scan order against a frozen grid copy &
+Fixed raster scan order against an unchanged grid copy &
 Shuffled visit order each iteration, removing scan-direction bias &
 Modified \\
 \addlinespace[2pt]
@@ -473,7 +479,7 @@ selected &
 Extension \\
 \addlinespace[2pt]
 Grid starts as uniform nature &
-Real OpenStreetMap inputs: frozen built fabric, protected green
+Real OpenStreetMap inputs: fixed built fabric, protected green
 space, carved barriers, centres, transit hubs, and transit
 corridors &
 Extension \\

@@ -48,7 +48,7 @@ As the reference demo, Cambourne also illustrates the input layers every scenari
 | Layer | Plugin role | Geometry |
 |---|---|---|
 | `extents` | The simulation boundary; one or more polygons | Polygons |
-| `built` | Existing built fabric, frozen as context | Polygons |
+| `built` | Existing built fabric, fixed as context | Polygons |
 | `green` | Green space to preserve | Polygons |
 | `unbuildable` | Water, floodplain, slopes and other exclusions | Polygons |
 | `centres` | Existing or planned urban centres | Points or polygons |

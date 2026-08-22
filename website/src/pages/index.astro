@@ -92,7 +92,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </p>
     <div class="layer-grid">
       <figure><img class="layer" src={dg('input_extents')} alt="" /><figcaption>The extents layer sets the area of interest. It is the only layer the simulation requires.</figcaption></figure>
-      <figure><img class="layer" src={dg('input_built')} alt="" /><figcaption>The existing built fabric. The simulation treats it as frozen and never redevelops it.</figcaption></figure>
+      <figure><img class="layer" src={dg('input_built')} alt="" /><figcaption>The existing built fabric. The simulation treats it as fixed and never redevelops it.</figcaption></figure>
       <figure><img class="layer" src={dg('input_green')} alt="" /><figcaption>Existing green space, which the growth rules preserve.</figcaption></figure>
       <figure><img class="layer" src={dg('input_centres')} alt="" /><figcaption>Mixed-use urban centres, taken from retail and commercial land. Every cell they cover acts as a centre.</figcaption></figure>
       <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land: water, industrial land, and buffered barrier corridors such as the A428.</figcaption></figure>
@@ -120,7 +120,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     <p>
       In QGIS you point the run dialog at these layers, choose a projected CRS and an output path, and press
       Run; the rest is automatic. The simulation works on a grid (here 50 m cells), so the vector layers are
-      rasterised first: existing built fabric becomes <em>frozen</em> built cells, downloaded green becomes
+      rasterised first: existing built fabric becomes <em>fixed</em> built cells, downloaded green becomes
       protected green cells, centre <em>areas</em> become centre cells across their full extent, and water,
       industrial land and buffered barrier corridors (major roads, railways, rivers) are marked
       <strong>unbuildable</strong>, so the simulation never develops them. Every run on this page starts
@@ -416,7 +416,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         probability is fixed at 0.01 rather than exposed as a dial.
       </li>
       <li>
-        <strong>Real-data grounding.</strong> Existing fabric is frozen (never redeveloped); water,
+        <strong>Real-data grounding.</strong> Existing fabric is fixed (never redeveloped); water,
         industrial land and barrier corridors (major roads, railways, rivers) are carved out as unbuildable;
         downloaded centre <em>areas</em> act as true multi-cell centres; and an OSM extraction tool supplies
         all of it. Rail and tram stations anchor centres; stops feed the report's transit readout. The

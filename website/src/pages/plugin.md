@@ -254,7 +254,7 @@ same cleaned fabric and differ only in their centres, so the rows that move betw
 centre count, the walks and the centre provision; here optimised placement consolidates to 43
 centre areas against 46 as grown, and the mean centre walk ranges from 236 to 244 m. Every
 new home is served in all four columns,
-because the growth rules enforce both walks; the incl.-existing row blends in the frozen fabric,
+because the growth rules enforce both walks; the incl.-existing row blends in the fixed fabric,
 which carries no guarantee, and the FYI row shows the existing homes alone. The gap between raw
 and the options is the cleanup: the raw run overshoots the target slightly, but part of its
 growth lies in

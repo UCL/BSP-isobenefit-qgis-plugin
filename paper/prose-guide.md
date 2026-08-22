@@ -30,7 +30,7 @@ paper have distinct definitions, and synonym rotation costs precision.
 | The pipeline's final plan | the selected plan | the recommended plan (2026-08-21 correction), the final plan, the output plan |
 | The three centre arrangements | as grown, optimised placement, fewest centres | grown/placed/minimal (code names), variants |
 | All four together | the four outputs | the four plans (raw is not a plan) |
-| Pre-existing development | existing fabric | legacy fabric, the existing town (fine informally, once) |
+| Pre-existing development | existing fabric, described as fixed (2026-08-22 correction) | legacy fabric, the existing town (fine informally, once), frozen |
 | Land that cannot be built | unbuildable land, defined at first Methods use ("the areas treated as unavailable for development"); plain phrasing before the definition (abstract, introduction) | barriers (reserved for carved corridors), exclusions, bare "unbuildable" ahead of the definition |
 | Land reclassified as off-limits green | protected green space | protected green (bare "green" as a noun, 2026-08-21 correction) |
 | Density levels | the three tiers (high, medium, low) | bands, classes |
