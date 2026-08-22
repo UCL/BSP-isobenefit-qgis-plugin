@@ -41,7 +41,7 @@ terrain, where existing towns, fragmented green space, rivers,
 railways, motorways, and steep slopes constrain development, and
 implements them as an open-source QGIS plugin. Inputs come
 from OpenStreetMap and the Copernicus GLO-30 elevation model, and
-users can edit the downloaded layers or supply their own in lieu.
+users can edit the downloaded layers or supply their own.
 Existing fabric is fixed and served by its own centres, and new
 growth expands toward a population target that counts new residents
 only, while the rules keep a mixed-use centre and green space within
@@ -60,8 +60,8 @@ at Cambourne, a green-belt release at Crews Hill in London, and a
 hillside expansion at Pajarito in Medell\'in. A further Cambourne run
 strings growth along a proposed bus corridor, with a bus rapid
 transit hub anchoring a new settlement. The outputs are scenario
-sketches for discussion and feedback at the early stages of planning,
-ahead of expert review and development. All scenario data, parameters,
+sketches for discussion and feedback at the early stages of
+planning. All scenario data, parameters,
 and code are open, and the results rebuild from committed sources at
 fixed seeds.
 \end{abstract}
@@ -71,10 +71,10 @@ fixed seeds.
 Isobenefit Urbanism \citep{dacci2019} proposes that the benefits of a
 settlement should be distributed evenly. Its prefix \emph{iso} means
 equal: wherever one lives, a local centre with shops, services, and
-workplaces should be within a walk, and so should green space. D'Acci
-introduced the concept in a futures study \citep{dacci2013} and later
+workplaces should be within a walk, and so should green space.
+\citet{dacci2013} introduced the concept in a futures study and later
 formalised it as a cellular-automaton morphogenesis, published
-with a Python simulator \citep{dacci_voto2023, voto_code}. The automaton
+with a Python simulator \citep{dacci_voto2023,voto_code}. The automaton
 grows a grid of land cells from seeded centralities (the published
 model's term for centres) under a small set of rules that maintain
 the walking limits as the settlement grows. The approach sits between master-planning and
@@ -93,7 +93,7 @@ This paper operationalises Isobenefit Urbanism as a QGIS plugin, an
 instrument planning workflows can incorporate for conceptualising
 options and consulting residents and experts
 \citep[cf.][]{waddell2002}. The plugin
-incorporates the inputs, runs the model under these constraints,
+prepares the inputs, runs the model under these constraints,
 post-processes the results, and writes the derived plans as GIS
 layers.
 
@@ -202,10 +202,11 @@ Each scenario is defined by a simulation boundary in a metric coordinate
 reference system and a set of vector layers. The case-study scenarios
 fetch these layers from OpenStreetMap
 \citep{osm} with the preparation tool. The layers cover existing
-built fabric, green space to preserve, existing mixed-use centres,
+built fabric, protected green space, existing mixed-use centres,
 unbuildable land (the areas treated as unavailable for development),
 streets, public-transport stops, rail and tram stations,
-railways, and industrial land. Terrain slope is mapped from the Copernicus GLO-30 elevation model
+railways, and industrial land, which counts as unbuildable for new
+homes. Terrain slope is mapped from the Copernicus GLO-30 elevation model
 \citep{copernicus_glo30} as bands steeper than 15, 20, 25, and 30
 degrees. The bands are a separate layer that users can edit from
 local knowledge.
@@ -232,14 +233,15 @@ the constraints in the sections that follow are derived from and
 applied to the new growth. Second, the input data rarely describe
 existing densities and services in sufficient detail to model them.
 
-The simulation tool then screens out the open land too small to hold
-a viable settlement. The measure is the service viability threshold,
-the population a minimal local centre needs; the default of 2{,}000
-people sits at the small end of published facility catchments
-\citep{barton2021}. Land that fails the screen, typically small
-islands and slivers of open land enclosed by existing development
-or unbuildable corridors, is excluded from new development before
-the run.
+The simulation tool then screens the open land against the service
+viability threshold, the population a minimal local centre needs;
+the default of 2{,}000 people sits at the small end of published
+facility catchments \citep{barton2021}. A region too small to hold
+the threshold population is kept when it lies within the centre
+walk of an existing centre, where new growth is infill served by
+that centre. The rest, typically small islands and slivers of open
+land enclosed by existing development or unbuildable corridors, is
+excluded from new development before the run.
 
 The growth rules and all reported metrics measure
 distance with the bounded grid walk: the shortest path over
@@ -253,14 +255,14 @@ Dijkstra search.
 A run proceeds in iterations. Each iteration applies the growth
 rules to every land cell, visiting the cells in a shuffled order to
 avoid the directional bias of a fixed scan. A cell is a candidate
-for building when it is empty, buildable, and touches built land.
+for building when it is empty, buildable, touches built land, and
+lies within the centre walk of a centre.
 New growth attaches only to built land that carries a centre, so
 existing settlements without one, such as outlying farmsteads and
 hamlets, receive no new growth. A run starts with the existing mixed-use
 centres and with a centre seeded at each transit hub, a rail or tram
-station or a point the planner designates, so development also
-gathers around the hubs. A candidate must lie
-within the centre walk of a centre.
+station or a point the planner designates, and development gathers
+around the hubs from the first iteration.
 
 Building a candidate must leave the green network intact. A park is
 a contiguous green area of at least the minimum park area, 2
@@ -273,8 +275,8 @@ built cell, the existing fabric included, must keep a park within
 the green walk.
 
 A candidate that passes every check builds by a random draw at the
-build probability, which staggers the built edge and sets the pace
-of growth. Each built cell draws one of the three density tiers
+build probability. The draw staggers the built edge, and the
+probability sets the pace of growth. Each built cell draws one of the three density tiers
 according to the shares, and a run stops when it reaches the
 population target.
 
@@ -335,7 +337,7 @@ of new homes within the centre walk. A centre that falls short is
 removed, and any growth left without a centre within the walk is
 pruned back to nature, an outcome the three plan options share. Existing centres, the hub centres,
 and the existing fabric are unaffected;
-pruning is the only step that changes the population, and the run
+pruning is the only step that removes growth, and the run
 report confirms that every surviving centre meets the threshold.
 
 Post-processing then redistributes the drawn densities within each
@@ -343,7 +345,7 @@ settlement, with the highest tiers at the core and lower tiers
 toward the edge; because the values are only redistributed, the
 run's shares and its population do not change.
 
-The last step produces the three centre-placement options, which
+The last step produces the three plan options, which
 together with the raw grown state form the four outputs. \emph{Raw}
 shows the best single run as it grew, coloured by the density
 tiers it drew. The three options share the same fabric and
@@ -366,9 +368,9 @@ is sized by the new residents nearest to it, at 20~m\(^2\) of
 centre area per resident by default, and each resident counts
 toward one centre, so total provision follows the population. The
 default covers the shops, services, and workplaces of
-neighbourhood-centre standards \citep{barton2021}, and amenity
+neighbourhood-centre standards \citep{barton2021}. Because amenity
 provision scales sublinearly with settlement size
-\citep{bettencourt2013}, so a single ratio suits the small-to-mid
+\citep{bettencourt2013}, a single ratio suits the small-to-mid
 settlement growth the tool addresses.
 
 An ensemble run loads its results into the QGIS project as one
@@ -504,7 +506,7 @@ the run &
 Extension \\
 \addlinespace[2pt]
 Centralities stay where seeded &
-Three centre options in post-processing, all keeping every home within
+Three plan options in post-processing, all keeping every home within
 the centre walk; each settlement hosts its own centre, whose
 catchment gathers new homes across green space, and growth without a
 viable centre reverts to nature &
@@ -549,9 +551,9 @@ expansion (Pajarito, Medell\'in). Each case's figure varies the
 setting that shows its dominant constraint most clearly: the centre
 walk at Cambourne, the shares at Crews Hill, and dispersal at Pajarito.
 Cambourne, the reference case, additionally demonstrates the transit
-levers with a proposed corridor and hub. The centre-walk sweep of
-Table~\ref{tab:sweep} covers all
-three cases, and Table~\ref{tab:scenarios} gives the settings.
+levers with a proposed corridor and hub. Table~\ref{tab:scenarios}
+gives the settings, and a closing centre-walk sweep covers all
+three cases.
 
 The cases are demonstrations of how the tool works; their windows,
 targets, and density presets are hypothetical. An
@@ -581,6 +583,7 @@ Tiers & 6{,}000 / 3{,}000 / 1{,}500 & 26{,}000 / 15{,}500 / 9{,}500 &
 35{,}000 / 18{,}000 / 8{,}000 \\
 Shares & 0.2 / 0.3 / 0.5 & 0.2 / 0.5 / 0.3 & 0.3 / 0.4 / 0.3 \\
 Dispersal & Moderate & Off & Moderate \\
+Build probability & 0.3 & 0.25 & 0.25 \\
 Slope limit & None & None & Over 20\(^\circ\) unbuildable \\
 \bottomrule
 \end{tabularx}
@@ -590,15 +593,16 @@ Slope limit & None & None & Over 20\(^\circ\) unbuildable \\
 
 Cambourne is a fast-growing Cambridgeshire new settlement. The
 30{,}000 target is hypothetical and reflects no assessment of
-local housing need. This reference case presents the four outputs, varies
-the centre walk, and ends with the transit demonstration, a proposed
-corridor and hub (Figure~\ref{fig:corridor}). Figure~\ref{fig:cambourne}
+local housing need. This reference case presents the four outputs
+(Table~\ref{tab:fouroutputs}), varies the centre walk, and ends with
+the transit demonstration, a proposed
+corridor and hub. Figure~\ref{fig:cambourne}
 shows the selected plan under the
 baseline and 1{,}600~m centre walks. At the baseline 1{,}200~m
 walk, the plan accommodates about 21{,}600 of the 30{,}000 target,
 and new homes average a 242~m walk to a centre and 104~m to green
 space. At 1{,}600~m the wider catchments gather more new homes
-toward the viability threshold, and the sweep of
+toward the threshold, and the sweep of
 Table~\ref{tab:sweep} quantifies the response.
 
 Table~\ref{tab:fouroutputs} reproduces the Cambourne scenario's run
@@ -622,16 +626,16 @@ The corridor preference is 0.95 and every other setting stays at the
 baseline. Growth and its satellite settlements string along the route
 instead of spreading across the window (Figure~\ref{fig:corridor}),
 and the share of new homes within the transit catchments rises from
-5\% to 72\%. The hub lies just beyond the walk coverage of the
-existing centres, so it opens land they cannot reach, and a new
+5\% to 72\%. The hub lies just beyond the centre walk of the
+existing centres, so its catchment holds land they do not serve, and a new
 settlement gathers around its pinned centre at the junction. The
 population accommodated falls from 21{,}567 to 13{,}160, because
 draws outside the catchments run at a twentieth of their probability,
 and the run log warns when the catchments' developable capacity sits
 under the target. The mean walks change little (296~m against 242~m
 to a centre, 114~m against 104~m to green space), and every home
-keeps both walks. The preference trades pace for transit alignment,
-and the planner sets the balance.
+keeps both walks. A planner sets the preference to balance transit
+alignment against the population accommodated.
 
 \begin{table}[t]
 \centering
@@ -685,8 +689,8 @@ resolution, seed 42.}
 The Crews Hill area of Enfield, inside the M25 at London's northern edge,
 is one of the largest green-belt releases proposed in an emerging London
 local plan, which allocates about 5{,}500 homes around an existing rail
-station. We built the scenario to test whether a release delivers a walkable
-settlement or car-led sprawl, and which green network survives. Dispersal
+station. We built the scenario to sketch the walkable settlement the
+release could hold and the green network that survives. Dispersal
 is off, so the extension grows contiguously. The density tiers use
 indicative UK design-code values (40 / 65 / 110 dwellings per hectare at a
 household size of 2.36). The scenario takes from the emerging plan only
@@ -703,7 +707,7 @@ setting builds on close to the same
 4{,}300 cells, so the shares alone set the population. Shares of
 0.5 / 0.3 / 0.2 (high / medium / low) reach 12{,}952, near the
 target, and shares of 0.1 / 0.3 / 0.6 house 8{,}539. The
-station's hub centre is pinned against the rail line, so the
+station's hub centre is pinned against the rail line, and the
 new development forms around the station.
 
 \begin{figure}[!tp]
@@ -761,8 +765,8 @@ seed 42.}
 
 The centre walk is swept across 800, 1{,}200, and 1{,}600~m for the
 three cases. The centre walk sets the size of a centre's catchment,
-and a wider catchment gathers more new homes toward the threshold, so
-the walk also governs which centres are viable. Cambourne, where
+and a wider catchment gathers more new homes toward the threshold.
+The walk therefore also governs which centres are viable. Cambourne, where
 viability limits the baseline plan, responds most, with the
 population accommodated rising from 10{,}800 at 800~m to 21{,}600
 at 1{,}200~m and 27{,}500 at 1{,}600~m. At Cambourne's greenfield
