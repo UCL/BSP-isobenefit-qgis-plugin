@@ -46,13 +46,13 @@ Existing fabric is fixed and served by its own centres, and new
 growth expands toward a population target that counts new residents
 only, while the rules keep a mixed-use centre and green space within
 a walk of every new home. These walks are bounded grid walks, which
-detour around land unsuitable for building. Transit hubs,
-stations or points the planner designates, anchor pinned mixed-use
+detour around land unsuitable for building. Transit hubs (stations
+or points the planner designates) anchor pinned mixed-use
 centres, and a corridor preference concentrates growth within the
 walkable catchment of existing or proposed transit. The growth rules
 are stochastic, so the plugin runs an ensemble and maps where
 development is more likely under the constraints. The plan is drawn
-from a single run and post-processed into four outputs that keep
+from the best single run and post-processed into four outputs that keep
 every new home within the centre walk. Three hypothetical cases,
 each dominated
 by a different constraint, demonstrate the pipeline: a new settlement
@@ -79,21 +79,24 @@ grows a grid of land cells from seeded centralities (the published
 model's term for centres) under a small set of rules that maintain
 the walking limits as the settlement grows. The approach sits between master-planning and
 laissez-faire growth, because a few simple rules guide development while
-the detailed form emerges spontaneously \citep{dacci_banister_white2024}. This paper operationalises Isobenefit Urbanism as a QGIS plugin, an
-instrument planning workflows can incorporate for conceptualising
-options and consulting residents and experts \citep[cf.][]{waddell2002}.
+the detailed form emerges spontaneously \citep{dacci_banister_white2024}.
 
 The published model runs on an abstract grid, in which every cell
-starts as nature, distances are straight lines, and a single radius, typically set to an
-approximately fifteen-minute walk, governs access both to
+starts as nature, distances are straight lines, and a single radius,
+typically about a fifteen-minute walk, governs access both to
 centres and to green space. This abstraction keeps the morphology of the
 rules easy to study. In real-world use the model must
 accommodate constraints such as towns, fragmented green space,
 rivers, railways, motorways, and steep slopes, and its outputs must
 be standard GIS layers.
-The plugin therefore incorporates the inputs,
-runs the model under these constraints, post-processes the results,
-and writes the derived plans as GIS layers.
+This paper operationalises Isobenefit Urbanism as a QGIS plugin, an
+instrument planning workflows can incorporate for conceptualising
+options and consulting residents and experts
+\citep[cf.][]{waddell2002}. The plugin
+incorporates the inputs, runs the model under these constraints,
+post-processes the results, and writes the derived plans as GIS
+layers.
+
 The same walkable-access premise underlies transit-oriented
 development, which holds that growth and density belong within
 walking reach of transit \citep{calthorpe1993, cervero_kockelman1997,
@@ -271,9 +274,9 @@ the green walk.
 
 A candidate that passes every check builds by a random draw at the
 build probability, which staggers the built edge and sets the pace
-of growth. Each
-built cell draws one of the three density tiers according to the
-shares.
+of growth. Each built cell draws one of the three density tiers
+according to the shares, and a run stops when it reaches the
+population target.
 
 New centres arise in two ways. Where a cell at the growing edge lies
 beyond the centre walk of every existing and grown centre, the
@@ -293,30 +296,31 @@ way. Outside both catchments the build, seeding, and dispersal draws
 are scaled by one minus the corridor preference, a weight from 0 to 1
 (Section~\ref{sec:transit}). At the default of 0 the draws are
 unchanged, and higher settings concentrate growth and satellite
-settlements along existing or proposed transit. A run stops when it
-reaches the population target.
+settlements along existing or proposed transit.
 
 \subsection{Ensembles and selection}
 \label{sec:ensemble}
 
 The growth rules are stochastic, so a single run is one pattern
-among the many the same inputs allow. Rather than rely on one draw,
-the tool runs an ensemble, fifty runs in the scenarios reported
-here. Each run starts from the same inputs with its own random seed
-and grows a complete settlement pattern that satisfies the
-constraints, so different runs build in different places. The
-likelihood layers summarise this variation by recording, for each
-cell, the fraction of runs in which it ended built or green. The
-fraction indicates how likely an area is to develop under the
-constraints.
+among the many the same inputs allow. The tool therefore runs an
+ensemble, fifty runs in the scenarios reported here. Each run
+starts from the same inputs with its own random seed and grows a
+complete settlement pattern that satisfies the constraints, so
+runs build in different places. The likelihood layers
+summarise this variation by recording, for each cell, the fraction
+of runs in which it ended built or green, which indicates how
+likely an area is to develop under the constraints.
 
 Because the runs vary cell by cell, averaging them blends the
 constraints away; the blended result no longer satisfies the walking
 limits, so the layers are informational only. We instead select the
-best single run, the one whose new homes have the lowest mean walk
-to a centre and to green space. Selection follows the
-post-processing of Section~\ref{sec:fouroutputs}, which turns each
-run into a candidate plan.
+best single run, the one whose candidate plan from the
+post-processing of Section~\ref{sec:fouroutputs} scores lowest.
+The score averages the new homes' walks to a centre and to green
+space, counting a home beyond either walk at twice that walk's
+limit and any unhoused remainder of the population target as
+homes beyond both walks, so a run cannot score well by housing
+fewer people.
 
 A reported mean walk averages over the new homes that reach a
 centre or green space within the walk.
@@ -324,21 +328,20 @@ centre or green space within the walk.
 \subsection{Post-processing and the four outputs}
 \label{sec:fouroutputs}
 
-A run follows a random process, so post-processing checks the
-result before a plan is drawn from it. The first check is
-viability: each centre must gather at least the threshold
-population of new homes within the centre walk. A centre that
-falls short is removed, and any growth left without a centre
-within the walk is then pruned back to nature. Existing centres,
-the hub centres, and the existing fabric are unaffected;
+Post-processing checks each run before a plan is drawn.
+The first check is viability: each centre, repositioned central to
+the homes it serves, must gather at least the threshold population
+of new homes within the centre walk. A centre that falls short is
+removed, and any growth left without a centre within the walk is
+pruned back to nature, an outcome the three plan options share. Existing centres, the hub centres,
+and the existing fabric are unaffected;
 pruning is the only step that changes the population, and the run
 report confirms that every surviving centre meets the threshold.
 
-Post-processing then rearranges the population densities. The
-densities the run drew are redistributed within each settlement,
-with the highest tiers at the core and lower tiers toward the
-edge; because the values are only redistributed, the run's shares
-and its population do not change.
+Post-processing then redistributes the drawn densities within each
+settlement, with the highest tiers at the core and lower tiers
+toward the edge; because the values are only redistributed, the
+run's shares and its population do not change.
 
 The last step produces the three centre-placement options, which
 together with the raw grown state form the four outputs. \emph{Raw}
@@ -346,8 +349,8 @@ shows the best single run as it grew, coloured by the density
 tiers it drew. The three options share the same fabric and
 arranged density and differ only in their centres. \emph{As grown} keeps the run's
 centres, adding one only where pruning removed a cluster's serving
-centre. \emph{Optimised placement} repositions each centre central
-to the homes it serves and adds one wherever provision is missing;
+centre. \emph{Optimised placement} keeps the repositioned centres
+and adds one wherever provision is missing;
 infill too small to meet the threshold is served by existing
 centres and receives no centre of its own. \emph{Fewest centres}
 removes centres one at a time for as long as every home keeps one
@@ -363,44 +366,44 @@ is sized by the new residents nearest to it, at 20~m\(^2\) of
 centre area per resident by default, and each resident counts
 toward one centre, so total provision follows the population. The
 default covers the shops, services, and workplaces of
-neighbourhood-centre standards \citep{barton2021}. Amenity
+neighbourhood-centre standards \citep{barton2021}, and amenity
 provision scales sublinearly with settlement size
 \citep{bettencourt2013}, so a single ratio suits the small-to-mid
 settlement growth the tool addresses.
 
 An ensemble run loads its results into the QGIS project as one
-layer group. The group holds the existing fabric for comparison,
+layer group: the existing fabric for comparison,
 the raw grown state, and the three plan options as categorical
 rasters, each coloured by density tier with the centres in a
 distinct hue and the centre count in the layer name. A further
 layer maps the growth that pruning removed, and the two likelihood
 layers complete the group. Alongside the layers the tool writes a
-plain-text run report, which lists the parameters, summarises the
-run, sets the four outputs' metrics side by side, and records the
-achieved shares and the centre audit, so every post-processing
-edit stays visible. A single run, outside the ensemble, is written
-instead as a temporal animation of the growth, one frame per step.
+plain-text run report listing the parameters, the run summary,
+the four outputs' metrics side by side, and the achieved shares
+and centre audit, so every post-processing edit stays visible. A
+single run, outside the ensemble, is written instead as a
+temporal animation of the growth, one frame per step.
 
 \subsection{Public transport}
 \label{sec:transit}
 
-Transit enters the model in two ways, through the hubs and through
-the corridors. Each transit hub seeds a centre at the start of a
+Transit enters the model through the hubs and the corridors.
+Each transit hub seeds a centre at the start of a
 run, so development gathers around it, and post-processing pins the
 centre, which is neither pruned nor repositioned and is sized like
-any other centre. A point added to the hubs layer therefore places
+any other. A point added to the hubs layer places
 a designated centre by hand, such as a transit-oriented development
 around a planned station. Transit corridors attract growth. The
 corridor preference of Section~\ref{sec:growth} scales the
 development draws outside the transit catchments, so a preference
 above 0 concentrates growth and satellite settlements along existing
 or proposed transit. The run report gives the share of new homes
-within the transit catchments and the mean walk to a transit
-anchor. These metrics
+within the transit catchments and the mean walk to the nearest
+transit stop or hub. These metrics
 do not enter run selection. The baseline case studies
 leave the preference at 0, so their reported numbers do not depend on
 the corridor mechanism. A Cambourne demonstration raises the
-preference to 0.95 and shows its effect (Section~\ref{sec:cases}).
+preference to 0.95 (Section~\ref{sec:cases}).
 
 \subsection{Rule adaptations}
 \label{sec:rules}
@@ -514,7 +517,7 @@ Extension \\
 \label{sec:software}
 
 The implementation comprises a simulation engine and a QGIS plugin.
-The simulation engine is a Rust crate, published on PyPI as
+The engine is a Rust crate, published on PyPI as
 \texttt{isobenefit}, whose small Python interface, built with PyO3,
 accepts and returns arrays; the engine does not import QGIS. The
 QGIS plugin \citep{qgis} supplies the data preparation, the run
@@ -538,8 +541,8 @@ in this paper rebuilds offline from source at fixed seeds.
 \section{Case studies}
 \label{sec:cases}
 
-We ran the pipeline on three demonstration cases, in each of which a
-different constraint dominates the outcome: a
+We ran the pipeline on three demonstration cases, each dominated by a
+different constraint: a
 free-standing new settlement (Cambourne, UK), a green-belt release at a
 metropolitan edge (Crews Hill, London), and a topography-bound hillside
 expansion (Pajarito, Medell\'in). Each case's figure varies the
@@ -550,8 +553,8 @@ levers with a proposed corridor and hub. The centre-walk sweep of
 Table~\ref{tab:sweep} covers all
 three cases, and Table~\ref{tab:scenarios} gives the settings.
 
-The cases are hypothetical demonstrations of how the tool works,
-with hypothetical windows, targets, and density presets. An
+The cases are demonstrations of how the tool works; their windows,
+targets, and density presets are hypothetical. An
 application in practice would set these in consultation with local
 residents, planners, and experts.
 
@@ -594,10 +597,9 @@ shows the selected plan under the
 baseline and 1{,}600~m centre walks. At the baseline 1{,}200~m
 walk, the plan accommodates about 21{,}600 of the 30{,}000 target,
 and new homes average a 242~m walk to a centre and 104~m to green
-space. At the 800~m sweep setting the plan falls to about 10{,}800.
-At Cambourne's greenfield densities an 800~m catchment holds too
-few new homes to sustain a centre, so the 2{,}000-person threshold
-rules out many of the study window's detached mid-sized pockets.
+space. At 1{,}600~m the wider catchments gather more new homes
+toward the viability threshold, and the sweep of
+Table~\ref{tab:sweep} quantifies the response.
 
 Table~\ref{tab:fouroutputs} reproduces the Cambourne scenario's run
 report, which records the four outputs. The raw grown
@@ -692,15 +694,15 @@ the site boundary and the allocation's scale. Whether the release
 should proceed is a question for the plan's examination and its
 public consultation.
 
-At the baseline walk the plan reaches 10{,}428 of the 13{,}000
+Under the baseline settings the plan reaches 10{,}428 of the 13{,}000
 target, and new homes
 average a 145~m walk to a centre and 140~m to green space.
-Figure~\ref{fig:crewshill} varies the shares
-on the fixed boundary. The growth rules bound the reachable extent
-of the release, and every setting builds on close to the same
-4{,}300 cells, so the shares alone set the population. One step toward the high
-tier reaches 12{,}952, near the target; one step toward the low
-tier houses 8{,}539. The
+Figure~\ref{fig:crewshill} varies the shares on the fixed boundary.
+The growth rules bound the reachable extent of the release, and every
+setting builds on close to the same
+4{,}300 cells, so the shares alone set the population. Shares of
+0.5 / 0.3 / 0.2 (high / medium / low) reach 12{,}952, near the
+target, and shares of 0.1 / 0.3 / 0.6 house 8{,}539. The
 station's hub centre is pinned against the rail line, so the
 new development forms around the station.
 
@@ -710,10 +712,10 @@ new development forms around the station.
 \includegraphics[width=0.48\textwidth]{figures/london_crews_hill_denser.png}\\[6pt]
 \includegraphics[width=\textwidth]{figures/legend.png}
 \caption{The selected plan for the Crews Hill release, with
-dispersal off, at shares shifted one step toward the low tier
-(left) and one step toward the high tier (right). The two settings
-build on nearly the same land while the populations they house
-differ by half. The station's hub centre is pinned against the
+dispersal off, at shares of 0.1 / 0.3 / 0.6 (high / medium / low)
+(left) and 0.5 / 0.3 / 0.2 (right). The two settings
+build on nearly the same land, while the populations they house
+are 8{,}539 and 12{,}952. The station's hub centre is pinned against the
 rail line in both settings. Full scenario resolution, seed 42.}
 \label{fig:crewshill}
 \end{figure}
@@ -726,7 +728,7 @@ Metrocable. Slopes over 20 degrees are unbuildable and cover about 30\% of
 the study window, so the green network and the short walking distances
 must fit around the terrain. The high density tier (35{,}000 people per
 km\(^2\)) reflects the area's housing towers. The scenario is a
-hypothetical exercise on the district's terrain and carries no
+hypothetical demonstration on the district's terrain and carries no
 recommendation for its future development.
 
 At the baseline walk the plan accommodates about 33{,}600 of the 40{,}000
@@ -758,19 +760,22 @@ seed 42.}
 \subsection{Sensitivity to the centre walk}
 
 The centre walk is swept across 800, 1{,}200, and 1{,}600~m for the
-three cases; Table~\ref{tab:sweep} reports the mean centre walks.
-The permitted walk sets the size of a centre's catchment, and a
-wider catchment gathers more new homes toward the threshold, so the
-walk also governs which centres are viable. Cambourne, where
+three cases. The centre walk sets the size of a centre's catchment,
+and a wider catchment gathers more new homes toward the threshold, so
+the walk also governs which centres are viable. Cambourne, where
 viability limits the baseline plan, responds most, with the
 population accommodated rising from 10{,}800 at 800~m to 21{,}600
-at 1{,}200~m and 27{,}500 at 1{,}600~m. Crews Hill holds near
+at 1{,}200~m and 27{,}500 at 1{,}600~m. At Cambourne's greenfield
+densities an 800~m catchment holds too few new homes to sustain a
+centre, so the 2{,}000-person threshold rules out many of the study
+window's detached mid-sized pockets. Crews Hill holds near
 10{,}400 at every setting, because its limit is the reachable
 extent of the release rather than the walk, and Pajarito climbs
 from 30{,}800 to 35{,}400.
-The mean walk of new homes responds less regularly, because
-each figure comes from one selected run and the permitted walk
-changes which run is selected.
+Table~\ref{tab:sweep} reports the mean centre walk of new homes,
+which responds less regularly, because each figure comes from one
+selected run and the centre-walk setting changes which run is
+selected.
 
 \begin{table}[t]
 \centering
