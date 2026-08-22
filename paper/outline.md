@@ -135,9 +135,9 @@ repository and otherwise dropped from the paper.
 
 - What the rule changes buy on real terrain, and what they cost in
   comparability with the published model.
-- Known limitations, candid list from `docs/recommended-plan.md`: benefit is
-  a threshold not a gradient; any qualifying green serves its whole catchment
-  regardless of quality; the pipeline is exercised most heavily on Cambourne.
+- REMOVED 2026-08-22 at Gareth's direction: the Limitations subsection
+  (threshold-not-gradient benefit, park quality, single-run spread, Cambourne
+  emphasis) is out of the paper.
 - The cleanup gap (Cambourne window: raw 82% of target versus 51% after
   cleanup) and what it says about min-settlement thresholds.
 - Scope statement inherited from the README: research software for discussion
