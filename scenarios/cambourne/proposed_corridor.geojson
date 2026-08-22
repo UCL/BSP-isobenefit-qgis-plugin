@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "proposed_corridor",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::27700" } },
+"features": [
+{ "type": "Feature", "properties": { "name": "Proposed bus corridor", "note": "A demonstration input, drawn by hand: a bus route from Cambourne's eastern edge across the open plain to the window's north-eastern village. Used by the transit-corridor preset; not OSM data." }, "geometry": { "type": "LineString", "coordinates": [ [ 533200.0, 259700.0 ], [ 534950.0, 261350.0 ], [ 536450.0, 262600.0 ], [ 537800.0, 263350.0 ] ] } }
+]
+}

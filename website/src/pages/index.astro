@@ -333,6 +333,23 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="demo" src={dg('demo_dispersal_aggressive')} alt="" /><figcaption><strong>Aggressive.</strong> Many small satellites scatter across the window, each still subject to the walkability rules; most are later pruned as too small.</figcaption></figure>
     </div>
 
+    <h3>Transit-oriented growth</h3>
+    <p>
+      The corridor preference concentrates development along public transport. The bus stops and any
+      proposed route drawn as a line project a walkable catchment, 400&nbsp;m by default, and outside
+      that catchment every development draw is scaled by one minus the preference. At 0 the transit
+      layers only feed the run report; at 0.95, as on the right, growth strings along the drawn route.
+      The two panels share every other setting and show the raw grown state. Rail and tram stations
+      work differently: each anchors a mixed-use centre that seeds growth and survives
+      post-processing, so a point added to the hubs layer places a designated centre by hand.
+    </p>
+    <figure>
+      <img class="wide" src={dg('demo_corridor')} alt="The same Cambourne run with the corridor preference off and at 0.95: with the preference raised, growth concentrates along the proposed bus route" />
+      <figcaption>The teal line is a proposed bus route, drawn by hand; the teal dots are the
+      downloaded bus stops. With the preference raised, growth gathers along the route instead of
+      spreading evenly.</figcaption>
+    </figure>
+
     <h3>Build probability</h3>
     <p>This is the per-step growth rate: each eligible cell builds with this probability per iteration, so a higher value grows more, and spreads farther, in the same number of iterations. These panels show the raw grown state after 60 iterations: growth that young sits below the service viability threshold, so a post-processed plan would prune it away entirely.</p>
     <div class="demo-row">

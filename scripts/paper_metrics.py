@@ -48,6 +48,7 @@ PLAN = {
         ("baseline", {}),
         ("walk800", {"centre_walk_m": 800.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
+        ("corridor", {"corridor_weight": 0.95}),
     ],
     "london_crews_hill": [
         ("baseline", {}),
@@ -76,6 +77,13 @@ PAPER_PANELS = {
     ("medellin_pajarito", "dispersed"): "medellin_pajarito_dispersed.png",
 }
 
+# the transit demonstration pair: the baseline plan and the corridor-preference plan,
+# rendered again with the stops overlaid, straight into the paper's figure names
+TRANSIT_PANELS = {
+    ("cambourne", "baseline"): "cambourne_transit_off.png",
+    ("cambourne", "corridor"): "cambourne_transit_corridor.png",
+}
+
 
 def run_preset(sub, params, overrides, runs=50):
     p = dict(params)
@@ -97,6 +105,25 @@ def run_preset(sub, params, overrides, runs=50):
         existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
     )
 
+    # transit: the stop mask reports catchment coverage for every preset; the corridor
+    # preference additionally weights the growth draws when an override raises it above 0.
+    # At weight 0 the reference is the existing stops; a weighted run adds the proposed
+    # corridor (the route it is asked to develop along) to the sources.
+    catchment_m = float(p.get("stop_catchment_m", 400.0))
+    corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
+    anchor_cells = list(sub.get("stops", []))
+    if corridor_w > 0.0:
+        anchor_cells += list(sub.get("corridor", []))
+    stop_mask = None
+    if anchor_cells:
+        stop_mask = np.zeros_like(base_state, bool)
+        for r, c in anchor_cells:
+            stop_mask[r, c] = True
+    catchment = None
+    if corridor_w > 0.0 and stop_mask is not None:
+        d = G._walk_distance(stop_mask, gran, catchment_m, blocked=(base_state == -1))
+        catchment = np.isfinite(d)
+
     # the plugin's own ensemble runner, so the paper's numbers come from the same
     # member seeding the plugin (and demo_run_report.py) would produce
     seed = int(p.get("random_seed", 42))
@@ -110,6 +137,7 @@ def run_preset(sub, params, overrides, runs=50):
         0.8, shares, tiers, int(p.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(base_origin == 1, sub["seeds"]),
+        transit_catchment=catchment, corridor_weight=corridor_w,
     )
     states = [np.asarray(s) for s in isobenefit.run_ensemble(template, seed, runs)]
     sim_s = time.time() - t0
@@ -122,6 +150,7 @@ def run_preset(sub, params, overrides, runs=50):
         centre_min_settlement=min_cells,
         target_population=float(p["target_population"]),
         min_park_area_m2=park_m2,
+        transit_stops=stop_mask, stop_catchment_m=catchment_m,
     )
     keep = {
         k: round(float(metrics.get(k, 0)), 3)
@@ -130,6 +159,7 @@ def run_preset(sub, params, overrides, runs=50):
             "centre_coverage", "green_coverage", "centre_access",
             "green_access", "centre_walk_mean", "green_walk_mean", "population",
             "centre_m2_per_person", "green_m2_per_person", "built_cells",
+            "transit_coverage", "transit_access",
         )
     }
     keep["sim_seconds"] = round(sim_s, 1)
@@ -141,8 +171,16 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(FIGS, exist_ok=True)
     _gallery.render_legend(os.path.join(FIGS, "legend.png"))
+    # optional scenario filter (e.g. `paper_metrics.py cambourne`): recompute only the named
+    # scenarios and merge into the existing metrics.json rather than starting it afresh
+    wanted = sys.argv[1:]
+    plan_items = {k: v for k, v in PLAN.items() if not wanted or k in wanted}
     results = {}
-    for name, presets in PLAN.items():
+    metrics_path = os.path.join(OUT, "metrics.json")
+    if wanted and os.path.exists(metrics_path):
+        with open(metrics_path, encoding="utf-8") as fh:
+            results = json.load(fh)
+    for name, presets in plan_items.items():
         folder = os.path.join(REPO, "scenarios", name)
         params, layers, extents = _gallery.load_scenario(folder)
         extent = extents["main"]
@@ -169,6 +207,11 @@ def main():
                 import shutil
 
                 shutil.copyfile(path, os.path.join(FIGS, PAPER_PANELS[(name, preset_id)]))
+            if (name, preset_id) in TRANSIT_PANELS:
+                _gallery.render_png(
+                    disp, layers, sub, gran,
+                    os.path.join(FIGS, TRANSIT_PANELS[(name, preset_id)]), stops=sub["stops"],
+                )
             print(f"  {preset_id}: served {keep['served_coverage']:.0%}, "
                   f"pop {keep['population']:,.0f}, centre walk {keep['centre_walk_mean']:,.0f} m "
                   f"({keep['sim_seconds']} s sims)", flush=True)

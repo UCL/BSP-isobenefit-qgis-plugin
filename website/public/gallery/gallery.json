@@ -356,6 +356,55 @@
       "name": "cambourne_fewest"
      },
      "params_file": "cambourne/fewest_params.json"
+    },
+    {
+     "id": "corridor",
+     "label": "Transit corridor preference",
+     "note": "Growth concentrates along transit: development draws outside the 400 m stop catchment are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route, the teal dots the existing stops; both project the catchment.",
+     "overrides": {
+      "corridor_weight": 0.95
+     },
+     "image": "cambourne/corridor.png",
+     "metrics": {
+      "served_coverage": 1.0,
+      "served_coverage_incl_existing": 0.948,
+      "centre_access": 414.414,
+      "green_access": 158.327,
+      "population": 16228.755,
+      "centre_m2_per_person": 15.473,
+      "green_m2_per_person": 3201.817,
+      "built_cells": 1233.0
+     },
+     "settings": {
+      "crs": "EPSG:27700",
+      "grid_size_m": 50,
+      "max_iterations": 400,
+      "target_population": 30000,
+      "build_prob": 0.3,
+      "dispersal": "moderate",
+      "random_seed": 42,
+      "centre_walk_m": 1200,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 2000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 6000,
+       "medium": 3000,
+       "low": 1500
+      },
+      "shares": {
+       "high": 0.2,
+       "medium": 0.3,
+       "low": 0.5
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "corridor_weight": 0.95,
+      "name": "cambourne_corridor"
+     },
+     "params_file": "cambourne/corridor_params.json"
     }
    ]
   },

@@ -20,6 +20,9 @@ Folder anatomy:
   data was fetched for.
 - `steep.geojson`: terrain slope bands from Copernicus GLO-30, where terrain matters; the
   scenario's `slope_max_deg` says which bands preclude development.
+- `proposed_corridor.geojson` (Cambourne only): a hand-drawn proposed bus route, not OSM
+  data. The transit-corridor preset adds its cells to the stops as growth anchors, so the
+  corridor preference can demonstrate growth along a proposed route.
 
 Boundaries and parameters are indicative, to be confirmed against local plans and norms.
 

@@ -41,6 +41,7 @@ RED = "#D32333"  # site-theme red for headings (centre dots use the CENTRE_* ram
 UNBUILDABLE = "#c8c8c8"  # excluded cells (industrial / barriers / airfields) read as neutral void
 WATER = "#a8c8e4"  # excluded cells that are actually water: shown as water, light blue
 STREET = "#a9a9a9"
+TRANSIT = "#0b7285"  # transit stops and the proposed corridor, the site's stops colour
 INK = "#333333"  # legend and label text
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
@@ -50,6 +51,11 @@ GRAN = 50.0  # m per cell — the demonstration window is 84 x 84 cells (4.2 km)
 # the same walk/density dials the dialog defaults to: three explicit tiers (people/km²) each with a
 # probability (summing to 1), high -> low
 WALK, GREEN_WALK, GREEN_SPAN = 1200.0, 400.0, 400.0  # the plugin's defaults
+STOP_CATCHMENT = 400.0  # the plugin's default walk to a transit stop
+# a demonstration input for the corridor demo: a proposed bus route from the town's eastern
+# edge to the window's north-east corner, drawn by hand in EPSG:27700 (the same convention as
+# scenarios/cambourne/proposed_corridor.geojson)
+PROPOSED_CORRIDOR = [(532200.0, 259500.0), (533100.0, 260300.0), (533900.0, 261300.0)]
 MIN_SETTLEMENT_POP = 2000.0  # the plugin's default service viability threshold; converted to cells via the mean density
 DENSITY_TIERS = (6000.0, 3000.0, 1500.0)  # high, med, low
 TIER_PROBS = (0.2, 0.3, 0.5)
@@ -119,18 +125,37 @@ def substrate():
         state, origin, _min_settlement(),
         existing_centres=seeds, granularity_m=GRAN, centre_distance_m=WALK,
     )
+    # transit inputs for the corridor demo: the downloaded stops (points -> cells, snapped
+    # off carved cells as the plugin snaps them) and the hand-drawn proposed route
+    stops = []
+    for f in _features("stops"):
+        x, y = f["geometry"]["coordinates"][:2]
+        c, r = int((x - xmin) / GRAN), int((ymax - y) / GRAN)
+        if 0 <= r < rows and 0 <= c < cols:
+            stops.append((r, c))
+    stops, _, _ = G.sanitise_seeds(sorted(set(stops)), state, GRAN, 2 * GRAN)
+    corridor = []
+    line = shapely.LineString(PROPOSED_CORRIDOR)
+    for f in np.arange(0.0, 1.0 + 1e-9, (GRAN / 2) / line.length):
+        p = line.interpolate(min(f, 1.0), normalized=True)
+        c, r = int((p.x - xmin) / GRAN), int((ymax - p.y) / GRAN)
+        if 0 <= r < rows and 0 <= c < cols and state[r, c] != -1:
+            corridor.append((r, c))
     return {"state": state, "origin": origin, "density": density, "seeds": seeds,
             "rows": rows, "cols": cols, "window": (xmin, ymin, xmax, ymax),
-            "water": water & unbuild & ~built}
+            "water": water & unbuild & ~built,
+            "stops": stops, "corridor": sorted(set(corridor))}
 
 
-def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, stages=()):
+def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, stages=(),
+         transit_catchment=None, corridor_weight=0.0):
     """Step one CA run on the substrate; return (final state, final density, {iter: (state, density)}
     at ``stages``). Density is carried so growth stages can be coloured by their drawn tier."""
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
         GRAN, WALK, GREEN_WALK, pop, GREEN_SPAN, bp, nb, isol, 0.8, TIER_PROBS, DENSITY_TIERS, iters, seed,
         sterile=G.sterile_fabric(sub["origin"] == 1, sub["seeds"]),
+        transit_catchment=transit_catchment, corridor_weight=corridor_weight,
     )
     snaps = {}
     while sim.current_iter < iters and sim.pop_target_ratio < 1.0:
@@ -329,10 +354,27 @@ def render(plan, name, title, underlay="", unbuildable=None, legend=None, water=
     _write_svg(name, cw, ch, out)
 
 
-def render_multi(sub, panels, name, title, unbuildable, water=None):
+def transit_overlay(sub, P, ox, oy):
+    """The proposed corridor (a heavier teal line) and the stop cells (white-ringed teal dots),
+    drawn over a panel whose grid transform is ``P`` pixels per cell at origin ``(ox, oy)``."""
+    xmin, _ymin, _xmax, ymax = sub["window"]
+    pts = " ".join(
+        f"{ox + (x - xmin) / GRAN * P:.1f},{oy + (ymax - y) / GRAN * P:.1f}"
+        for x, y in PROPOSED_CORRIDOR
+    )
+    out = [f'<polyline points="{pts}" fill="none" stroke="{TRANSIT}" stroke-width="4" '
+           f'stroke-linecap="round" stroke-linejoin="round"/>']
+    for r, c in sub["stops"]:
+        out.append(f'<circle cx="{ox + (c + 0.5) * P:.1f}" cy="{oy + (r + 0.5) * P:.1f}" '
+                   f'r="{P * 0.7:.1f}" fill="{TRANSIT}" stroke="white" stroke-width="1.2"/>')
+    return "".join(out)
+
+
+def render_multi(sub, panels, name, title, unbuildable, water=None, overlay=None):
     """Several sub-maps in ONE figure under one title, sharing a single legend (no per-panel legend).
     ``panels`` is a list of ``(tier_codes, subtitle)``. Used for the growth stages and the clustering
-    options, so the sub-figures read as one comparison rather than separate images."""
+    options, so the sub-figures read as one comparison rather than separate images. ``overlay`` is
+    an optional callable ``(ox, oy) -> svg`` drawn over each panel's dots."""
     H, Wc = panels[0][0].shape
     P, x0, y0 = 5, 16, 96  # smaller pitch so the panels sit side by side; y0 leaves a clear gap below the title
     pw, gap = Wc * P, 40
@@ -348,6 +390,8 @@ def render_multi(sub, panels, name, title, unbuildable, water=None):
                    f'font-weight="700" text-anchor="middle">{subtitle}</text>')
         out.append(streets_underlay(sub, P, ox, y0))
         out.append(_grid_dots(codes, ox, y0, P, unbuildable, water))
+        if overlay is not None:
+            out.append(overlay(ox, y0))
     out.append(_legend(_TIER_LEGEND, x0, y0 + H * P + 42, total_w))  # clear gap between panels and legend
     _write_svg(name, cw, ch, out)
 
@@ -401,6 +445,24 @@ def main():
         st, dens, _ = grow(sub, isol=isol)
         draw(growth_codes(sub, st, dens), f"demo_dispersal_{label}",
              f"Dispersed development: {label.capitalize()}")
+
+    # Transit-oriented growth: the same run with the corridor preference off and raised. The
+    # stops and a hand-drawn proposed route project a 400 m walkable catchment; at preference
+    # 0.95 the development draws outside it are scaled to a twentieth, so growth strings along
+    # the route. RAW grown states, as in the dispersal panels.
+    stop_mask = np.zeros_like(sub["state"], bool)
+    for r, c in sub["stops"] + sub["corridor"]:
+        stop_mask[r, c] = True
+    catchment = np.isfinite(
+        G._walk_distance(stop_mask, GRAN, STOP_CATCHMENT, blocked=(sub["state"] == -1))
+    )
+    st_corr, dens_corr, _ = grow(sub, transit_catchment=catchment, corridor_weight=0.95)
+    st_off, dens_off, _ = grow(sub)
+    render_multi(sub, [
+        (growth_codes(sub, st_off, dens_off), "Corridor preference 0 (off)"),
+        (growth_codes(sub, st_corr, dens_corr), "Corridor preference 0.95"),
+    ], "demo_corridor", "Transit-oriented growth: a proposed corridor", unb, water=wat,
+        overlay=lambda ox, oy: transit_overlay(sub, 5, ox, oy))
 
     # Centre options: the SAME run and buildings, only the centre treatment differs. The two
     # options are ONE figure (two sub-panels, one shared legend) so they read as a direct

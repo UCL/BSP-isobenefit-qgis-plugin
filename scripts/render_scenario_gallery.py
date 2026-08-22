@@ -42,6 +42,7 @@ CENTRE_LOW, CENTRE_MED, CENTRE_HIGH = _hex(G._CENTRE_LOW), _hex(G._CENTRE_MED), 
 EXIST_BUILT, EXIST_CENTRE = _hex(G._EXIST_BUILT), _hex(G._EXIST_CENTRE)
 GREEN, STREET, INK = _hex((89, 176, 60)), "#a9a9a9", "#333333"
 UNBUILDABLE, STEEP, WATER = "#c8c8c8", "#6e6e6e", "#a8c8e4"
+TRANSIT = "#0b7285"  # transit stop markers, the site's stops colour
 TIER_STYLE = {
     G.PLAN_GREEN: (GREEN, 0.18),
     G.PLAN_EXIST_BUILT: (EXIST_BUILT, 0.42),
@@ -58,7 +59,7 @@ TIER_STYLE = {
 
 # The curated presets. Each is (id, label, note, overrides); overrides patch the scenario's
 # params.json. "centre_mode" picks the post-processing centre option (default "placed").
-def presets_for(name: str, params: dict) -> list[dict]:
+def presets_for(name: str, params: dict, has_stops: bool = False) -> list[dict]:
     base = [
         {"id": "baseline", "label": "Baseline run", "note": "The scenario's own params.json, as shipped."},
         {"id": "walk800", "label": "Shorter centre walk (800 m)",
@@ -86,6 +87,13 @@ def presets_for(name: str, params: dict) -> list[dict]:
                 p.update(id="moderate", label="Moderate dispersal",
                          note="Some leapfrogging allowed (the baseline is compact).",
                          overrides={"dispersal": "moderate"})
+    if has_stops:
+        base.append({"id": "corridor", "label": "Transit corridor preference",
+                     "note": "Growth concentrates along transit: development draws outside the "
+                             "400 m stop catchment are scaled by one minus the corridor "
+                             "preference (0.95 here). The teal line is a proposed bus route, "
+                             "the teal dots the existing stops; both project the catchment.",
+                     "overrides": {"corridor_weight": 0.95}})
     return base
 
 
@@ -93,7 +101,8 @@ def load_scenario(folder: str):
     with open(os.path.join(folder, "params.json"), encoding="utf-8") as fh:
         params = json.load(fh)
     layers = {}
-    for name in ("built", "green", "unbuildable", "centres", "streets", "water"):
+    for name in ("built", "green", "unbuildable", "centres", "streets", "water", "stops",
+                 "proposed_corridor"):
         path = os.path.join(folder, f"{name}.geojson")
         if os.path.exists(path):
             with open(path, encoding="utf-8") as fh:
@@ -161,9 +170,31 @@ def substrate(extent, layers, gran):
         c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
         if 0 <= r < rows and 0 <= c < cols and built[r, c] and not cent[r, c]:
             seeds.append((r, c))
+    # transit stops: point features -> cells, snapped off unbuildable land exactly as the
+    # plugin snaps them (a stop often sits on a carved road corridor)
+    stops = []
+    for geom in layers.get("stops", []):
+        p = geom if geom.geom_type == "Point" else geom.representative_point()
+        c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
+        if 0 <= r < rows and 0 <= c < cols and inside[r, c]:
+            stops.append((r, c))
+    stops, _, _ = G.sanitise_seeds(sorted(set(stops)), state, gran, 2 * gran)
+    # a proposed transit corridor (a hand-drawn line): every walkable cell the line touches
+    # becomes a growth-anchor source, exactly as the plugin rasterises a drawn corridor layer
+    corridor = []
+    for geom in layers.get("proposed_corridor", []):
+        for line in getattr(geom, "geoms", [geom]):
+            if line.geom_type != "LineString":
+                continue
+            for f in np.arange(0.0, 1.0 + 1e-9, (gran / 2) / max(line.length, gran)):
+                p = line.interpolate(min(f, 1.0), normalized=True)
+                c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
+                if 0 <= r < rows and 0 <= c < cols and inside[r, c] and state[r, c] != -1:
+                    corridor.append((r, c))
     return {"state": state, "origin": origin, "seeds": sorted(set(seeds)), "gt": gt,
             "rows": rows, "cols": cols, "extent": extent, "inside": inside_mask,
-            "steep": steep & ~built, "water": water & ~built}
+            "steep": steep & ~built, "water": water & ~built, "stops": stops,
+            "corridor": sorted(set(corridor))}
 
 
 def _rgb(hexcol):
@@ -198,6 +229,19 @@ def run_preset(sub, params, preset):
         state, origin, min_cells,
         existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
     )
+    # the corridor preference: cells outside the stop catchment draw at a scaled probability.
+    # The sources are the existing stops plus any proposed corridor the scenario ships.
+    corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
+    catchment = None
+    anchor_cells = sub.get("stops", []) + sub.get("corridor", [])
+    if corridor_w > 0.0 and anchor_cells:
+        stop_mask = np.zeros_like(state, bool)
+        for r, c in anchor_cells:
+            stop_mask[r, c] = True
+        d = G._walk_distance(
+            stop_mask, gran, float(p.get("stop_catchment_m", 400.0)), blocked=(state == -1)
+        )
+        catchment = np.isfinite(d)
     sim = isobenefit.Simulation(
         state, origin.copy(), np.zeros_like(state, np.float32), sub["seeds"],
         gran, walk, green_walk, float(p["target_population"]), float(p.get("min_green_span_m", 400.0)),
@@ -205,6 +249,7 @@ def run_preset(sub, params, preset):
         0.8, shares, tiers, int(p.get("max_iterations", 300)), int(p.get("random_seed", 42)),
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
+        transit_catchment=catchment, corridor_weight=corridor_w,
     )
     sim.run()
     st = np.asarray(sim.snapshot()["state"])
@@ -222,7 +267,7 @@ def run_preset(sub, params, preset):
     return disp, metrics
 
 
-def render_png(codes, layers, sub, gran, path):
+def render_png(codes, layers, sub, gran, path, stops=None):
     """Dot-grid PNG with the street underlay: the same visual language as the site's SVGs at a
     fraction of the size (a 150-cell SVG carries ~20k circle elements; the PNG is tens of kB)."""
     from PIL import Image, ImageDraw
@@ -267,6 +312,24 @@ def render_png(codes, layers, sub, gran, path):
             cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
             rad = P * radf
             draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(col))
+    if stops:
+        # the proposed corridor route first (a heavier teal line), then the stops on top,
+        # white-ringed so they read over any tier colour
+        for geom in layers.get("proposed_corridor", []):
+            for line in getattr(geom, "geoms", [geom]):
+                if line.geom_type != "LineString":
+                    continue
+                pts = [
+                    (PAD + (x - gt[0]) / gran * P, PAD + (gt[3] - y) / gran * P)
+                    for x, y in line.coords
+                ]
+                if len(pts) >= 2:
+                    draw.line(pts, fill=_rgb(TRANSIT), width=5)
+        for r, c in stops:
+            cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
+            rad = P * 0.7
+            draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad],
+                         fill=_rgb(TRANSIT), outline=(255, 255, 255), width=2)
     im = im.resize((cw // 2, ch // 2), Image.LANCZOS)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path, optimize=True)
@@ -365,10 +428,11 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
         "image": rel, "metrics": None, "settings": None, "params_file": None,
     })
 
-    for preset in presets_for(name, params):
+    for preset in presets_for(name, params, has_stops=bool(sub.get("stops"))):
         disp, metrics = run_preset(sub, p, preset)
         rel = f"{name}/{preset['id']}.png"
-        render_png(disp, layers, sub, gran, os.path.join(OUT, rel))
+        render_png(disp, layers, sub, gran, os.path.join(OUT, rel),
+                   stops=sub["stops"] if preset["id"] == "corridor" else None)
         keep = {k: round(float(metrics.get(k, 0)), 3) for k in
                 ("served_coverage", "served_coverage_incl_existing",
                  "centre_access", "green_access", "population",
@@ -435,7 +499,14 @@ def main():
         print(f"{zpath}: {os.path.getsize(zpath) // 1024} kB")
 
     os.makedirs(OUT, exist_ok=True)
-    with open(os.path.join(OUT, "gallery.json"), "w", encoding="utf-8") as fh:
+    out_path = os.path.join(OUT, "gallery.json")
+    # a partial run (explicit folder arguments) updates its entries in place and keeps the rest
+    if sys.argv[1:] and os.path.exists(out_path):
+        with open(out_path, encoding="utf-8") as fh:
+            old = json.load(fh).get("entries", [])
+        by_id = {e["id"]: e for e in entries}
+        entries = [by_id.pop(o["id"], o) for o in old] + list(by_id.values())
+    with open(out_path, "w", encoding="utf-8") as fh:
         json.dump({"entries": entries}, fh, indent=1)
     print(f"gallery.json: {len(entries)} entries")
 

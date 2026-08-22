@@ -387,9 +387,10 @@ development draws outside the stop catchment, so a preference above
 0 concentrates growth and satellite settlements along existing or
 proposed transit. The run report gives the share of new homes
 within the stop catchment and the mean walk to a hub. These metrics
-do not enter run selection, and the case studies leave the
-preference at 0, so no reported number depends on the corridor
-mechanism.
+do not enter run selection. The baseline case studies
+leave the preference at 0, so their reported numbers do not depend on
+the corridor mechanism. A Cambourne demonstration raises the
+preference to 0.95 and shows its effect (Section~\ref{sec:cases}).
 
 \subsection{Rule adaptations}
 \label{sec:rules}
@@ -596,6 +597,23 @@ against 46 as grown, and the mean centre walk ranges from 236 to
 placement and removes centres only while every home keeps one within
 the walk.
 
+A final run demonstrates the corridor preference. We draw a proposed
+bus corridor from Cambourne's eastern edge across the open plain to
+the window's north-eastern village, raise the corridor preference to
+0.95, and keep every other setting at the baseline. The window's
+existing bus stops also project the stop catchment at its 400~m
+default. In the selected plan (Figure~\ref{fig:corridor}), growth and
+its satellite settlements string along the proposed route instead of
+spreading across the window, and the share of new homes within the
+stop catchment rises from 5\% to 66\%. The population accommodated
+falls from 21{,}567 to 10{,}916, because draws outside the catchment
+run at a twentieth of their probability, and the run log warns when
+the catchment's developable capacity sits under the target. The mean
+walks change little, 292~m to a centre against 242~m and 111~m to
+green space against 104~m, and every home keeps both walks. The
+preference trades pace for transit alignment, and the planner sets
+the balance.
+
 \begin{table}[t]
 \centering
 \caption{Run report for the Cambourne scenario (30{,}000-person
@@ -628,6 +646,18 @@ Green \sqm{} per person & 1{,}590 & 2{,}449 & 2{,}451 & 2{,}451 \\
 baseline 1{,}200~m centre walk (left) and at 1{,}600~m (right).
 Full scenario resolution, seed 42.}
 \label{fig:cambourne}
+\end{figure}
+
+\begin{figure}[!tp]
+\centering
+\includegraphics[width=0.48\textwidth]{figures/cambourne_transit_off.png}\hfill
+\includegraphics[width=0.48\textwidth]{figures/cambourne_transit_corridor.png}\\[6pt]
+\includegraphics[width=\textwidth]{figures/legend.png}
+\caption{The selected plan for the Cambourne window at the baseline
+corridor preference of 0 (left) and at 0.95 (right). Both panels
+overlay the drawn bus route (teal line) and the existing stops (teal
+dots). Full scenario resolution, seed 42.}
+\label{fig:corridor}
 \end{figure}
 
 \subsection{Crews Hill: a green-belt release}
