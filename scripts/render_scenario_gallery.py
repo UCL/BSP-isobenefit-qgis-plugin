@@ -90,12 +90,12 @@ def presets_for(name: str, params: dict, has_stops: bool = False) -> list[dict]:
     if has_stops:
         base.append({"id": "corridor", "label": "Transit corridor preference",
                      "note": "Growth concentrates along transit: development draws outside the "
-                             "400 m stop catchment are scaled by one minus the corridor "
-                             "preference (0.95 here). The teal line is a proposed bus route and "
-                             "the teal dots the existing stops; both project the catchment. The "
-                             "large ringed marker is a proposed bus rapid transit stop treated "
-                             "as a transit hub: it anchors a pinned centre, so a new settlement "
-                             "gathers around it.",
+                             "transit catchments (400 m of a stop or drawn route, 1,200 m of a "
+                             "hub) are scaled by one minus the corridor preference (0.95 here). "
+                             "The teal line is a proposed bus route and the teal dots the "
+                             "existing stops. The large ringed marker is a proposed bus rapid "
+                             "transit stop treated as a transit hub: it anchors a pinned "
+                             "centre, so a new settlement gathers around it.",
                      "overrides": {"corridor_weight": 0.95}})
     return base
 
@@ -241,22 +241,25 @@ def run_preset(sub, params, preset):
         state, origin, min_cells,
         existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
     )
-    # the corridor preference: cells outside the stop catchment draw at a scaled probability.
-    # The sources are the existing stops plus any proposed corridor the scenario ships; a
-    # proposed hub joins the sources, seeds a centre in growth, and is pinned in
-    # post-processing (the plugin's transit-hub behaviour).
+    # the corridor preference: cells outside the transit catchments draw at a scaled
+    # probability. Corridor cells (existing stops plus any proposed route the scenario
+    # ships) project the stop catchment; a proposed hub projects the wider hub catchment,
+    # seeds a centre in growth, and is pinned in post-processing (the plugin's behaviour).
     corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
     catchment = None
     hubs = list(sub.get("proposed_hubs", [])) if corridor_w > 0.0 else []
-    anchor_cells = sub.get("stops", []) + sub.get("corridor", []) + hubs
-    if corridor_w > 0.0 and anchor_cells:
-        stop_mask = np.zeros_like(state, bool)
-        for r, c in anchor_cells:
-            stop_mask[r, c] = True
-        d = G._walk_distance(
-            stop_mask, gran, float(p.get("stop_catchment_m", 400.0)), blocked=(state == -1)
-        )
-        catchment = np.isfinite(d)
+    corridor_cells = sub.get("stops", []) + sub.get("corridor", [])
+    if corridor_w > 0.0 and (corridor_cells or hubs):
+        catchment = np.zeros_like(state, bool)
+        for cells, reach_key, default in ((corridor_cells, "stop_catchment_m", 400.0),
+                                          (hubs, "hub_catchment_m", 1200.0)):
+            if cells:
+                mask = np.zeros_like(state, bool)
+                for r, c in cells:
+                    mask[r, c] = True
+                d = G._walk_distance(mask, gran, float(p.get(reach_key, default)),
+                                     blocked=(state == -1))
+                catchment |= np.isfinite(d)
     sim_seeds = sub["seeds"] + [h for h in hubs if h not in set(sub["seeds"])]
     sim = isobenefit.Simulation(
         state, origin.copy(), np.zeros_like(state, np.float32), sim_seeds,

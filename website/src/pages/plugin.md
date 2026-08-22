@@ -141,13 +141,16 @@ set to the larger of these two values, so growth is never cut off by the stricte
 The finished plan is then scored against each walk separately, and any shortfall shows in the
 coverage figures and steers the centre re-positioning.
 
-Two further fields steer transit-oriented growth. Stop catchment (400 m) is how far people
-walk to a public-transport stop; it defines the catchment around the transit corridor and hub
-layers. Corridor preference (0 to 1, default 0) concentrates development along transit: outside
-the catchment, the build and seeding draws are scaled by one minus the preference, so at 0 the
-corridor layer is reported only, at intermediate values growth favours the corridor but can
-still spill beyond it, and at 1 growth is confined to the catchment. When the catchment cannot
-hold the target population the run log says so and states the consequence.
+Three further fields steer transit-oriented growth. Stop catchment (400 m) is how far people
+walk to a bus stop; it defines the catchment around the transit corridor layer. Hub catchment
+(1,200 m) is how far people walk to a station or designated hub; it defines the wider
+catchment around the transit hub layer, and its default matches the centre walk because a hub
+anchors a centre. Corridor preference (0 to 1, default 0) concentrates development along
+transit: outside the two catchments, the build and seeding draws are scaled by one minus the
+preference, so at 0 the transit layers are reported only, at intermediate values growth
+favours transit but can still spill beyond it, and at 1 growth is confined to the catchments.
+When the catchments cannot hold the target population the run log says so and states the
+consequence.
 
 **Post-processing.**
 

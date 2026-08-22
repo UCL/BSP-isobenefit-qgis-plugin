@@ -881,6 +881,8 @@ def evaluate_plan(
     target_population: float | None = None,
     min_park_area_m2: float | None = None,
     stop_catchment_m: float | None = None,
+    transit_hubs: np.ndarray | None = None,
+    hub_catchment_m: float | None = None,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
@@ -915,12 +917,15 @@ def evaluate_plan(
     - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk of served new homes to each;
     - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
 
-    If ``transit_stops`` (a bool mask of transit anchor cells — corridor cells and hubs) is
-    given, also reports ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` —
-    new homes' walkable access to an anchor. ``transit_coverage`` counts homes within
-    ``stop_catchment_m`` (falling back to ``max_distance_m``), matching the catchment the
-    corridor preference acts on during growth. These are reported only; transit shapes the
-    runs through the growth rules, never the selection.
+    If ``transit_stops`` (a bool mask of corridor cells: bus stops and drawn routes) or
+    ``transit_hubs`` (a bool mask of hub cells: stations and designated points) is given,
+    also reports ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` — new
+    homes' walkable access to a transit anchor. Each anchor kind has its own catchment
+    (``stop_catchment_m`` for corridors, ``hub_catchment_m`` for hubs, each falling back
+    to ``max_distance_m``): ``transit_coverage`` counts homes within either, matching the
+    catchment the corridor preference acts on during growth, and the walk figures measure
+    to the nearest anchor of any kind. These are reported only; transit shapes the runs
+    through the growth rules, never the selection.
     """
     new_homes = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE))
     exist_homes = np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
@@ -1035,16 +1040,24 @@ def evaluate_plan(
     metrics["centre_m2_per_person"] = n_new_centres * cell_km2 * 1e6 / population if population else 0.0
     metrics["green_m2_per_person"] = n_new_green * cell_km2 * 1e6 / population if population else 0.0
 
-    # transit access — reported only; transit shapes growth, never selection
-    if transit_stops is not None:
-        stops = np.asarray(transit_stops, dtype=bool)
-        if stops.any() and has_new:
-            d_stop = _dist(stops)[new_homes]
-            catchment_m = stop_catchment_m if stop_catchment_m is not None else max_distance_m
-            near_stop = d_stop <= catchment_m
-            metrics["transit_coverage"] = float(near_stop.mean())
-            metrics["transit_access"] = float(np.where(near_stop, d_stop, 2.0 * max_distance_m).mean())
-            metrics["transit_walk_mean"] = float(d_stop[near_stop].mean()) if near_stop.any() else math.inf
+    # transit access — reported only; transit shapes growth, never selection. Corridors
+    # and hubs each carry their own catchment; coverage counts homes within either, and
+    # the walk figures measure to the nearest anchor of any kind.
+    if has_new:
+        d_stop = d_hub = None
+        near = None
+        if transit_stops is not None and np.asarray(transit_stops, dtype=bool).any():
+            d_stop = _dist(np.asarray(transit_stops, dtype=bool))[new_homes]
+            near = d_stop <= (stop_catchment_m if stop_catchment_m is not None else max_distance_m)
+        if transit_hubs is not None and np.asarray(transit_hubs, dtype=bool).any():
+            d_hub = _dist(np.asarray(transit_hubs, dtype=bool))[new_homes]
+            near_hub = d_hub <= (hub_catchment_m if hub_catchment_m is not None else max_distance_m)
+            near = near_hub if near is None else (near | near_hub)
+        if near is not None:
+            d_any = d_stop if d_hub is None else (d_hub if d_stop is None else np.minimum(d_stop, d_hub))
+            metrics["transit_coverage"] = float(near.mean())
+            metrics["transit_access"] = float(np.where(near, d_any, 2.0 * max_distance_m).mean())
+            metrics["transit_walk_mean"] = float(d_any[near].mean()) if near.any() else math.inf
 
     return metrics
 
@@ -1487,6 +1500,8 @@ def select_plan(
     target_population=None,
     min_park_area_m2=None,
     stop_catchment_m=None,
+    transit_hubs=None,
+    hub_catchment_m=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run (at
     ``centre_mode``; see ``optimise_plan``) and keep the one with the lowest average walk
@@ -1536,6 +1551,7 @@ def select_plan(
             new_density_km2=new_density_km2, existing_green=existing_green,
             target_population=target_population, min_park_area_m2=min_park_area_m2,
             stop_catchment_m=stop_catchment_m,
+            transit_hubs=transit_hubs, hub_catchment_m=hub_catchment_m,
         )
         return opt, m
 

@@ -83,6 +83,7 @@ class IsobenefitTask(QgsTask):
         min_park_area_m2=None,
         corridor_weight=0.0,
         stop_catchment_m=400.0,
+        hub_catchment_m=1200.0,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -124,6 +125,7 @@ class IsobenefitTask(QgsTask):
         self.min_park_area_m2 = None if min_park_area_m2 is None else float(min_park_area_m2)
         self.corridor_weight = float(corridor_weight)
         self.stop_catchment_m = float(stop_catchment_m)
+        self.hub_catchment_m = float(hub_catchment_m)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -212,6 +214,7 @@ class IsobenefitTask(QgsTask):
             f"  Centre walk           : {cwalk:.0f} m",
             f"  Green walk            : {gwalk:.0f} m",
             f"  Stop catchment        : {self.stop_catchment_m:.0f} m",
+            f"  Hub catchment         : {self.hub_catchment_m:.0f} m",
             f"  Corridor preference   : {self.corridor_weight:g}",
             f"  Min green span        : {self.min_green_span:.0f} m",
             f"  Min park area         : {(self.min_park_area_m2 or grid.DEFAULT_MIN_PARK_AREA_M2) / 1.0e4:.0f} ha",
@@ -418,32 +421,41 @@ class IsobenefitTask(QgsTask):
                         f"{n_lost} station(s) dropped: no walkable cell within two blocks.",
                         Qgis.MessageLevel.Warning,
                     )
-            transit_stops = None
-            all_stop_cells = stop_cells + station_anchors
-            if all_stop_cells:
-                transit_stops = np.zeros((rows, cols), dtype=bool)
-                for sr, sc in all_stop_cells:
-                    transit_stops[sr, sc] = True
+            def _mask(cells):
+                if not cells:
+                    return None
+                m = np.zeros((rows, cols), dtype=bool)
+                for sr, sc in cells:
+                    m[sr, sc] = True
+                return m
+
+            transit_stops = _mask(stop_cells)
+            transit_hubs = _mask(station_anchors)
+            if transit_stops is not None or transit_hubs is not None:
                 self._log(
                     f"Placed {len(stop_cells)} corridor cell(s) + {len(station_anchors)} hub(s)"
                     + ("; hubs anchor centres." if station_anchors else ".")
                 )
-            # The corridor preference field: cells within the stop catchment (a walk from any
-            # corridor cell or hub) draw at full probability during growth; the rest are scaled
-            # by (1 - corridor_weight). With the weight at 0 (the default) nothing changes and
-            # the mask is skipped entirely.
+            # The corridor preference field: cells within a transit catchment draw at full
+            # probability during growth; the rest are scaled by (1 - corridor_weight).
+            # Corridors and hubs each project their own catchment (the stop catchment and
+            # the wider hub catchment), and the field is their union. With the weight at 0
+            # (the default) nothing changes and the masks are skipped entirely.
             transit_catchment = None
-            if transit_stops is not None and self.corridor_weight > 0.0:
-                d = grid._walk_distance(
-                    transit_stops, self.granularity_m, self.stop_catchment_m, blocked=(state == -1)
-                )
-                transit_catchment = np.isfinite(d)
+            if (transit_stops is not None or transit_hubs is not None) and self.corridor_weight > 0.0:
+                transit_catchment = np.zeros((rows, cols), dtype=bool)
+                for mask, reach in ((transit_stops, self.stop_catchment_m),
+                                    (transit_hubs, self.hub_catchment_m)):
+                    if mask is not None:
+                        d = grid._walk_distance(mask, self.granularity_m, reach, blocked=(state == -1))
+                        transit_catchment |= np.isfinite(d)
                 cell_pop = self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
                 capacity = float(((state == 0) & transit_catchment).sum()) * cell_pop
                 self._log(
                     f"Corridor preference {self.corridor_weight:.2f}: growth favours the "
-                    f"{int(transit_catchment.sum()):,}-cell catchment within {self.stop_catchment_m:.0f} m "
-                    f"of a transit anchor."
+                    f"{int(transit_catchment.sum()):,}-cell catchment within "
+                    f"{self.stop_catchment_m:.0f} m of a corridor cell or "
+                    f"{self.hub_catchment_m:.0f} m of a hub."
                 )
                 if capacity < self.max_populat:
                     self._log(
@@ -451,7 +463,7 @@ class IsobenefitTask(QgsTask):
                         f"density, under the target of {self.max_populat:,.0f}. Growth beyond the corridor "
                         f"is throttled by the preference"
                         + (
-                            " and fully blocked at weight 1.0 — the run cannot reach its target."
+                            " and fully blocked at weight 1.0, so the run cannot reach its target."
                             if self.corridor_weight >= 1.0
                             else ", so the run will take more iterations to reach the target."
                         ),
@@ -582,10 +594,12 @@ class IsobenefitTask(QgsTask):
                     existing_green=(origin == 0),
                     centre_mode=headline_mode,
                     transit_stops=transit_stops,
+                    transit_hubs=transit_hubs,
                     centre_anchors=station_anchors,
                     target_population=self.max_populat,
                     min_park_area_m2=self.min_park_area_m2,
                     stop_catchment_m=self.stop_catchment_m,
+                    hub_catchment_m=self.hub_catchment_m,
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
                     new_density_km2=self._mean_new_density_km2(),
@@ -706,9 +720,10 @@ class IsobenefitTask(QgsTask):
                     )
                     if "transit_coverage" in metrics:
                         self._log(
-                            f"Transit: {metrics['transit_coverage']:.0%} of new homes within the "
-                            f"{self.stop_catchment_m:.0f} m catchment of a transit anchor "
-                            f"(avg walk {metrics['transit_access']:.0f} m)."
+                            f"Transit: {metrics['transit_coverage']:.0%} of new homes within "
+                            f"{self.stop_catchment_m:.0f} m of a corridor cell or "
+                            f"{self.hub_catchment_m:.0f} m of a hub "
+                            f"(avg walk to a transit anchor {metrics['transit_access']:.0f} m)."
                         )
                 audit = None
                 if plan is not None:

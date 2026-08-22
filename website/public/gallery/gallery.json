@@ -360,20 +360,20 @@
     {
      "id": "corridor",
      "label": "Transit corridor preference",
-     "note": "Growth concentrates along transit: development draws outside the 400 m stop catchment are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops; both project the catchment. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
+     "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
      "overrides": {
       "corridor_weight": 0.95
      },
      "image": "cambourne/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.942,
-      "centre_access": 383.355,
-      "green_access": 148.921,
-      "population": 13366.215,
-      "centre_m2_per_person": 16.362,
-      "green_m2_per_person": 3962.67,
-      "built_cells": 1109.0
+      "served_coverage_incl_existing": 0.953,
+      "centre_access": 487.926,
+      "green_access": 165.118,
+      "population": 15951.735,
+      "centre_m2_per_person": 15.233,
+      "green_m2_per_person": 3263.513,
+      "built_cells": 1221.0
      },
      "settings": {
       "crs": "EPSG:27700",

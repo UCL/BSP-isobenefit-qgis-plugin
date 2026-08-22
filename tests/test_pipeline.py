@@ -1162,6 +1162,16 @@ def test_transit_metrics_are_reported_only_at_the_stop_catchment():
     # widening the catchment can only grow coverage
     wide = evaluate_plan(plan, 100.0, 400.0, transit_stops=stops, stop_catchment_m=400.0)
     assert 0.0 < with_stops["transit_coverage"] < wide["transit_coverage"] <= 1.0
+    # a hub carries its own, wider catchment; coverage counts homes within either
+    hubs = np.zeros((g, g), bool)
+    hubs[5, 9] = True
+    both = evaluate_plan(
+        plan, 100.0, 400.0,
+        transit_stops=stops, stop_catchment_m=100.0,
+        transit_hubs=hubs, hub_catchment_m=400.0,
+    )
+    assert both["transit_coverage"] >= with_stops["transit_coverage"]
+    assert both["access_cost"] == base["access_cost"]
 
 
 def test_selection_metric_counts_target_shortfall():

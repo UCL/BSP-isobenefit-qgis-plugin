@@ -170,11 +170,14 @@ applies from 2 hectares, which is the default for the
 minimum park area (Section~\ref{sec:growth}). The 400~m default is slightly
 longer than the advised 300~m because a walking route goes around
 obstacles and covers more distance than the straight line.
-A third distance, the stop catchment, bounds the walk to a transit
-stop or station (Section~\ref{sec:transit}). It is 400~m by default,
-which sits within the quarter-mile to half-mile stop catchments
+Transit adds two further distances (Section~\ref{sec:transit}). The
+stop catchment, 400~m by default, bounds the walk to a bus stop or a
+drawn transit route, and matches the quarter-mile bus-stop catchment
 conventional in transit-oriented development \citep{calthorpe1993,
-ibraeva2020}.
+ibraeva2020}. The hub catchment, 1{,}200~m by default, bounds the
+walk to a station or a designated hub. Station catchments in the same
+practice start at half a mile, and the default matches the centre
+walk, because a hub anchors a centre.
 Section~\ref{sec:cases} sweeps the centre walk across 800, 1{,}200,
 and 1{,}600~m; the green walk stays at 400~m throughout.
 
@@ -201,9 +204,8 @@ unbuildable land (the areas treated as unavailable for development),
 streets, public-transport stops, rail and tram stations,
 railways, and industrial land. Terrain slope is mapped from the Copernicus GLO-30 elevation model
 \citep{copernicus_glo30} as bands steeper than 15, 20, 25, and 30
-degrees. The bands are a separate layer that users can edit from local
-knowledge, and bands above the scenario's slope limit are
-unbuildable.
+degrees. The bands are a separate layer that users can edit from
+local knowledge.
 
 \subsection{Grid preparation}
 \label{sec:gridprep}
@@ -212,14 +214,15 @@ The simulation tool rasterises the input layers to a working grid at a
 user-selected cell size, such as 50~m, though a finer grid may be
 preferable where the extent and the available computation allow. Each
 cell takes its class from the layer that intersects it:
-existing built fabric, green space, or unbuildable land. A cell
-that no layer covers is open land. Corridors along
-motorways, trunk roads, railways, and rivers are also marked
-unbuildable. The remaining street geometry is kept for display
-only.
+existing built fabric, green space, or unbuildable land. A cell that
+intersects none of the layers is marked open land. The tool then adds
+to the unbuildable class in two ways. It carves corridors along
+motorways, trunk roads, railways, and rivers, and it marks the slope
+bands that lie above the scenario's slope limit. The remaining street
+geometry is kept for display only.
 
-The model separates new development from the existing fabric. The
-existing fabric stays as mapped, and the model does not redevelop it,
+The model treats new development and the existing fabric differently.
+The existing fabric stays as mapped, and the model does not redevelop it,
 for two reasons. First, the emphasis is on new development, so the
 population target and the walking distances concern new homes, and
 the constraints in the sections that follow are derived from and
@@ -284,10 +287,10 @@ away from existing development and begin a satellite settlement.
 Setting the probability to zero disables leapfrogging.
 
 Transit also enters the draws. Transit corridors, mapped from bus
-stops or drawn as proposed routes, project the stop catchment around
-themselves and the hubs via the grid walk, and outside the catchment
-the build, seeding, and dispersal draws are scaled by one minus the
-corridor preference, a weight from 0 to 1
+stops or drawn as proposed routes, project the stop catchment via the
+grid walk, and the hubs project the wider hub catchment in the same
+way. Outside both catchments the build, seeding, and dispersal draws
+are scaled by one minus the corridor preference, a weight from 0 to 1
 (Section~\ref{sec:transit}). At the default of 0 the draws are
 unchanged, and higher settings concentrate growth and satellite
 settlements along existing or proposed transit. A run stops when it
@@ -389,10 +392,11 @@ any other centre. A point added to the hubs layer therefore places
 a designated centre by hand, such as a transit-oriented development
 around a planned station. Transit corridors attract growth. The
 corridor preference of Section~\ref{sec:growth} scales the
-development draws outside the stop catchment, so a preference above
-0 concentrates growth and satellite settlements along existing or
-proposed transit. The run report gives the share of new homes
-within the stop catchment and the mean walk to a hub. These metrics
+development draws outside the transit catchments, so a preference
+above 0 concentrates growth and satellite settlements along existing
+or proposed transit. The run report gives the share of new homes
+within the transit catchments and the mean walk to a transit
+anchor. These metrics
 do not enter run selection. The baseline case studies
 leave the preference at 0, so their reported numbers do not depend on
 the corridor mechanism. A Cambourne demonstration raises the
@@ -486,7 +490,7 @@ Extension \\
 \addlinespace[2pt]
 Growth is spatially uniform in probability &
 The corridor preference scales the development draws outside the
-stop catchment of transit corridors and hubs (0 by default) &
+transit catchments (0 by default) &
 Extension \\
 \addlinespace[2pt]
 All nature is available to build &
@@ -610,17 +614,17 @@ stop as a transit hub at its southern end beside the A428 junction.
 The corridor preference is 0.95 and every other setting stays at the
 baseline. Growth and its satellite settlements string along the route
 instead of spreading across the window (Figure~\ref{fig:corridor}),
-and the share of new homes within the stop catchment rises from 5\%
-to 66\%. The hub lies just beyond the walk coverage of the existing
-centres, so it opens land they cannot reach, and a new settlement
-gathers around its pinned centre at the junction. The population
-accommodated falls from 21{,}567 to 11{,}265, because draws outside
-the catchment run at a twentieth of their probability, and the run
-log warns when catchment capacity sits under the target. The mean
-walks change little (306~m against 242~m to a centre, 109~m against
-104~m to green space), and every home keeps both walks. The
-preference trades pace for transit alignment, and the planner sets
-the balance.
+and the share of new homes within the transit catchments rises from
+5\% to 72\%. The hub lies just beyond the walk coverage of the
+existing centres, so it opens land they cannot reach, and a new
+settlement gathers around its pinned centre at the junction. The
+population accommodated falls from 21{,}567 to 13{,}160, because
+draws outside the catchments run at a twentieth of their probability,
+and the run log warns when the catchments' developable capacity sits
+under the target. The mean walks change little (296~m against 242~m
+to a centre, 114~m against 104~m to green space), and every home
+keeps both walks. The preference trades pace for transit alignment,
+and the planner sets the balance.
 
 \begin{table}[t]
 \centering

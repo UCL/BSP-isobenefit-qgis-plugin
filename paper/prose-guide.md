@@ -44,7 +44,8 @@ paper have distinct definitions, and synonym rotation costs precision.
 | The inviolable centre-walk rule | the walk constraint, described as enforced | hard constraint, hard walk constraint (code language) |
 | A station or planner-designated centre-anchor point | transit hub (a hub after first use) | station anchor (retired 2026-08-22), TOD hub, node |
 | Bus stops or a drawn proposed route that attracts growth | transit corridor (a corridor after first use) | PT stops, the stops layer, growth anchor (design shorthand) |
-| The walkable reach of a stop | the stop catchment | buffer, radius, service area |
+| The walkable reach of a bus stop or corridor cell | the stop catchment (400 m default) | buffer, radius, service area |
+| The walkable reach of a hub | the hub catchment (1,200 m default, matching the centre walk; split from the stop catchment 2026-08-22 at Gareth's direction: 400-600 buses, 1,200-1,600 hubs) | station catchment |
 | The growth weighting toward transit | the corridor preference (a weight from 0 to 1) | corridor weight (code name), transit weight (retired) |
 | Availability of code and data | open (2026-08-22 correction) | public (reserved for public transport, public consultation) |
 

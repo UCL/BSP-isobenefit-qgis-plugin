@@ -134,10 +134,16 @@ class IsobenefitDialog(QtWidgets.QDialog):
         acc.addRow("Green walk (m)", self.green_walk_dist)
         self.stop_catchment_dist = QtWidgets.QLineEdit("400", self)
         self.stop_catchment_dist.setToolTip(
-            "How far people walk to a public-transport stop. Sets the catchment around the "
-            "transit corridor and hub layers that the corridor preference acts on."
+            "How far people walk to a bus stop. Sets the catchment around the transit "
+            "corridor layer that the corridor preference acts on."
         )
         acc.addRow("Stop catchment (m)", self.stop_catchment_dist)
+        self.hub_catchment_dist = QtWidgets.QLineEdit("1200", self)
+        self.hub_catchment_dist.setToolTip(
+            "How far people walk to a rail/tram station or designated hub. Sets the wider "
+            "catchment around the transit hub layer; the default matches the centre walk."
+        )
+        acc.addRow("Hub catchment (m)", self.hub_catchment_dist)
         self.corridor_weight = QtWidgets.QLineEdit("0", self)
         self.corridor_weight.setToolTip(
             "Transit-oriented growth. 0 (default): the corridor layer is reported only and growth "
@@ -476,6 +482,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "min_settlement_pop": (self.min_settlement, "service viability"),
             "centre_m2_per_person": (self.centre_m2_person, "centre m² per person"),
             "stop_catchment_m": (self.stop_catchment_dist, "stop catchment"),
+            "hub_catchment_m": (self.hub_catchment_dist, "hub catchment"),
             "corridor_weight": (self.corridor_weight, "corridor preference"),
         }
         for key, (widget, label) in line_edits.items():

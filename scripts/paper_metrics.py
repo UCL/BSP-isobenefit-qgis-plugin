@@ -105,25 +105,35 @@ def run_preset(sub, params, overrides, runs=50):
         existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
     )
 
-    # transit: the stop mask reports catchment coverage for every preset; the corridor
+    # transit: the anchor masks report catchment coverage for every preset; the corridor
     # preference additionally weights the growth draws when an override raises it above 0.
     # At weight 0 the reference is the existing stops; a weighted run adds the proposed
-    # corridor (the route it is asked to develop along) to the sources.
+    # corridor and hub (the inputs it is asked to develop along) to the sources. Corridor
+    # cells project the stop catchment, hubs the wider hub catchment.
     catchment_m = float(p.get("stop_catchment_m", 400.0))
+    hub_catchment_m = float(p.get("hub_catchment_m", 1200.0))
     corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
     hubs = list(sub.get("proposed_hubs", [])) if corridor_w > 0.0 else []
-    anchor_cells = list(sub.get("stops", []))
+    corridor_cells = list(sub.get("stops", []))
     if corridor_w > 0.0:
-        anchor_cells += list(sub.get("corridor", [])) + hubs
-    stop_mask = None
-    if anchor_cells:
-        stop_mask = np.zeros_like(base_state, bool)
-        for r, c in anchor_cells:
-            stop_mask[r, c] = True
+        corridor_cells += list(sub.get("corridor", []))
+
+    def _mask(cells):
+        if not cells:
+            return None
+        m = np.zeros_like(base_state, bool)
+        for r, c in cells:
+            m[r, c] = True
+        return m
+
+    stop_mask, hub_mask = _mask(corridor_cells), _mask(hubs)
     catchment = None
-    if corridor_w > 0.0 and stop_mask is not None:
-        d = G._walk_distance(stop_mask, gran, catchment_m, blocked=(base_state == -1))
-        catchment = np.isfinite(d)
+    if corridor_w > 0.0 and (stop_mask is not None or hub_mask is not None):
+        catchment = np.zeros_like(base_state, bool)
+        for mask, reach in ((stop_mask, catchment_m), (hub_mask, hub_catchment_m)):
+            if mask is not None:
+                d = G._walk_distance(mask, gran, reach, blocked=(base_state == -1))
+                catchment |= np.isfinite(d)
 
     # the plugin's own ensemble runner, so the paper's numbers come from the same
     # member seeding the plugin (and demo_run_report.py) would produce
@@ -154,6 +164,7 @@ def run_preset(sub, params, overrides, runs=50):
         target_population=float(p["target_population"]),
         min_park_area_m2=park_m2,
         transit_stops=stop_mask, stop_catchment_m=catchment_m,
+        transit_hubs=hub_mask, hub_catchment_m=hub_catchment_m,
     )
     keep = {
         k: round(float(metrics.get(k, 0)), 3)
