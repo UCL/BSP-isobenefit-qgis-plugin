@@ -80,9 +80,10 @@ model's term for centres) under a small set of rules that maintain
 the walking limits as the settlement grows. The approach sits between master-planning and
 laissez-faire growth, because a few simple rules guide development while
 the detailed form emerges spontaneously \citep{dacci_banister_white2024}. This paper operationalises Isobenefit Urbanism: we adapt the model
-to real-world constraints, fit it into planning workflows, and
-deliver it as an instrument for conceptualising options and
-consulting residents and experts \citep[cf.][]{waddell2002}.
+to real-world constraints and deliver it as a QGIS plugin, an
+instrument that can be incorporated into planning workflows for
+conceptualising options and consulting residents and experts
+\citep[cf.][]{waddell2002}.
 
 The published model runs on an abstract grid, in which every cell
 starts as nature, distances are straight lines, and a single radius, typically set to an
@@ -92,7 +93,7 @@ rules easy to study. In real-world use the model must
 accommodate constraints such as towns, fragmented green space,
 rivers, railways, motorways, and steep slopes, and its outputs must
 be standard GIS layers.
-We therefore develop a QGIS plugin that incorporates the inputs,
+The plugin therefore incorporates the inputs,
 runs the model under these constraints, post-processes the results,
 and writes the derived plans as GIS layers.
 Isobenefit Urbanism shares its walkable-access premise with
