@@ -46,19 +46,19 @@ FIGS = os.path.join(REPO, "paper", "figures")
 PLAN = {
     "cambourne": [
         ("baseline", {}),
-        ("walk400", {"centre_walk_m": 400.0}),
+        ("walk800", {"centre_walk_m": 800.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
     ],
     "london_crews_hill": [
         ("baseline", {}),
-        ("walk400", {"centre_walk_m": 400.0}),
+        ("walk800", {"centre_walk_m": 800.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
         ("denser", {"shares": {"high": 0.5, "medium": 0.3, "low": 0.2}}),
         ("lower", {"shares": {"high": 0.1, "medium": 0.3, "low": 0.6}}),
     ],
     "medellin_pajarito": [
         ("baseline", {}),
-        ("walk400", {"centre_walk_m": 400.0}),
+        ("walk800", {"centre_walk_m": 800.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
         ("compact", {"dispersal": "off"}),
         ("dispersed", {"dispersal": "aggressive"}),
@@ -67,15 +67,10 @@ PLAN = {
 
 # panels the manuscript includes, copied into paper/figures under the tex names
 PAPER_PANELS = {
-    ("cambourne", "existing"): "cambourne_existing.png",
     ("cambourne", "baseline"): "cambourne_baseline.png",
-    ("cambourne", "walk400"): "cambourne_walk400.png",
     ("cambourne", "walk1600"): "cambourne_walk1600.png",
-    ("london_crews_hill", "existing"): "london_crews_hill_existing.png",
-    ("london_crews_hill", "baseline"): "london_crews_hill_baseline.png",
     ("london_crews_hill", "lower"): "london_crews_hill_lower.png",
     ("london_crews_hill", "denser"): "london_crews_hill_denser.png",
-    ("medellin_pajarito", "existing"): "medellin_pajarito_existing.png",
     ("medellin_pajarito", "baseline"): "medellin_pajarito_baseline.png",
     ("medellin_pajarito", "compact"): "medellin_pajarito_compact.png",
     ("medellin_pajarito", "dispersed"): "medellin_pajarito_dispersed.png",
@@ -95,25 +90,28 @@ def run_preset(sub, params, overrides, runs=50):
     park_m2 = float(p["min_park_area_ha"]) * 1.0e4 if p.get("min_park_area_ha") else None
     max_walk = max(walk, green_walk)
     cell_km2 = gran * gran / 1e6
-    min_cells = max(1, round(float(p.get("min_settlement_pop", 1000.0)) / (mean_density * cell_km2)))
+    min_cells = max(1, round(float(p.get("min_settlement_pop", 2000.0)) / (mean_density * cell_km2)))
     base_state, base_origin = sub["state"].copy(), sub["origin"].copy()
-    G.green_unviable_pockets(base_state, base_origin, min_cells)
+    G.green_unviable_pockets(
+        base_state, base_origin, min_cells,
+        existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
+    )
 
-    states = []
+    # the plugin's own ensemble runner, so the paper's numbers come from the same
+    # member seeding the plugin (and demo_run_report.py) would produce
+    seed = int(p.get("random_seed", 42))
     t0 = time.time()
-    for i in range(runs):
-        sim = isobenefit.Simulation(
-            base_state.copy(), base_origin.copy(),
-            np.zeros_like(base_state, np.float32), sub["seeds"],
-            gran, walk, green_walk, float(p["target_population"]),
-            float(p.get("min_green_span_m", 400.0)), float(p.get("build_prob", 0.25)), 0.01,
-            _gallery.DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
-            0.8, shares, tiers, int(p.get("max_iterations", 300)),
-            int(p.get("random_seed", 42)) + i,
-            min_park_area_m2=park_m2,
-        )
-        sim.run()
-        states.append(np.asarray(sim.snapshot()["state"]))
+    template = isobenefit.Simulation(
+        base_state.copy(), base_origin.copy(),
+        np.zeros_like(base_state, np.float32), sub["seeds"],
+        gran, walk, green_walk, float(p["target_population"]),
+        float(p.get("min_green_span_m", 400.0)), float(p.get("build_prob", 0.25)), 0.01,
+        _gallery.DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
+        0.8, shares, tiers, int(p.get("max_iterations", 300)), seed,
+        min_park_area_m2=park_m2,
+        sterile=G.sterile_fabric(base_origin == 1, sub["seeds"]),
+    )
+    states = [np.asarray(s) for s in isobenefit.run_ensemble(template, seed, runs)]
     sim_s = time.time() - t0
 
     plan, metrics, _pre, _best = G.select_plan(

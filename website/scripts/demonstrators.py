@@ -49,8 +49,8 @@ GRAN = 50.0  # m per cell — the demonstration window is 84 x 84 cells (4.2 km)
 
 # the same walk/density dials the dialog defaults to: three explicit tiers (people/km²) each with a
 # probability (summing to 1), high -> low
-WALK, GREEN_WALK, GREEN_SPAN = 800.0, 400.0, 400.0  # the plugin's defaults
-MIN_SETTLEMENT_POP = 1000.0  # the plugin's default; converted to cells via the mean density
+WALK, GREEN_WALK, GREEN_SPAN = 1200.0, 400.0, 400.0  # the plugin's defaults
+MIN_SETTLEMENT_POP = 2000.0  # the plugin's default service viability threshold; converted to cells via the mean density
 DENSITY_TIERS = (6000.0, 3000.0, 1500.0)  # high, med, low
 TIER_PROBS = (0.2, 0.3, 0.5)
 
@@ -115,7 +115,10 @@ def substrate():
     origin[green & ~built] = 0
     state[unbuild & ~built] = -1
     seeds = [(int(r), int(c)) for r, c in np.argwhere(cent & built)]
-    G.green_unviable_pockets(state, origin, _min_settlement())
+    G.green_unviable_pockets(
+        state, origin, _min_settlement(),
+        existing_centres=seeds, granularity_m=GRAN, centre_distance_m=WALK,
+    )
     return {"state": state, "origin": origin, "density": density, "seeds": seeds,
             "rows": rows, "cols": cols, "window": (xmin, ymin, xmax, ymax),
             "water": water & unbuild & ~built}
@@ -127,6 +130,7 @@ def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, sta
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
         GRAN, WALK, GREEN_WALK, pop, GREEN_SPAN, bp, nb, isol, 0.8, TIER_PROBS, DENSITY_TIERS, iters, seed,
+        sterile=G.sterile_fabric(sub["origin"] == 1, sub["seeds"]),
     )
     snaps = {}
     while sim.current_iter < iters and sim.pop_target_ratio < 1.0:
@@ -383,6 +387,7 @@ def main():
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
         GRAN, WALK, GREEN_WALK, 12000.0, GREEN_SPAN, 0.3, 0.01, 0.0001, 0.8, TIER_PROBS, DENSITY_TIERS, 400, 11,
+        sterile=G.sterile_fabric(sub["origin"] == 1, sub["seeds"]),
     )
     prob = np.asarray(isobenefit.ensemble_probability(sim, 11, 24))
     render_likelihood(prob, sub, "demo_likelihood", "Development likelihood: 24 runs blended",

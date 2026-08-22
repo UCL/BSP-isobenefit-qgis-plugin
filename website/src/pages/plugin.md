@@ -133,7 +133,7 @@ could not use (retired or unrecognised dials).
 | Dispersed development | Moderate | Leapfrog rate: Off / Moderate / Aggressive |
 | Random seed | 42 | The same seed reproduces the same run and the same ensemble, independent of core count |
 
-**Walkable access.** Centre walk (800 m) and Green walk (400 m): how far people walk to a
+**Walkable access.** Centre walk (1,200 m) and Green walk (400 m): how far people walk to a
 mixed-use centre and to a park. The defaults follow common practice: a ten-minute walk to a
 neighbourhood centre, and everyday green within the stricter reach the WHO and Natural England
 standards use. During growth the engine uses one walk radius for its checks,
@@ -147,7 +147,7 @@ coverage figures and steers the centre re-positioning.
 | --- | --- | --- |
 | Optimise centre placement | on | Alongside the as-grown option, save two more: optimised placement (the run's centres re-positioned to cut walking distances, plus any the provision rule requires; a nearby existing centre does not stand in for new development) and fewest centres (the smallest number that keeps every home within the centre walk). Off saves only the as-grown option. Every option keeps every home within the centre walk |
 | Centre area (m² per person) | 20 | Mixed-use centre land provided per new resident served |
-| Min settlement (people) | 1000 | A detached new cluster housing fewer people than this reverts to green (converted to cells via the mean density); a cluster grown against existing development is kept whatever its size, since its growth was anchored on the town's centres. Before the run, open land is developable only where it is locally wide and part of an edge-connected region able to hold this minimum; slivers and enclaves are set aside as protected green (pocket parks). New growth in an outlying settlement below this minimum with no centre of its own also reverts; the raw plan keeps everything for comparison |
+| Service viability (people) | 2000 | The demand a centre must reach within the centre walk to be viable; the default sits at the small end of published facility catchments. Each settlement hosts an attached centre of its own; catchments cross green gaps, so nearby settlements pool their demand toward each centre's viability; centres below the threshold are cut, and growth left without a viable centre reverts to green. Before the run, open land is developable only where it is locally wide and its region either holds the threshold or lies within the centre walk of an existing centre (served infill); other open land is set aside as protected green (pocket parks). The raw plan keeps everything for comparison |
 | Min green span (m) | 400 | No green corridor between developments may narrow below this span |
 | Min park area (ha) | 2 | A contiguous green area must reach this size to qualify as a park, in growth and in the scores; the default follows Natural England's accessible natural greenspace standard |
 
@@ -200,7 +200,9 @@ built and green likelihood bands), `<name>_existing.tif` (the starting fabric),
 actually drew, in place), `<name>_grown.tif`, `<name>_placed.tif` and `<name>_fewest.tif` (the
 three centre options: centres as grown, optimised placement and fewest centres, each coloured
 by arranged density tier, with built as a yellow-to-brown ramp, mixed-use centres as a reds
-ramp, and existing fabric muted), `<name>_report.txt` (the run record) and `<name>_params.json`
+ramp, and existing fabric muted), `<name>_rejected.tif` (the diagnostic layer of raw growth
+the plans rejected, coded by reason: a satellite below the service viability threshold, or
+growth in a centreless hamlet), `<name>_report.txt` (the run record) and `<name>_params.json`
 (the reloadable settings). Every option keeps each home within the centre walk. QGIS loads the
 rasters as one layer group, ordered existing fabric, then the raw pre-processing run, then the
 centre options, with the likelihood bands at the bottom.
@@ -210,36 +212,39 @@ the plan options side by side (population accommodated and share of the target, 
 average walks, per-person centre and green provision), the achieved density mix per tier, and
 the centre audit including the weakest new centres.
 
-This excerpt is from a run on the Cambourne window used throughout the
-[introduction](../) (12,000-person target, default walks and densities):
+This excerpt is from a run on the committed Cambourne scenario (30,000-person target, at the
+scenario's committed settings):
 
 ```text
 PLAN OPTIONS (side by side; coverage and walks count new homes)
 ----------------------------------------
-  Metric                                           raw  grown  placed  fewest
-  ---------------------------------------------  -----  -----  ------  ------
-  population accommodated                        9,619  6,584   6,569   6,569
-  share of target                                  80%    55%     55%     55%
-  built cells (incl. existing)                   2,003  1,575   1,575   1,575
-  mixed-use centre areas                            25     16      16      15
-  served coverage, new homes (centre AND green)   100%   100%    100%    100%
-  incl. existing fabric (no guarantee)             98%    94%     94%     94%
-  avg walk to a centre (m)                         283    240     191     218
-  avg walk to green (m)                            102    101     101     101
-  m2 mixed-use centre / person                       5     19      18      18
-  m2 walkable green / person                       744  1,250   1,253   1,253
+  Metric                                            raw   grown  placed  fewest
+  ---------------------------------------------  ------  ------  ------  ------
+  population accommodated                        31,129  21,582  21,567  21,567
+  share of target                                  104%     72%     72%     72%
+  built cells (incl. existing)                    6,110   4,768   4,768   4,768
+  mixed-use centre areas                             64      46      43      43
+  served coverage, new homes (centre AND green)    100%    100%    100%    100%
+  incl. existing fabric (no guarantee)              99%     97%     97%     97%
+  existing homes alone (FYI)                        95%     91%     91%     91%
+  avg walk to a centre (m)                          276     244     242     236
+  avg walk to green (m)                             102     104     104     104
+  m2 mixed-use centre / person                        4      17      16      16
+  m2 walkable green / person                      1,590   2,449   2,451   2,451
 ```
 
 Reading it: the four columns are the raw run and the three centre options. The options share the
 same cleaned fabric and differ only in their centres, so the rows that move between them are the
-centre count, the walks and the centre provision; optimised placement cut the average centre
-walk from 240 m to 191 m against the as-grown arrangement, and fewest centres gave part of that
-back for one fewer centre. Every new home is served in all four columns, because the growth
-rules enforce both walks; the incl.-existing row blends in the frozen fabric, which carries no
-guarantee. The gap between raw and the options is the cleanup: this window
-grows much of its population as clusters below the 1,000-person minimum, which revert to green
-(detached) or join the existing fabric (infill), so the options credit 55% of the target against
-the raw run's 80%. A full report adds the
+centre count, the walks and the centre provision; here optimised placement consolidates to 43
+centre areas against 46 as grown, and the mean centre walk ranges from 236 to 244 m. Every
+new home is served in all four columns,
+because the growth rules enforce both walks; the incl.-existing row blends in the frozen fabric,
+which carries no guarantee, and the FYI row shows the existing homes alone. The gap between raw
+and the options is the cleanup: the raw run overshoots the target slightly, but part of its
+growth lies in
+pockets whose pooled new demand stays below the 2,000-person viability threshold, which revert
+to green (detached) or join the existing fabric (infill), so the options credit 72%
+of the target against the raw run's 104%. A full report adds the
 walk means, compactness, transit readouts where stops were supplied, the achieved density mix
 per tier, and the centre audit.
 

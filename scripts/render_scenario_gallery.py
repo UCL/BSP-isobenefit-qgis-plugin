@@ -61,9 +61,10 @@ TIER_STYLE = {
 def presets_for(name: str, params: dict) -> list[dict]:
     base = [
         {"id": "baseline", "label": "Baseline run", "note": "The scenario's own params.json, as shipped."},
-        {"id": "walk400", "label": "Shorter centre walk (400 m)",
-         "note": "Centres serve only a 400 m walk; growth stays tighter around each centre.",
-         "overrides": {"centre_walk_m": 400.0}},
+        {"id": "walk800", "label": "Shorter centre walk (800 m)",
+         "note": "Centres serve an 800 m walk; at low densities the pooled demand within so "
+                 "small a catchment can fall below viability.",
+         "overrides": {"centre_walk_m": 800.0}},
         {"id": "walk1600", "label": "Longer centre walk (1,600 m)",
          "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
          "overrides": {"centre_walk_m": 1600.0}},
@@ -188,18 +189,22 @@ def run_preset(sub, params, preset):
     min_cells = max(
         1,
         round(
-            float(p.get("min_settlement_pop", 1000.0))
+            float(p.get("min_settlement_pop", 2000.0))
             / (sum(s * d for s, d in zip(shares, tiers)) * gran**2 / 1.0e6)
         ),
     )
     state, origin = sub["state"].copy(), sub["origin"].copy()
-    G.green_unviable_pockets(state, origin, min_cells)
+    G.green_unviable_pockets(
+        state, origin, min_cells,
+        existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
+    )
     sim = isobenefit.Simulation(
         state, origin.copy(), np.zeros_like(state, np.float32), sub["seeds"],
         gran, walk, green_walk, float(p["target_population"]), float(p.get("min_green_span_m", 400.0)),
         float(p.get("build_prob", 0.25)), 0.01, DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
         0.8, shares, tiers, int(p.get("max_iterations", 300)), int(p.get("random_seed", 42)),
         min_park_area_m2=park_m2,
+        sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
     )
     sim.run()
     st = np.asarray(sim.snapshot()["state"])

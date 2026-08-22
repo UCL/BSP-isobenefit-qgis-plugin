@@ -258,6 +258,11 @@ pub struct Simulation {
     /// Per cell: how many park cells lie within the green walk.
     pub green_acc: Array2<i32>,
     pub cent_acc: Array2<i32>,
+    /// Built cells that can anchor new growth. Existing fabric whose settlement holds no
+    /// centre (an outlying farmstead or hamlet) is sterile: development nucleates only
+    /// against centred fabric, or from a dispersal-seeded centre of its own. Every cell
+    /// built during the run is anchored.
+    pub anchored: Array2<bool>,
     pub params: Params,
     pub total_iters: usize,
     pub current_iter: usize,
@@ -274,6 +279,7 @@ impl Simulation {
         mut origin: Array2<i16>,
         density: Array2<f32>,
         centre_seeds: &[(usize, usize)],
+        sterile: Option<Array2<bool>>,
         params: Params,
         total_iters: usize,
         master_seed: u64,
@@ -281,6 +287,11 @@ impl Simulation {
         let dim = state.dim();
         if origin.dim() != dim || density.dim() != dim {
             return Err("state, origin and density must share the same shape".to_string());
+        }
+        if let Some(s) = &sterile {
+            if s.dim() != dim {
+                return Err("sterile mask must share the state's shape".to_string());
+            }
         }
         // Existing built fabric carries no density and no population: it is assumed to be served by
         // its own centres, so it is spatial context only. Only new development is counted, so the
@@ -308,6 +319,14 @@ impl Simulation {
             params.min_park_area_m2,
         );
         let pop_target_ratio = density.sum() as f64 / params.max_populat;
+        // anchored = every built cell, minus the sterile fabric; centre seeds always anchor
+        let mut anchored = state.mapv(|v| v > 0);
+        if let Some(s) = &sterile {
+            anchored.zip_mut_with(s, |a, &st| *a = *a && !st);
+        }
+        for &(r, c) in centre_seeds {
+            anchored[[r, c]] = true;
+        }
         Ok(Simulation {
             state,
             origin,
@@ -315,6 +334,7 @@ impl Simulation {
             park,
             green_acc,
             cent_acc,
+            anchored,
             params,
             total_iters,
             current_iter: 0,
@@ -341,6 +361,7 @@ impl Simulation {
 
     fn plant_centre(&mut self, y: usize, x: usize) {
         self.state[[y, x]] = 2;
+        self.anchored[[y, x]] = true;
         let opts = DijkstraOpts::new(self.params.centre_distance_m, self.params.granularity_m);
         // the distance field gives the access footprint (finite == reachable within a walk,
         // matching the old path==target==[0,1,2] agg)
@@ -379,10 +400,11 @@ impl Simulation {
                 continue;
             }
             // candidacy against the pre-iteration state, so a cell built this
-            // iteration cannot seed its neighbours in the same pass
+            // iteration cannot seed its neighbours in the same pass; only anchored
+            // fabric counts (sterile farmsteads and hamlets never nucleate growth)
             let attached = iter_nbs(rows, cols, y, x, true)
                 .into_iter()
-                .any(|(ny, nx)| old_state[[ny, nx]] > 0);
+                .any(|(ny, nx)| old_state[[ny, nx]] > 0 && self.anchored[[ny, nx]]);
             if attached {
                 if self.cent_acc[[y, x]] > 0 {
                     if rng.gen::<f64>() < p.build_prob
@@ -399,6 +421,7 @@ impl Simulation {
                         )
                     {
                         self.state[[y, x]] = 1;
+                        self.anchored[[y, x]] = true;
                         self.assign_density(y, x, &mut rng);
                     }
                 } else if !centrality_this_iter
@@ -584,6 +607,7 @@ mod tests {
             origin,
             density,
             &[(grid / 2, grid / 2)],
+            None,
             growth_params(),
             25,
             seed,
@@ -738,6 +762,7 @@ mod tests {
             origin,
             density,
             &[(grid / 2, grid / 2)],
+            None,
             growth_params(),
             25,
             3,
@@ -746,6 +771,61 @@ mod tests {
         assert_eq!(sim.density[[0, 0]], 0.0);
         assert_eq!(sim.density[[0, 1]], 0.0);
         assert_eq!(sim.population(), 0.0);
+    }
+
+    #[test]
+    fn sterile_fabric_cannot_anchor_growth() {
+        // an outlying farmstead (existing built, marked sterile) must never nucleate growth,
+        // even inside a centre's walk; the same layout without the mask grows against it
+        let grid = 30;
+        let mut state = Array2::<i16>::zeros((grid, grid));
+        state[[25, 25]] = 1; // a two-cell farmstead, far from the seed but within its walk
+        state[[25, 26]] = 1; // (a lone cell could never anchor: the streak rule wants a 2-run)
+        let mut origin = Array2::<i16>::from_elem((grid, grid), -1);
+        // a fixed-green moat walls the farm quadrant off from contiguous spread while
+        // staying walkable, so only the farmstead can anchor growth inside it
+        for i in 0..grid {
+            for band in 18..20 {
+                origin[[band, i]] = 0;
+                origin[[i, band]] = 0;
+            }
+        }
+        let density = Array2::<f32>::zeros((grid, grid));
+        let mut sterile = Array2::<bool>::from_elem((grid, grid), false);
+        sterile[[25, 25]] = true;
+        sterile[[25, 26]] = true;
+        let mut params = growth_params();
+        params.centre_distance_m = 10_000.0; // every cell within the seed centre's walk
+        params.cent_prob_nb = 0.0;
+        params.cent_prob_isol = 0.0; // no new centres: growth can only attach
+        let mut with_mask = Simulation::new(
+            state.clone(),
+            origin.clone(),
+            density.clone(),
+            &[(2, 2)],
+            Some(sterile),
+            params,
+            25,
+            9,
+        )
+        .unwrap();
+        let mut without_mask =
+            Simulation::new(state, origin, density, &[(2, 2)], None, params, 25, 9).unwrap();
+        with_mask.run();
+        without_mask.run();
+        let near = |s: &Simulation| {
+            let mut n = 0;
+            for y in 20..grid {
+                for x in 20..grid {
+                    if s.state[[y, x]] > 0 && (y, x) != (25, 25) && (y, x) != (25, 26) {
+                        n += 1;
+                    }
+                }
+            }
+            n
+        };
+        assert_eq!(near(&with_mask), 0); // nothing nucleates on the sterile farmstead
+        assert!(near(&without_mask) > 0); // the unmasked farmstead sprouts a blob
     }
 
     #[test]
@@ -830,7 +910,8 @@ mod tests {
             None,
         )
         .unwrap();
-        let mut sim = Simulation::new(state, origin, density, &[(12, 4)], params, 40, 42).unwrap();
+        let mut sim =
+            Simulation::new(state, origin, density, &[(12, 4)], None, params, 40, 42).unwrap();
         sim.run();
         assert!(sim.population() > 0.0, "expected growth");
         let (fresh_park, fresh_acc) = prepare_park_arrs(
@@ -959,7 +1040,16 @@ mod tests {
         state[[4, 4]] = -1;
         let origin = Array2::<i16>::from_elem((grid, grid), -1);
         let density = Array2::<f32>::zeros((grid, grid));
-        let err = Simulation::new(state, origin, density, &[(4, 4)], growth_params(), 5, 1);
+        let err = Simulation::new(
+            state,
+            origin,
+            density,
+            &[(4, 4)],
+            None,
+            growth_params(),
+            5,
+            1,
+        );
         assert!(err.is_err());
     }
 

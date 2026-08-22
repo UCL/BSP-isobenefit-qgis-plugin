@@ -115,8 +115,11 @@ PLAN_CENTRE_LOW = 9
 PLAN_CENTRE_MED = 10
 PLAN_CENTRE_HIGH = 11
 
+PLAN_REJECT_UNSERVABLE = 12
+
 PLAN_PALETTE = [
     (PLAN_GREEN, _GREEN, "Recommended green network"),
+    (PLAN_REJECT_UNSERVABLE, (214, 96, 77), "Rejected: no viable centre within the walk"),
     (PLAN_EXIST_BUILT, _EXIST_BUILT, "Existing development"),
     (PLAN_EXIST_CENTRE, _EXIST_CENTRE, "Existing mixed-use centre"),
     (PLAN_BUILT_LOW, _BUILT_LOW, "New development — low density"),
@@ -143,6 +146,19 @@ def _label_components(mask: np.ndarray, queen: bool):
 
 
 DEFAULT_MIN_PARK_AREA_M2 = 20_000.0  # 2 ha: Natural England's accessible natural greenspace standard
+
+
+def walk_ball_cells(granularity_m: float, distance_m: float) -> int:
+    """The number of cells within the bounded grid walk of a single open cell: the walk-ball.
+    The ball bounds a centre's possible catchment, so ``threshold cells > ball cells`` means
+    no centre can ever be viable at that walk, and a threshold near the ball needs the ball
+    built nearly solid. Computed exactly on an open grid."""
+    r = max(1, int(math.ceil(distance_m / granularity_m)))
+    n = 2 * r + 3
+    centre = np.zeros((n, n), dtype=bool)
+    centre[r + 1, r + 1] = True
+    d = _walk_distance(centre, granularity_m, distance_m)
+    return int((d <= distance_m).sum())
 
 
 def park_threshold_cells(granularity_m: float, min_park_area_m2: float | None = None) -> int:
@@ -246,19 +262,32 @@ def _dilate3(mask):
     return out
 
 
-def green_unviable_pockets(state, origin, min_settlement_cells: int) -> int:
-    """Reclassify land that cannot carry viable development as protected green, in place.
+def green_unviable_pockets(
+    state,
+    origin,
+    min_settlement_cells: int,
+    existing_centres=None,
+    granularity_m: float | None = None,
+    centre_distance_m: float | None = None,
+) -> int:
+    """Reclassify land that cannot carry viably served development as protected green, in place.
 
-    Developable land must satisfy two geometric conditions. It must be locally wide: a cell
-    counts only inside a 3x3 block of open land, or immediately beside one (a morphological
-    opening), which drops the one- and two-cell slivers that thread between existing buildings
-    and along barriers. And it must have capacity: the wide land is grouped into rook-connected
-    regions (a diagonal corner touch does not connect), and a region must hold at least the
-    minimum settlement size in cells. Every candidate cell that fails either test is marked as
-    fixed green (``origin`` 0): it stays walkable and counts as green space, an enclosed scrap
-    inside a town reads as a pocket park, and no growth, seeding, or centre provision is ever
-    spent on it.
+    Developable land must satisfy a width condition and a service condition. It must be
+    locally wide: a cell counts only inside a 3x3 block of open land, or immediately beside
+    one (a morphological opening), which drops the one- and two-cell slivers that thread
+    between existing buildings and along barriers. And its region must be serviceable: the
+    wide land is grouped into rook-connected regions (a diagonal corner touch does not
+    connect), and a region qualifies either by holding at least the service viability
+    threshold in cells, so it can support a minimal centre of its own, or by lying partly
+    within the centre walk of an existing centre, so growth there starts as served infill.
+    Viability belongs to the service catchment, not to the land parcel: a small field
+    against a centred town is developable, while the same field detached in open country is
+    not. Every candidate cell that fails is marked as fixed green (``origin`` 0): it stays
+    walkable and qualifies as green space, an enclosed scrap inside a town reads as a pocket
+    park, and no growth, seeding, or centre provision is ever spent on it.
 
+    The infill exemption needs ``existing_centres`` (cell coordinates), ``granularity_m``,
+    and ``centre_distance_m``; when any is missing, only the capacity test applies.
     ``state``/``origin`` follow the simulation convention (state: -1 unbuildable, 0 nature,
     1 built; origin: 1 existing built, 0 fixed green, -1 free). ``origin`` is modified in
     place; the count of reclassified cells is returned.
@@ -270,14 +299,44 @@ def green_unviable_pockets(state, origin, min_settlement_cells: int) -> int:
         return 0
     core = _erode3(buildable)
     wide = _dilate3(core) & buildable
+
+    served = None
+    if existing_centres is not None and granularity_m and centre_distance_m:
+        cent = np.zeros_like(buildable)
+        for y, x in existing_centres:
+            if 0 <= y < cent.shape[0] and 0 <= x < cent.shape[1]:
+                cent[y, x] = True
+        if cent.any():
+            d = _walk_distance(cent, granularity_m, centre_distance_m, blocked=(state == -1))
+            served = np.isfinite(d)
+
     keep = np.zeros_like(buildable)
     for comp in _components(wide, queen=False):
-        if len(comp) >= min_cells:
+        viable = len(comp) >= min_cells
+        if not viable and served is not None:
+            viable = any(served[y, x] for y, x in comp)
+        if viable:
             for y, x in comp:
                 keep[y, x] = True
     unviable = buildable & ~keep
     origin[unviable] = 0
     return int(unviable.sum())
+
+
+def sterile_fabric(existing_built, existing_centres) -> np.ndarray:
+    """Existing built cells whose contiguous settlement holds no centre seed: outlying
+    farmsteads and hamlets. Passed to the simulation as its ``sterile`` mask, so new growth
+    never nucleates against them; development attaches to centred settlements or arrives as
+    a dispersal-seeded centre of its own. Every settlement in a finished run therefore has
+    a centre, matching what post-processing enforces."""
+    built = np.asarray(existing_built, dtype=bool)
+    out = np.zeros_like(built)
+    cents = {(int(y), int(x)) for y, x in (existing_centres or [])}
+    for comp in _components(built):
+        if not any((int(y), int(x)) in cents for y, x in comp):
+            for y, x in comp:
+                out[y, x] = True
+    return out
 
 
 def sanitise_seeds(seeds, state, granularity_m, max_snap_m):
@@ -394,7 +453,7 @@ def _seed_centres_proximity(built, granularity_m, max_distance_m, existing=None)
 
 def _refine_centres(
     seeds, fixed, built, new_built, granularity_m, max_distance_m, walk=None, anchors=None,
-    walk_cache=None, minimise_count=False, infill=None,
+    walk_cache=None, minimise_count=False, infill=None, reposition=True,
 ):
     """Optimise seeded centres after the fact, measuring catchment by ``walk`` — ONE distance
     model used for every judgment here: the bounded grid walk (callers inject it as the
@@ -414,11 +473,10 @@ def _refine_centres(
     first, for as long as full coverage and the anchor invariant hold — the fewest centres the
     walk constraint permits.
 
-    ANCHOR INVARIANT: every contiguous built settlement containing new development keeps at least
-    one directly attached centre (its own, or a fixed one within it). Walking distances traverse
-    green, so without this a cluster can look "served" by a neighbouring cluster's centre across a
-    green gap and be stripped bare; a settlement without its own centre is not a settlement in
-    this model's terms.
+    Walking distances traverse green, so a cluster may be served by a centre across a green
+    gap: nearby settlements pool their demand and their provision as a constellation, and no
+    per-settlement anchor is required (the 2026-08-21 centre-first viability doctrine; the
+    caller cuts centres below threshold demand and prunes homes no viable centre reaches).
 
     PROVISION RULE: existing centres serve the existing population and do NOT count as provision
     for new development — new growth hugging an existing town must still earn its own centre, or
@@ -489,8 +547,6 @@ def _refine_centres(
     for i, comp in enumerate(comps):
         for y, x in comp:
             comp_label[y, x] = i
-    needs_anchor = {i for i, comp in enumerate(comps) if any(new_built[y, x] for y, x in comp)}
-    fixed_comps = {int(comp_label[y, x]) for y, x in fixed if 0 <= y < rows and 0 <= x < cols} - {-1}
 
     # Distance/reach to the nearest FIXED (existing) centre, solved ONCE — fixed centres don't move,
     # and true-area centres are many cells, so collapsing them into a single field (rather than one
@@ -510,10 +566,15 @@ def _refine_centres(
         if infill is not None
         else np.zeros((rows, cols), dtype=bool)
     )
+    # every contiguous settlement with non-infill new development must host its own centre:
+    # demand pools across green for viability, but a blob justifies itself with an attached
+    # centre, so placement seeds one wherever a blob lacks one (the caller's viability cut
+    # then decides whether it stands)
     needs_anchor = {
-        i for i in needs_anchor
-        if any(new_built[y, x] and not infill_ok[y, x] for y, x in comps[i])
+        i for i, comp in enumerate(comps)
+        if any(new_built[y, x] and not infill_ok[y, x] for y, x in comp)
     }
+    fixed_comps = {int(comp_label[y, x]) for y, x in fixed if 0 <= y < rows and 0 <= x < cols} - {-1}
 
     def covered(centres):  # new homes within the walk of a NEW centre, an anchor, or (infill) an existing centre
         return anchor_reach | infill_ok | reach(centres)
@@ -580,9 +641,11 @@ def _refine_centres(
             return moved
         return centres
 
-    new = lloyd(new)  # free first pass: the baseline is the seeded placement, gaps are filled next
+    if reposition:
+        new = lloyd(new)  # free first pass: the baseline is the seeded placement, gaps are filled next
     new = fill_gaps(new)
-    new = guarded_lloyd(new)
+    if reposition:
+        new = guarded_lloyd(new)
 
     def is_last_anchor(j, centres):
         cj = int(comp_label[centres[j][0], centres[j][1]])
@@ -609,9 +672,8 @@ def _refine_centres(
             new.pop(cullable[0])
             new = guarded_lloyd(new)
 
-    # Backstop for the anchor invariant: if a settlement with new development still has no
-    # attached centre (the CA never seeded one there, or Lloyd drifted its centre into another
-    # cluster), anchor it at the interior of its new development.
+    # seed a centre at the interior of any blob still lacking one, so the blob can justify
+    # itself; the caller's viability cut removes it (and then the blob) if demand falls short
     anchored = fixed_comps | {int(comp_label[y, x]) for y, x in new}
     for i in sorted(needs_anchor - anchored):
         mask = np.zeros((rows, cols), dtype=bool)
@@ -818,6 +880,7 @@ def evaluate_plan(
     existing_green: np.ndarray | None = None,
     target_population: float | None = None,
     min_park_area_m2: float | None = None,
+    transit_weight: float = 0.0,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
@@ -854,9 +917,10 @@ def evaluate_plan(
 
     If ``transit_stops`` (a bool mask of public-transport stop cells) is given, also reports
     ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` — new homes' walkable
-    access to a stop, as a third dimension alongside centre and green. These are *reported
-    only*: transit does not yet feed ``access_cost`` (the run-selection metric), so it cannot
-    distort which plan is chosen until the dimension is validated.
+    access to a stop, as a third dimension alongside centre and green. By default these are
+    reported only, so transit cannot distort which plan is chosen; a positive
+    ``transit_weight`` folds transit access into ``access_cost`` at that weight relative to
+    the centre and green halves, preferring runs whose growth gathers around stops.
     """
     new_homes = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE))
     exist_homes = np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
@@ -971,8 +1035,7 @@ def evaluate_plan(
     metrics["centre_m2_per_person"] = n_new_centres * cell_km2 * 1e6 / population if population else 0.0
     metrics["green_m2_per_person"] = n_new_green * cell_km2 * 1e6 / population if population else 0.0
 
-    # transit access — a third dimension, REPORTED ONLY for now (not folded into access_cost,
-    # so it cannot distort run-selection until validated).
+    # transit access — a third dimension, reported only at the default weight of zero
     if transit_stops is not None:
         stops = np.asarray(transit_stops, dtype=bool)
         if stops.any() and has_new:
@@ -981,16 +1044,49 @@ def evaluate_plan(
             metrics["transit_coverage"] = float(near_stop.mean())
             metrics["transit_access"] = float(np.where(near_stop, d_stop, 2.0 * max_distance_m).mean())
             metrics["transit_walk_mean"] = float(d_stop[near_stop].mean()) if near_stop.any() else math.inf
+            if transit_weight:
+                # fold stop access into selection at the configured weight; the shortfall
+                # term keeps its share of the blend
+                w = float(transit_weight)
+                metrics["access_cost"] = (2.0 * access_cost + w * metrics["transit_access"]) / (2.0 + w)
 
     return metrics
 
 
-def audit_centres(plan, granularity_m, max_distance_m):
+def rejected_development(pre_plan, option_plan):
+    """Diagnostic layer connecting the raw grown state to the plan options.
+
+    New development present in the raw state (``pre_plan``, tagged with the existing-*
+    codes) but absent from an option is the rejected development. Under centre-first
+    viability there is one reason: no centre with threshold demand within its walk could
+    reach it. Returns ``(raster, counts)``: a uint8 grid of PLAN_REJECT_UNSERVABLE
+    (0 elsewhere) and the rejected cell count.
+    """
+    pre_plan = np.asarray(pre_plan)
+    option_plan = np.asarray(option_plan)
+    pre_new = np.isin(pre_plan, (PLAN_BUILT, PLAN_CENTRE))
+    opt_built = np.isin(
+        option_plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE)
+    )
+    rejected = pre_new & ~opt_built
+    out = np.where(rejected, PLAN_REJECT_UNSERVABLE, 0).astype(np.uint8)
+    return out, {"cells": int(rejected.sum())}
+
+
+def audit_centres(plan, granularity_m, max_distance_m, centre_min_settlement=0):
     """Per-centre-AREA effectiveness audit, by the one distance model (the bounded grid walk).
     Centres are areas (existing true-area + grown new ones), so each
     record is a connected component, with its ``cells`` (area), how many built cells it **serves**
     (within a walk) and the **mean walk** to them (low = well-centred; few served = an ineffective
     centre on a thin/edge catchment).
+
+    ``centre_min_settlement`` is the service viability threshold in cells (the population a
+    minimal local centre needs, converted via the mean density). When given, each record carries
+    ``new_served`` (NEW built cells within the walk, the demand basis for viability, since
+    existing homes are committed to their own centres) and ``viable`` (new catchment at or
+    above the threshold), and the summary counts the new centres below it. Post-processing
+    enforces viability centre-first (station anchors exempt), so on its outputs the audit
+    verifies that the count is zero.
 
     Run after each plan so weak centres are visible and the cull threshold can be tuned to evidence
     rather than by eye. Returns ``{"centres": [...weakest first...], "summary": {...}}``.
@@ -1002,6 +1098,7 @@ def audit_centres(plan, granularity_m, max_distance_m):
         return _walk_distance(mask, granularity_m, max_distance_m, blocked=walk_blocked)
 
     built = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
+    new_homes = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE))
     records = []
     # one record per centre AREA (connected component), not per cell — centres are areas now, so
     # per-cell would massively over-count
@@ -1012,14 +1109,17 @@ def audit_centres(plan, granularity_m, max_distance_m):
         d = walk(one)  # walk from the whole centre area to all cells
         served_mask = built & np.isfinite(d)
         served = int(served_mask.sum())
+        new_served = int((new_homes & np.isfinite(d)).sum())
         records.append(
             {
                 "row": int(round(sum(c[0] for c in comp) / len(comp))),
                 "col": int(round(sum(c[1] for c in comp) / len(comp))),
                 "cells": len(comp),  # the centre's area (a town centre spans many cells)
                 "served": served,  # built cells within a walk — the catchment it serves
+                "new_served": new_served,  # the demand basis for viability
                 "mean_dist_m": float(d[served_mask].mean()) if served else math.inf,  # avg walk to them
                 "existing": any(plan[y, x] == PLAN_EXIST_CENTRE for y, x in comp),
+                "viable": new_served >= centre_min_settlement,
             }
         )
     records.sort(key=lambda r: r["served"])  # weakest first, so the audit surfaces the dubious ones
@@ -1038,6 +1138,8 @@ def audit_centres(plan, granularity_m, max_distance_m):
         "new_served_min": int(new_served.min()) if len(new_served) else 0,
         "new_served_median": int(np.median(new_served)) if len(new_served) else 0,
         "mean_dist_median_m": float(np.median(finite_means)) if finite_means else math.inf,
+        "viability_threshold_cells": int(centre_min_settlement),
+        "n_new_below_viability": sum(1 for r in records if not r["existing"] and not r["viable"]),
     }
     return {"centres": records, "summary": summary}
 
@@ -1118,37 +1220,13 @@ def optimise_plan(
     if existing_built is not None:
         frozen |= np.asarray(existing_built, dtype=bool)
 
-    # Cleanup FIRST — prune "failed satellites": an entirely-NEW built settlement (its own connected
-    # component) smaller than the minimum settlement size is a stranded speck, not viable development.
-    # Remove it up front so nothing is greened or centred on it, and so a dispersed CA run can't leave
-    # a lone centre on a 3-cell orphan (the catchment cull keeps such a centre because it can SEE many
-    # scattered homes within a walk; judging by SETTLEMENT SIZE is what actually removes the orphan).
-    # A small cluster contiguous with existing/frozen fabric is kept (it extends a real settlement).
-    # This is the CONTIGUITY rule: a mixed-use centre only exists attached to a contiguous built
-    # settlement of at least the minimum size, so it applies whether or not centres are optimised,
-    # and the threshold is floored (MIN_SETTLEMENT_CELLS) so a coarse grid cannot collapse it.
+    # Viability is judged centre-first inside the loop below (the 2026-08-21 doctrine):
+    # catchments follow the walk and cross green gaps, so nearby settlements pool demand as
+    # a constellation, centres below threshold demand are cut, and homes no viable centre
+    # reaches revert to nature. No contiguity prune, hamlet rule, or per-settlement anchor
+    # remains; the threshold is floored (MIN_SETTLEMENT_CELLS) so a coarse grid cannot
+    # collapse it.
     centre_min_settlement = max(int(centre_min_settlement), MIN_SETTLEMENT_CELLS)
-    if prune_islands:
-        exist_cent = {(int(y), int(x)) for y, x in (existing_centres or [])}
-        exist_cent |= {(int(y), int(x)) for y, x in (centre_anchors or [])}
-        for comp in _components((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)):
-            if len(comp) >= centre_min_settlement:
-                continue
-            if not any(frozen[y, x] for y, x in comp):
-                for y, x in comp:
-                    plan[y, x] = PLAN_GREEN  # the land reverts to nature, blending with its surroundings
-            elif not any((y, x) in exist_cent for y, x in comp):
-                # a sub-threshold settlement of existing fabric with no centre of its own (an
-                # outlying hamlet): the existing buildings stay, but its new growth reverts —
-                # the settlement is too small for the model to grow, and any centre bootstrapped
-                # there could never justify itself
-                for y, x in comp:
-                    if not frozen[y, x]:
-                        plan[y, x] = PLAN_GREEN
-
-    # A new cluster grown against existing fabric is NOT judged by its own size: growth there was
-    # anchored on the town's centres (the growth rules require a centre within the walk), so it is
-    # legitimate infill and stays new development. Only detached clusters were candidates above.
     n_built = int(((plan == PLAN_BUILT) | (plan == PLAN_CENTRE)).sum())
     if n_built == 0:
         return plan
@@ -1156,43 +1234,141 @@ def optimise_plan(
     # Centres: keep the existing ones; take the simulation's grown centres (``ca_centres``), each
     # connected blob of centre cells collapsing to ONE centre (seeded at the blob's interior).
     # With no ca_centres (direct calls) fall back to proximity seeding on the finished fabric.
-    plan[plan == PLAN_CENTRE] = PLAN_BUILT
-    built = plan == PLAN_BUILT
-    new_built = built & ~frozen
-    existing_on_built = [
-        (int(ey), int(ex))
-        for ey, ex in (existing_centres or [])
-        if 0 <= ey < rows and 0 <= ex < cols and plan[ey, ex] == PLAN_BUILT
-    ]
-    # Significant transit stops (rail/tram) on built land anchor a FIXED centre — kept like
-    # existing centres (never culled); the other centres optimise around them.
-    anchor_on_built = [
-        (int(ay), int(ax))
-        for ay, ax in (centre_anchors or [])
-        if 0 <= ay < rows and 0 <= ax < cols and plan[ay, ax] == PLAN_BUILT
-    ]
-    fixed_on_built = list(dict.fromkeys(existing_on_built + anchor_on_built))  # dedup, order-stable
-    exclude = {(int(ey), int(ex)) for ey, ex in (existing_centres or [])} | set(anchor_on_built)
-    if ca_centres is None:
-        seed_cells = [
-            s
-            for s in _seed_centres_proximity(built, granularity_m, centre_distance_m, existing_centres)
-            if s not in exclude
+    #
+    # The preparation below runs inside the SERVICE VIABILITY loop. The placed arrangement is
+    # checked against the viability threshold; new growth that only an unviable centre could
+    # serve is not viable development and reverts to green, and the preparation repeats on the
+    # reduced fabric. The loop is fabric-level, so all three centre options share its outcome.
+    # Station anchors are pinned and exempt, and infill served by an existing centre never
+    # forces a centre of its own.
+    exist_cell_set = {(int(ey), int(ex)) for ey, ex in (existing_centres or [])}
+    while True:
+        plan[plan == PLAN_CENTRE] = PLAN_BUILT
+        built = plan == PLAN_BUILT
+        new_built = built & ~frozen
+        existing_on_built = [
+            (int(ey), int(ex))
+            for ey, ex in (existing_centres or [])
+            if 0 <= ey < rows and 0 <= ex < cols and plan[ey, ex] == PLAN_BUILT
         ]
-    else:
-        seed_cells = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in exclude]
-    seed_cells = [(y, x) for y, x in seed_cells if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
-    seed_mask = np.zeros_like(built)
-    for y, x in seed_cells:
-        seed_mask[y, x] = True
-    seed_areas = _components(seed_mask) if seed_mask.any() else []
-    seed_points = []
-    for comp in seed_areas:
-        m = np.zeros_like(built)
-        for y, x in comp:
-            m[y, x] = True
-        pt = _interior_point(m)
-        seed_points.append((int(pt[0]), int(pt[1])) if pt is not None else comp[0])
+        # Significant transit stops (rail/tram) on built land anchor a FIXED centre — kept like
+        # existing centres (never culled); the other centres optimise around them.
+        anchor_on_built = [
+            (int(ay), int(ax))
+            for ay, ax in (centre_anchors or [])
+            if 0 <= ay < rows and 0 <= ax < cols and plan[ay, ax] == PLAN_BUILT
+        ]
+        fixed_on_built = list(dict.fromkeys(existing_on_built + anchor_on_built))  # dedup, order-stable
+        exclude = exist_cell_set | set(anchor_on_built)
+        if ca_centres is None:
+            seed_cells = [
+                s
+                for s in _seed_centres_proximity(built, granularity_m, centre_distance_m, existing_centres)
+                if s not in exclude
+            ]
+        else:
+            seed_cells = [(int(y), int(x)) for y, x in ca_centres if (int(y), int(x)) not in exclude]
+        seed_cells = [(y, x) for y, x in seed_cells if 0 <= y < rows and 0 <= x < cols and plan[y, x] == PLAN_BUILT]
+        seed_mask = np.zeros_like(built)
+        for y, x in seed_cells:
+            seed_mask[y, x] = True
+        seed_areas = _components(seed_mask) if seed_mask.any() else []
+        seed_points = []
+        for comp in seed_areas:
+            m = np.zeros_like(built)
+            for y, x in comp:
+                m[y, x] = True
+            pt = _interior_point(m)
+            seed_points.append((int(pt[0]), int(pt[1])) if pt is not None else comp[0])
+
+        # sub-threshold attached infill: a contiguous NEW cluster below the viability threshold
+        # inside a settlement that holds an existing centre or station anchor. The provision-rule
+        # exception in _refine_centres lets that centre serve these cells. Existing FABRIC alone
+        # earns no exemption: a cluster grown against a centre-less farmstead or hamlet must
+        # justify a centre like any other settlement, or revert.
+        infill = np.zeros(plan.shape, dtype=bool)
+        if fixed_on_built and new_built.any():
+            comp_lbl = np.full(plan.shape, -1, dtype=int)
+            for i, comp in enumerate(_components(built)):
+                for y, x in comp:
+                    comp_lbl[y, x] = i
+            centred_ids = {int(comp_lbl[y, x]) for y, x in fixed_on_built}
+            for cluster in _components(new_built):
+                y0, x0 = cluster[0]
+                if len(cluster) < centre_min_settlement and int(comp_lbl[y0, x0]) in centred_ids:
+                    for y, x in cluster:
+                        infill[y, x] = True
+        # a CA centre planted on an infill scrap is an orphan: the scrap is served by the
+        # existing centre nearby, so the seed is dropped rather than repositioned
+        refine_seeds = [p for p in seed_points if not infill[p[0], p[1]]]
+
+        if not new_built.any():
+            placed_points = []
+            break
+        placed_points = _refine_centres(
+            refine_seeds, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
+            walk=walk, anchors=anchor_on_built, walk_cache=walk_cache,
+            minimise_count=False, infill=infill,
+        )
+        # CENTRE-FIRST SERVICE VIABILITY: a centre whose walk catchment holds less than the
+        # threshold of demand is cut, and homes beyond the walk of every surviving centre
+        # are not viably servable and revert to nature. Catchments cross green gaps, so
+        # nearby settlements pool demand and stand or fall together as a constellation. One
+        # pass is stable (every home in a surviving centre's catchment is covered by
+        # definition, so no cut shrinks another catchment); the loop repeats only because
+        # placement reruns on a reduced fabric, and the fabric only shrinks, so it
+        # terminates.
+        if not prune_islands:
+            break
+        vcache = walk_cache if walk_cache is not None else {}
+
+        def _cfield(c, _cache=vcache, _shape=plan.shape):
+            f = _cache.get(tuple(c))
+            if f is None:
+                m = np.zeros(_shape, dtype=bool)
+                m[c[0], c[1]] = True
+                f = walk(m)
+                _cache[tuple(c)] = f
+            return f
+
+        anchor_cells = {tuple(a) for a in anchor_on_built}
+        # demand counts NEW homes only: existing homes are assumed committed to their own
+        # centres, so they do not subsidise a new centre's viability
+        viable = [
+            c for c in placed_points
+            if tuple(c) in anchor_cells
+            or int((new_built & (_cfield(c) <= centre_distance_m)).sum()) >= centre_min_settlement
+        ]
+        covered = np.zeros(plan.shape, dtype=bool)
+        for c in list(viable) + anchor_on_built:
+            covered |= _cfield(c) <= centre_distance_m
+        if fixed_on_built:
+            fm = np.zeros(plan.shape, dtype=bool)
+            for y, x in fixed_on_built:
+                fm[y, x] = True
+            covered |= infill & (walk(fm) <= centre_distance_m)
+        # each contiguous blob justifies itself with an attached surviving centre: demand
+        # pools across green for a centre's catchment, but a blob without a viable centre
+        # of its own (nor an existing centre or station anchor) is not a settlement, and
+        # its new growth reverts; infill served by an existing centre is exempt
+        centre_ok = np.zeros(plan.shape, dtype=bool)
+        for y, x in list(viable) + anchor_on_built + fixed_on_built:
+            centre_ok[y, x] = True
+        unanchored = np.zeros(plan.shape, dtype=bool)
+        for comp in _components(built):
+            if not any(new_built[y, x] and not infill[y, x] for y, x in comp):
+                continue
+            if any(centre_ok[y, x] for y, x in comp):
+                continue
+            for y, x in comp:
+                if new_built[y, x]:
+                    unanchored[y, x] = True
+        unservable = (new_built & ~covered) | unanchored
+        if not unservable.any():
+            placed_points = viable
+            break
+        plan[unservable] = PLAN_GREEN
+
     for ey, ex in fixed_on_built:
         plan[ey, ex] = PLAN_CENTRE
     exist_mask = (
@@ -1203,39 +1379,31 @@ def optimise_plan(
     # existing fabric contributes NO population: centres are sized by the new residents they serve
     cell_pop = np.where(exist_mask, 0.0, new_density_km2) * (g * g / 1e6)
     if centre_mode == "grown":
-        # Locations untouched: every grown centre cell stays a centre. Each area still grows to
-        # the size its catchment warrants (mixed-use provision is a ratio, not a location choice);
-        # growing only, never shrinking. Station anchors grow too, as in every mode.
+        # Locations untouched: every grown centre cell stays a centre, and each area still
+        # grows to the size its catchment warrants (mixed-use provision is a ratio, not a
+        # location choice); growing only, never shrinking. Pruning is an edit like any other,
+        # so where it removed a cluster's serving centre, a gap-filling addition restores the
+        # walk constraint; nothing is repositioned or removed. Station anchors grow too.
         kept = [c for comp in seed_areas for c in comp]
-        grow_points = list(dict.fromkeys(seed_points + anchor_on_built))
+        filled = _refine_centres(
+            seed_points, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
+            walk=walk, anchors=anchor_on_built, walk_cache=walk_cache,
+            minimise_count=False, infill=infill, reposition=False,
+        )
+        grow_points = list(dict.fromkeys(filled + anchor_on_built))
         grown = _grow_centres(grow_points, existing_on_built, built, walk, cell_pop, centre_m2_per_person, g * g)
         new_centres = list(dict.fromkeys(list(grown) + kept))
     else:
-        # sub-threshold attached infill: a contiguous NEW cluster below the minimum settlement
-        # inside a settlement that contains existing fabric. The provision-rule exception in
-        # _refine_centres lets an existing centre within the walk serve these cells, so a scrap
-        # of infill does not force an orphan centre.
-        infill = np.zeros(plan.shape, dtype=bool)
-        if frozen.any() and new_built.any():
-            comp_lbl = np.full(plan.shape, -1, dtype=int)
-            for i, comp in enumerate(_components(built)):
-                for y, x in comp:
-                    comp_lbl[y, x] = i
-            frozen_ids = set(np.unique(comp_lbl[frozen & built]))
-            for cluster in _components(new_built):
-                y0, x0 = cluster[0]
-                if len(cluster) < centre_min_settlement and int(comp_lbl[y0, x0]) in frozen_ids:
-                    for y, x in cluster:
-                        infill[y, x] = True
-        # a CA centre planted on an infill scrap is an orphan: the scrap is served by the
-        # existing centre nearby, so the seed is dropped rather than repositioned (fill_gaps
-        # re-adds provision if any of its cells actually lack a centre within the walk)
-        seed_points = [p for p in seed_points if not infill[p[0], p[1]]]
-        new_centres = _refine_centres(
-            seed_points, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
-            walk=walk, anchors=anchor_on_built, walk_cache=walk_cache,
-            minimise_count=centre_mode == "minimal", infill=infill,
-        )
+        if centre_mode == "placed":
+            new_centres = placed_points  # the viability loop's converged placed arrangement
+        else:
+            # fewest centres: cull the converged viable set, never the raw seeds, so the
+            # option starts from a plan every centre of which reaches threshold demand
+            new_centres = _refine_centres(
+                placed_points, fixed_on_built, built, new_built, granularity_m, centre_distance_m,
+                walk=walk, anchors=anchor_on_built, walk_cache=walk_cache,
+                minimise_count=True, infill=infill,
+            )
         # Grow each placed centre into an AREA sized by the homes it serves (mixed-use, on built).
         # Station anchors grow too — a station should seed a real centre, not stay a lone cell — while
         # existing/true-area centres come pre-sized from the input and are left intact (claimed, not grown).
@@ -1270,15 +1438,16 @@ def class_probabilities(states):
     )
 
 
-def _state_to_plan(state, granularity_m, existing_green=None, min_park_area_m2=None) -> np.ndarray:
+def _state_to_plan(state, granularity_m, existing_green=None) -> np.ndarray:
     """Map a single run's final state to a PLAN_* layout: built/centre -> built (the
-    optimiser re-places centres), green kept only as qualifying parks (>= min-span).
-    ``existing_green`` cells are always kept as green so existing parks are never lost."""
+    optimiser re-places centres) and every nature cell -> green. Sub-park green stays
+    green land: it is traversable and rendered, and the scoring's park filter alone
+    decides what qualifies for green access (classifying it as PLAN_NONE would block
+    walks the growth rules permitted)."""
     state = np.asarray(state)
     plan = np.zeros(state.shape, dtype=np.uint8)
     plan[(state == 1) | (state == 2)] = PLAN_BUILT
-    green_min = park_threshold_cells(granularity_m, min_park_area_m2)
-    plan[_keep_large_components(state == 0, green_min)] = PLAN_GREEN
+    plan[state == 0] = PLAN_GREEN
     if existing_green is not None:
         plan[np.asarray(existing_green, dtype=bool)] = PLAN_GREEN  # never drop existing green
     plan[state == -1] = PLAN_NONE  # unbuildable (rivers / roads / etc.) is never developed OR green
@@ -1321,6 +1490,7 @@ def select_plan(
     progress=None,
     target_population=None,
     min_park_area_m2=None,
+    transit_weight=0.0,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run (at
     ``centre_mode``; see ``optimise_plan``) and keep the one with the lowest average walk
@@ -1349,8 +1519,7 @@ def select_plan(
         st = np.asarray(st)
         ca_centres = [(int(y), int(x)) for y, x in np.argwhere(st == 2)]  # the CA's grown centres
         opt = optimise_plan(
-            _state_to_plan(st, granularity_m, existing_green=existing_green,
-                           min_park_area_m2=min_park_area_m2),
+            _state_to_plan(st, granularity_m, existing_green=existing_green),
             granularity_m, max_distance_m,
             existing_centres=existing_centres,
             existing_built=existing_built, ca_centres=ca_centres,
@@ -1370,6 +1539,7 @@ def select_plan(
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2, existing_green=existing_green,
             target_population=target_population, min_park_area_m2=min_park_area_m2,
+            transit_weight=transit_weight,
         )
         return opt, m
 
@@ -1389,8 +1559,7 @@ def select_plan(
     if best_plan is not None:
         # the chosen run BEFORE post-processing — its raw CA development + grown centres + qualifying
         # green — tagged with existing-* codes so it lines up with the post-processed plan
-        pre_plan = _state_to_plan(best_state, granularity_m,
-                                  existing_green=existing_green, min_park_area_m2=min_park_area_m2)
+        pre_plan = _state_to_plan(best_state, granularity_m, existing_green=existing_green)
         pre_plan[np.asarray(best_state) == 2] = PLAN_CENTRE  # show the CA's own grown centres
         pre_plan = _mark_existing(pre_plan, existing_built=existing_built, existing_centres=existing_centres)
     return best_plan, best, pre_plan, best_state
@@ -1403,15 +1572,22 @@ def derive_density(
     density_factors_km2,
     prob_distribution,
 ):
-    """Per-cell density (people/km²) for a FINISHED scenario, arranging the three tiers by distance.
+    """Per-cell density (people/km²) for a FINISHED scenario, arranging the three tiers core-out.
 
     Every new cell was built at one of three densities, drawn at the given probabilities (the mix).
-    Here those drawn values are ARRANGED spatially: new cells are ranked by walking distance to the
-    nearest (post-processed) mixed-use centre, and the highest densities go to the closest cells,
-    then medium, then low. The tier counts follow the probabilities (``n_high = round(p_high · N)``,
-    …), so the population equals the probability-weighted mean over the cells — the same accounting
-    the run's stopping rule uses — while the layout is coherent (densest by the centres). Existing
-    fabric is not counted (0); non-built cells are 0 (nodata).
+    Here those drawn values are ARRANGED spatially: new cells are ranked by their INTERIOR DEPTH
+    (how far inside the new fabric they sit), ties broken by the walking distance to the nearest
+    post-processed mixed-use centre, AS A PERCENTILE WITHIN THEIR OWN contiguous settlement. The
+    highest densities go to the lowest percentiles, then medium, then low, so each settlement
+    carries a dense core and a light edge whatever its shape. Depth ranks first because a pure
+    distance ranking fails where a serving centre sits at a settlement's edge (a station anchor
+    against a rail line): distance contours then run in parallel bands across the region instead
+    of ringing its core. The within-settlement percentile gives every settlement its own gradient;
+    a raw global ranking instead starves whole small settlements into a
+    single low tier. The tier counts follow the probabilities (``n_high = round(p_high · N)``, …),
+    so the population equals the probability-weighted mean over the cells — the same accounting
+    the run's stopping rule uses. Existing fabric is not counted (0); non-built cells are 0
+    (nodata).
 
     Arranged in post-processing, not during growth: mid-run distances measure against whichever
     centres happen to exist at that moment, and post-processing then moves, adds and culls centres.
@@ -1432,8 +1608,38 @@ def derive_density(
     else:
         dist_field = np.full(plan.shape, np.inf)
     dists = dist_field[new_built]
-    # rank ascending; ties and unreachable (inf) sort last, so they take the lowest tier
-    order = np.argsort(dists, kind="stable")
+    # percentile of distance WITHIN each contiguous settlement, so every settlement grades
+    # from dense at its centre to light at its edge, whatever its absolute distances
+    built_any = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE, PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
+    comp_label = np.full(plan.shape, -1, dtype=int)
+    for i, comp in enumerate(_components(built_any)):
+        for y, x in comp:
+            comp_label[y, x] = i
+    # interior depth of the new fabric: how many 8-neighbour erosions a cell survives
+    # (chebyshev distance to the region's edge), so a settlement's core ranks first
+    depth = np.zeros(plan.shape, dtype=np.int32)
+    mask = new_built.copy()
+    while mask.any():
+        depth[mask] += 1
+        core = mask[1:-1, 1:-1].copy()
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                core &= mask[1 + dy : mask.shape[0] - 1 + dy, 1 + dx : mask.shape[1] - 1 + dx]
+        nxt = np.zeros_like(mask)
+        nxt[1:-1, 1:-1] = core
+        mask = nxt
+    labels = comp_label[new_built]
+    depth_b = depth[new_built]
+    keys = np.full(n, np.inf)
+    for lab in np.unique(labels):
+        members = labels == lab
+        # deepest first, then nearest the centre; lexsort ranks by its LAST key first
+        order_m = np.lexsort((dists[members], -depth_b[members]))
+        r = np.empty(order_m.size, dtype=np.int64)
+        r[order_m] = np.arange(order_m.size)
+        denom = max(int(members.sum()) - 1, 1)
+        keys[members] = r / denom
+    order = np.argsort(keys, kind="stable")
     n_high = min(int(round(p_high * n)), n)
     n_med = min(int(round(p_med * n)), n - n_high)
     ranked = np.empty(n, dtype=np.float32)
@@ -1498,8 +1704,7 @@ def plan_variants(
     ``{label: (plan, metrics)}``; each plan is tagged with the existing-* codes."""
     state = np.asarray(state)
     ca_centres = [(int(y), int(x)) for y, x in np.argwhere(state == 2)]
-    base = _state_to_plan(state, granularity_m, existing_green=existing_green,
-                          min_park_area_m2=min_park_area_m2)
+    base = _state_to_plan(state, granularity_m, existing_green=existing_green)
     out: dict = {}
     for label, mode in modes.items():
         plan = optimise_plan(

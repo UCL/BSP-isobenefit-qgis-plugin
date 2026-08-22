@@ -32,6 +32,7 @@ fn make_sim(rows: usize, cols: usize, seed: u64) -> Simulation {
         origin,
         density,
         &[(rows / 2, cols / 2)],
+        None,
         params,
         100,
         seed,

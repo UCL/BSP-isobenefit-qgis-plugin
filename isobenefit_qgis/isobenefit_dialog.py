@@ -123,7 +123,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
 
         # --- Walkable access ----------------------------------------------------------
         acc = _group("Walkable access")
-        self.centre_walk_dist = QtWidgets.QLineEdit("800", self)
+        self.centre_walk_dist = QtWidgets.QLineEdit("1200", self)
         self.centre_walk_dist.setToolTip(
             "How far people walk to a centre. Growth uses the larger of the two walks; "
             "the finished plan is scored against each separately."
@@ -156,14 +156,15 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "denser or more populous catchments get bigger centres."
         )
         pp.addRow("Centre area (m² per person)", self.centre_m2_person)
-        self.min_settlement = QtWidgets.QLineEdit("1000", self)
+        self.min_settlement = QtWidgets.QLineEdit("2000", self)
         self.min_settlement.setToolTip(
-            "A detached NEW cluster housing fewer than this many people is treated as a stranded "
-            "speck, not a viable settlement, and reverts to green (converted to cells via the mean "
-            "development density). The raw plan (before this cleanup) is always saved too, so you "
-            "can see exactly what was removed."
+            "The service viability threshold: the population a settlement must reach to support a "
+            "minimal local centre. A detached NEW cluster below it is not viable and reverts to "
+            "green (converted to cells via the mean development density), and open land unable to "
+            "hold it is set aside as protected green before the run. The raw plan (before this "
+            "cleanup) is always saved too, so you can see exactly what was removed."
         )
-        pp.addRow("Min settlement (people)", self.min_settlement)
+        pp.addRow("Service viability (people)", self.min_settlement)
         self.min_green_span = QtWidgets.QLineEdit("400", self)
         self.min_green_span.setToolTip("No green corridor between developments may narrow below this span.")
         pp.addRow("Min green span (m)", self.min_green_span)
@@ -448,7 +449,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "green_walk_m": (self.green_walk_dist, "green walk"),
             "min_green_span_m": (self.min_green_span, "min green span"),
             "min_park_area_ha": (self.min_park_area, "min park area"),
-            "min_settlement_pop": (self.min_settlement, "min settlement"),
+            "min_settlement_pop": (self.min_settlement, "service viability"),
             "centre_m2_per_person": (self.centre_m2_person, "centre m² per person"),
         }
         for key, (widget, label) in line_edits.items():

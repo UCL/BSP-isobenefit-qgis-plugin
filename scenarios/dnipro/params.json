@@ -12,7 +12,7 @@
   "max_iterations": 400,
   "build_prob": 0.25,
   "dispersal": "moderate",
-  "centre_walk_m": 800,
+  "centre_walk_m": 1200,
   "green_walk_m": 400,
   "min_green_span_m": 400,
   "densities_km2": {
@@ -27,5 +27,5 @@
     "medium": 0.5,
     "low": 0.35
   },
-  "min_settlement_pop": 1000
+  "min_settlement_pop": 2000
 }

@@ -236,7 +236,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       scenario the plugin loads. Post-processing changes <strong>the centres</strong> and applies a
       limited building cleanup; the buildings themselves come from the simulation.
     </p>
-    <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, stranded settlements below the minimum size revert to green.</figcaption></figure>
+    <figure><img class="diagram" src={dg('plan_cleanup')} alt="" /><figcaption>In the cleanup, growth that no viable centre reaches reverts to green.</figcaption></figure>
     <figure><img class="diagram" src={dg('plan_centring')} alt="" /><figcaption>A grown centre often lands on the edge or in a corner of its development, so it serves its population less well than a central location would. Each is moved to a <em>central</em> spot in the same built area.</figcaption></figure>
     <p>
       The centres are mixed-use throughout: a centre cell keeps its homes and gains shops and services, and
@@ -287,6 +287,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <li><strong>raw (before post-processing)</strong>, the chosen run as it grew (the end of <a href="#simulation">step 3</a>), coloured by the densities the run drew in place</li>
       <li><strong>centres as grown, optimised placement and fewest centres</strong>, the scenario options from <a href="#postprocessing">step 5</a>, each coloured by arranged density tier</li>
       <li><strong>development likelihood</strong> for built and for green, the uncertainty map from <a href="#plan">step 4</a></li>
+      <li><strong>rejected development</strong>, a diagnostic layer mapping the raw growth the plans rejected, coded by reason (a satellite below the service viability threshold, or growth in a centreless hamlet), so the difference between the raw run and the options explains itself</li>
       <li><strong><code>_report.txt</code></strong>, a record of the parameters and the per-option statistics</li>
     </ul>
     <p>
@@ -320,8 +321,8 @@ const dg = (name: string) => `${base}images/${name}.svg`
       This control sets how readily growth leapfrogs away from the existing fabric. It also sets how much
       of the population target fits: leapfrogging opens land that edge-only growth can never reach within
       the walkability rules. These three panels show the raw grown state, before post-processing, so the
-      dial's effect is visible; the cleanup step then prunes any satellite that fails to reach the minimum
-      settlement size, which under <em>Aggressive</em> removes much of the scatter.
+      dial's effect is visible; the cleanup step then prunes growth beyond the walk of every viable
+      centre, which under <em>Aggressive</em> removes much of the scatter.
     </p>
     <div class="demo-row">
       <figure><img class="demo" src={dg('demo_dispersal_off')} alt="" /><figcaption><strong>Off.</strong> Growth clings to the edges of the existing fabric, including its outlying hamlets, and saturates early.</figcaption></figure>
@@ -330,7 +331,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
     </div>
 
     <h3>Build probability</h3>
-    <p>This is the per-step growth rate: each eligible cell builds with this probability per iteration, so a higher value grows more, and spreads farther, in the same number of iterations. These panels show the raw grown state after 60 iterations: growth that young sits below the minimum settlement size, so a post-processed plan would prune it away entirely.</p>
+    <p>This is the per-step growth rate: each eligible cell builds with this probability per iteration, so a higher value grows more, and spreads farther, in the same number of iterations. These panels show the raw grown state after 60 iterations: growth that young sits below the service viability threshold, so a post-processed plan would prune it away entirely.</p>
     <div class="demo-row">
       <figure><img class="demo" src={dg('demo_buildprob_slow')} alt="" /><figcaption><strong>Slow (0.08).</strong> Growth stays compact.</figcaption></figure>
       <figure><img class="demo" src={dg('demo_buildprob_fast')} alt="" /><figcaption><strong>Fast (0.6).</strong> Far more is grown in the same time.</figcaption></figure>
@@ -353,17 +354,18 @@ const dg = (name: string) => `${base}images/${name}.svg`
       </li>
       <li>
         <strong>Post-processing of the grown runs.</strong> The original keeps centres where they seeded.
-        The plugin adds a limited cleanup (stranded fragments below a minimum settlement size revert
+        The plugin adds a limited cleanup (growth no viable centre reaches reverts
         to green) and offers centre options that all keep every home within the centre walk: as grown,
         optimised placement, and fewest centres, each sized by the population in its catchment at a
         m²-per-person rule of thumb. The raw grown state is saved alongside.
       </li>
       <li>
-        <strong>Density tiers arranged toward centres.</strong> The original draws each block's density
+        <strong>Density tiers arranged core-out.</strong> The original draws each block's density
         randomly from three fixed tiers, scattered across the map. The plugin keeps the three tiers and
-        their shares, but arranges the drawn densities in post-processing so the highest sit nearest the
-        mixed-use centres, then medium, then low. Gathering the densest housing around the centres is what
-        lets public transport work: a stop at the centre serves the most people and destinations per stop.
+        their shares, but arranges the drawn densities in post-processing so the highest occupy each
+        settlement's interior core, then medium, then low toward the edge, with the walk to the
+        mixed-use centres breaking ties. Gathering the densest housing at the core is what
+        lets public transport work: a stop at a well-placed centre serves the most people and destinations.
         The mix is unchanged, so the population is the same; only
         the placement is organised. Growth counts new development only.
       </li>
@@ -372,7 +374,7 @@ const dg = (name: string) => `${base}images/${name}.svg`
         straight-line distance within one walkable radius of roughly a kilometre (a 15-minute walk;
         D'Acci's later summaries use 1 to 2 km). The plugin measures a bounded walk over the grid that
         cannot cross unbuildable land, gives centres and green each their own distance, and defaults to
-        800 m for centres (a ten-minute walk, just below the published radius) and 400 m for green (the
+        1,200 m for centres (a fifteen-minute walk, close to the published radius) and 400 m for green (the
         stricter everyday-green reach of the WHO and Natural England standards); both are settings the
         user can change.
       </li>

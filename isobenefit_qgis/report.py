@@ -148,6 +148,12 @@ def audit_tables(audit: dict) -> list[str]:
         f"each serves a median of {s['served_median']} built cells "
         f"(min {s['served_min']}, max {s['served_max']}); median avg-walk {s['mean_dist_median_m']:.0f} m.",
     ]
+    if s.get("viability_threshold_cells"):
+        lines.append(
+            f"  Service viability: {s['n_new_below_viability']} new centre(s) below the "
+            f"{s['viability_threshold_cells']}-cell threshold catchment. Post-processing enforces "
+            "viability centre-first, so this verifies as zero; station anchors are exempt."
+        )
     weak_new = [c for c in audit["centres"] if not c["existing"]][:5]
     if weak_new:
         lines.append("")

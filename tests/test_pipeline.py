@@ -575,6 +575,13 @@ def test_audit_centres_reports_served_and_flags_weak():
     assert a2["centres"][0]["served"] == 1  # weakest-first ordering surfaces the dud
     assert a2["summary"]["served_min"] == 1
 
+    # the service viability flag: at a 10-cell threshold the speck is unviable,
+    # the well-placed centre viable; the summary counts the shortfall
+    a3 = audit_centres(plan, 50.0, 800.0, centre_min_settlement=10)
+    assert [c["viable"] for c in a3["centres"]] == [False, True]
+    assert a3["summary"]["viability_threshold_cells"] == 10
+    assert a3["summary"]["n_new_below_viability"] == 1
+
 
 def test_audit_centres_counts_areas_not_cells():
     # a centre is an AREA — a contiguous block counts as one centre, not one-per-cell
@@ -685,26 +692,62 @@ def test_optimise_plan_keeps_attached_infill():
     assert any(abs(y - 15) <= 8 and abs(x - 21) <= 8 for y, x in cs)  # a centre within the walk
 
 
-def test_optimise_plan_keeps_scattered_infill_clusters():
-    # Each attached new cluster stays new development regardless of its own size: scattered
-    # scraps against a town and a larger attached district are all counted as new growth.
+def test_optimise_plan_infill_survives_only_where_served():
+    # attachment alone no longer keeps growth: the district earns its own viable centre and
+    # covers the scrap beside it, while scraps beyond every centre's walk revert to nature
     g = 40
     plan = np.zeros((g, g), np.uint8)
     plan[8:28, 8:24] = PLAN_BUILT
     existing = np.zeros((g, g), bool)
     existing[8:28, 8:24] = True
-    scraps = ((10, slice(24, 26)), (14, slice(24, 27)), (26, slice(24, 26)))  # 2+3+2 cells
-    for row, span in scraps:
+    far_scraps = ((10, slice(24, 26)), (14, slice(24, 27)))  # beyond every centre's walk
+    near_scrap = (26, slice(24, 26))  # beside the district
+    for row, span in (near_scrap, *far_scraps):
         plan[row, span] = PLAN_BUILT
     plan[20:25, 24:29] = PLAN_BUILT  # a 25-cell district against the town's edge
     out = optimise_plan(
         plan, 100.0, 800.0, existing_centres=[(18, 16)], existing_built=existing,
         centre_min_settlement=7,
     )
-    for row, span in scraps:
-        assert np.isin(out[row, span], (PLAN_BUILT, PLAN_CENTRE)).all()  # scraps stay new
     district = np.isin(out[20:25, 24:29], (PLAN_BUILT, PLAN_CENTRE))
-    assert district.all()  # the district is still new development
+    assert district.all()  # the district stands on its own viable centre
+    assert (out[near_scrap[0], near_scrap[1]] == PLAN_BUILT).all()  # covered by it
+    for row, span in far_scraps:
+        assert (out[row, span] == PLAN_GREEN).all()  # unserved scraps revert
+
+
+def test_sterile_fabric_marks_centre_less_settlements():
+    # existing settlements without a centre seed are sterile (farmsteads, hamlets); the
+    # centred town is not
+    from isobenefit_qgis.grid import sterile_fabric
+
+    built = np.zeros((20, 20), bool)
+    built[2:8, 2:8] = True  # the town
+    built[14, 14:16] = True  # a two-cell farmstead
+    out = sterile_fabric(built, [(4, 4)])
+    assert not out[2:8, 2:8].any()  # centred town anchors growth
+    assert out[14, 14:16].all()  # the farmstead is sterile
+    assert out.sum() == 2
+
+
+def test_infill_exemption_requires_a_centred_settlement():
+    # a sub-threshold cluster grown against centre-less existing fabric (an outlying
+    # farmstead) is not infill: even within the walk of a village centre it must justify
+    # a centre of its own, and it reverts
+    g = 30
+    plan = np.zeros((g, g), np.uint8)
+    plan[10:16, 12:18] = PLAN_BUILT  # the centred town
+    plan[17, 13] = PLAN_BUILT  # a detached farmstead with no centre
+    plan[18:20, 12:15] = PLAN_BUILT  # a 6-cell cluster grown against the farmstead
+    existing = np.zeros((g, g), bool)
+    existing[10:16, 12:18] = True
+    existing[17, 13] = True
+    out = optimise_plan(
+        plan, 100.0, 800.0, existing_centres=[(13, 15)], existing_built=existing,
+        centre_min_settlement=10,
+    )
+    assert (out[18:20, 12:15] == PLAN_GREEN).all()  # no free ride on the farmstead
+    assert (out[17, 13] == PLAN_EXIST_BUILT) or (out[17, 13] == PLAN_BUILT)  # fabric untouched
 
 
 def test_walk_distance_routes_around_green_barrier():
@@ -963,6 +1006,50 @@ def test_optimise_plan_prunes_centreless_island():
     assert (pruned[20:50, 10:40] == PLAN_BUILT).any()  # the real development is untouched
 
 
+def test_green_unviable_pockets_infill_exemption():
+    # viability belongs to the service catchment, not the land parcel: a sub-threshold pocket
+    # within the centre walk of an existing centre stays developable (served infill), while
+    # the same pocket beyond every walk is protected green
+    from isobenefit_qgis.grid import green_unviable_pockets
+
+    g = 30
+    state = np.full((g, g), -1, np.int16)
+    origin = np.full((g, g), -1, np.int16)
+    state[2:8, 2:8] = 0  # near pocket, 36 cells
+    state[20:26, 20:26] = 0  # far pocket, 36 cells
+    s2, o2 = state.copy(), origin.copy()
+    green_unviable_pockets(s2, o2, 100)  # capacity test alone: both fall
+    assert (o2[2:8, 2:8] == 0).all() and (o2[20:26, 20:26] == 0).all()
+    green_unviable_pockets(
+        state, origin, 100,
+        existing_centres=[(2, 2)], granularity_m=100.0, centre_distance_m=800.0,
+    )
+    assert (origin[2:8, 2:8] == -1).all()  # serviceable infill stays developable
+    assert (origin[20:26, 20:26] == 0).all()  # the detached pocket is protected green
+
+
+def test_centre_first_viability_pools_demand_across_gaps():
+    # the constellation doctrine: a small pearl across a green gap survives because its
+    # centre's walk catchment pools the neighbouring settlement's demand; the same pearl
+    # beyond every walk cannot support a viable centre and reverts to nature
+    from isobenefit_qgis.grid import PLAN_BUILT, PLAN_CENTRE, PLAN_GREEN, audit_centres, optimise_plan
+
+    g = 90
+    plan = np.full((g, g), PLAN_GREEN, np.uint8)  # traversable nature, as real plans carry
+    plan[20:40, 10:30] = PLAN_BUILT  # main settlement, 400 cells
+    plan[20:25, 34:39] = PLAN_BUILT  # near pearl, 25 cells, across a 4-cell green gap
+    plan[70:75, 70:75] = PLAN_BUILT  # far pearl, 25 cells, beyond every walk
+    out = optimise_plan(
+        plan, 50.0, 800.0, ca_centres=[(30, 20)], centre_mode="placed",
+        centre_min_settlement=120,
+    )
+    near = (out[20:25, 34:39] == PLAN_BUILT) | (out[20:25, 34:39] == PLAN_CENTRE)
+    assert near.any()  # the near pearl stands on pooled demand
+    assert (out[70:75, 70:75] == PLAN_GREEN).all()  # the far pearl reverts
+    audit = audit_centres(out, 50.0, 800.0, centre_min_settlement=120)
+    assert audit["summary"]["n_new_below_viability"] == 0  # every surviving centre is viable
+
+
 def test_plan_variants_centre_modes():
     # plan_variants post-processes ONE run at several centre modes so the user can compare/pick;
     # the minimal mode uses no more centre areas than placed, and every option is fully covered.
@@ -1037,6 +1124,42 @@ def test_evaluate_plan_new_homes_basis():
     assert m2["served_coverage"] == m2["served_coverage_incl_existing"]
     # the selection metric follows the new-homes basis
     assert m1["access_cost"] != m2["access_cost"]
+
+
+def test_rejected_development_diagnostic():
+    # the raw-vs-plan difference as one diagnostic layer: rejected cells had no viable
+    # centre within the walk
+    from isobenefit_qgis.grid import PLAN_EXIST_BUILT, PLAN_REJECT_UNSERVABLE, rejected_development
+
+    g = 30
+    pre = np.zeros((g, g), np.uint8)
+    pre[2:8, 2:8] = PLAN_EXIST_BUILT  # town
+    pre[2:8, 8:10] = PLAN_BUILT  # attached infill, kept in the option
+    pre[20:24, 20:24] = PLAN_BUILT  # rejected growth
+    opt = pre.copy()
+    opt[20:24, 20:24] = PLAN_GREEN
+    out, counts = rejected_development(pre, opt)
+    assert counts == {"cells": 16}
+    assert (out[20:24, 20:24] == PLAN_REJECT_UNSERVABLE).all()
+    assert int((out > 0).sum()) == 16
+
+
+def test_transit_weight_folds_stop_access_into_selection():
+    # at the default weight of zero transit is reported only; a positive weight moves
+    # access_cost toward the transit access figure, and the reported halves stay plain
+    g = 20
+    plan = np.zeros((g, g), np.uint8)
+    plan[2:6, 2:6] = PLAN_BUILT
+    plan[4, 4] = PLAN_CENTRE
+    plan[2:6, 6:10] = PLAN_GREEN
+    stops = np.zeros((g, g), bool)
+    stops[2, 2] = True
+    base = evaluate_plan(plan, 100.0, 400.0, transit_stops=stops)
+    weighted = evaluate_plan(plan, 100.0, 400.0, transit_stops=stops, transit_weight=1.0)
+    assert base["transit_access"] == weighted["transit_access"]
+    assert base["centre_access"] == weighted["centre_access"]
+    expected = (2.0 * base["access_cost"] + base["transit_access"]) / 3.0
+    assert abs(weighted["access_cost"] - expected) < 1e-9
 
 
 def test_selection_metric_counts_target_shortfall():
@@ -1122,6 +1245,24 @@ def test_to_tiered_plan_maps_new_cells_to_tier_codes():
     assert out[0, 1] == PLAN_BUILT_HIGH
     assert out[0, 2] == PLAN_CENTRE_HIGH
     assert out[0, 3] == PLAN_EXIST_BUILT  # existing untouched
+
+
+def test_derive_density_edge_centre_still_grades_core_out():
+    # a square settlement whose only centre hugs one edge (a station anchor against a rail line)
+    # must still carry its high tier at the interior core, not in bands nearest the centre
+    from isobenefit_qgis.grid import derive_density
+
+    g = 20
+    plan = np.zeros((g, g), np.uint8)
+    plan[4:16, 4:16] = PLAN_BUILT  # a 12x12 square, 144 new cells
+    plan[4, 9] = PLAN_CENTRE  # the centre sits on the square's top edge
+    tiers, probs = (6000.0, 3000.0, 1500.0), (0.2, 0.3, 0.5)
+    dens = derive_density(plan, 100.0, 4000.0, tiers, probs)
+    assert (dens[9:11, 9:11] == 6000.0).all()  # the deepest cells take the high tier
+    corners = [dens[4, 4], dens[4, 15], dens[15, 4], dens[15, 15]]
+    assert all(v == 1500.0 for v in corners)  # the shallow corners take the low tier
+    top_edge = dens[4, 5:15]
+    assert (top_edge != 6000.0).all()  # edge rows beside the centre no longer outrank the core
 
 
 def test_derive_density_without_centres_still_conserves_population():

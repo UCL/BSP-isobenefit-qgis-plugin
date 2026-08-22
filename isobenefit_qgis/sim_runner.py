@@ -81,6 +81,7 @@ class IsobenefitTask(QgsTask):
         centre_distance_m=None,
         green_distance_m=None,
         min_park_area_m2=None,
+        transit_weight=0.0,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -120,6 +121,7 @@ class IsobenefitTask(QgsTask):
         self.centre_distance_m = None if centre_distance_m is None else float(centre_distance_m)
         self.green_distance_m = None if green_distance_m is None else float(green_distance_m)
         self.min_park_area_m2 = None if min_park_area_m2 is None else float(min_park_area_m2)
+        self.transit_weight = float(transit_weight)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -210,7 +212,7 @@ class IsobenefitTask(QgsTask):
             f"  Min green span        : {self.min_green_span:.0f} m",
             f"  Min park area         : {(self.min_park_area_m2 or grid.DEFAULT_MIN_PARK_AREA_M2) / 1.0e4:.0f} ha",
             f"  Density               : {dens}",
-            f"  Min settlement        : ~{min_pop:,.0f} people ({self.centre_min_settlement} cells)",
+            f"  Service viability     : ~{min_pop:,.0f} people ({self.centre_min_settlement} cells)",
             f"  Optimise centres      : {'on' if self.optimise_centres else 'off'}",
             f"  Ensemble              : {self.n_ensemble} run(s)",
         ]
@@ -253,7 +255,7 @@ class IsobenefitTask(QgsTask):
         self._log(f"post-processing candidates: {done}/{total}")
         return not self.isCanceled()
 
-    def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds) -> str:
+    def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds, sterile=None) -> str:
         """Step ONE representative run to the population target and log how many iterations it took,
         so the user sees that typically only ~N steps run before the target of M is met (well under
         the max) — or a clear warning if the cap is hit first. Returns the summary line (for the
@@ -267,7 +269,7 @@ class IsobenefitTask(QgsTask):
             self.build_prob, self.cent_prob_nb, self.cent_prob_isol, self.pop_target_cent_threshold,
             self.prob_distribution, self.density_factors,
             self.total_iters, self.random_seed,
-            min_park_area_m2=self.min_park_area_m2,
+            min_park_area_m2=self.min_park_area_m2, sterile=sterile,
         )
         iters = 0
         while sample.current_iter < self.total_iters and sample.pop_target_ratio < 1.0:
@@ -339,13 +341,6 @@ class IsobenefitTask(QgsTask):
                     state, self.unbuildable_layer, self.target_crs, geotransform, -1, all_touched=True
                 )
                 self._log("Carved unbuildable land + barrier corridors (motorways/railways/rivers).")
-            n_pocket = grid.green_unviable_pockets(state, origin, self.centre_min_settlement)
-            if n_pocket:
-                self._log(
-                    f"Marked {n_pocket} cell(s) of unviable pockets as protected green: "
-                    "buildable land detached from existing fabric and too small to host the "
-                    "minimum settlement."
-                )
             density = np.zeros((rows, cols), dtype=np.float32)
             seeds = []
             if self.centre_seeds_layer is not None:
@@ -367,6 +362,18 @@ class IsobenefitTask(QgsTask):
                         f"Seeds on unbuildable land: {n_snapped} snapped to the nearest buildable "
                         f"cell, {n_dropped} dropped (no buildable cell within two blocks)."
                     )
+
+            n_pocket = grid.green_unviable_pockets(
+                state, origin, self.centre_min_settlement,
+                existing_centres=seeds, granularity_m=self.granularity_m,
+                centre_distance_m=self._centre_walk(),
+            )
+            if n_pocket:
+                self._log(
+                    f"Marked {n_pocket} cell(s) of unserviceable pockets as protected green: "
+                    "land unable to hold a viable settlement and beyond the centre walk of "
+                    "any existing centre."
+                )
 
             # Public-transport access: ordinary stops and rail/tram stations are two layers
             # (each edited/swapped on its own). The scored transit dimension uses BOTH — every
@@ -410,6 +417,33 @@ class IsobenefitTask(QgsTask):
                 self._log(f"{len(sim_seeds) - len(seeds)} station(s) added as centre seeds for growth.")
 
             self.per_block = self._per_block()
+            # feasibility of the viability threshold at this walk and density: a centre's
+            # catchment cannot exceed the walk-ball, so state the arithmetic up front
+            ball = grid.walk_ball_cells(self.granularity_m, self._centre_walk())
+            if self.centre_min_settlement > ball:
+                self._log(
+                    f"Service viability is infeasible at these settings: the threshold needs "
+                    f"{self.centre_min_settlement} cells of new homes within the centre walk, but the "
+                    f"walk-ball holds only {ball} cells. Every new centre will fail viability; "
+                    "raise the centre walk, the densities, or lower the threshold.",
+                    Qgis.MessageLevel.Warning,
+                )
+            elif self.centre_min_settlement > ball // 2:
+                self._log(
+                    f"Service viability is tight at these settings: the threshold needs "
+                    f"{self.centre_min_settlement} of the {ball} cells in the centre walk-ball to be "
+                    "new homes, more than half the ball built solid.",
+                    Qgis.MessageLevel.Warning,
+                )
+            # existing settlements without a centre seed (outlying farmsteads and hamlets)
+            # are sterile: new growth never nucleates against them, so every settlement a
+            # run grows carries a centre
+            sterile = grid.sterile_fabric(origin == 1, sim_seeds)
+            if sterile.any():
+                self._log(
+                    f"{int(sterile.sum())} existing cells sit in settlements without a centre; "
+                    "they are kept as context and never anchor new growth."
+                )
             sim = isobenefit.Simulation(
                 state,
                 origin,
@@ -429,6 +463,7 @@ class IsobenefitTask(QgsTask):
                 self.total_iters,
                 self.random_seed,
                 min_park_area_m2=self.min_park_area_m2,
+                sterile=sterile,
             )
             # Only NEW development is counted, so a run always starts from zero population and grows
             # toward the new-only target; existing fabric is context and never contributes here.
@@ -439,7 +474,9 @@ class IsobenefitTask(QgsTask):
                 n = self.n_ensemble
                 batch = max(1, cores)  # ~one run per core keeps all cores busy
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
-                iter_summary = self._log_iterations_to_target(isobenefit, state, origin, density, sim_seeds)
+                iter_summary = self._log_iterations_to_target(
+                    isobenefit, state, origin, density, sim_seeds, sterile=sterile
+                )
                 # Collect each run's final layout (not just the blended average): the
                 # likelihood layers come from all runs, and the idealised scenario is the
                 # best single run, optimised. Batched for progress + cancellation; one fixed
@@ -496,6 +533,7 @@ class IsobenefitTask(QgsTask):
                     centre_anchors=station_anchors,
                     target_population=self.max_populat,
                     min_park_area_m2=self.min_park_area_m2,
+                    transit_weight=self.transit_weight,
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
                     new_density_km2=self._mean_new_density_km2(),
@@ -589,10 +627,25 @@ class IsobenefitTask(QgsTask):
                             self.centre_min_settlement * self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
                         )
                         self._log(
-                            f"Building cleanup reverted {removed:,} stranded built cell(s) to green "
-                            f"(detached new settlements housing fewer than ~{min_pop:,.0f} people); the raw "
-                            f"plan is kept un-cleaned so you can see exactly what the cleanup changed."
+                            f"Building cleanup reverted {removed:,} built cell(s) to green (growth "
+                            f"beyond the walk of every centre able to reach ~{min_pop:,.0f} people of "
+                            f"demand); the raw plan is kept un-cleaned so you can see exactly what "
+                            f"the cleanup changed."
                         )
+                        # the rejected-development diagnostic: the raw-vs-plan difference as its
+                        # own layer, coded by reason, so a user can see WHY the plans differ from
+                        # the run rather than inferring it from two rasters
+                        rejected, rcounts = grid.rejected_development(pre_plan, plan)
+                        if rejected.any():
+                            cell_pop = self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
+                            rpath = str(Path(self.out_path).with_name(f"{self.out_file_name}_rejected.tif"))
+                            gis_io.write_plan_raster(rpath, rejected, geotransform, self.target_crs)
+                            self._plan_outputs.append((rpath, "rejected development (diagnostic)"))
+                            self._log(
+                                f"Rejected development: {rcounts['cells']:,} cell(s) "
+                                f"(~{rcounts['cells'] * cell_pop:,.0f} people) had no viable centre "
+                                "within the walk; the diagnostic layer maps them."
+                            )
                 if metrics:
                     self._log(
                         f"Idealised scenario: {metrics.get('served_coverage', 0):.0%} of homes within a walk of "
@@ -608,7 +661,10 @@ class IsobenefitTask(QgsTask):
                 if plan is not None:
                     # Per-centre effectiveness audit, by the same distance model — surfaces weak
                     # centres (thin catchment / off-centre) every run, so they're not just eyeballed.
-                    audit = grid.audit_centres(plan, self.granularity_m, self.max_distance_m)
+                    audit = grid.audit_centres(
+                        plan, self.granularity_m, self.max_distance_m,
+                        centre_min_settlement=self.centre_min_settlement,
+                    )
                     s = audit["summary"]
                     self._log(
                         f"Centre audit: {s['n_centres']} centres ({s['n_existing']} existing from input, "
