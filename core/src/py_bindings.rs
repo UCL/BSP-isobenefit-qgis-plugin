@@ -34,6 +34,8 @@ impl PySimulation {
         total_iters, random_seed,
         min_park_area_m2 = None,
         sterile = None,
+        transit_catchment = None,
+        corridor_weight = None,
     ))]
     fn new(
         py: Python<'_>,
@@ -56,6 +58,8 @@ impl PySimulation {
         random_seed: u64,
         min_park_area_m2: Option<f64>,
         sterile: Option<PyReadonlyArray2<bool>>,
+        transit_catchment: Option<PyReadonlyArray2<bool>>,
+        corridor_weight: Option<f64>,
     ) -> PyResult<Self> {
         let params = Params::from_raw(
             granularity_m,
@@ -70,12 +74,14 @@ impl PySimulation {
             prob_distribution,
             density_factors_km2,
             min_park_area_m2,
+            corridor_weight,
         )
         .map_err(PyValueError::new_err)?;
         let state = state.as_array().to_owned();
         let origin = origin.as_array().to_owned();
         let density = density.as_array().to_owned();
         let sterile = sterile.map(|s| s.as_array().to_owned());
+        let transit_catchment = transit_catchment.map(|t| t.as_array().to_owned());
         // the constructor's green-access build is the heaviest single call; run it
         // (and its rayon fan-out) without holding the GIL
         let inner = py
@@ -86,6 +92,7 @@ impl PySimulation {
                     density,
                     &centre_seeds,
                     sterile,
+                    transit_catchment,
                     params,
                     total_iters,
                     random_seed,

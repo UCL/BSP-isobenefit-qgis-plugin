@@ -25,6 +25,7 @@ fn make_sim(rows: usize, cols: usize, seed: u64) -> Simulation {
         (0.4, 0.4, 0.2),
         (6000.0, 3000.0, 1000.0),
         None, // min_park_area_m2 -> the 2 ha default
+        None, // corridor_weight -> 0 (no transit bias)
     )
     .unwrap();
     Simulation::new(
@@ -32,6 +33,7 @@ fn make_sim(rows: usize, cols: usize, seed: u64) -> Simulation {
         origin,
         density,
         &[(rows / 2, cols / 2)],
+        None,
         None,
         params,
         100,

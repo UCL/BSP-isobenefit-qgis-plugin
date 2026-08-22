@@ -281,6 +281,10 @@ class Isobenefit:
             max_populat = _positive(int(self.dlg.max_populat.text()))
             min_green_span = _positive(int(self.dlg.min_green_span.text()))
             min_park_area_ha = _positive(float(self.dlg.min_park_area.text()))
+            stop_catchment_m = _positive(int(self.dlg.stop_catchment_dist.text()))
+            corridor_weight = float(self.dlg.corridor_weight.text())
+            if not 0.0 <= corridor_weight <= 1.0:
+                raise ValueError(f"corridor preference {corridor_weight} outside [0, 1]")
             random_seed = int(self.dlg.random_seed.text())
             build_prob = float(self.dlg.build_prob.text())
             if not 0.0 < build_prob <= 1.0:
@@ -360,6 +364,8 @@ class Isobenefit:
             centre_distance_m=centre_distance_m,
             green_distance_m=green_distance_m,
             min_park_area_m2=min_park_area_ha * 1.0e4,
+            corridor_weight=corridor_weight,
+            stop_catchment_m=stop_catchment_m,
         )
         self._task = task  # retain reference so the task is not garbage-collected
         QgsApplication.taskManager().addTask(task)
@@ -391,6 +397,8 @@ class Isobenefit:
                     "min_settlement_pop": min_settlement_pop,
                     "min_green_span_m": min_green_span,
                     "min_park_area_ha": min_park_area_ha,
+                    "corridor_weight": corridor_weight,
+                    "stop_catchment_m": stop_catchment_m,
                     "densities_km2": dict(zip(("high", "medium", "low"), density_factors)),
                     "shares": dict(zip(("high", "medium", "low"), prob_distribution)),
                     "ensemble": self.dlg.ensemble_check.isChecked(),

@@ -42,6 +42,10 @@ paper have distinct definitions, and synonym rotation costs precision.
 | The tool's stage of use | the early stages of planning (or of the planning process) | plan-making, the earliest stage, the initial stage |
 | The worked cases' status | hypothetical demonstration (a demonstration case, a demonstration setting) | validation, a test of the pipeline, showcase, pilot |
 | The inviolable centre-walk rule | the walk constraint, described as enforced | hard constraint, hard walk constraint (code language) |
+| A station or planner-designated centre-anchor point | transit hub (a hub after first use) | station anchor (retired 2026-08-22), TOD hub, node |
+| Bus stops or a drawn proposed route that attracts growth | transit corridor (a corridor after first use) | PT stops, the stops layer, growth anchor (design shorthand) |
+| The walkable reach of a stop | the stop catchment | buffer, radius, service area |
+| The growth weighting toward transit | the corridor preference (a weight from 0 to 1) | corridor weight (code name), transit weight (retired) |
 
 ## Recorded exceptions
 

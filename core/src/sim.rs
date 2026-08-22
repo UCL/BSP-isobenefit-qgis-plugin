@@ -40,6 +40,11 @@ pub struct Params {
     pub cent_prob_isol: f64,
     pub pop_target_cent_threshold: f64,
     pub prob_distribution: (f64, f64, f64),
+    /// Corridor preference. Outside the transit catchment the build and
+    /// dispersal draws run at `prob * (1 - corridor_weight)`; inside they are
+    /// unchanged. 0 (the default) leaves the model without any transit bias;
+    /// the weight only acts when a catchment mask is supplied.
+    pub corridor_weight: f64,
     pub high_per_block: f64,
     pub med_per_block: f64,
     pub low_per_block: f64,
@@ -62,8 +67,10 @@ impl Params {
         prob_distribution: (f64, f64, f64),
         density_factors_km2: (f64, f64, f64),
         min_park_area_m2: Option<f64>,
+        corridor_weight: Option<f64>,
     ) -> Result<Params, String> {
         let min_park_area_m2 = min_park_area_m2.unwrap_or(DEFAULT_MIN_PARK_AREA_M2);
+        let corridor_weight = corridor_weight.unwrap_or(0.0);
         let all_inputs = [
             granularity_m,
             centre_distance_m,
@@ -105,6 +112,7 @@ impl Params {
             ("cent_prob_nb", cent_prob_nb),
             ("cent_prob_isol", cent_prob_isol),
             ("pop_target_cent_threshold", pop_target_cent_threshold),
+            ("corridor_weight", corridor_weight),
         ] {
             if !(0.0..=1.0).contains(&p) {
                 return Err(format!("{name} must lie in [0, 1]"));
@@ -143,6 +151,7 @@ impl Params {
             cent_prob_isol,
             pop_target_cent_threshold,
             prob_distribution,
+            corridor_weight,
             high_per_block: density_factors_km2.0 * block,
             med_per_block: density_factors_km2.1 * block,
             low_per_block: density_factors_km2.2 * block,
@@ -263,6 +272,10 @@ pub struct Simulation {
     /// against centred fabric, or from a dispersal-seeded centre of its own. Every cell
     /// built during the run is anchored.
     pub anchored: Array2<bool>,
+    /// Cells within the walkable catchment of a transit growth anchor (a bus
+    /// stop or corridor cell; hubs included). `None` when no corridor layer is
+    /// supplied, in which case `corridor_weight` never acts.
+    pub transit_catchment: Option<Array2<bool>>,
     pub params: Params,
     pub total_iters: usize,
     pub current_iter: usize,
@@ -280,6 +293,7 @@ impl Simulation {
         density: Array2<f32>,
         centre_seeds: &[(usize, usize)],
         sterile: Option<Array2<bool>>,
+        transit_catchment: Option<Array2<bool>>,
         params: Params,
         total_iters: usize,
         master_seed: u64,
@@ -291,6 +305,11 @@ impl Simulation {
         if let Some(s) = &sterile {
             if s.dim() != dim {
                 return Err("sterile mask must share the state's shape".to_string());
+            }
+        }
+        if let Some(t) = &transit_catchment {
+            if t.dim() != dim {
+                return Err("transit catchment mask must share the state's shape".to_string());
             }
         }
         // Existing built fabric carries no density and no population: it is assumed to be served by
@@ -335,6 +354,7 @@ impl Simulation {
             green_acc,
             cent_acc,
             anchored,
+            transit_catchment,
             params,
             total_iters,
             current_iter: 0,
@@ -368,6 +388,18 @@ impl Simulation {
         let d = agg_dijkstra_dist(&self.state, y, x, &[0, 1, 2], &opts);
         let inc = d.mapv(|v| if v.is_finite() { 1 } else { 0 });
         self.cent_acc = &self.cent_acc + &inc;
+    }
+
+    /// The draw probability for cell `(y, x)`: outside the transit catchment
+    /// `base` is scaled by `(1 - corridor_weight)`; inside it, or with no
+    /// catchment supplied, it is unchanged. Applied to every draw that converts
+    /// a green cell to development (build, neighbour centre, dispersal), so at
+    /// weight 1 no growth of any kind crosses the catchment boundary.
+    fn corridor_prob(&self, base: f64, y: usize, x: usize) -> f64 {
+        match &self.transit_catchment {
+            Some(m) if !m[[y, x]] => base * (1.0 - self.params.corridor_weight),
+            _ => base,
+        }
     }
 
     /// Runs a single iteration. RNG is seeded from `(master_seed, current_iter)`
@@ -407,7 +439,7 @@ impl Simulation {
                 .any(|(ny, nx)| old_state[[ny, nx]] > 0 && self.anchored[[ny, nx]]);
             if attached {
                 if self.cent_acc[[y, x]] > 0 {
-                    if rng.gen::<f64>() < p.build_prob
+                    if rng.gen::<f64>() < self.corridor_prob(p.build_prob, y, x)
                         && try_build(
                             y,
                             x,
@@ -426,7 +458,7 @@ impl Simulation {
                     }
                 } else if !centrality_this_iter
                     && self.pop_target_ratio <= p.pop_target_cent_threshold
-                    && rng.gen::<f64>() < p.cent_prob_nb
+                    && rng.gen::<f64>() < self.corridor_prob(p.cent_prob_nb, y, x)
                     && try_build(
                         y,
                         x,
@@ -445,7 +477,7 @@ impl Simulation {
                 }
             } else if !centrality_this_iter
                 && self.pop_target_ratio <= p.pop_target_cent_threshold
-                && rng.gen::<f64>() < p.cent_prob_isol
+                && rng.gen::<f64>() < self.corridor_prob(p.cent_prob_isol, y, x)
                 && try_build(
                     y,
                     x,
@@ -593,6 +625,7 @@ mod tests {
             (0.4, 0.4, 0.2), // prob distribution
             (6000.0, 3000.0, 1000.0),
             None, // min_park_area_m2 -> the 2 ha default
+            None, // corridor_weight -> 0 (no transit bias)
         )
         .unwrap()
     }
@@ -607,6 +640,7 @@ mod tests {
             origin,
             density,
             &[(grid / 2, grid / 2)],
+            None,
             None,
             growth_params(),
             25,
@@ -630,6 +664,7 @@ mod tests {
             (0.5, 0.4, 0.2),
             (3.0, 2.0, 1.0),
             None,
+            None,
         );
         assert!(err.is_err());
     }
@@ -648,6 +683,7 @@ mod tests {
             0.8,
             (0.4, 0.4, 0.2),
             (1.0, 2.0, 3.0),
+            None,
             None,
         );
         assert!(err.is_err());
@@ -763,6 +799,7 @@ mod tests {
             density,
             &[(grid / 2, grid / 2)],
             None,
+            None,
             growth_params(),
             25,
             3,
@@ -804,13 +841,14 @@ mod tests {
             density.clone(),
             &[(2, 2)],
             Some(sterile),
+            None,
             params,
             25,
             9,
         )
         .unwrap();
         let mut without_mask =
-            Simulation::new(state, origin, density, &[(2, 2)], None, params, 25, 9).unwrap();
+            Simulation::new(state, origin, density, &[(2, 2)], None, None, params, 25, 9).unwrap();
         with_mask.run();
         without_mask.run();
         let near = |s: &Simulation| {
@@ -879,6 +917,7 @@ mod tests {
             (0.4, 0.4, 0.2),
             (3.0, 2.0, 1.0),
             None,
+            None,
         );
         assert!(err.is_err());
     }
@@ -908,10 +947,21 @@ mod tests {
             (0.4, 0.4, 0.2),
             (6000.0, 3000.0, 1000.0),
             None,
+            None,
         )
         .unwrap();
-        let mut sim =
-            Simulation::new(state, origin, density, &[(12, 4)], None, params, 40, 42).unwrap();
+        let mut sim = Simulation::new(
+            state,
+            origin,
+            density,
+            &[(12, 4)],
+            None,
+            None,
+            params,
+            40,
+            42,
+        )
+        .unwrap();
         sim.run();
         assert!(sim.population() > 0.0, "expected growth");
         let (fresh_park, fresh_acc) = prepare_park_arrs(
@@ -1046,6 +1096,7 @@ mod tests {
             density,
             &[(4, 4)],
             None,
+            None,
             growth_params(),
             5,
             1,
@@ -1069,6 +1120,7 @@ mod tests {
                 (0.4, 0.4, 0.2),
                 (high, 3000.0, 1000.0),
                 None,
+                None,
             )
         };
         assert!(base(f64::NAN, 100.0, 6000.0).is_err()); // NaN probability
@@ -1089,5 +1141,113 @@ mod tests {
         assert!(total.iter().all(|&t| t == 0 || t == n));
         // the seeded centre is a centre in every member
         assert_eq!(centre[[15, 15]], n);
+    }
+
+    #[test]
+    fn rejects_out_of_range_corridor_weight() {
+        let err = Params::from_raw(
+            100.0,
+            800.0,
+            400.0,
+            1000.0,
+            100.0,
+            0.5,
+            0.1,
+            0.0,
+            0.8,
+            (0.4, 0.4, 0.2),
+            (6000.0, 3000.0, 1000.0),
+            None,
+            Some(1.5),
+        );
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn zero_corridor_weight_matches_no_catchment() {
+        // a catchment mask with the weight at 0 must be bit-for-bit the
+        // published behaviour: the RNG stream is untouched by the scaling
+        let grid = 30;
+        let mut catchment = Array2::<bool>::from_elem((grid, grid), false);
+        for y in 0..grid / 2 {
+            for x in 0..grid {
+                catchment[[y, x]] = true;
+            }
+        }
+        let state = Array2::<i16>::zeros((grid, grid));
+        let origin = Array2::<i16>::from_elem((grid, grid), -1);
+        let density = Array2::<f32>::zeros((grid, grid));
+        let mut with_mask = Simulation::new(
+            state.clone(),
+            origin.clone(),
+            density.clone(),
+            &[(grid / 2, grid / 2)],
+            None,
+            Some(catchment),
+            growth_params(),
+            25,
+            11,
+        )
+        .unwrap();
+        let mut without = Simulation::new(
+            state,
+            origin,
+            density,
+            &[(grid / 2, grid / 2)],
+            None,
+            None,
+            growth_params(),
+            25,
+            11,
+        )
+        .unwrap();
+        with_mask.run();
+        without.run();
+        assert_eq!(with_mask.state, without.state);
+        assert_eq!(with_mask.density, without.density);
+    }
+
+    #[test]
+    fn full_corridor_weight_confines_growth_to_the_catchment() {
+        // with the weight at 1, the build and dispersal draws are zeroed outside
+        // the catchment, so every cell built during the run lies inside it
+        let grid = 30;
+        let mut catchment = Array2::<bool>::from_elem((grid, grid), false);
+        for y in 0..grid {
+            for x in 0..grid / 2 {
+                catchment[[y, x]] = true;
+            }
+        }
+        let state = Array2::<i16>::zeros((grid, grid));
+        let origin = Array2::<i16>::from_elem((grid, grid), -1);
+        let density = Array2::<f32>::zeros((grid, grid));
+        let mut params = growth_params();
+        params.corridor_weight = 1.0;
+        params.cent_prob_isol = 0.05; // dispersal ON: its draw must be confined too
+        let seed_cell = (grid / 2, 5); // inside the catchment
+        let mut sim = Simulation::new(
+            state,
+            origin,
+            density,
+            &[seed_cell],
+            None,
+            Some(catchment.clone()),
+            params,
+            25,
+            13,
+        )
+        .unwrap();
+        sim.run();
+        assert!(sim.population() > 0.0, "expected growth");
+        for y in 0..grid {
+            for x in 0..grid {
+                if sim.state[[y, x]] > 0 {
+                    assert!(
+                        catchment[[y, x]],
+                        "grew outside the catchment at ({y}, {x})"
+                    );
+                }
+            }
+        }
     }
 }

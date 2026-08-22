@@ -114,8 +114,8 @@ DATASETS: dict[str, dict[str, str]] = {
     "industrial": {"label": "Industrial land", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "streets": {"label": "Street network", "osm_layer": "lines", "geom_type": "MultiLineString"},
     "railways": {"label": "Railways", "osm_layer": "lines", "geom_type": "MultiLineString"},
-    "stops": {"label": "Public-transport stops", "osm_layer": "points", "geom_type": "Point"},
-    "stations": {"label": "Rail / tram stations", "osm_layer": "points", "geom_type": "Point"},
+    "stops": {"label": "Public-transport stops (growth anchors)", "osm_layer": "points", "geom_type": "Point"},
+    "stations": {"label": "Rail / tram stations (centre anchors)", "osm_layer": "points", "geom_type": "Point"},
     "water": {"label": "Water", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "unbuildable": {
         "label": "Unbuildable (water, airports, military, industrial)",

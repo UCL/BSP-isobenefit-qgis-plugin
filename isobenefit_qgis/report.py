@@ -97,8 +97,8 @@ def options_table(options: list[dict], target_population: float) -> list[str]:
     ]
     if any("transit_coverage" in o["metrics"] for o in options):
         rows_spec += [
-            ("transit coverage (reported only)", lambda m, n: _pct(m.get("transit_coverage"))),
-            ("avg walk to a stop (m)", lambda m, n: _num(m.get("transit_access"))),
+            ("transit catchment coverage", lambda m, n: _pct(m.get("transit_coverage"))),
+            ("avg walk to a transit anchor (m)", lambda m, n: _num(m.get("transit_access"))),
         ]
     headers = ["Metric"] + [o["short"] for o in options]
     rows = [[label] + [cell(o["metrics"], o["n_centres"]) for o in options] for label, cell in rows_spec]

@@ -81,7 +81,8 @@ class IsobenefitTask(QgsTask):
         centre_distance_m=None,
         green_distance_m=None,
         min_park_area_m2=None,
-        transit_weight=0.0,
+        corridor_weight=0.0,
+        stop_catchment_m=400.0,
     ):
         super().__init__("Isobenefit simulation")
         self.iface = iface
@@ -121,7 +122,8 @@ class IsobenefitTask(QgsTask):
         self.centre_distance_m = None if centre_distance_m is None else float(centre_distance_m)
         self.green_distance_m = None if green_distance_m is None else float(green_distance_m)
         self.min_park_area_m2 = None if min_park_area_m2 is None else float(min_park_area_m2)
-        self.transit_weight = float(transit_weight)
+        self.corridor_weight = float(corridor_weight)
+        self.stop_catchment_m = float(stop_catchment_m)
         self.is_ensemble = self.n_ensemble > 1
         # populated during run()
         self.geotransform = None
@@ -209,6 +211,8 @@ class IsobenefitTask(QgsTask):
             f"  Dispersed development : {dispersal}",
             f"  Centre walk           : {cwalk:.0f} m",
             f"  Green walk            : {gwalk:.0f} m",
+            f"  Stop catchment        : {self.stop_catchment_m:.0f} m",
+            f"  Corridor preference   : {self.corridor_weight:g}",
             f"  Min green span        : {self.min_green_span:.0f} m",
             f"  Min park area         : {(self.min_park_area_m2 or grid.DEFAULT_MIN_PARK_AREA_M2) / 1.0e4:.0f} ha",
             f"  Density               : {dens}",
@@ -255,7 +259,9 @@ class IsobenefitTask(QgsTask):
         self._log(f"post-processing candidates: {done}/{total}")
         return not self.isCanceled()
 
-    def _log_iterations_to_target(self, isobenefit, state, origin, density, seeds, sterile=None) -> str:
+    def _log_iterations_to_target(
+        self, isobenefit, state, origin, density, seeds, sterile=None, transit_catchment=None
+    ) -> str:
         """Step ONE representative run to the population target and log how many iterations it took,
         so the user sees that typically only ~N steps run before the target of M is met (well under
         the max) — or a clear warning if the cap is hit first. Returns the summary line (for the
@@ -270,6 +276,7 @@ class IsobenefitTask(QgsTask):
             self.prob_distribution, self.density_factors,
             self.total_iters, self.random_seed,
             min_park_area_m2=self.min_park_area_m2, sterile=sterile,
+            transit_catchment=transit_catchment, corridor_weight=self.corridor_weight,
         )
         iters = 0
         while sample.current_iter < self.total_iters and sample.pop_target_ratio < 1.0:
@@ -375,19 +382,32 @@ class IsobenefitTask(QgsTask):
                     "any existing centre."
                 )
 
-            # Public-transport access: ordinary stops and rail/tram stations are two layers
-            # (each edited/swapped on its own). The scored transit dimension uses BOTH — every
-            # stop is transit access — while only stations anchor a centre in the plan.
-            # Both are snapped off carved cells: a station sits ON its railway and a stop on its
-            # road, and those corridors are carved as unbuildable, so the raw cell is often one
-            # a walk can never reach (which would silently void the anchor and the access score).
+            # Transit inputs: two layers with two roles. Corridors (bus stops or drawn
+            # corridor lines) are growth anchors — their walkable catchment attracts
+            # development through the corridor preference — while hubs (stations) anchor a
+            # pinned centre. Point features are snapped off carved cells: a station sits ON
+            # its railway and a stop on its road, and those corridors are carved as
+            # unbuildable, so the raw cell is often one a walk can never reach (which would
+            # silently void the anchor and the reported access).
             stop_cells = []
             if self.transit_stops_layer is not None:
-                stop_cells = gis_io.point_cells(self.transit_stops_layer, self.target_crs, geotransform, rows, cols)
-                stop_cells, _, n_lost = grid.sanitise_seeds(stop_cells, state, self.granularity_m,
-                                                            2 * self.granularity_m)
-                if n_lost:
-                    self._log(f"{n_lost} stop(s) dropped: no walkable cell within two blocks.")
+                if self.transit_stops_layer.geometryType() == Qgis.GeometryType.Point:
+                    stop_cells = gis_io.point_cells(
+                        self.transit_stops_layer, self.target_crs, geotransform, rows, cols
+                    )
+                    stop_cells, _, n_lost = grid.sanitise_seeds(stop_cells, state, self.granularity_m,
+                                                                2 * self.granularity_m)
+                    if n_lost:
+                        self._log(f"{n_lost} stop(s) dropped: no walkable cell within two blocks.")
+                else:
+                    # a drawn corridor (line or polygon): burn every touched cell, keep the
+                    # walkable ones — a dense trace needs no per-cell snapping
+                    corridor = np.zeros((rows, cols), dtype=np.int16)
+                    corridor = gis_io.burn_layer(
+                        corridor, self.transit_stops_layer, self.target_crs, geotransform, 1, all_touched=True
+                    )
+                    stop_cells = [(int(y), int(x)) for y, x in np.argwhere((corridor == 1) & (state != -1))]
+                    self._log(f"Rasterised the corridor layer to {len(stop_cells)} walkable cell(s).")
             station_anchors = []
             if self.stations_layer is not None:
                 station_anchors = gis_io.point_cells(self.stations_layer, self.target_crs, geotransform, rows, cols)
@@ -405,9 +425,38 @@ class IsobenefitTask(QgsTask):
                 for sr, sc in all_stop_cells:
                     transit_stops[sr, sc] = True
                 self._log(
-                    f"Placed {len(stop_cells)} stop(s) + {len(station_anchors)} station(s)"
-                    + ("; stations anchor centres." if station_anchors else ".")
+                    f"Placed {len(stop_cells)} corridor cell(s) + {len(station_anchors)} hub(s)"
+                    + ("; hubs anchor centres." if station_anchors else ".")
                 )
+            # The corridor preference field: cells within the stop catchment (a walk from any
+            # corridor cell or hub) draw at full probability during growth; the rest are scaled
+            # by (1 - corridor_weight). With the weight at 0 (the default) nothing changes and
+            # the mask is skipped entirely.
+            transit_catchment = None
+            if transit_stops is not None and self.corridor_weight > 0.0:
+                d = grid._walk_distance(
+                    transit_stops, self.granularity_m, self.stop_catchment_m, blocked=(state == -1)
+                )
+                transit_catchment = np.isfinite(d)
+                cell_pop = self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
+                capacity = float(((state == 0) & transit_catchment).sum()) * cell_pop
+                self._log(
+                    f"Corridor preference {self.corridor_weight:.2f}: growth favours the "
+                    f"{int(transit_catchment.sum()):,}-cell catchment within {self.stop_catchment_m:.0f} m "
+                    f"of a transit anchor."
+                )
+                if capacity < self.max_populat:
+                    self._log(
+                        f"The catchment's developable land holds about {capacity:,.0f} people at the mean "
+                        f"density, under the target of {self.max_populat:,.0f}. Growth beyond the corridor "
+                        f"is throttled by the preference"
+                        + (
+                            " and fully blocked at weight 1.0 — the run cannot reach its target."
+                            if self.corridor_weight >= 1.0
+                            else ", so the run will take more iterations to reach the target."
+                        ),
+                        Qgis.MessageLevel.Warning,
+                    )
             # Stations join the CA centre seeds: a station triggers development around itself by
             # default, exactly like an existing centre, and the post-processing anchor then pins,
             # grows and protects the centre it earns. The stations stay OUT of ``seeds`` proper so
@@ -464,6 +513,8 @@ class IsobenefitTask(QgsTask):
                 self.random_seed,
                 min_park_area_m2=self.min_park_area_m2,
                 sterile=sterile,
+                transit_catchment=transit_catchment,
+                corridor_weight=self.corridor_weight,
             )
             # Only NEW development is counted, so a run always starts from zero population and grows
             # toward the new-only target; existing fabric is context and never contributes here.
@@ -475,7 +526,8 @@ class IsobenefitTask(QgsTask):
                 batch = max(1, cores)  # ~one run per core keeps all cores busy
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
                 iter_summary = self._log_iterations_to_target(
-                    isobenefit, state, origin, density, sim_seeds, sterile=sterile
+                    isobenefit, state, origin, density, sim_seeds, sterile=sterile,
+                    transit_catchment=transit_catchment,
                 )
                 # Collect each run's final layout (not just the blended average): the
                 # likelihood layers come from all runs, and the idealised scenario is the
@@ -533,7 +585,7 @@ class IsobenefitTask(QgsTask):
                     centre_anchors=station_anchors,
                     target_population=self.max_populat,
                     min_park_area_m2=self.min_park_area_m2,
-                    transit_weight=self.transit_weight,
+                    stop_catchment_m=self.stop_catchment_m,
                     centre_min_settlement=self.centre_min_settlement,
                     centre_m2_per_person=self.centre_m2_per_person,
                     new_density_km2=self._mean_new_density_km2(),
@@ -654,8 +706,9 @@ class IsobenefitTask(QgsTask):
                     )
                     if "transit_coverage" in metrics:
                         self._log(
-                            f"Transit: {metrics['transit_coverage']:.0%} of homes within a walk of a "
-                            f"public-transport stop (avg walk {metrics['transit_access']:.0f} m)."
+                            f"Transit: {metrics['transit_coverage']:.0%} of new homes within the "
+                            f"{self.stop_catchment_m:.0f} m catchment of a transit anchor "
+                            f"(avg walk {metrics['transit_access']:.0f} m)."
                         )
                 audit = None
                 if plan is not None:

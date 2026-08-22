@@ -1144,9 +1144,9 @@ def test_rejected_development_diagnostic():
     assert int((out > 0).sum()) == 16
 
 
-def test_transit_weight_folds_stop_access_into_selection():
-    # at the default weight of zero transit is reported only; a positive weight moves
-    # access_cost toward the transit access figure, and the reported halves stay plain
+def test_transit_metrics_are_reported_only_at_the_stop_catchment():
+    # transit shapes growth, never selection: the anchors add reported metrics without
+    # touching access_cost, and coverage counts homes within the stop catchment
     g = 20
     plan = np.zeros((g, g), np.uint8)
     plan[2:6, 2:6] = PLAN_BUILT
@@ -1154,12 +1154,14 @@ def test_transit_weight_folds_stop_access_into_selection():
     plan[2:6, 6:10] = PLAN_GREEN
     stops = np.zeros((g, g), bool)
     stops[2, 2] = True
-    base = evaluate_plan(plan, 100.0, 400.0, transit_stops=stops)
-    weighted = evaluate_plan(plan, 100.0, 400.0, transit_stops=stops, transit_weight=1.0)
-    assert base["transit_access"] == weighted["transit_access"]
-    assert base["centre_access"] == weighted["centre_access"]
-    expected = (2.0 * base["access_cost"] + base["transit_access"]) / 3.0
-    assert abs(weighted["access_cost"] - expected) < 1e-9
+    base = evaluate_plan(plan, 100.0, 400.0)
+    with_stops = evaluate_plan(plan, 100.0, 400.0, transit_stops=stops, stop_catchment_m=100.0)
+    assert with_stops["access_cost"] == base["access_cost"]
+    assert with_stops["centre_access"] == base["centre_access"]
+    # at a 100 m catchment only the stop cell and its immediate neighbours qualify;
+    # widening the catchment can only grow coverage
+    wide = evaluate_plan(plan, 100.0, 400.0, transit_stops=stops, stop_catchment_m=400.0)
+    assert 0.0 < with_stops["transit_coverage"] < wide["transit_coverage"] <= 1.0
 
 
 def test_selection_metric_counts_target_shortfall():

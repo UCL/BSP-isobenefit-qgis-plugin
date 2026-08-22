@@ -13,7 +13,7 @@ import pytest
 from isobenefit import Simulation, ensemble_class_counts, ensemble_probability, run_ensemble
 
 
-def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25) -> Simulation:
+def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25, **kwargs) -> Simulation:
     """An all-green grid with one centre seed in the middle and permissive params."""
     state = np.zeros((grid, grid), dtype=np.int16)
     origin = np.full((grid, grid), -1, dtype=np.int16)  # -1 => not fixed green
@@ -36,6 +36,7 @@ def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25) -> Simulation
         (6000.0, 3000.0, 1000.0),  # density_factors_km2
         total_iters,
         seed,
+        **kwargs,
     )
 
 
@@ -157,3 +158,34 @@ def test_bad_prob_distribution_raises() -> None:
             5,
             0,
         )
+
+
+def test_zero_corridor_weight_matches_no_catchment() -> None:
+    # a catchment mask with the weight at 0 must reproduce the unbiased run exactly
+    grid = 30
+    catchment = np.zeros((grid, grid), dtype=bool)
+    catchment[: grid // 2, :] = True
+    a = make_sim(grid=grid, seed=11, transit_catchment=catchment, corridor_weight=0.0)
+    b = make_sim(grid=grid, seed=11)
+    a.run()
+    b.run()
+    np.testing.assert_array_equal(a.snapshot()["state"], b.snapshot()["state"])
+    np.testing.assert_array_equal(a.snapshot()["density"], b.snapshot()["density"])
+
+
+def test_full_corridor_weight_confines_growth() -> None:
+    # with the weight at 1, every cell built during the run lies inside the catchment
+    grid = 30
+    catchment = np.zeros((grid, grid), dtype=bool)
+    catchment[:, : grid // 2 + 1] = True  # includes the (grid//2, grid//2) seed cell
+    sim = make_sim(grid=grid, seed=13, transit_catchment=catchment, corridor_weight=1.0)
+    sim.run()
+    assert sim.population > 0
+    state = sim.snapshot()["state"]
+    grown = state > 0
+    assert not (grown & ~catchment).any()
+
+
+def test_out_of_range_corridor_weight_raises() -> None:
+    with pytest.raises(ValueError):
+        make_sim(corridor_weight=1.5)

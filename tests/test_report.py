@@ -103,7 +103,7 @@ def test_options_table_side_by_side_and_missing_metrics():
     # transit rows appear only when some option reports them
     assert "transit" not in text
     with_transit = _option("tight", transit_coverage=0.8, transit_access=300.0)
-    assert "transit coverage" in "\n".join(options_table([with_transit], 12_000.0))
+    assert "transit catchment coverage" in "\n".join(options_table([with_transit], 12_000.0))
 
 
 def test_tiers_table_totals_and_skip_without_tiers():

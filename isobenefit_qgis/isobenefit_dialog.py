@@ -132,6 +132,20 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.green_walk_dist = QtWidgets.QLineEdit("400", self)
         self.green_walk_dist.setToolTip("How far people will walk to a park.")
         acc.addRow("Green walk (m)", self.green_walk_dist)
+        self.stop_catchment_dist = QtWidgets.QLineEdit("400", self)
+        self.stop_catchment_dist.setToolTip(
+            "How far people walk to a public-transport stop. Sets the catchment around the "
+            "transit corridor and hub layers that the corridor preference acts on."
+        )
+        acc.addRow("Stop catchment (m)", self.stop_catchment_dist)
+        self.corridor_weight = QtWidgets.QLineEdit("0", self)
+        self.corridor_weight.setToolTip(
+            "Transit-oriented growth. 0 (default): the corridor layer is reported only and growth "
+            "is unchanged. Higher values scale down development outside the stop catchment, "
+            "concentrating growth along transit; 1 confines growth to the catchment entirely. "
+            "Needs a transit corridor or hub layer."
+        )
+        acc.addRow("Corridor preference (0–1)", self.corridor_weight)
 
         # --- Post-processing ----------------------------------------------------------
         # Turns the raw CA result into scenario options. The plugin saves the existing fabric, the
@@ -279,10 +293,20 @@ class IsobenefitDialog(QtWidgets.QDialog):
         inp.addRow("Unbuildable [opt]", self.unbuildable_layer_box)
         self.centre_seeds_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer | Qgis.LayerFilter.PointLayer)
         inp.addRow("Urban centres [opt]", self.centre_seeds_layer_box)
-        self.transit_stops_layer_box = _layer_combo(Qgis.LayerFilter.PointLayer)
-        inp.addRow("PT stops [opt]", self.transit_stops_layer_box)
+        self.transit_stops_layer_box = _layer_combo(
+            Qgis.LayerFilter.PointLayer | Qgis.LayerFilter.LineLayer | Qgis.LayerFilter.PolygonLayer
+        )
+        self.transit_stops_layer_box.setToolTip(
+            "Growth anchors: bus stops (points) or a proposed corridor (a drawn line). Growth "
+            "gravitates to their walkable catchment when the corridor preference is above 0."
+        )
+        inp.addRow("Transit corridors [opt]", self.transit_stops_layer_box)
         self.stations_layer_box = _layer_combo(Qgis.LayerFilter.PointLayer)
-        inp.addRow("Rail / tram stations [opt]", self.stations_layer_box)
+        self.stations_layer_box.setToolTip(
+            "Centre anchors: rail/tram stations and any planner-designated hub. Each anchors a "
+            "pinned mixed-use centre that seeds growth and survives post-processing."
+        )
+        inp.addRow("Transit hubs [opt]", self.stations_layer_box)
 
         content_layout.addStretch(1)
 
@@ -451,6 +475,8 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "min_park_area_ha": (self.min_park_area, "min park area"),
             "min_settlement_pop": (self.min_settlement, "service viability"),
             "centre_m2_per_person": (self.centre_m2_person, "centre m² per person"),
+            "stop_catchment_m": (self.stop_catchment_dist, "stop catchment"),
+            "corridor_weight": (self.corridor_weight, "corridor preference"),
         }
         for key, (widget, label) in line_edits.items():
             if key in params:

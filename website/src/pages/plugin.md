@@ -141,6 +141,14 @@ set to the larger of these two values, so growth is never cut off by the stricte
 The finished plan is then scored against each walk separately, and any shortfall shows in the
 coverage figures and steers the centre re-positioning.
 
+Two further fields steer transit-oriented growth. Stop catchment (400 m) is how far people
+walk to a public-transport stop; it defines the catchment around the transit corridor and hub
+layers. Corridor preference (0 to 1, default 0) concentrates development along transit: outside
+the catchment, the build and seeding draws are scaled by one minus the preference, so at 0 the
+corridor layer is reported only, at intermediate values growth favours the corridor but can
+still spill beyond it, and at 1 growth is confined to the catchment. When the catchment cannot
+hold the target population the run log says so and states the consequence.
+
 **Post-processing.**
 
 | Field | Default | What it does |
@@ -164,8 +172,9 @@ is made from the extents layer; geographic lat/lon CRSs are rejected so the mode
 metres).
 
 **Input layers.** Extents (required, polygon) plus optional existing urban, existing green,
-unbuildable, urban centres (points or polygon areas), PT stops, and rail/tram stations. All
-layers may be in
+unbuildable, urban centres (points or polygon areas), transit corridors (bus stops as points,
+or a proposed corridor drawn as a line), and transit hubs (rail/tram stations, or any
+planner-designated hub point). All layers may be in
 any CRS; they are reprojected to the chosen run CRS.
 
 The **Run button stays disabled** until four things are set: an extents layer, an output folder
@@ -183,13 +192,20 @@ missing.
   yet, so a network metric would measure new development and existing fabric on different
   terms. The downloaded streets layer serves as map context, and major-road (motorway, trunk
   and primary) and rail corridors derived from it are carved as barriers.
-- **Rail and tram stations** seed a mixed-use centre by default: during growth the simulation
-  treats the station like a centre, so development gathers around it, and in post-processing the
-  centre is pinned at the station, never moved or culled, and grows and is sized like any other
-  centre. Stations and stops that fall on a carved corridor cell are snapped to the nearest
-  walkable cell (a station sits on its own railway, and railways are carved as barriers).
-  **Bus stops** do not steer the simulation or the centres; the report states how many homes end
-  within a walk of a stop.
+- **Transit hubs** (rail and tram stations, or any point a planner adds to the hubs layer)
+  anchor a mixed-use centre: during growth the simulation treats the hub like a centre, so
+  development gathers around it, and in post-processing the centre is pinned at the hub, never
+  moved or culled, and grows and is sized like any other centre. Adding a point to this layer
+  is how a designated centre, a transit-oriented development around a planned station for
+  example, is placed by hand. Hubs and stops that fall on a carved corridor cell are snapped
+  to the nearest walkable cell (a station sits on its own railway, and railways are carved as
+  barriers).
+- **Transit corridors** (bus stops, or a proposed corridor drawn as a line) attract growth
+  without anchoring centres. When the corridor preference is above 0, development draws at
+  full probability inside the stop catchment of a corridor or hub and at a reduced
+  probability outside it, so settlements form along existing bus routes or a route the
+  planner proposes. At the default preference of 0 the corridor layer only feeds the report,
+  which states how many new homes end within the stop catchment.
 
 ## Outputs and how to read them
 

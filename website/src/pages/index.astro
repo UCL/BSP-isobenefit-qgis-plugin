@@ -98,12 +98,15 @@ const dg = (name: string) => `${base}images/${name}.svg`
       <figure><img class="layer" src={dg('input_unbuildable')} alt="" /><figcaption>Unbuildable land: water, industrial land, and buffered barrier corridors such as the A428.</figcaption></figure>
       <figure><img class="layer" src={dg('input_industrial')} alt="" /><figcaption>Industrial land. It stays as it is, but no new housing is placed on it.</figcaption></figure>
       <figure><img class="layer" src={dg('input_streets')} alt="" /><figcaption>The street network, classed by road type. It gives the maps their context, and its major-road corridors (motorway, trunk and primary) are carved as barriers.</figcaption></figure>
-      <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops. Stops feed the run report's transit-access readout; rail and tram stations seed growth and anchor centres.</figcaption></figure>
+      <figure><img class="layer" src={dg('input_pt')} alt="" /><figcaption>Public-transport stops. Bus stops act as growth anchors: with the corridor preference raised, development concentrates within their walkable catchment. Rail and tram stations act as centre anchors, seeding growth and pinning a centre.</figcaption></figure>
     </div>
     <p>
       Two further datasets, <em>railways</em> and <em>rail/tram stations</em>, are also downloaded. They
       are empty here because Cambourne has no railway. Where stations do exist, they seed growth and
-      anchor centres in the scenarios.
+      anchor centres in the scenarios. The two transit layers give a planner direct
+      transit-oriented levers: a point added to the hubs layer places a designated centre, a
+      station for a planned line for example, while a proposed bus corridor drawn as a line
+      steers growth along it once the corridor preference is raised above 0.
     </p>
     <figure>
       <img class="hero" src={dg('input_composite')} alt="All downloaded layers stacked into one map of Cambourne" />

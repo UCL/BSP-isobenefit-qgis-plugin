@@ -880,7 +880,7 @@ def evaluate_plan(
     existing_green: np.ndarray | None = None,
     target_population: float | None = None,
     min_park_area_m2: float | None = None,
-    transit_weight: float = 0.0,
+    stop_catchment_m: float | None = None,
 ) -> dict:
     """Score a recommended plan by COVERAGE — who is within a walk of what.
 
@@ -915,12 +915,12 @@ def evaluate_plan(
     - ``centre_walk_mean`` / ``green_walk_mean`` — mean walk of served new homes to each;
     - ``compactness`` — share of built neighbours that are also built (anti-sprawl).
 
-    If ``transit_stops`` (a bool mask of public-transport stop cells) is given, also reports
-    ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` — new homes' walkable
-    access to a stop, as a third dimension alongside centre and green. By default these are
-    reported only, so transit cannot distort which plan is chosen; a positive
-    ``transit_weight`` folds transit access into ``access_cost`` at that weight relative to
-    the centre and green halves, preferring runs whose growth gathers around stops.
+    If ``transit_stops`` (a bool mask of transit anchor cells — corridor cells and hubs) is
+    given, also reports ``transit_coverage`` / ``transit_access`` / ``transit_walk_mean`` —
+    new homes' walkable access to an anchor. ``transit_coverage`` counts homes within
+    ``stop_catchment_m`` (falling back to ``max_distance_m``), matching the catchment the
+    corridor preference acts on during growth. These are reported only; transit shapes the
+    runs through the growth rules, never the selection.
     """
     new_homes = np.isin(plan, (PLAN_BUILT, PLAN_CENTRE))
     exist_homes = np.isin(plan, (PLAN_EXIST_BUILT, PLAN_EXIST_CENTRE))
@@ -1035,20 +1035,16 @@ def evaluate_plan(
     metrics["centre_m2_per_person"] = n_new_centres * cell_km2 * 1e6 / population if population else 0.0
     metrics["green_m2_per_person"] = n_new_green * cell_km2 * 1e6 / population if population else 0.0
 
-    # transit access — a third dimension, reported only at the default weight of zero
+    # transit access — reported only; transit shapes growth, never selection
     if transit_stops is not None:
         stops = np.asarray(transit_stops, dtype=bool)
         if stops.any() and has_new:
             d_stop = _dist(stops)[new_homes]
-            near_stop = d_stop <= max_distance_m
+            catchment_m = stop_catchment_m if stop_catchment_m is not None else max_distance_m
+            near_stop = d_stop <= catchment_m
             metrics["transit_coverage"] = float(near_stop.mean())
             metrics["transit_access"] = float(np.where(near_stop, d_stop, 2.0 * max_distance_m).mean())
             metrics["transit_walk_mean"] = float(d_stop[near_stop].mean()) if near_stop.any() else math.inf
-            if transit_weight:
-                # fold stop access into selection at the configured weight; the shortfall
-                # term keeps its share of the blend
-                w = float(transit_weight)
-                metrics["access_cost"] = (2.0 * access_cost + w * metrics["transit_access"]) / (2.0 + w)
 
     return metrics
 
@@ -1490,7 +1486,7 @@ def select_plan(
     progress=None,
     target_population=None,
     min_park_area_m2=None,
-    transit_weight=0.0,
+    stop_catchment_m=None,
 ):
     """Pick the recommended plan from per-run final states: optimise EVERY run (at
     ``centre_mode``; see ``optimise_plan``) and keep the one with the lowest average walk
@@ -1539,7 +1535,7 @@ def select_plan(
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2, existing_green=existing_green,
             target_population=target_population, min_park_area_m2=min_park_area_m2,
-            transit_weight=transit_weight,
+            stop_catchment_m=stop_catchment_m,
         )
         return opt, m
 

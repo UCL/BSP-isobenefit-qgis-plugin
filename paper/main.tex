@@ -88,6 +88,12 @@ be standard GIS layers.
 We therefore develop a QGIS plugin that incorporates the inputs,
 runs the model under these constraints, post-processes the results,
 and writes the derived plans as GIS layers.
+Isobenefit Urbanism shares its walkable-access premise with
+transit-oriented development, which holds that growth and density
+belong within walking reach of transit \citep{calthorpe1993,
+cervero_kockelman1997, ibraeva2020}. The plugin accordingly anchors
+a mixed-use centre at each rail and tram station and can draw
+growth toward transit corridors, existing or proposed.
 
 The contributions are:
 
@@ -158,6 +164,11 @@ applies from 2 hectares, which is the default for the
 minimum park area (Section~\ref{sec:growth}). The 400~m default is slightly
 longer than the advised 300~m because a walking route goes around
 obstacles and covers more distance than the straight line.
+A third distance, the stop catchment, bounds the walk to a transit
+stop or station (Section~\ref{sec:transit}). It is 400~m by default,
+which sits within the quarter-mile to half-mile stop catchments
+conventional in transit-oriented development \citep{calthorpe1993,
+ibraeva2020}.
 Section~\ref{sec:cases} sweeps the centre walk across 800, 1{,}200,
 and 1{,}600~m; the green walk stays at 400~m throughout.
 
@@ -234,8 +245,9 @@ for building when it is empty, buildable, and touches built land.
 New growth attaches only to built land that carries a centre, so
 existing settlements without one, such as outlying farmsteads and
 hamlets, receive no new growth. A run starts with the existing mixed-use
-centres and with a centre seeded at each rail and tram station, so
-development also gathers around the stations. A candidate must lie
+centres and with a centre seeded at each transit hub, a rail or tram
+station or a point the planner designates, so development also
+gathers around the hubs. A candidate must lie
 within the centre walk of a centre.
 
 Building a candidate must leave the green network intact. A park is
@@ -263,8 +275,17 @@ iteration, and seeding stops once the run reaches 80\% of the
 population target. Separately, a dispersal probability allows
 leapfrogging: by a per-cell draw, a new centre may seed on open land
 away from existing development and begin a satellite settlement.
-Setting the probability to zero disables leapfrogging. A run stops
-when it reaches the population target.
+Setting the probability to zero disables leapfrogging.
+
+Transit also enters the draws. Transit corridors, mapped from bus
+stops or drawn as proposed routes, project the stop catchment around
+themselves and the hubs via the grid walk, and outside the catchment
+the build, seeding, and dispersal draws are scaled by one minus the
+corridor preference, a weight from 0 to 1
+(Section~\ref{sec:transit}). At the default of 0 the draws are
+unchanged, and higher settings concentrate growth and satellite
+settlements along existing or proposed transit. A run stops when it
+reaches the population target.
 
 \subsection{Ensembles and selection}
 \label{sec:ensemble}
@@ -300,7 +321,7 @@ viability: each centre must gather at least the threshold
 population of new homes within the centre walk. A centre that
 falls short is removed, and any growth left without a centre
 within the walk is then pruned back to nature. Existing centres,
-the station centres, and the existing fabric are unaffected;
+the hub centres, and the existing fabric are unaffected;
 pruning is the only step that changes the population, and the run
 report confirms that every surviving centre meets the threshold.
 
@@ -354,15 +375,21 @@ instead as a temporal animation of the growth, one frame per step.
 \subsection{Public transport}
 \label{sec:transit}
 
-In post-processing each station centre is a
-station anchor: it is neither pruned nor repositioned, and it is
-sized like any other centre. All stops
-and stations feed the reported transit metrics. Stop access can be
-weighted into the selection metric, but the reported runs leave the
-weight at zero, so transit does not influence run selection. Density
-arrangement generally reinforces this access, because the densest
-tiers occupy each settlement's core, where the centres and their
-stops sit.
+Transit enters the model in two ways, through the hubs and through
+the corridors. Each transit hub seeds a centre at the start of a
+run, so development gathers around it, and post-processing pins the
+centre, which is neither pruned nor repositioned and is sized like
+any other centre. A point added to the hubs layer therefore places
+a designated centre by hand, such as a transit-oriented development
+around a planned station. Transit corridors attract growth. The
+corridor preference of Section~\ref{sec:growth} scales the
+development draws outside the stop catchment, so a preference above
+0 concentrates growth and satellite settlements along existing or
+proposed transit. The run report gives the share of new homes
+within the stop catchment and the mean walk to a hub. These metrics
+do not enter run selection, and the case studies leave the
+preference at 0, so no reported number depends on the corridor
+mechanism.
 
 \subsection{Rule adaptations}
 \label{sec:rules}
@@ -379,7 +406,7 @@ the real inputs of Section~\ref{sec:inputs}.
 \caption{The published rules \citep{dacci2019, dacci_voto2023, voto_code}
 and their treatment in this implementation.}
 \label{tab:rules}
-\small
+\footnotesize
 \begin{tabularx}{\textwidth}{L L l}
 \toprule
 Published rule & This implementation & Status \\
@@ -388,74 +415,80 @@ Build only on nature cells adjacent to built land &
 Same, restricted to centred fabric: centre-less farmsteads and
 hamlets do not anchor growth &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 A centrality must lie within T\(^*\) of the new cell, straight-line &
 A centre must lie within the centre walk, a bounded walk over the grid that
 cannot cross unbuildable land &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 Build by a random draw once the checks pass, at a set probability &
 Same mechanism; the build probability is 0.25 by default &
 Unchanged \\
-\addlinespace
+\addlinespace[2pt]
 Nature continuously connected, with a minimum width of T\(^*\) &
 Local rules: no green corridor between developments may pinch below the
 minimum span (strips bounded by water or a carved corridor exempt), and
 new development may not shrink a park below the minimum park area &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 Every built cell keeps nature within T\(^*\) &
 Same: a park must stay within the green walk of every built cell,
 the newly built cell included &
 Unchanged \\
-\addlinespace
+\addlinespace[2pt]
 New centralities seed near under-served built land at a set
 probability &
 Same trigger; at most one new centre per iteration, and seeding
 stops at 80\% of the population target &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 Isolated centralities seed on open land at a set probability scaled
 by area &
 Per-cell draw without area scaling, exposed as off, moderate, or
 aggressive dispersal &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 One walking radius T\(^*\) governs access to centres and to nature &
 Two distances in explicit metres: the centre walk (default
 1{,}200~m) and the green walk (default 400~m) &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 Density drawn from three tiers at set shares &
 Same draw; post-processing arranges the drawn values so the highest
 tiers sit nearest the final centres, graded within each settlement &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 Run stops at a population cap &
 Same stop; the target counts new residents only &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 Fixed raster scan order against a frozen grid copy &
 Shuffled visit order each iteration, removing scan-direction bias &
 Modified \\
-\addlinespace
+\addlinespace[2pt]
 One run, one output &
 Ensembles: many runs blended into likelihood layers; best single run
 selected &
 Extension \\
-\addlinespace
+\addlinespace[2pt]
 Grid starts as uniform nature &
 Real OpenStreetMap inputs: frozen built fabric, protected green
-space, carved barriers, centres, stops, and stations &
+space, carved barriers, centres, transit hubs, and transit
+corridors &
 Extension \\
-\addlinespace
+\addlinespace[2pt]
+Growth is spatially uniform in probability &
+The corridor preference scales the development draws outside the
+stop catchment of transit corridors and hubs (0 by default) &
+Extension \\
+\addlinespace[2pt]
 All nature is available to build &
 Developable land must be locally wide, and its region must either hold
 a viable settlement or lie within the centre walk of an existing
 centre; all other open land is excluded from new development before
 the run &
 Extension \\
-\addlinespace
+\addlinespace[2pt]
 Centralities stay where seeded &
 Three centre options in post-processing, all keeping every home within
 the centre walk; each settlement hosts its own centre, whose
@@ -620,7 +653,7 @@ of the release, and every setting builds on close to the same
 4{,}300 cells, so the shares alone set the population. One step toward the high
 tier reaches 12{,}952, near the target; one step toward the low
 tier houses 8{,}539. The
-station anchor holds the main centre against the rail line, so the
+station's hub centre is pinned against the rail line, so the
 new development forms around the station.
 
 \begin{figure}[!tp]
@@ -632,7 +665,7 @@ new development forms around the station.
 dispersal off, at shares shifted one step toward the low tier
 (left) and one step toward the high tier (right). The two settings
 build on nearly the same land while the populations they house
-differ by half. The station anchor holds the main centre against the
+differ by half. The station's hub centre is pinned against the
 rail line in both settings. Full scenario resolution, seed 42.}
 \label{fig:crewshill}
 \end{figure}
