@@ -46,6 +46,7 @@ paper have distinct definitions, and synonym rotation costs precision.
 | Bus stops or a drawn proposed route that attracts growth | transit corridor (a corridor after first use) | PT stops, the stops layer, growth anchor (design shorthand) |
 | The walkable reach of a stop | the stop catchment | buffer, radius, service area |
 | The growth weighting toward transit | the corridor preference (a weight from 0 to 1) | corridor weight (code name), transit weight (retired) |
+| Availability of code and data | open (2026-08-22 correction) | public (reserved for public transport, public consultation) |
 
 ## Recorded exceptions
 
