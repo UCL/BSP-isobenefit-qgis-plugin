@@ -597,20 +597,22 @@ against 46 as grown, and the mean centre walk ranges from 236 to
 placement and removes centres only while every home keeps one within
 the walk.
 
-A final run demonstrates the corridor preference. We draw a proposed
-bus corridor from Cambourne's eastern edge across the open plain to
-the window's north-eastern village, raise the corridor preference to
-0.95, and keep every other setting at the baseline. The window's
-existing bus stops also project the stop catchment at its 400~m
-default. In the selected plan (Figure~\ref{fig:corridor}), growth and
-its satellite settlements string along the proposed route instead of
-spreading across the window, and the share of new homes within the
-stop catchment rises from 5\% to 66\%. The population accommodated
-falls from 21{,}567 to 10{,}916, because draws outside the catchment
-run at a twentieth of their probability, and the run log warns when
-the catchment's developable capacity sits under the target. The mean
-walks change little, 292~m to a centre against 242~m and 111~m to
-green space against 104~m, and every home keeps both walks. The
+A final run exercises both transit levers. We draw a proposed bus
+corridor from Cambourne's eastern edge across the plain to the
+window's north-eastern village and add a proposed bus rapid transit
+stop as a transit hub at its southern end beside the A428 junction.
+The corridor preference is 0.95 and every other setting stays at the
+baseline. Growth and its satellite settlements string along the route
+instead of spreading across the window (Figure~\ref{fig:corridor}),
+and the share of new homes within the stop catchment rises from 5\%
+to 66\%. The hub lies just beyond the walk coverage of the existing
+centres, so it opens land they cannot reach, and a new settlement
+gathers around its pinned centre at the junction. The population
+accommodated falls from 21{,}567 to 11{,}265, because draws outside
+the catchment run at a twentieth of their probability, and the run
+log warns when catchment capacity sits under the target. The mean
+walks change little (306~m against 242~m to a centre, 109~m against
+104~m to green space), and every home keeps both walks. The
 preference trades pace for transit alignment, and the planner sets
 the balance.
 
@@ -655,8 +657,9 @@ Full scenario resolution, seed 42.}
 \includegraphics[width=\textwidth]{figures/legend.png}
 \caption{The selected plan for the Cambourne window at the baseline
 corridor preference of 0 (left) and at 0.95 (right). Both panels
-overlay the drawn bus route (teal line) and the existing stops (teal
-dots). Full scenario resolution, seed 42.}
+overlay the drawn bus route (teal line), the existing stops (teal
+dots), and the proposed hub (ringed teal marker). Full scenario
+resolution, seed 42.}
 \label{fig:corridor}
 \end{figure}
 

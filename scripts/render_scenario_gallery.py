@@ -91,8 +91,11 @@ def presets_for(name: str, params: dict, has_stops: bool = False) -> list[dict]:
         base.append({"id": "corridor", "label": "Transit corridor preference",
                      "note": "Growth concentrates along transit: development draws outside the "
                              "400 m stop catchment are scaled by one minus the corridor "
-                             "preference (0.95 here). The teal line is a proposed bus route, "
-                             "the teal dots the existing stops; both project the catchment.",
+                             "preference (0.95 here). The teal line is a proposed bus route and "
+                             "the teal dots the existing stops; both project the catchment. The "
+                             "large ringed marker is a proposed bus rapid transit stop treated "
+                             "as a transit hub: it anchors a pinned centre, so a new settlement "
+                             "gathers around it.",
                      "overrides": {"corridor_weight": 0.95}})
     return base
 
@@ -102,7 +105,7 @@ def load_scenario(folder: str):
         params = json.load(fh)
     layers = {}
     for name in ("built", "green", "unbuildable", "centres", "streets", "water", "stops",
-                 "proposed_corridor"):
+                 "proposed_corridor", "proposed_station"):
         path = os.path.join(folder, f"{name}.geojson")
         if os.path.exists(path):
             with open(path, encoding="utf-8") as fh:
@@ -191,10 +194,19 @@ def substrate(extent, layers, gran):
                 c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
                 if 0 <= r < rows and 0 <= c < cols and inside[r, c] and state[r, c] != -1:
                     corridor.append((r, c))
+    # a proposed transit hub (a hand-drawn point): a pinned centre anchor under the
+    # transit presets, exactly as the plugin treats a point in the hubs layer
+    hubs = []
+    for geom in layers.get("proposed_station", []):
+        p = geom if geom.geom_type == "Point" else geom.representative_point()
+        c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
+        if 0 <= r < rows and 0 <= c < cols and inside[r, c]:
+            hubs.append((r, c))
+    hubs, _, _ = G.sanitise_seeds(sorted(set(hubs)), state, gran, 2 * gran)
     return {"state": state, "origin": origin, "seeds": sorted(set(seeds)), "gt": gt,
             "rows": rows, "cols": cols, "extent": extent, "inside": inside_mask,
             "steep": steep & ~built, "water": water & ~built, "stops": stops,
-            "corridor": sorted(set(corridor))}
+            "corridor": sorted(set(corridor)), "proposed_hubs": hubs}
 
 
 def _rgb(hexcol):
@@ -230,10 +242,13 @@ def run_preset(sub, params, preset):
         existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
     )
     # the corridor preference: cells outside the stop catchment draw at a scaled probability.
-    # The sources are the existing stops plus any proposed corridor the scenario ships.
+    # The sources are the existing stops plus any proposed corridor the scenario ships; a
+    # proposed hub joins the sources, seeds a centre in growth, and is pinned in
+    # post-processing (the plugin's transit-hub behaviour).
     corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
     catchment = None
-    anchor_cells = sub.get("stops", []) + sub.get("corridor", [])
+    hubs = list(sub.get("proposed_hubs", [])) if corridor_w > 0.0 else []
+    anchor_cells = sub.get("stops", []) + sub.get("corridor", []) + hubs
     if corridor_w > 0.0 and anchor_cells:
         stop_mask = np.zeros_like(state, bool)
         for r, c in anchor_cells:
@@ -242,8 +257,9 @@ def run_preset(sub, params, preset):
             stop_mask, gran, float(p.get("stop_catchment_m", 400.0)), blocked=(state == -1)
         )
         catchment = np.isfinite(d)
+    sim_seeds = sub["seeds"] + [h for h in hubs if h not in set(sub["seeds"])]
     sim = isobenefit.Simulation(
-        state, origin.copy(), np.zeros_like(state, np.float32), sub["seeds"],
+        state, origin.copy(), np.zeros_like(state, np.float32), sim_seeds,
         gran, walk, green_walk, float(p["target_population"]), float(p.get("min_green_span_m", 400.0)),
         float(p.get("build_prob", 0.25)), 0.01, DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
         0.8, shares, tiers, int(p.get("max_iterations", 300)), int(p.get("random_seed", 42)),
@@ -257,6 +273,7 @@ def run_preset(sub, params, preset):
         [st], gran, max_walk,
         existing_built=(origin == 1), existing_green=(origin == 0),
         existing_centres=sub["seeds"], centre_mode=str(over.get("centre_mode", "placed")),
+        centre_anchors=hubs or None,
         centre_distance_m=walk, green_distance_m=green_walk,
         new_density_km2=sum(s * d for s, d in zip(shares, tiers)),
         centre_min_settlement=min_cells,
@@ -267,7 +284,7 @@ def run_preset(sub, params, preset):
     return disp, metrics
 
 
-def render_png(codes, layers, sub, gran, path, stops=None):
+def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
     """Dot-grid PNG with the street underlay: the same visual language as the site's SVGs at a
     fraction of the size (a 150-cell SVG carries ~20k circle elements; the PNG is tens of kB)."""
     from PIL import Image, ImageDraw
@@ -330,6 +347,13 @@ def render_png(codes, layers, sub, gran, path, stops=None):
             rad = P * 0.7
             draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad],
                          fill=_rgb(TRANSIT), outline=(255, 255, 255), width=2)
+    if hubs:
+        # a proposed transit hub: a heavier ringed marker, so the anchor stands apart
+        for r, c in hubs:
+            cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
+            rad = P * 1.3
+            draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad],
+                         fill=_rgb(TRANSIT), outline=(255, 255, 255), width=4)
     im = im.resize((cw // 2, ch // 2), Image.LANCZOS)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path, optimize=True)
@@ -432,7 +456,8 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
         disp, metrics = run_preset(sub, p, preset)
         rel = f"{name}/{preset['id']}.png"
         render_png(disp, layers, sub, gran, os.path.join(OUT, rel),
-                   stops=sub["stops"] if preset["id"] == "corridor" else None)
+                   stops=sub["stops"] if preset["id"] == "corridor" else None,
+                   hubs=sub["proposed_hubs"] if preset["id"] == "corridor" else None)
         keep = {k: round(float(metrics.get(k, 0)), 3) for k in
                 ("served_coverage", "served_coverage_incl_existing",
                  "centre_access", "green_access", "population",

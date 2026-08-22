@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "proposed_station",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::27700" } },
+"features": [
+{ "type": "Feature", "properties": { "name": "Proposed bus rapid transit stop", "note": "A demonstration input, drawn by hand: a bus rapid transit stop at the southern end of the proposed corridor, near the A428, serving as a transit-oriented development anchor. The transit-corridor preset treats it as a transit hub (a pinned centre anchor); not OSM data." }, "geometry": { "type": "Point", "coordinates": [ 534100.0, 260550.0 ] } }
+]
+}

@@ -111,9 +111,10 @@ def run_preset(sub, params, overrides, runs=50):
     # corridor (the route it is asked to develop along) to the sources.
     catchment_m = float(p.get("stop_catchment_m", 400.0))
     corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
+    hubs = list(sub.get("proposed_hubs", [])) if corridor_w > 0.0 else []
     anchor_cells = list(sub.get("stops", []))
     if corridor_w > 0.0:
-        anchor_cells += list(sub.get("corridor", []))
+        anchor_cells += list(sub.get("corridor", [])) + hubs
     stop_mask = None
     if anchor_cells:
         stop_mask = np.zeros_like(base_state, bool)
@@ -128,9 +129,10 @@ def run_preset(sub, params, overrides, runs=50):
     # member seeding the plugin (and demo_run_report.py) would produce
     seed = int(p.get("random_seed", 42))
     t0 = time.time()
+    sim_seeds = sub["seeds"] + [h for h in hubs if h not in set(sub["seeds"])]
     template = isobenefit.Simulation(
         base_state.copy(), base_origin.copy(),
-        np.zeros_like(base_state, np.float32), sub["seeds"],
+        np.zeros_like(base_state, np.float32), sim_seeds,
         gran, walk, green_walk, float(p["target_population"]),
         float(p.get("min_green_span_m", 400.0)), float(p.get("build_prob", 0.25)), 0.01,
         _gallery.DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
@@ -146,6 +148,7 @@ def run_preset(sub, params, overrides, runs=50):
         states, gran, max_walk,
         existing_built=(base_origin == 1), existing_green=(base_origin == 0),
         existing_centres=sub["seeds"], centre_mode="placed",
+        centre_anchors=hubs or None,
         centre_distance_m=walk, green_distance_m=green_walk, new_density_km2=mean_density,
         centre_min_settlement=min_cells,
         target_population=float(p["target_population"]),
@@ -211,6 +214,7 @@ def main():
                 _gallery.render_png(
                     disp, layers, sub, gran,
                     os.path.join(FIGS, TRANSIT_PANELS[(name, preset_id)]), stops=sub["stops"],
+                    hubs=sub.get("proposed_hubs"),
                 )
             print(f"  {preset_id}: served {keep['served_coverage']:.0%}, "
                   f"pop {keep['population']:,.0f}, centre walk {keep['centre_walk_mean']:,.0f} m "
