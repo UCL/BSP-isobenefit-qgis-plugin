@@ -461,92 +461,82 @@ and their treatment in this implementation.}
 \toprule
 Published rule & This implementation & Status \\
 \midrule
-Build only on nature cells adjacent to built land &
-Same, restricted to centred fabric: centre-less farmsteads and
-hamlets do not anchor growth &
+The grid starts as uniform nature &
+Real inputs: existing fabric held fixed, protected green space,
+unbuildable land, existing centres, and transit &
+Extension \\
+\addlinespace[2pt]
+Build on a nature cell adjacent to built land &
+Same, against fabric that carries a centre; outlying farmsteads and
+hamlets anchor nothing &
 Modified \\
 \addlinespace[2pt]
-A centrality must lie within T\(^*\) of the new cell, straight-line &
-A centre must lie within the centre walk, a bounded walk over the grid that
-cannot cross unbuildable land &
+A centrality lies within T\(^*\), measured straight-line &
+A centre lies within the centre walk, a bounded walk over the grid
+that cannot cross unbuildable land &
 Modified \\
 \addlinespace[2pt]
-Build by a random draw once the checks pass, at a set probability &
-Same mechanism, at a fixed rate: the draw paces growth and varies the
-ensemble, and no longer decides how many centres appear &
+Build by a random draw at a set probability &
+Same draw, at a fixed rate: it paces the edge and varies the ensemble,
+and does not shape the plan &
 Unchanged \\
 \addlinespace[2pt]
-Nature continuously connected, with a minimum width of T\(^*\) &
-Local rules: no green corridor between developments may pinch below the
-minimum span (strips bounded by water or a carved corridor exempt), and
-new development may not shrink a park below the minimum park area &
+Nature stays one connected region at least T\(^*\) wide &
+Local rules: a green corridor between developments keeps a minimum
+span, and a park keeps a minimum area &
 Modified \\
 \addlinespace[2pt]
 Every built cell keeps nature within T\(^*\) &
-Same rule, and it binds every built cell including the newly built
-one; the distance is the green walk, configured independently of
-the centre walk rather than sharing the single radius &
+Same rule, at its own distance (the green walk), and it binds the
+newly built cell too &
 Unchanged \\
 \addlinespace[2pt]
-New centralities seed near under-served built land at a set
-probability &
-Released rather than drawn: a centre earns its successor once the new
-population nearest it reaches the service viability threshold, or once
-it can no longer grow &
+New centralities seed near under-served built land by a draw &
+Earned, not drawn: a centre founds the next once the new population
+nearest it reaches the viability threshold, or once it cannot grow &
 Modified \\
 \addlinespace[2pt]
-Isolated centralities seed on open land at a set probability scaled
-by area &
-No probability: a released centre may start away from existing
-development when the scenario allows detached settlements &
+Isolated centralities seed on open land by a draw scaled by area &
+No draw: a released centre may start away from existing development
+where the scenario allows detached settlements &
 Modified \\
 \addlinespace[2pt]
-One walking radius T\(^*\) governs access to centres and to nature &
-Two distances in explicit metres: the centre walk (default
-1{,}200~m) and the green walk (default 400~m) &
+One radius T\(^*\) governs centres and nature alike &
+Two distances in metres: the centre walk (1{,}200~m) and the green
+walk (400~m) &
 Modified \\
 \addlinespace[2pt]
-Density drawn from three tiers at set shares &
-Same draw; post-processing arranges the drawn values so the highest
-tiers sit nearest the final centres, graded within each settlement &
+Each block draws a density from three tiers at set shares &
+Same draw; post-processing grades the drawn values from a dense core
+to a lighter edge &
 Modified \\
 \addlinespace[2pt]
-Run stops at a population cap &
+The run stops at a population cap &
 Same stop; the target counts new residents only &
 Modified \\
 \addlinespace[2pt]
-Fixed raster scan order against an unchanged grid copy &
-Shuffled visit order each iteration, removing scan-direction bias &
+Cells are scanned in a fixed raster order &
+Shuffled each iteration, removing the scan-direction bias &
 Modified \\
 \addlinespace[2pt]
+All nature is available to build &
+Land too narrow, or in a region too small to hold a viable
+settlement, is set aside as protected green before the run &
+Extension \\
+\addlinespace[2pt]
+Growth is spatially uniform &
+Transit hubs pin a centre, and a corridor preference concentrates
+growth within the transit catchments; both are optional &
+Extension \\
+\addlinespace[2pt]
 One run, one output &
-Ensembles: many runs blended into likelihood layers; best single run
+An ensemble yields likelihood layers, and the best-scoring run is
 selected &
 Extension \\
 \addlinespace[2pt]
-Grid starts as uniform nature &
-Real OpenStreetMap inputs: fixed built fabric, protected green
-space, carved barriers, centres, transit hubs, and transit
-corridors &
-Extension \\
-\addlinespace[2pt]
-Growth is spatially uniform in probability &
-The corridor preference scales the development draws outside the
-transit catchments (0 by default) &
-Extension \\
-\addlinespace[2pt]
-All nature is available to build &
-Developable land must be locally wide, and its region must either hold
-a viable settlement or lie within the centre walk of an existing
-centre; all other open land is excluded from new development before
-the run &
-Extension \\
-\addlinespace[2pt]
-Centralities stay where seeded &
-Three plan options in post-processing, all keeping every home within
-the centre walk; each settlement hosts its own centre, whose
-catchment gathers new homes across green space, and growth without a
-viable centre reverts to nature &
+Centralities stay where they seeded &
+Three centre arrangements in post-processing, each keeping every new
+home within the centre walk of a centre &
 Extension \\
 \bottomrule
 \end{tabularx}
@@ -741,15 +731,15 @@ the site boundary and the allocation's scale. Whether the release
 should proceed is a question for the plan's examination and its
 public consultation.
 
-Under the baseline settings the plan reaches 10{,}468 of the 13{,}000
+Under the baseline settings the plan reaches 10{,}477 of the 13{,}000
 target, and new homes
-average a 146~m walk to a centre and 140~m to green space.
+average a 145~m walk to a centre and 140~m to green space.
 Figure~\ref{fig:crewshill} varies the shares on the fixed boundary.
 The growth rules bound the reachable extent of the release, and every
 setting builds on close to the same
 4{,}300 cells, so the shares alone set the population. Shares of
-0.5 / 0.3 / 0.2 (high / medium / low) reach 12{,}952, near the
-target, and shares of 0.1 / 0.3 / 0.6 house 8{,}587. The
+0.5 / 0.3 / 0.2 (high / medium / low) reach 12{,}964, near the
+target, and shares of 0.1 / 0.3 / 0.6 house 8{,}596. The
 station's hub centre is pinned against the rail line, and the
 new development forms around the station.
 
@@ -762,8 +752,8 @@ new development forms around the station.
 attached growth, at shares of 0.1 / 0.3 / 0.6 (high / medium / low)
 (left) and 0.5 / 0.3 / 0.2 (right). The two settings
 build on nearly the same land, while the populations they house
-are 8{,}587 and 12{,}952. The station's hub centre is pinned against the
-rail line in both settings. Full scenario resolution, seed 42.}
+are 8{,}596 and 12{,}964. The rail station (ringed marker) anchors a
+pinned centre in both settings, and the release grows around it. Full scenario resolution, seed 42.}
 \label{fig:crewshill}
 \end{figure}
 
@@ -816,7 +806,7 @@ accommodated is 12{,}447 at 800~m and 14{,}991 at both 1{,}200
 and 1{,}600~m. At Cambourne's greenfield densities an 800~m
 catchment gathers the threshold population from less land, so more
 centres are founded and some of the window's smaller pockets can
-no longer support one. Crews Hill holds near 10{,}300 at every
+no longer support one. Crews Hill holds near 10{,}400 at every
 setting, because its limit is the reachable extent of the release
 rather than the walk, and Pajarito varies by under 0.1\% across
 the three walks, its benches being fixed by terrain.
@@ -836,7 +826,7 @@ settings.}
 Scenario & 800~m & 1{,}200~m (baseline) & 1{,}600~m \\
 \midrule
 Cambourne & 272~m & 268~m & 337~m \\
-Crews Hill & 65~m & 146~m & 140~m \\
+Crews Hill & 65~m & 145~m & 140~m \\
 Pajarito & 106~m & 105~m & 105~m \\
 \bottomrule
 \end{tabular}
@@ -865,30 +855,47 @@ meaning. The bounded grid walk with carved barriers treats new and
 existing fabric on the same terms and does not cross motorways,
 railways, or rivers.
 
-\subsection{The post-processing gap}
+\subsection{What post-processing contributes}
 
-Founding centres on the population that justifies them removes most
-of the work pruning used to do. At the Cambourne baseline the raw
-state houses 15{,}012 and the plan options keep 14{,}991, so
-pruning now removes 0.1\% of the grown population where an earlier
-formulation, which drew centres at a fixed probability per cell,
-lost three quarters of it. The reason is that a probability per
-cell makes the number of centres a function of the window's size,
-the grid resolution, and the pace of growth, none of which the
-planner is choosing deliberately: the same target then arrives as
-many small settlements, each below the threshold, and
-post-processing discards them. Releasing a centre when the nearest
-new population reaches the threshold ties the count to the
-population instead, so the growth rules and the viability test
-agree by construction, and pruning is left as a safety net for the
-last centre founded before a run ends.
+The published model leaves a centrality where it seeded and leaves each
+block at the density it drew. Both are reasonable on an abstract plain,
+where a centrality seeds in open country and the settlement grows around
+it symmetrically. On real terrain neither holds, and the three
+post-processing steps of Section~\ref{sec:fouroutputs} address what
+breaks.
 
-What remains sensitive is the threshold itself, which is now the
-setting that governs settlement size. At Pajarito, raising it from
-2{,}000 to 4{,}000 people houses 27{,}499 rather than 32{,}298, in
-fewer and larger settlements at a longer mean walk. That is a
-planning judgement about what a local centre must serve to be
-viable, which is the form in which it should reach a planner.
+Placement is the clearest gain. A centre is founded at the edge of the
+development that earned it, because that is where growth had reached,
+and the settlement then grows past it. At the Cambourne baseline the new
+homes average a 663~m walk to the centres as the run left them and 268~m
+once each centre is moved to the point central to the homes it serves, a
+reduction of nearly two thirds that costs no population and no
+development: the same fabric is served better by the same number of
+centres. Fewest centres shows the other end of the trade, returning
+285~m for two centres less, which is the arrangement a planner would
+reach for when provision is expensive.
+
+Viability is the second. The growth rules now found a centre only where
+the population justifies it, so the viability pass has little left to
+correct: it removes 21 of 15{,}012 people at the Cambourne baseline. Its
+value is no longer in what it removes but in what it certifies, since
+the run report audits every surviving centre against the threshold, and
+the guarantee that no plan option strands a home beyond the centre walk
+is enforced through each edit rather than checked at the end.
+
+Density arrangement is the third, and it is a presentational claim
+rather than a modelling one. The growth rules draw a tier for each cell
+from the shares, which fixes the mix and therefore the population, but
+they draw it when the cell is built, before the settlement that will
+surround it exists. Arranging those drawn values so the highest tiers
+sit at the core and the lowest at the edge produces the density gradient
+that a plan drawing is expected to show, and because the values are only
+rearranged, the shares and the population are unchanged.
+
+The boundary matters for how the outputs should be read. Growth produces
+the raw state; post-processing improves how that state is served and
+presented, and moves no one into or out of the window. The raw layer
+ships with every run so the two can be compared directly.
 
 \section{Conclusion}
 \label{sec:conclusion}

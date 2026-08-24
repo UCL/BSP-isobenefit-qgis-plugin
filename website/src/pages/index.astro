@@ -321,16 +321,14 @@ const dg = (name: string) => `${base}images/${name}.svg`
 
     <h3>Dispersed development</h3>
     <p>
-      This control sets how readily growth leapfrogs away from the existing fabric. It also sets how much
-      of the population target fits: leapfrogging opens land that edge-only growth can never reach within
-      the walkability rules. These three panels show the raw grown state, before post-processing, so the
-      dial's effect is visible; the cleanup step then prunes growth beyond the walk of every viable
-      centre, which under <em>Aggressive</em> removes much of the scatter.
+      This control sets where a centre may go once growth has earned one: attached to development that
+      already exists, or detached from it. It also sets how much of the population target fits, because
+      a detached settlement opens land that edge-only growth can never reach within the walkability
+      rules. Both panels show the raw grown state, before post-processing.
     </p>
     <div class="demo-row">
-      <figure><img class="demo" src={dg('demo_dispersal_off')} alt="" /><figcaption><strong>Off.</strong> Growth clings to the edges of the existing fabric, including its outlying hamlets, and saturates early.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_dispersal_moderate')} alt="" /><figcaption><strong>Moderate.</strong> The town still leads, and a few satellites grow to viable size.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_dispersal_aggressive')} alt="" /><figcaption><strong>Aggressive.</strong> Many small satellites scatter across the window, each still subject to the walkability rules; most are later pruned as too small.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_dispersal_attached')} alt="" /><figcaption><strong>Attached only.</strong> Every earned centre must join existing development, so the town grows outward as one contiguous settlement.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_dispersal_detached')} alt="" /><figcaption><strong>Detached allowed.</strong> An earned centre may start a settlement away from the town, so growth reaches land the existing centres cannot serve.</figcaption></figure>
     </div>
 
     <h3>Transit-oriented growth</h3>
@@ -353,11 +351,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
       at the route's southern end.</figcaption>
     </figure>
 
-    <h3>Build probability</h3>
-    <p>This is the per-step growth rate: each eligible cell builds with this probability per iteration, so a higher value grows more, and spreads farther, in the same number of iterations. These panels show the raw grown state after 60 iterations: growth that young sits below the service viability threshold, so a post-processed plan would prune it away entirely.</p>
+    <h3>Service viability</h3>
+    <p>This is the population a centre must gather before growth earns the next one, so it sets how large the settlements become. Raising it yields fewer, larger settlements whose homes walk further to a centre; lowering it yields more, smaller ones. Because centres are earned rather than drawn, this figure decides how many the plan contains, whatever the size of the window or the resolution of the grid. Both panels show the raw grown state.</p>
     <div class="demo-row">
-      <figure><img class="demo" src={dg('demo_buildprob_slow')} alt="" /><figcaption><strong>Slow (0.08).</strong> Growth stays compact.</figcaption></figure>
-      <figure><img class="demo" src={dg('demo_buildprob_fast')} alt="" /><figcaption><strong>Fast (0.6).</strong> Far more is grown in the same time.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_viability_small')} alt="" /><figcaption><strong>1,000 people per centre.</strong> More centres, each serving a smaller settlement.</figcaption></figure>
+      <figure><img class="demo" src={dg('demo_viability_large')} alt="" /><figcaption><strong>4,000 people per centre.</strong> Fewer, larger settlements, with longer walks to a centre.</figcaption></figure>
     </div>
   </section>
 

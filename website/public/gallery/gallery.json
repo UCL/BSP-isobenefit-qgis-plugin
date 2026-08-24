@@ -27,21 +27,20 @@
      "image": "cambourne/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.975,
-      "centre_access": 393.88,
-      "green_access": 152.449,
-      "population": 28810.08,
-      "centre_m2_per_person": 16.588,
-      "green_m2_per_person": 1650.36,
-      "built_cells": 1778.0
+      "served_coverage_incl_existing": 0.948,
+      "centre_access": 425.695,
+      "green_access": 152.806,
+      "population": 14058.765,
+      "centre_m2_per_person": 14.98,
+      "green_m2_per_person": 3750.18,
+      "built_cells": 1139.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "target_population": 15000,
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -75,21 +74,20 @@
      "image": "cambourne/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.841,
-      "centre_access": 335.022,
-      "green_access": 162.918,
-      "population": 13250.79,
-      "centre_m2_per_person": 14.06,
-      "green_m2_per_person": 3994.743,
-      "built_cells": 1104.0
+      "served_coverage_incl_existing": 0.828,
+      "centre_access": 314.909,
+      "green_access": 168.343,
+      "population": 10457.505,
+      "centre_m2_per_person": 13.168,
+      "green_m2_per_person": 5155.494,
+      "built_cells": 983.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "target_population": 15000,
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 800.0,
       "green_walk_m": 400,
@@ -123,21 +121,20 @@
      "image": "cambourne/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.994,
-      "centre_access": 387.149,
-      "green_access": 153.911,
-      "population": 31072.41,
-      "centre_m2_per_person": 17.726,
-      "green_m2_per_person": 1512.213,
-      "built_cells": 1876.0
+      "served_coverage_incl_existing": 0.983,
+      "centre_access": 522.08,
+      "green_access": 147.1,
+      "population": 13089.195,
+      "centre_m2_per_person": 12.377,
+      "green_m2_per_person": 4071.908,
+      "built_cells": 1097.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "target_population": 15000,
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1600.0,
       "green_walk_m": 400,
@@ -163,29 +160,28 @@
     },
     {
      "id": "compact",
-     "label": "Compact (dispersal off)",
-     "note": "No leapfrogging: one contiguous settlement.",
+     "label": "Attached growth only",
+     "note": "Every earned centre must join existing development: one contiguous settlement.",
      "overrides": {
-      "dispersal": "off"
+      "allow_detached": false
      },
      "image": "cambourne/compact.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.975,
-      "centre_access": 368.755,
-      "green_access": 160.25,
-      "population": 28763.91,
-      "centre_m2_per_person": 17.178,
-      "green_m2_per_person": 1653.572,
-      "built_cells": 1776.0
+      "served_coverage_incl_existing": 0.944,
+      "centre_access": 359.503,
+      "green_access": 155.992,
+      "population": 11934.945,
+      "centre_m2_per_person": 16.288,
+      "green_m2_per_person": 4479.962,
+      "built_cells": 1047.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "off",
+      "target_population": 15000,
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -210,36 +206,35 @@
      "params_file": "cambourne/compact_params.json"
     },
     {
-     "id": "dispersed",
-     "label": "Dispersed (aggressive)",
-     "note": "Satellites leapfrog readily across the window.",
+     "id": "viability4000",
+     "label": "Larger centres (4,000 people)",
+     "note": "A centre must gather 4,000 people before the next is earned, so the same target arrives as fewer, larger settlements.",
      "overrides": {
-      "dispersal": "aggressive"
+      "min_settlement_pop": 4000.0
      },
-     "image": "cambourne/dispersed.png",
+     "image": "cambourne/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.977,
-      "centre_access": 348.31,
-      "green_access": 145.777,
-      "population": 20568.735,
-      "centre_m2_per_person": 15.752,
-      "green_m2_per_person": 2452.202,
-      "built_cells": 1421.0
+      "served_coverage_incl_existing": 0.93,
+      "centre_access": 679.839,
+      "green_access": 156.121,
+      "population": 10203.57,
+      "centre_m2_per_person": 7.938,
+      "green_m2_per_person": 5299.675,
+      "built_cells": 972.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "aggressive",
+      "target_population": 15000,
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_pop": 2000,
+      "min_settlement_pop": 4000.0,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 6000,
@@ -253,9 +248,9 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "cambourne_dispersed"
+      "name": "cambourne_viability4000"
      },
-     "params_file": "cambourne/dispersed_params.json"
+     "params_file": "cambourne/viability4000_params.json"
     },
     {
      "id": "denser",
@@ -271,21 +266,20 @@
      "image": "cambourne/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.963,
-      "centre_access": 353.988,
-      "green_access": 148.143,
-      "population": 27726.3,
-      "centre_m2_per_person": 15.776,
-      "green_m2_per_person": 1841.367,
-      "built_cells": 1345.0
+      "served_coverage_incl_existing": 0.932,
+      "centre_access": 459.634,
+      "green_access": 146.984,
+      "population": 13710.06,
+      "centre_m2_per_person": 11.225,
+      "green_m2_per_person": 3968.451,
+      "built_cells": 931.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "target_population": 15000,
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -319,21 +313,20 @@
      "image": "cambourne/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.975,
-      "centre_access": 403.326,
-      "green_access": 152.449,
-      "population": 28810.08,
-      "centre_m2_per_person": 16.026,
-      "green_m2_per_person": 1650.36,
-      "built_cells": 1778.0
+      "served_coverage_incl_existing": 0.946,
+      "centre_access": 449.331,
+      "green_access": 152.806,
+      "population": 14058.765,
+      "centre_m2_per_person": 13.828,
+      "green_m2_per_person": 3750.18,
+      "built_cells": 1139.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "target_population": 15000,
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -367,21 +360,20 @@
      "image": "cambourne/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.953,
-      "centre_access": 487.926,
-      "green_access": 165.118,
-      "population": 15951.735,
-      "centre_m2_per_person": 15.233,
-      "green_m2_per_person": 3263.513,
-      "built_cells": 1221.0
+      "served_coverage_incl_existing": 0.941,
+      "centre_access": 417.19,
+      "green_access": 158.574,
+      "population": 13273.875,
+      "centre_m2_per_person": 17.696,
+      "green_m2_per_person": 3992.677,
+      "built_cells": 1105.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 50,
       "max_iterations": 400,
-      "target_population": 30000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "target_population": 15000,
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -435,21 +427,20 @@
      "image": "celina_tx/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.855,
-      "centre_access": 281.87,
-      "green_access": 128.259,
-      "population": 47975.0,
-      "centre_m2_per_person": 16.467,
-      "green_m2_per_person": 397.916,
-      "built_cells": 6753.0
+      "served_coverage_incl_existing": 0.736,
+      "centre_access": 348.754,
+      "green_access": 147.514,
+      "population": 34225.0,
+      "centre_m2_per_person": 16.216,
+      "green_m2_per_person": 638.934,
+      "built_cells": 5642.0
      },
      "settings": {
       "crs": "EPSG:32614",
       "grid_size_m": 30,
       "max_iterations": 400,
       "target_population": 50000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -483,21 +474,20 @@
      "image": "celina_tx/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.711,
-      "centre_access": 220.477,
-      "green_access": 129.948,
-      "population": 41825.0,
-      "centre_m2_per_person": 17.693,
-      "green_m2_per_person": 485.415,
-      "built_cells": 6256.0
+      "served_coverage_incl_existing": 0.588,
+      "centre_access": 224.733,
+      "green_access": 132.077,
+      "population": 23262.5,
+      "centre_m2_per_person": 16.013,
+      "green_m2_per_person": 1031.811,
+      "built_cells": 4776.0
      },
      "settings": {
       "crs": "EPSG:32614",
       "grid_size_m": 30,
       "max_iterations": 400,
       "target_population": 50000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 800.0,
       "green_walk_m": 400,
@@ -531,21 +521,20 @@
      "image": "celina_tx/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.908,
-      "centre_access": 252.082,
-      "green_access": 129.313,
-      "population": 50087.5,
-      "centre_m2_per_person": 17.32,
-      "green_m2_per_person": 372.698,
-      "built_cells": 6922.0
+      "served_coverage_incl_existing": 0.892,
+      "centre_access": 475.733,
+      "green_access": 141.006,
+      "population": 50237.5,
+      "centre_m2_per_person": 16.721,
+      "green_m2_per_person": 373.775,
+      "built_cells": 6878.0
      },
      "settings": {
       "crs": "EPSG:32614",
       "grid_size_m": 30,
       "max_iterations": 400,
       "target_population": 50000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1600.0,
       "green_walk_m": 400,
@@ -571,29 +560,28 @@
     },
     {
      "id": "compact",
-     "label": "Compact (dispersal off)",
-     "note": "No leapfrogging: one contiguous settlement.",
+     "label": "Attached growth only",
+     "note": "Every earned centre must join existing development: one contiguous settlement.",
      "overrides": {
-      "dispersal": "off"
+      "allow_detached": false
      },
      "image": "celina_tx/compact.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.815,
-      "centre_access": 289.625,
-      "green_access": 145.491,
-      "population": 49200.0,
-      "centre_m2_per_person": 17.327,
-      "green_m2_per_person": 383.028,
-      "built_cells": 6851.0
+      "served_coverage_incl_existing": 0.718,
+      "centre_access": 280.733,
+      "green_access": 145.604,
+      "population": 34687.5,
+      "centre_m2_per_person": 16.649,
+      "green_m2_per_person": 626.955,
+      "built_cells": 5690.0
      },
      "settings": {
       "crs": "EPSG:32614",
       "grid_size_m": 30,
       "max_iterations": 400,
       "target_population": 50000,
-      "build_prob": 0.3,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -618,36 +606,35 @@
      "params_file": "celina_tx/compact_params.json"
     },
     {
-     "id": "dispersed",
-     "label": "Dispersed (aggressive)",
-     "note": "Satellites leapfrog readily across the window.",
+     "id": "viability4000",
+     "label": "Larger centres (4,000 people)",
+     "note": "A centre must gather 4,000 people before the next is earned, so the same target arrives as fewer, larger settlements.",
      "overrides": {
-      "dispersal": "aggressive"
+      "min_settlement_pop": 4000.0
      },
-     "image": "celina_tx/dispersed.png",
+     "image": "celina_tx/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.901,
-      "centre_access": 188.397,
-      "green_access": 103.24,
-      "population": 46537.5,
-      "centre_m2_per_person": 17.996,
-      "green_m2_per_person": 416.385,
-      "built_cells": 6638.0
+      "served_coverage_incl_existing": 0.59,
+      "centre_access": 556.078,
+      "green_access": 143.057,
+      "population": 21587.5,
+      "centre_m2_per_person": 7.412,
+      "green_m2_per_person": 1103.069,
+      "built_cells": 4642.0
      },
      "settings": {
       "crs": "EPSG:32614",
       "grid_size_m": 30,
       "max_iterations": 400,
       "target_population": 50000,
-      "build_prob": 0.3,
-      "dispersal": "aggressive",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_pop": 2000,
+      "min_settlement_pop": 4000.0,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 18500,
@@ -661,9 +648,9 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "celina_tx_dispersed"
+      "name": "celina_tx_viability4000"
      },
-     "params_file": "celina_tx/dispersed_params.json"
+     "params_file": "celina_tx/viability4000_params.json"
     },
     {
      "id": "denser",
@@ -679,21 +666,20 @@
      "image": "celina_tx/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.796,
-      "centre_access": 177.894,
-      "green_access": 99.631,
-      "population": 50150.0,
-      "centre_m2_per_person": 16.8,
-      "green_m2_per_person": 487.836,
-      "built_cells": 4603.0
+      "served_coverage_incl_existing": 0.677,
+      "centre_access": 211.969,
+      "green_access": 115.873,
+      "population": 45902.0,
+      "centre_m2_per_person": 16.012,
+      "green_m2_per_person": 541.534,
+      "built_cells": 4446.0
      },
      "settings": {
       "crs": "EPSG:32614",
       "grid_size_m": 30,
       "max_iterations": 400,
       "target_population": 50000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -727,21 +713,20 @@
      "image": "celina_tx/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.855,
-      "centre_access": 283.579,
-      "green_access": 128.259,
-      "population": 47975.0,
-      "centre_m2_per_person": 16.467,
-      "green_m2_per_person": 397.916,
-      "built_cells": 6753.0
+      "served_coverage_incl_existing": 0.744,
+      "centre_access": 303.798,
+      "green_access": 147.526,
+      "population": 34087.5,
+      "centre_m2_per_person": 16.428,
+      "green_m2_per_person": 641.511,
+      "built_cells": 5642.0
      },
      "settings": {
       "crs": "EPSG:32614",
       "grid_size_m": 30,
       "max_iterations": 400,
       "target_population": 50000,
-      "build_prob": 0.3,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -793,22 +778,21 @@
      "overrides": {},
      "image": "dnipro/baseline.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.424,
-      "centre_access": 179.571,
-      "green_access": 184.798,
-      "population": 76949.595,
-      "centre_m2_per_person": 16.105,
-      "green_m2_per_person": 103.737,
-      "built_cells": 3254.0
+      "served_coverage": 0.968,
+      "served_coverage_incl_existing": 0.774,
+      "centre_access": 108.273,
+      "green_access": 197.54,
+      "population": 156795.143,
+      "centre_m2_per_person": 23.712,
+      "green_m2_per_person": 40.566,
+      "built_cells": 3343.0
      },
      "settings": {
       "crs": "EPSG:32636",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 252450,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -841,22 +825,21 @@
      },
      "image": "dnipro/walk800.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.257,
-      "centre_access": 144.224,
-      "green_access": 182.572,
-      "population": 74881.058,
-      "centre_m2_per_person": 16.794,
-      "green_m2_per_person": 107.82,
-      "built_cells": 3249.0
+      "served_coverage": 0.968,
+      "served_coverage_incl_existing": 0.6,
+      "centre_access": 105.134,
+      "green_access": 198.432,
+      "population": 154312.898,
+      "centre_m2_per_person": 24.211,
+      "green_m2_per_person": 41.927,
+      "built_cells": 3337.0
      },
      "settings": {
       "crs": "EPSG:32636",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 252450,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 800.0,
       "green_walk_m": 400,
@@ -889,22 +872,21 @@
      },
      "image": "dnipro/walk1600.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.58,
-      "centre_access": 208.22,
-      "green_access": 185.704,
-      "population": 77777.01,
-      "centre_m2_per_person": 15.934,
-      "green_m2_per_person": 102.165,
-      "built_cells": 3256.0
+      "served_coverage": 0.969,
+      "served_coverage_incl_existing": 0.872,
+      "centre_access": 107.943,
+      "green_access": 202.665,
+      "population": 160518.51,
+      "centre_m2_per_person": 23.73,
+      "green_m2_per_person": 38.262,
+      "built_cells": 3355.0
      },
      "settings": {
       "crs": "EPSG:32636",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 252450,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1600.0,
       "green_walk_m": 400,
@@ -930,29 +912,28 @@
     },
     {
      "id": "compact",
-     "label": "Compact (dispersal off)",
-     "note": "No leapfrogging: one contiguous settlement.",
+     "label": "Attached growth only",
+     "note": "Every earned centre must join existing development: one contiguous settlement.",
      "overrides": {
-      "dispersal": "off"
+      "allow_detached": false
      },
      "image": "dnipro/compact.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.373,
-      "centre_access": 256.18,
-      "green_access": 172.851,
-      "population": 35578.845,
-      "centre_m2_per_person": 11.782,
-      "green_m2_per_person": 275.587,
-      "built_cells": 3154.0
+      "served_coverage": 0.953,
+      "served_coverage_incl_existing": 0.733,
+      "centre_access": 135.604,
+      "green_access": 215.737,
+      "population": 105081.705,
+      "centre_m2_per_person": 25.322,
+      "green_m2_per_person": 81.862,
+      "built_cells": 3220.0
      },
      "settings": {
       "crs": "EPSG:32636",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 252450,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -977,36 +958,35 @@
      "params_file": "dnipro/compact_params.json"
     },
     {
-     "id": "dispersed",
-     "label": "Dispersed (aggressive)",
-     "note": "Satellites leapfrog readily across the window.",
+     "id": "viability4000",
+     "label": "Larger centres (4,000 people)",
+     "note": "A centre must gather 4,000 people before the next is earned, so the same target arrives as fewer, larger settlements.",
      "overrides": {
-      "dispersal": "aggressive"
+      "min_settlement_pop": 4000.0
      },
-     "image": "dnipro/dispersed.png",
+     "image": "dnipro/viability4000.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.488,
-      "centre_access": 125.207,
-      "green_access": 174.063,
-      "population": 112942.148,
-      "centre_m2_per_person": 18.234,
-      "green_m2_per_person": 56.639,
-      "built_cells": 3341.0
+      "served_coverage": 0.97,
+      "served_coverage_incl_existing": 0.758,
+      "centre_access": 149.301,
+      "green_access": 202.04,
+      "population": 164655.585,
+      "centre_m2_per_person": 22.691,
+      "green_m2_per_person": 34.202,
+      "built_cells": 3356.0
      },
      "settings": {
       "crs": "EPSG:32636",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 252450,
-      "build_prob": 0.25,
-      "dispersal": "aggressive",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_pop": 2000,
+      "min_settlement_pop": 4000.0,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 40000,
@@ -1020,9 +1000,9 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "dnipro_dispersed"
+      "name": "dnipro_viability4000"
      },
-     "params_file": "dnipro/dispersed_params.json"
+     "params_file": "dnipro/viability4000_params.json"
     },
     {
      "id": "denser",
@@ -1037,22 +1017,21 @@
      },
      "image": "dnipro/denser.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.456,
-      "centre_access": 153.197,
-      "green_access": 183.749,
-      "population": 103536.225,
-      "centre_m2_per_person": 16.194,
-      "green_m2_per_person": 76.395,
-      "built_cells": 3258.0
+      "served_coverage": 0.966,
+      "served_coverage_incl_existing": 0.799,
+      "centre_access": 85.259,
+      "green_access": 192.115,
+      "population": 195084.045,
+      "centre_m2_per_person": 21.02,
+      "green_m2_per_person": 34.472,
+      "built_cells": 3323.0
      },
      "settings": {
       "crs": "EPSG:32636",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 252450,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1085,22 +1064,21 @@
      },
      "image": "dnipro/fewest.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.424,
-      "centre_access": 179.571,
-      "green_access": 184.798,
-      "population": 76949.595,
-      "centre_m2_per_person": 16.105,
-      "green_m2_per_person": 103.737,
-      "built_cells": 3254.0
+      "served_coverage": 0.969,
+      "served_coverage_incl_existing": 0.772,
+      "centre_access": 166.364,
+      "green_access": 197.211,
+      "population": 157622.558,
+      "centre_m2_per_person": 21.622,
+      "green_m2_per_person": 40.353,
+      "built_cells": 3343.0
      },
      "settings": {
       "crs": "EPSG:32636",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 252450,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1123,6 +1101,54 @@
       "name": "dnipro_fewest"
      },
      "params_file": "dnipro/fewest_params.json"
+    },
+    {
+     "id": "corridor",
+     "label": "Transit corridor preference",
+     "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
+     "overrides": {
+      "corridor_weight": 0.95
+     },
+     "image": "dnipro/corridor.png",
+     "metrics": {
+      "served_coverage": 0.965,
+      "served_coverage_incl_existing": 0.777,
+      "centre_access": 91.789,
+      "green_access": 195.958,
+      "population": 141074.258,
+      "centre_m2_per_person": 25.062,
+      "green_m2_per_person": 49.737,
+      "built_cells": 3307.0
+     },
+     "settings": {
+      "crs": "EPSG:32636",
+      "grid_size_m": 25,
+      "max_iterations": 400,
+      "target_population": 252450,
+      "allow_detached": true,
+      "random_seed": 42,
+      "centre_walk_m": 1200,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 2000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 40000,
+       "medium": 25000,
+       "low": 12000
+      },
+      "shares": {
+       "high": 0.15,
+       "medium": 0.5,
+       "low": 0.35
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "corridor_weight": 0.95,
+      "name": "dnipro_corridor"
+     },
+     "params_file": "dnipro/corridor_params.json"
     }
    ]
   },
@@ -1153,21 +1179,20 @@
      "image": "kigali_east/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.366,
-      "centre_access": 75.501,
-      "green_access": 103.209,
-      "population": 58789.8,
-      "centre_m2_per_person": 20.012,
-      "green_m2_per_person": 313.068,
-      "built_cells": 9195.0
+      "served_coverage_incl_existing": 0.23,
+      "centre_access": 191.929,
+      "green_access": 127.818,
+      "population": 60097.95,
+      "centre_m2_per_person": 13.343,
+      "green_m2_per_person": 305.108,
+      "built_cells": 9229.0
      },
      "settings": {
       "crs": "EPSG:32736",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 60000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1201,21 +1226,20 @@
      "image": "kigali_east/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.258,
-      "centre_access": 75.501,
-      "green_access": 103.209,
-      "population": 58789.8,
-      "centre_m2_per_person": 20.012,
-      "green_m2_per_person": 313.068,
-      "built_cells": 9195.0
+      "served_coverage_incl_existing": 0.206,
+      "centre_access": 76.529,
+      "green_access": 148.171,
+      "population": 60405.75,
+      "centre_m2_per_person": 19.544,
+      "green_m2_per_person": 303.285,
+      "built_cells": 9237.0
      },
      "settings": {
       "crs": "EPSG:32736",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 60000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 800.0,
       "green_walk_m": 400,
@@ -1249,21 +1273,20 @@
      "image": "kigali_east/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.401,
-      "centre_access": 74.997,
-      "green_access": 102.661,
-      "population": 60290.325,
-      "centre_m2_per_person": 20.018,
-      "green_m2_per_person": 303.967,
-      "built_cells": 9234.0
+      "served_coverage_incl_existing": 0.264,
+      "centre_access": 193.257,
+      "green_access": 125.782,
+      "population": 59713.2,
+      "centre_m2_per_person": 13.327,
+      "green_m2_per_person": 307.413,
+      "built_cells": 9219.0
      },
      "settings": {
       "crs": "EPSG:32736",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 60000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1600.0,
       "green_walk_m": 400,
@@ -1289,10 +1312,10 @@
     },
     {
      "id": "compact",
-     "label": "Compact (dispersal off)",
-     "note": "No leapfrogging: one contiguous settlement.",
+     "label": "Attached growth only",
+     "note": "Every earned centre must join existing development: one contiguous settlement.",
      "overrides": {
-      "dispersal": "off"
+      "allow_detached": false
      },
      "image": "kigali_east/compact.png",
      "metrics": {
@@ -1310,8 +1333,7 @@
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 60000,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1336,36 +1358,35 @@
      "params_file": "kigali_east/compact_params.json"
     },
     {
-     "id": "dispersed",
-     "label": "Dispersed (aggressive)",
-     "note": "Satellites leapfrog readily across the window.",
+     "id": "viability4000",
+     "label": "Larger centres (4,000 people)",
+     "note": "A centre must gather 4,000 people before the next is earned, so the same target arrives as fewer, larger settlements.",
      "overrides": {
-      "dispersal": "aggressive"
+      "min_settlement_pop": 4000.0
      },
-     "image": "kigali_east/dispersed.png",
+     "image": "kigali_east/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.355,
-      "centre_access": 56.872,
-      "green_access": 77.132,
-      "population": 62945.1,
-      "centre_m2_per_person": 19.978,
-      "green_m2_per_person": 288.927,
-      "built_cells": 9303.0
+      "served_coverage_incl_existing": 0.225,
+      "centre_access": 261.361,
+      "green_access": 150.265,
+      "population": 55942.65,
+      "centre_m2_per_person": 8.905,
+      "green_m2_per_person": 331.68,
+      "built_cells": 9121.0
      },
      "settings": {
       "crs": "EPSG:32736",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 60000,
-      "build_prob": 0.25,
-      "dispersal": "aggressive",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_pop": 2000,
+      "min_settlement_pop": 4000.0,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -1379,9 +1400,9 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "kigali_east_dispersed"
+      "name": "kigali_east_viability4000"
      },
-     "params_file": "kigali_east/dispersed_params.json"
+     "params_file": "kigali_east/viability4000_params.json"
     },
     {
      "id": "denser",
@@ -1397,21 +1418,20 @@
      "image": "kigali_east/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.34,
-      "centre_access": 52.013,
-      "green_access": 94.12,
-      "population": 59073.3,
-      "centre_m2_per_person": 19.711,
-      "green_m2_per_person": 324.729,
-      "built_cells": 8811.0
+      "served_coverage_incl_existing": 0.283,
+      "centre_access": 141.373,
+      "green_access": 115.547,
+      "population": 60260.962,
+      "centre_m2_per_person": 13.677,
+      "green_m2_per_person": 317.556,
+      "built_cells": 8834.0
      },
      "settings": {
       "crs": "EPSG:32736",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 60000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1445,21 +1465,20 @@
      "image": "kigali_east/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.366,
-      "centre_access": 84.513,
-      "green_access": 103.209,
-      "population": 58789.8,
-      "centre_m2_per_person": 19.978,
-      "green_m2_per_person": 313.068,
-      "built_cells": 9195.0
+      "served_coverage_incl_existing": 0.23,
+      "centre_access": 191.929,
+      "green_access": 127.818,
+      "population": 60097.95,
+      "centre_m2_per_person": 13.343,
+      "green_m2_per_person": 305.108,
+      "built_cells": 9229.0
      },
      "settings": {
       "crs": "EPSG:32736",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 60000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1482,6 +1501,54 @@
       "name": "kigali_east_fewest"
      },
      "params_file": "kigali_east/fewest_params.json"
+    },
+    {
+     "id": "corridor",
+     "label": "Transit corridor preference",
+     "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
+     "overrides": {
+      "corridor_weight": 0.95
+     },
+     "image": "kigali_east/corridor.png",
+     "metrics": {
+      "served_coverage": 1.0,
+      "served_coverage_incl_existing": 0.179,
+      "centre_access": 79.655,
+      "green_access": 101.412,
+      "population": 32280.525,
+      "centre_m2_per_person": 19.949,
+      "green_m2_per_person": 613.575,
+      "built_cells": 8503.0
+     },
+     "settings": {
+      "crs": "EPSG:32736",
+      "grid_size_m": 25,
+      "max_iterations": 400,
+      "target_population": 60000,
+      "allow_detached": true,
+      "random_seed": 42,
+      "centre_walk_m": 1200,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 2000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 35000,
+       "medium": 20000,
+       "low": 10000
+      },
+      "shares": {
+       "high": 0.2,
+       "medium": 0.4,
+       "low": 0.4
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "corridor_weight": 0.95,
+      "name": "kigali_east_corridor"
+     },
+     "params_file": "kigali_east/corridor_params.json"
     }
    ]
   },
@@ -1511,22 +1578,21 @@
      "overrides": {},
      "image": "london_crews_hill/baseline.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.797,
-      "centre_access": 164.611,
-      "green_access": 74.834,
-      "population": 9299.88,
-      "centre_m2_per_person": 16.452,
-      "green_m2_per_person": 374.327,
-      "built_cells": 2909.0
+      "served_coverage": 0.999,
+      "served_coverage_incl_existing": 0.8,
+      "centre_access": 167.88,
+      "green_access": 81.265,
+      "population": 9954.0,
+      "centre_m2_per_person": 15.461,
+      "green_m2_per_person": 345.66,
+      "built_cells": 2954.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 25,
       "max_iterations": 300,
       "target_population": 13000,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1559,22 +1625,21 @@
      },
      "image": "london_crews_hill/walk800.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.717,
-      "centre_access": 154.134,
-      "green_access": 81.078,
-      "population": 9740.7,
-      "centre_m2_per_person": 15.707,
-      "green_m2_per_person": 348.332,
-      "built_cells": 2940.0
+      "served_coverage": 0.998,
+      "served_coverage_incl_existing": 0.704,
+      "centre_access": 149.927,
+      "green_access": 72.707,
+      "population": 7906.32,
+      "centre_m2_per_person": 18.213,
+      "green_m2_per_person": 443.949,
+      "built_cells": 2810.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 25,
       "max_iterations": 300,
       "target_population": 13000,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 800.0,
       "green_walk_m": 400,
@@ -1607,22 +1672,21 @@
      },
      "image": "london_crews_hill/walk1600.png",
      "metrics": {
-      "served_coverage": 1.0,
+      "served_coverage": 0.999,
       "served_coverage_incl_existing": 0.86,
-      "centre_access": 167.638,
-      "green_access": 80.231,
-      "population": 9911.34,
-      "centre_m2_per_person": 15.437,
-      "green_m2_per_person": 348.691,
-      "built_cells": 2952.0
+      "centre_access": 167.88,
+      "green_access": 81.265,
+      "population": 9954.0,
+      "centre_m2_per_person": 15.461,
+      "green_m2_per_person": 347.016,
+      "built_cells": 2954.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 25,
       "max_iterations": 300,
       "target_population": 13000,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1600.0,
       "green_walk_m": 400,
@@ -1647,30 +1711,29 @@
      "params_file": "london_crews_hill/walk1600_params.json"
     },
     {
-     "id": "moderate",
-     "label": "Moderate dispersal",
-     "note": "Some leapfrogging allowed (the baseline is compact).",
+     "id": "detached",
+     "label": "Detached settlements allowed",
+     "note": "An earned centre may start away from existing development (the baseline keeps growth attached).",
      "overrides": {
-      "dispersal": "moderate"
+      "allow_detached": true
      },
-     "image": "london_crews_hill/moderate.png",
+     "image": "london_crews_hill/detached.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.819,
-      "centre_access": 304.463,
-      "green_access": 64.44,
-      "population": 13039.74,
-      "centre_m2_per_person": 13.942,
-      "green_m2_per_person": 248.816,
-      "built_cells": 3172.0
+      "served_coverage": 0.999,
+      "served_coverage_incl_existing": 0.803,
+      "centre_access": 232.186,
+      "green_access": 92.319,
+      "population": 10480.14,
+      "centre_m2_per_person": 13.826,
+      "green_m2_per_person": 325.129,
+      "built_cells": 2991.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 25,
       "max_iterations": 300,
       "target_population": 13000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1690,41 +1753,40 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "london_crews_hill_moderate"
+      "name": "london_crews_hill_detached"
      },
-     "params_file": "london_crews_hill/moderate_params.json"
+     "params_file": "london_crews_hill/detached_params.json"
     },
     {
-     "id": "dispersed",
-     "label": "Dispersed (aggressive)",
-     "note": "Satellites leapfrog readily across the window.",
+     "id": "viability4000",
+     "label": "Larger centres (4,000 people)",
+     "note": "A centre must gather 4,000 people before the next is earned, so the same target arrives as fewer, larger settlements.",
      "overrides": {
-      "dispersal": "aggressive"
+      "min_settlement_pop": 4000.0
      },
-     "image": "london_crews_hill/dispersed.png",
+     "image": "london_crews_hill/viability4000.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.803,
-      "centre_access": 131.919,
-      "green_access": 46.479,
-      "population": 9626.94,
-      "centre_m2_per_person": 16.547,
-      "green_m2_per_person": 359.46,
-      "built_cells": 2932.0
+      "served_coverage": 0.999,
+      "served_coverage_incl_existing": 0.8,
+      "centre_access": 167.88,
+      "green_access": 81.265,
+      "population": 9954.0,
+      "centre_m2_per_person": 15.461,
+      "green_m2_per_person": 305.967,
+      "built_cells": 2954.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 25,
       "max_iterations": 300,
       "target_population": 13000,
-      "build_prob": 0.25,
-      "dispersal": "aggressive",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_pop": 2000,
+      "min_settlement_pop": 4000.0,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 26000,
@@ -1738,9 +1800,9 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "london_crews_hill_dispersed"
+      "name": "london_crews_hill_viability4000"
      },
-     "params_file": "london_crews_hill/dispersed_params.json"
+     "params_file": "london_crews_hill/viability4000_params.json"
     },
     {
      "id": "denser",
@@ -1755,22 +1817,21 @@
      },
      "image": "london_crews_hill/denser.png",
      "metrics": {
-      "served_coverage": 1.0,
+      "served_coverage": 0.999,
       "served_coverage_incl_existing": 0.8,
-      "centre_access": 163.598,
-      "green_access": 80.272,
+      "centre_access": 162.007,
+      "green_access": 81.321,
       "population": 12334.095,
-      "centre_m2_per_person": 13.645,
-      "green_m2_per_person": 306.395,
-      "built_cells": 2955.0
+      "centre_m2_per_person": 13.718,
+      "green_m2_per_person": 306.468,
+      "built_cells": 2954.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 25,
       "max_iterations": 300,
       "target_population": 13000,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1803,22 +1864,21 @@
      },
      "image": "london_crews_hill/fewest.png",
      "metrics": {
-      "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.797,
-      "centre_access": 164.611,
-      "green_access": 74.834,
-      "population": 9299.88,
-      "centre_m2_per_person": 16.452,
-      "green_m2_per_person": 374.327,
-      "built_cells": 2909.0
+      "served_coverage": 0.999,
+      "served_coverage_incl_existing": 0.8,
+      "centre_access": 167.88,
+      "green_access": 81.265,
+      "population": 9954.0,
+      "centre_m2_per_person": 15.461,
+      "green_m2_per_person": 345.66,
+      "built_cells": 2954.0
      },
      "settings": {
       "crs": "EPSG:27700",
       "grid_size_m": 25,
       "max_iterations": 300,
       "target_population": 13000,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1841,6 +1901,54 @@
       "name": "london_crews_hill_fewest"
      },
      "params_file": "london_crews_hill/fewest_params.json"
+    },
+    {
+     "id": "corridor",
+     "label": "Transit corridor preference",
+     "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
+     "overrides": {
+      "corridor_weight": 0.95
+     },
+     "image": "london_crews_hill/corridor.png",
+     "metrics": {
+      "served_coverage": 0.995,
+      "served_coverage_incl_existing": 0.761,
+      "centre_access": 788.085,
+      "green_access": 64.549,
+      "population": 3000.42,
+      "centre_m2_per_person": 0.3,
+      "green_m2_per_person": 1293.419,
+      "built_cells": 2465.0
+     },
+     "settings": {
+      "crs": "EPSG:27700",
+      "grid_size_m": 25,
+      "max_iterations": 300,
+      "target_population": 13000,
+      "allow_detached": false,
+      "random_seed": 42,
+      "centre_walk_m": 1200,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 2000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 26000,
+       "medium": 15500,
+       "low": 9500
+      },
+      "shares": {
+       "high": 0.2,
+       "medium": 0.5,
+       "low": 0.3
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "corridor_weight": 0.95,
+      "name": "london_crews_hill_corridor"
+     },
+     "params_file": "london_crews_hill/corridor_params.json"
     }
    ]
   },
@@ -1871,21 +1979,20 @@
      "image": "medellin_pajarito/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.742,
-      "centre_access": 65.313,
-      "green_access": 92.065,
-      "population": 37039.275,
-      "centre_m2_per_person": 19.682,
-      "green_m2_per_person": 180.526,
-      "built_cells": 1775.0
+      "served_coverage_incl_existing": 0.74,
+      "centre_access": 90.472,
+      "green_access": 100.623,
+      "population": 36225.225,
+      "centre_m2_per_person": 19.789,
+      "green_m2_per_person": 185.477,
+      "built_cells": 1759.0
      },
      "settings": {
       "crs": "EPSG:32618",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 40000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -1919,21 +2026,20 @@
      "image": "medellin_pajarito/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.676,
-      "centre_access": 60.55,
-      "green_access": 95.264,
-      "population": 34922.745,
-      "centre_m2_per_person": 19.773,
-      "green_m2_per_person": 189.263,
-      "built_cells": 1727.0
+      "served_coverage_incl_existing": 0.612,
+      "centre_access": 69.358,
+      "green_access": 105.756,
+      "population": 23485.342,
+      "centre_m2_per_person": 19.487,
+      "green_m2_per_person": 306.009,
+      "built_cells": 1442.0
      },
      "settings": {
       "crs": "EPSG:32618",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 40000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 800.0,
       "green_walk_m": 400,
@@ -1967,21 +2073,20 @@
      "image": "medellin_pajarito/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.792,
-      "centre_access": 58.901,
-      "green_access": 95.76,
-      "population": 39318.615,
-      "centre_m2_per_person": 19.777,
-      "green_m2_per_person": 168.67,
-      "built_cells": 1835.0
+      "served_coverage_incl_existing": 0.783,
+      "centre_access": 90.472,
+      "green_access": 100.623,
+      "population": 36225.225,
+      "centre_m2_per_person": 19.789,
+      "green_m2_per_person": 187.322,
+      "built_cells": 1759.0
      },
      "settings": {
       "crs": "EPSG:32618",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 40000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1600.0,
       "green_walk_m": 400,
@@ -2007,10 +2112,10 @@
     },
     {
      "id": "compact",
-     "label": "Compact (dispersal off)",
-     "note": "No leapfrogging: one contiguous settlement.",
+     "label": "Attached growth only",
+     "note": "Every earned centre must join existing development: one contiguous settlement.",
      "overrides": {
-      "dispersal": "off"
+      "allow_detached": false
      },
      "image": "medellin_pajarito/compact.png",
      "metrics": {
@@ -2028,8 +2133,7 @@
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 40000,
-      "build_prob": 0.25,
-      "dispersal": "off",
+      "allow_detached": false,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -2054,36 +2158,35 @@
      "params_file": "medellin_pajarito/compact_params.json"
     },
     {
-     "id": "dispersed",
-     "label": "Dispersed (aggressive)",
-     "note": "Satellites leapfrog readily across the window.",
+     "id": "viability4000",
+     "label": "Larger centres (4,000 people)",
+     "note": "A centre must gather 4,000 people before the next is earned, so the same target arrives as fewer, larger settlements.",
      "overrides": {
-      "dispersal": "aggressive"
+      "min_settlement_pop": 4000.0
      },
-     "image": "medellin_pajarito/dispersed.png",
+     "image": "medellin_pajarito/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.751,
-      "centre_access": 47.179,
-      "green_access": 73.721,
-      "population": 38097.54,
-      "centre_m2_per_person": 19.72,
-      "green_m2_per_person": 173.917,
-      "built_cells": 1805.0
+      "served_coverage_incl_existing": 0.728,
+      "centre_access": 110.999,
+      "green_access": 106.457,
+      "population": 33253.942,
+      "centre_m2_per_person": 18.451,
+      "green_m2_per_person": 166.792,
+      "built_cells": 1682.0
      },
      "settings": {
       "crs": "EPSG:32618",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 40000,
-      "build_prob": 0.25,
-      "dispersal": "aggressive",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
       "optimise_centres": true,
       "centre_m2_per_person": 20,
-      "min_settlement_pop": 2000,
+      "min_settlement_pop": 4000.0,
       "min_green_span_m": 400,
       "densities_km2": {
        "high": 35000,
@@ -2097,9 +2200,9 @@
       },
       "ensemble": true,
       "ensemble_runs": 50,
-      "name": "medellin_pajarito_dispersed"
+      "name": "medellin_pajarito_viability4000"
      },
-     "params_file": "medellin_pajarito/dispersed_params.json"
+     "params_file": "medellin_pajarito/viability4000_params.json"
     },
     {
      "id": "denser",
@@ -2115,21 +2218,20 @@
      "image": "medellin_pajarito/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.723,
-      "centre_access": 86.731,
-      "green_access": 82.955,
-      "population": 37209.375,
-      "centre_m2_per_person": 18.776,
-      "green_m2_per_person": 197.986,
-      "built_cells": 1619.0
+      "served_coverage_incl_existing": 0.726,
+      "centre_access": 86.725,
+      "green_access": 98.211,
+      "population": 39690.0,
+      "centre_m2_per_person": 18.265,
+      "green_m2_per_person": 183.061,
+      "built_cells": 1669.0
      },
      "settings": {
       "crs": "EPSG:32618",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 40000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -2163,21 +2265,20 @@
      "image": "medellin_pajarito/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.742,
-      "centre_access": 70.869,
-      "green_access": 92.119,
-      "population": 36957.87,
-      "centre_m2_per_person": 19.725,
-      "green_m2_per_person": 180.924,
-      "built_cells": 1775.0
+      "served_coverage_incl_existing": 0.74,
+      "centre_access": 90.472,
+      "green_access": 100.623,
+      "population": 36225.225,
+      "centre_m2_per_person": 19.789,
+      "green_m2_per_person": 185.477,
+      "built_cells": 1759.0
      },
      "settings": {
       "crs": "EPSG:32618",
       "grid_size_m": 25,
       "max_iterations": 400,
       "target_population": 40000,
-      "build_prob": 0.25,
-      "dispersal": "moderate",
+      "allow_detached": true,
       "random_seed": 42,
       "centre_walk_m": 1200,
       "green_walk_m": 400,
@@ -2200,6 +2301,54 @@
       "name": "medellin_pajarito_fewest"
      },
      "params_file": "medellin_pajarito/fewest_params.json"
+    },
+    {
+     "id": "corridor",
+     "label": "Transit corridor preference",
+     "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
+     "overrides": {
+      "corridor_weight": 0.95
+     },
+     "image": "medellin_pajarito/corridor.png",
+     "metrics": {
+      "served_coverage": 1.0,
+      "served_coverage_incl_existing": 0.629,
+      "centre_access": 88.166,
+      "green_access": 88.098,
+      "population": 14897.115,
+      "centre_m2_per_person": 17.535,
+      "green_m2_per_person": 522.524,
+      "built_cells": 1233.0
+     },
+     "settings": {
+      "crs": "EPSG:32618",
+      "grid_size_m": 25,
+      "max_iterations": 400,
+      "target_population": 40000,
+      "allow_detached": true,
+      "random_seed": 42,
+      "centre_walk_m": 1200,
+      "green_walk_m": 400,
+      "optimise_centres": true,
+      "centre_m2_per_person": 20,
+      "min_settlement_pop": 2000,
+      "min_green_span_m": 400,
+      "densities_km2": {
+       "high": 35000,
+       "medium": 18000,
+       "low": 8000
+      },
+      "shares": {
+       "high": 0.3,
+       "medium": 0.4,
+       "low": 0.3
+      },
+      "ensemble": true,
+      "ensemble_runs": 50,
+      "corridor_weight": 0.95,
+      "name": "medellin_pajarito_corridor"
+     },
+     "params_file": "medellin_pajarito/corridor_params.json"
     }
    ]
   }

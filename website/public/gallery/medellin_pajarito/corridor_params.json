@@ -1,0 +1,30 @@
+{
+  "crs": "EPSG:32618",
+  "grid_size_m": 25,
+  "max_iterations": 400,
+  "target_population": 40000,
+  "allow_detached": true,
+  "random_seed": 42,
+  "centre_walk_m": 1200,
+  "green_walk_m": 400,
+  "optimise_centres": true,
+  "centre_m2_per_person": 20,
+  "min_settlement_pop": 2000,
+  "min_green_span_m": 400,
+  "densities_km2": {
+    "high": 35000,
+    "medium": 18000,
+    "low": 8000
+  },
+  "shares": {
+    "high": 0.3,
+    "medium": 0.4,
+    "low": 0.3
+  },
+  "ensemble": true,
+  "ensemble_runs": 50,
+  "corridor_weight": 0.95,
+  "schema": "isobenefit-params/1",
+  "name": "medellin_pajarito_corridor",
+  "notes": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it."
+}

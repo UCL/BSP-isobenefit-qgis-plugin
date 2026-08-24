@@ -82,10 +82,13 @@ def presets_for(name: str, params: dict, has_stops: bool = False) -> list[dict]:
         {"id": "walk1600", "label": "Longer centre walk (1,600 m)",
          "note": "Centres serve a 1,600 m walk; growth reaches much further from each centre.",
          "overrides": {"centre_walk_m": 1600.0}},
-        {"id": "compact", "label": "Compact (dispersal off)",
-         "note": "No leapfrogging: one contiguous settlement.", "overrides": {"dispersal": "off"}},
-        {"id": "dispersed", "label": "Dispersed (aggressive)",
-         "note": "Satellites leapfrog readily across the window.", "overrides": {"dispersal": "aggressive"}},
+        {"id": "compact", "label": "Attached growth only",
+         "note": "Every earned centre must join existing development: one contiguous settlement.",
+         "overrides": {"allow_detached": False}},
+        {"id": "viability4000", "label": "Larger centres (4,000 people)",
+         "note": "A centre must gather 4,000 people before the next is earned, so the same "
+                 "target arrives as fewer, larger settlements.",
+         "overrides": {"min_settlement_pop": 4000.0}},
         {"id": "denser", "label": "Denser mix",
          "note": "Shares shifted one step toward the high tier; the same target houses on less land.",
          "overrides": {"shares": {"high": 0.5, "medium": 0.3, "low": 0.2}}},
@@ -94,12 +97,13 @@ def presets_for(name: str, params: dict, has_stops: bool = False) -> list[dict]:
                  "within the centre walk.",
          "overrides": {"centre_mode": "minimal"}},
     ]
-    if params.get("dispersal") == "off":  # baseline already compact: swap that preset for moderate
+    if params.get("allow_detached") is False:  # baseline already attached: show the converse
         for p in base:
             if p["id"] == "compact":
-                p.update(id="moderate", label="Moderate dispersal",
-                         note="Some leapfrogging allowed (the baseline is compact).",
-                         overrides={"dispersal": "moderate"})
+                p.update(id="detached", label="Detached settlements allowed",
+                         note="An earned centre may start away from existing development "
+                              "(the baseline keeps growth attached).",
+                         overrides={"allow_detached": True})
     if has_stops:
         base.append({"id": "corridor", "label": "Transit corridor preference",
                      "note": "Growth concentrates along transit: development draws outside the "
@@ -118,7 +122,7 @@ def load_scenario(folder: str):
         params = json.load(fh)
     layers = {}
     for name in ("built", "green", "unbuildable", "centres", "streets", "water", "stops",
-                 "proposed_corridor", "proposed_station"):
+                 "stations", "proposed_corridor", "proposed_station"):
         path = os.path.join(folder, f"{name}.geojson")
         if os.path.exists(path):
             with open(path, encoding="utf-8") as fh:
@@ -207,6 +211,15 @@ def substrate(extent, layers, gran):
                 c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
                 if 0 <= r < rows and 0 <= c < cols and inside[r, c] and state[r, c] != -1:
                     corridor.append((r, c))
+    # rail and tram stations: pinned centre anchors in every run, exactly as the plugin
+    # treats the stations layer (a station seeds a centre and post-processing pins it)
+    stations = []
+    for geom in layers.get("stations", []):
+        p = geom if geom.geom_type == "Point" else geom.representative_point()
+        c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
+        if 0 <= r < rows and 0 <= c < cols and inside[r, c]:
+            stations.append((r, c))
+    stations, _, _ = G.sanitise_seeds(sorted(set(stations)), state, gran, 2 * gran)
     # a proposed transit hub (a hand-drawn point): a pinned centre anchor under the
     # transit presets, exactly as the plugin treats a point in the hubs layer
     hubs = []
@@ -219,7 +232,8 @@ def substrate(extent, layers, gran):
     return {"state": state, "origin": origin, "seeds": sorted(set(seeds)), "gt": gt,
             "rows": rows, "cols": cols, "extent": extent, "inside": inside_mask,
             "steep": steep & ~built, "water": water & ~built, "stops": stops,
-            "corridor": sorted(set(corridor)), "proposed_hubs": hubs}
+            "corridor": sorted(set(corridor)), "proposed_hubs": hubs,
+            "stations": stations}
 
 
 def _rgb(hexcol):
@@ -260,7 +274,11 @@ def run_preset(sub, params, preset):
     # seeds a centre in growth, and is pinned in post-processing (the plugin's behaviour).
     corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
     catchment = None
-    hubs = list(sub.get("proposed_hubs", [])) if corridor_w > 0.0 else []
+    # rail and tram stations anchor a pinned centre in every run; a hand-drawn proposed
+    # hub joins them only when the scenario is asked to develop along transit
+    hubs = list(sub.get("stations", []))
+    if corridor_w > 0.0:
+        hubs += [h for h in sub.get("proposed_hubs", []) if h not in set(hubs)]
     corridor_cells = sub.get("stops", []) + sub.get("corridor", [])
     if corridor_w > 0.0 and (corridor_cells or hubs):
         catchment = np.zeros_like(state, bool)

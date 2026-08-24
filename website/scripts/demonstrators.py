@@ -147,13 +147,13 @@ def substrate():
             "stops": stops, "corridor": sorted(set(corridor))}
 
 
-def grow(sub, pop=12000.0, isol=0.0001, seed=11, bp=0.3, nb=0.01, iters=400, stages=(),
+def grow(sub, pop=12000.0, detached=True, seed=11, bp=0.25, quota=2000.0, iters=400, stages=(),
          transit_catchment=None, corridor_weight=0.0):
     """Step one CA run on the substrate; return (final state, final density, {iter: (state, density)}
     at ``stages``). Density is carried so growth stages can be coloured by their drawn tier."""
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
-        GRAN, WALK, GREEN_WALK, pop, GREEN_SPAN, bp, nb, isol, 0.8, TIER_PROBS, DENSITY_TIERS, iters, seed,
+        GRAN, WALK, GREEN_WALK, pop, GREEN_SPAN, bp, quota, detached, TIER_PROBS, DENSITY_TIERS, iters, seed,
         sterile=G.sterile_fabric(sub["origin"] == 1, sub["seeds"]),
         transit_catchment=transit_catchment, corridor_weight=corridor_weight,
     )
@@ -430,21 +430,21 @@ def main():
     # The ensemble's uncertainty map: many runs -> share of runs each cell ends built
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
-        GRAN, WALK, GREEN_WALK, 12000.0, GREEN_SPAN, 0.3, 0.01, 0.0001, 0.8, TIER_PROBS, DENSITY_TIERS, 400, 11,
+        GRAN, WALK, GREEN_WALK, 12000.0, GREEN_SPAN, 0.25, 2000.0, True, TIER_PROBS, DENSITY_TIERS, 400, 11,
         sterile=G.sterile_fabric(sub["origin"] == 1, sub["seeds"]),
     )
     prob = np.asarray(isobenefit.ensemble_probability(sim, 11, 24))
     render_likelihood(prob, sub, "demo_likelihood", "Development likelihood: 24 runs blended",
                       underlay=streets)
 
-    # Dispersed development on the same town: Off / Moderate / Aggressive. These panels show the RAW
-    # grown state, not the post-processed plan: pruning removes satellites below the minimum
-    # settlement size, which under Aggressive culls most of the scatter and would make the three
-    # figures read in the wrong order (Aggressive would look sparser than Off).
-    for label, isol in (("off", 0.0), ("moderate", 0.0001), ("aggressive", 0.04)):
-        st, dens, _ = grow(sub, isol=isol)
-        draw(growth_codes(sub, st, dens), f"demo_dispersal_{label}",
-             f"Dispersed development: {label.capitalize()}")
+    # Dispersed development on the same town: whether an earned centre may start away from
+    # existing fabric. These panels show the RAW grown state, not the post-processed plan.
+    for label, detached, title in (
+        ("attached", False, "Dispersed development: attached only"),
+        ("detached", True, "Dispersed development: detached settlements allowed"),
+    ):
+        st, dens, _ = grow(sub, detached=detached)
+        draw(growth_codes(sub, st, dens), f"demo_dispersal_{label}", title)
 
     # Transit-oriented growth: the same run with the corridor preference off and raised. The
     # stops and a hand-drawn proposed route project a 400 m walkable catchment; at preference
@@ -495,13 +495,12 @@ def main():
         (tiered(variants["minimal"][0]), "Fewest centres"),
     ], "demo_clustering", "Centre options", unb, water=wat)
 
-    # Build probability: cap iterations (huge pop) so the same elapsed time shows the RATE.
-    # RAW grown state, as in the dispersal panels: at 60 iterations the growth is still below the
-    # minimum settlement size, so the post-processed plan would prune it all away and show nothing.
-    for label, bp in (("slow", 0.08), ("fast", 0.6)):
-        st, dens, _ = grow(sub, isol=0.0, bp=bp, pop=1_000_000.0, iters=60)
-        draw(growth_codes(sub, st, dens), f"demo_buildprob_{label}",
-             f"Build probability: {label.capitalize()} ({bp})")
+    # Service viability threshold: the population a centre gathers before the next is earned, and
+    # so the size of the settlements growth produces. RAW grown states, as in the dispersal panels.
+    for label, quota in (("small", 1000.0), ("large", 4000.0)):
+        st, dens, _ = grow(sub, quota=quota)
+        draw(growth_codes(sub, st, dens), f"demo_viability_{label}",
+             f"Service viability: {quota:,.0f} people per centre")
 
 
 if __name__ == "__main__":

@@ -113,7 +113,11 @@ def run_preset(sub, params, overrides, runs=50):
     catchment_m = float(p.get("stop_catchment_m", 400.0))
     hub_catchment_m = float(p.get("hub_catchment_m", 1200.0))
     corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
-    hubs = list(sub.get("proposed_hubs", [])) if corridor_w > 0.0 else []
+    # rail and tram stations anchor a pinned centre in every run; a hand-drawn proposed
+    # hub joins them only when the scenario is asked to develop along transit
+    hubs = list(sub.get("stations", []))
+    if corridor_w > 0.0:
+        hubs += [h for h in sub.get("proposed_hubs", []) if h not in set(hubs)]
     corridor_cells = list(sub.get("stops", []))
     if corridor_w > 0.0:
         corridor_cells += list(sub.get("corridor", []))
@@ -216,7 +220,9 @@ def main():
             disp, keep = run_preset(sub, dict(params), overrides)
             results[name][preset_id] = keep
             path = os.path.join(OUT, f"{name}_{preset_id}.png")
-            _gallery.render_png(disp, layers, sub, gran, path)
+            # a scenario with stations marks them, so a reader can see where the pinned
+            # centres come from (Crews Hill's release is organised around its station)
+            _gallery.render_png(disp, layers, sub, gran, path, hubs=sub.get("stations") or None)
             if (name, preset_id) in PAPER_PANELS:
                 import shutil
 
@@ -225,7 +231,7 @@ def main():
                 _gallery.render_png(
                     disp, layers, sub, gran,
                     os.path.join(FIGS, TRANSIT_PANELS[(name, preset_id)]), stops=sub["stops"],
-                    hubs=sub.get("proposed_hubs"),
+                    hubs=(sub.get("stations", []) + sub.get("proposed_hubs", [])) or None,
                 )
             print(f"  {preset_id}: served {keep['served_coverage']:.0%}, "
                   f"pop {keep['population']:,.0f}, centre walk {keep['centre_walk_mean']:,.0f} m "
