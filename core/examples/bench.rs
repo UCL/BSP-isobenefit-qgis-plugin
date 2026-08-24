@@ -21,7 +21,6 @@ fn make_sim(rows: usize, cols: usize, seed: u64) -> Simulation {
         0.25,        // build_prob
         0.05,        // cent_prob_nb
         0.0,         // cent_prob_isol
-        0.8,         // pop_target_cent_threshold
         (0.4, 0.4, 0.2),
         (6000.0, 3000.0, 1000.0),
         None, // min_park_area_m2 -> the 2 ha default

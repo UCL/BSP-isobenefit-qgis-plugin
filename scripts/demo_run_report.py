@@ -69,7 +69,7 @@ def main():
         gran, walk, green_walk, target,
         float(params.get("min_green_span_m", 400.0)), float(params.get("build_prob", 0.25)),
         0.01, _gallery.DISPERSAL.get(str(params.get("dispersal", "moderate")), 0.0001),
-        0.8, shares, tiers, int(params.get("max_iterations", 300)), seed,
+        shares, tiers, int(params.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
     )

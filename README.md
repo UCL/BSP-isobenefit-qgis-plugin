@@ -64,7 +64,7 @@ If the automatic install is not available or not working on your system, the dia
 shows the exact command to run yourself, which is simply:
 
 ```bash
-<qgis-python> -m pip install "isobenefit>=0.12.18,<0.13"
+<qgis-python> -m pip install "isobenefit>=0.14.0,<0.15"
 ```
 
 ## Usage

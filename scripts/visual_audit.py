@@ -398,7 +398,7 @@ def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
     seeds = [(40, 40)]  # one centre seed so the core has centre access and growth can start
     sim = isobenefit.Simulation(
         state, origin, density, seeds, GRAN, MAX_DIST, GREEN_DIST, 20000.0, MIN_GREEN_SPAN,
-        build_prob, 0.0, cent_prob_isol, 0.8,
+        build_prob, 0.0, cent_prob_isol,
         (0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0), 200, seed,  # density factors descending
     )
     st = np.asarray(isobenefit.run_ensemble(sim, seed, 1)[0])

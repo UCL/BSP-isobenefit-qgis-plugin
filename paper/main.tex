@@ -285,8 +285,7 @@ beyond the centre walk of every existing and grown centre, the
 settlement has outgrown its centres, and that cell may become a new
 centre and seed development around it. The conversion is a random
 draw at the seeding probability, limited to one new centre per
-iteration, and seeding stops once the run reaches 80\% of the
-population target. Separately, a dispersal probability allows
+iteration. Separately, a dispersal probability allows
 leapfrogging: by a per-cell draw, a new centre may seed on open land
 away from existing development and begin a satellite settlement.
 Setting the probability to zero disables leapfrogging.
@@ -480,8 +479,8 @@ Unchanged \\
 \addlinespace[2pt]
 New centralities seed near under-served built land at a set
 probability &
-Same trigger; at most one new centre per iteration, and seeding
-stops at 80\% of the population target &
+Same trigger; at most one new centre per iteration, and a centre
+that fails the viability threshold is removed in post-processing &
 Modified \\
 \addlinespace[2pt]
 Isolated centralities seed on open land at a set probability scaled
@@ -627,21 +626,27 @@ the transit demonstration, a proposed
 corridor and hub. Figure~\ref{fig:cambourne}
 shows the selected plan under the
 baseline and 1{,}600~m centre walks. At the baseline 1{,}200~m
-walk, the plan accommodates 4{,}546 of the 15{,}000 target,
-and new homes average a 264~m walk to a centre and 92~m to green
+walk, the plan accommodates 3{,}399 of the 15{,}000 target,
+and new homes average a 401~m walk to a centre and 94~m to green
 space. At 1{,}600~m the wider catchments gather more new homes
 toward the threshold, and the sweep of
 Table~\ref{tab:sweep} quantifies the response.
 
 Table~\ref{tab:fouroutputs} reproduces the Cambourne scenario's run
 report, which records the four outputs. The raw grown
-state approaches the target (14{,}592 of 15{,}000), but much of
+state reaches the target (15{,}682 of 15{,}000), but most of
 that growth lies in dispersed pockets that hold too few new homes
 to meet the 2{,}000-person threshold. Pruning removes them, they
-revert to nature, and the plan options retain 30\% of the target.
-The three plan options coincide in this case: each keeps 23 centre
-areas and the same population, and their mean centre walks agree
-within 1~m.
+revert to nature, and the plan options retain 23\% of the target.
+What survives is infill against the existing settlements, which
+the existing centres already serve, so the optimised placement
+adds no new centre of its own; its mean centre walk of 401~m is
+the walk to those existing centres, longer than the 305~m of the
+as-grown option, which keeps two grown centres nearer the new
+homes. This window at this target is therefore a case in which
+the plan options add little: the reading lies between the raw
+grown state and the plans, and the transit run below shows the
+same window developing a settlement of its own.
 
 A final run turns the transit settings on, which the preceding runs
 left at their defaults. We draw a proposed bus
@@ -652,18 +657,20 @@ The corridor preference is 0.95 and every other setting stays at the
 baseline. Growth and its satellite settlements string along the route
 instead of spreading across the window (Figure~\ref{fig:corridor}),
 and the share of new homes within the transit catchments rises from
-16\% to 78\%. The hub lies just beyond the centre walk of the
+27\% to 78\%. The hub lies just beyond the centre walk of the
 existing centres, so its catchment holds land they do not serve, and a new
 settlement gathers around its pinned centre at the junction. The
-population accommodated rises from 4{,}546 to 12{,}155: draws
+population accommodated rises from 3{,}399 to 12{,}262: draws
 outside the catchments run at a twentieth of their probability, so
 the growth that the baseline scatters into sub-threshold pockets
 gathers instead into fewer and larger settlements along the route,
-and these meet the threshold and survive pruning. The mean walks
-change little (304~m against 264~m to a centre, 113~m against 92~m
-to green space), and every home keeps both walks. In this window the
-corridor preference aligns growth with transit and raises the
-population the plan retains.
+and these meet the threshold and survive pruning. Because that
+growth earns centres of its own, the mean centre walk falls from
+401 to 287~m, while the walk to green space rises from 94 to
+112~m as the settlements grow denser around the route. Every home
+keeps both walks. In this window the corridor preference aligns
+growth with transit, and the concentration it produces is what
+makes the new settlements viable.
 
 \begin{table}[t]
 \centering
@@ -676,14 +683,14 @@ measured over new homes.}
 \toprule
 Metric & Raw & As grown & Optimised placement & Fewest centres \\
 \midrule
-Population accommodated & 14{,}592 & 4{,}546 & 4{,}546 & 4{,}546 \\
-Share of target & 97\% & 30\% & 30\% & 30\% \\
-Built cells (incl.\ existing) & 3{,}789 & 2{,}379 & 2{,}379 & 2{,}379 \\
-Mixed-use centre areas & 51 & 23 & 23 & 23 \\
-Mean walk to a centre (m) & 231 & 265 & 264 & 264 \\
-Mean walk to green space (m) & 91 & 92 & 92 & 92 \\
-Centre \sqm{} per person & 5 & 9 & 10 & 10 \\
-Green \sqm{} per person & 3{,}790 & 12{,}943 & 12{,}943 & 12{,}943 \\
+Population accommodated & 15{,}682 & 3{,}399 & 3{,}399 & 3{,}399 \\
+Share of target & 105\% & 23\% & 23\% & 23\% \\
+Built cells (incl.\ existing) & 3{,}942 & 2{,}218 & 2{,}218 & 2{,}218 \\
+Mixed-use centre areas & 54 & 22 & 20 & 20 \\
+Mean walk to a centre (m) & 232 & 305 & 401 & 401 \\
+Mean walk to green space (m) & 92 & 94 & 94 & 94 \\
+Centre \sqm{} per person & 5 & 7 & 0 & 0 \\
+Green \sqm{} per person & 3{,}503 & 17{,}430 & 17{,}430 & 17{,}430 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -726,14 +733,14 @@ the site boundary and the allocation's scale. Whether the release
 should proceed is a question for the plan's examination and its
 public consultation.
 
-Under the baseline settings the plan reaches 10{,}428 of the 13{,}000
+Under the baseline settings the plan reaches 10{,}418 of the 13{,}000
 target, and new homes
-average a 145~m walk to a centre and 140~m to green space.
+average a 144~m walk to a centre and 140~m to green space.
 Figure~\ref{fig:crewshill} varies the shares on the fixed boundary.
 The growth rules bound the reachable extent of the release, and every
 setting builds on close to the same
 4{,}300 cells, so the shares alone set the population. Shares of
-0.5 / 0.3 / 0.2 (high / medium / low) reach 12{,}952, near the
+0.5 / 0.3 / 0.2 (high / medium / low) reach 12{,}964, near the
 target, and shares of 0.1 / 0.3 / 0.6 house 8{,}539. The
 station's hub centre is pinned against the rail line, and the
 new development forms around the station.
@@ -747,7 +754,7 @@ new development forms around the station.
 dispersal off, at shares of 0.1 / 0.3 / 0.6 (high / medium / low)
 (left) and 0.5 / 0.3 / 0.2 (right). The two settings
 build on nearly the same land, while the populations they house
-are 8{,}539 and 12{,}952. The station's hub centre is pinned against the
+are 8{,}539 and 12{,}964. The station's hub centre is pinned against the
 rail line in both settings. Full scenario resolution, seed 42.}
 \label{fig:crewshill}
 \end{figure}
@@ -763,12 +770,12 @@ km\(^2\)) reflects the area's housing towers. The scenario is a
 hypothetical demonstration on the district's terrain and carries no
 recommendation for its future development.
 
-At the baseline walk the plan accommodates about 33{,}600 of the 40{,}000
-target with a 51~m mean
+At the baseline walk the plan accommodates about 33{,}400 of the 40{,}000
+target with a 49~m mean
 centre walk for new homes; the steep slopes fragment the buildable
 land into detached benches of gentler ground. Figure~\ref{fig:medellin} varies
 dispersal. Aggressive dispersal matches the moderate baseline
-(33{,}630 against 33{,}617 people), while turning dispersal off
+(33{,}630 against 33{,}404 people), while turning dispersal off
 collapses the plan to 2{,}651, because dispersal seeding is the only
 mechanism that reaches the benches. The satellites it seeds meet
 the threshold by gathering new homes across the intervening green
@@ -796,14 +803,14 @@ three cases. The centre walk sets the size of a centre's catchment,
 and a wider catchment gathers more new homes toward the threshold.
 The walk therefore also governs which centres are viable. Cambourne, where
 viability limits the baseline plan, responds most, with the
-population accommodated rising from 2{,}900 at 800~m to 4{,}500
-at 1{,}200~m and 10{,}500 at 1{,}600~m. At Cambourne's greenfield
+population accommodated rising from 2{,}900 at 800~m to 3{,}400
+at 1{,}200~m and 10{,}600 at 1{,}600~m. At Cambourne's greenfield
 densities an 800~m catchment holds too few new homes to sustain a
 centre, so the 2{,}000-person threshold rules out many of the study
 window's detached mid-sized pockets. Crews Hill holds near
 10{,}400 at every setting, because its limit is the reachable
 extent of the release rather than the walk, and Pajarito climbs
-from 30{,}800 to 35{,}400.
+from 29{,}900 to 35{,}800.
 Table~\ref{tab:sweep} reports the mean centre walk of new homes,
 which responds less regularly, because each figure comes from one
 selected run and the centre-walk setting changes which run is
@@ -819,9 +826,9 @@ settings.}
 \toprule
 Scenario & 800~m & 1{,}200~m (baseline) & 1{,}600~m \\
 \midrule
-Cambourne & 329~m & 264~m & 235~m \\
-Crews Hill & 65~m & 145~m & 143~m \\
-Pajarito & 51~m & 51~m & 50~m \\
+Cambourne & 327~m & 401~m & 234~m \\
+Crews Hill & 65~m & 144~m & 143~m \\
+Pajarito & 52~m & 49~m & 51~m \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -851,20 +858,20 @@ railways, or rivers.
 
 \subsection{The post-processing gap}
 
-The gap between the raw grown state and the plan options (97\%
-against 30\% of target at the Cambourne baseline) is produced by
+The gap between the raw grown state and the plan options (105\%
+against 23\% of target at the Cambourne baseline) is produced by
 pruning alone. The pruned growth lies in pockets that held too few
 new homes to meet the 2{,}000-person threshold when the run
-approached its target, and a plan that kept them as free-standing
+reached its target, and a plan that kept them as free-standing
 settlements would promise centres their populations cannot sustain.
-A threshold that removes two thirds of the
+A threshold that removes three quarters of the
 grown population at the baseline walk indicates that the permitted
 walk, the dispersal setting, and the threshold interact
 strongly, so the threshold warrants per-scenario scrutiny rather
 than a single default. The Cambourne transit demonstration shows
 one response: concentrating growth along a corridor gathers it
 into settlements that meet the threshold, and the plan retains
-81\% of the target against the baseline's 30\%.
+82\% of the target against the baseline's 23\%.
 
 \section{Conclusion}
 \label{sec:conclusion}

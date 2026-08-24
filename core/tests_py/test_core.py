@@ -31,7 +31,6 @@ def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25, **kwargs) -> 
         0.6,  # build_prob
         0.1,  # cent_prob_nb
         0.0,  # cent_prob_isol
-        0.8,  # pop_target_cent_threshold
         (0.4, 0.4, 0.2),  # prob_distribution
         (6000.0, 3000.0, 1000.0),  # density_factors_km2
         total_iters,
@@ -152,7 +151,6 @@ def test_bad_prob_distribution_raises() -> None:
             0.6,
             0.1,
             0.0,
-            0.8,
             (0.5, 0.4, 0.2),  # sums to 1.1 -> invalid
             (6000.0, 3000.0, 1000.0),
             5,

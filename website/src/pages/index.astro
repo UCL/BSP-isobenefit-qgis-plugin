@@ -411,10 +411,10 @@ const dg = (name: string) => `${base}images/${name}.svg`
         and land beside a barrier may be built right up to it.
       </li>
       <li>
-        <strong>Guards on centre seeding.</strong> At most one new centre seeds per iteration; seeding stops
-        once the run reaches 80% of its population target; a candidate whose only built neighbour is not a
-        centre may not build (which suppresses one-cell tendrils); and the neighbouring-centre seeding
-        probability is fixed at 0.01 rather than exposed as a dial.
+        <strong>Guards on centre seeding.</strong> At most one new centre seeds per iteration; a candidate
+        whose only built neighbour is not a centre may not build (which suppresses one-cell tendrils); and
+        the neighbouring-centre seeding probability is fixed at 0.01 rather than exposed as a dial. A centre
+        that ends up serving too few homes is removed in post-processing, so seeding needs no cap of its own.
       </li>
       <li>
         <strong>Real-data grounding.</strong> Existing fabric is fixed (never redeveloped); water,

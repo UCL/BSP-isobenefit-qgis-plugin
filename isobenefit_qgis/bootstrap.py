@@ -24,7 +24,7 @@ from qgis.PyQt.QtWidgets import QMessageBox, QWidget
 
 CORE_IMPORT = "isobenefit"
 CORE_PACKAGE = "isobenefit"
-MAX_VERSION_EXCLUSIVE = (0, 14, 0)
+MAX_VERSION_EXCLUSIVE = (0, 15, 0)
 
 
 def _plugin_version() -> str:

@@ -290,12 +290,11 @@ class Isobenefit:
             build_prob = float(self.dlg.build_prob.text())
             if not 0.0 < build_prob <= 1.0:
                 raise ValueError(f"build probability {build_prob} outside (0, 1]")
-            # Dispersed-development selector -> the CA's isolated-seeding rate. Infill centrality and
-            # the centre-formation threshold are sensible internal defaults now (the recommended plan
-            # re-derives centres in post-processing, so these no longer need to be user-facing).
+            # Dispersed-development selector -> the CA's isolated-seeding rate. Infill centrality is a
+            # sensible internal default now (the recommended plan re-derives centres in
+            # post-processing, so it no longer needs to be user-facing).
             cent_prob_nb = 0.01
             cent_prob_isol = float(self.dlg.dispersal_mode.currentData())
-            pop_target_cent_threshold = 0.8
             # Three explicit density tiers, each drawn at its own probability. The engine wants the
             # densities descending (high, med, low) and the probabilities summing to 1 — the dialog
             # guards both, so this only mirrors that order.
@@ -354,7 +353,6 @@ class Isobenefit:
             build_prob=build_prob,
             cent_prob_nb=cent_prob_nb,
             cent_prob_isol=cent_prob_isol,
-            pop_target_cent_threshold=pop_target_cent_threshold,
             prob_distribution=prob_distribution,
             density_factors=density_factors,
             random_seed=random_seed,

@@ -38,7 +38,6 @@ pub struct Params {
     pub build_prob: f64,
     pub cent_prob_nb: f64,
     pub cent_prob_isol: f64,
-    pub pop_target_cent_threshold: f64,
     pub prob_distribution: (f64, f64, f64),
     /// Corridor preference. Outside the transit catchment the build and
     /// dispersal draws run at `prob * (1 - corridor_weight)`; inside they are
@@ -63,7 +62,6 @@ impl Params {
         build_prob: f64,
         cent_prob_nb: f64,
         cent_prob_isol: f64,
-        pop_target_cent_threshold: f64,
         prob_distribution: (f64, f64, f64),
         density_factors_km2: (f64, f64, f64),
         min_park_area_m2: Option<f64>,
@@ -81,7 +79,6 @@ impl Params {
             build_prob,
             cent_prob_nb,
             cent_prob_isol,
-            pop_target_cent_threshold,
             prob_distribution.0,
             prob_distribution.1,
             prob_distribution.2,
@@ -111,7 +108,6 @@ impl Params {
             ("build_prob", build_prob),
             ("cent_prob_nb", cent_prob_nb),
             ("cent_prob_isol", cent_prob_isol),
-            ("pop_target_cent_threshold", pop_target_cent_threshold),
             ("corridor_weight", corridor_weight),
         ] {
             if !(0.0..=1.0).contains(&p) {
@@ -149,7 +145,6 @@ impl Params {
             build_prob,
             cent_prob_nb,
             cent_prob_isol,
-            pop_target_cent_threshold,
             prob_distribution,
             corridor_weight,
             high_per_block: density_factors_km2.0 * block,
@@ -457,7 +452,6 @@ impl Simulation {
                         self.assign_density(y, x, &mut rng);
                     }
                 } else if !centrality_this_iter
-                    && self.pop_target_ratio <= p.pop_target_cent_threshold
                     && rng.gen::<f64>() < self.corridor_prob(p.cent_prob_nb, y, x)
                     && try_build(
                         y,
@@ -476,7 +470,6 @@ impl Simulation {
                     centrality_this_iter = true;
                 }
             } else if !centrality_this_iter
-                && self.pop_target_ratio <= p.pop_target_cent_threshold
                 && rng.gen::<f64>() < self.corridor_prob(p.cent_prob_isol, y, x)
                 && try_build(
                     y,
@@ -621,7 +614,6 @@ mod tests {
             0.6,             // build_prob
             0.1,             // cent_prob_nb
             0.0,             // cent_prob_isol
-            0.8,             // pop_target_cent_threshold
             (0.4, 0.4, 0.2), // prob distribution
             (6000.0, 3000.0, 1000.0),
             None, // min_park_area_m2 -> the 2 ha default
@@ -660,7 +652,6 @@ mod tests {
             0.1,
             0.0,
             0.0,
-            0.8,
             (0.5, 0.4, 0.2),
             (3.0, 2.0, 1.0),
             None,
@@ -680,7 +671,6 @@ mod tests {
             0.1,
             0.0,
             0.0,
-            0.8,
             (0.4, 0.4, 0.2),
             (1.0, 2.0, 3.0),
             None,
@@ -913,7 +903,6 @@ mod tests {
             0.1,
             0.0,
             0.0,
-            0.8,
             (0.4, 0.4, 0.2),
             (3.0, 2.0, 1.0),
             None,
@@ -943,7 +932,6 @@ mod tests {
             0.6,
             0.1,
             0.01, // isolated centres ON: exercises the itx-0 planting branch
-            0.8,
             (0.4, 0.4, 0.2),
             (6000.0, 3000.0, 1000.0),
             None,
@@ -1116,7 +1104,6 @@ mod tests {
                 build_prob,
                 0.1,
                 0.0,
-                0.8,
                 (0.4, 0.4, 0.2),
                 (high, 3000.0, 1000.0),
                 None,
@@ -1154,7 +1141,6 @@ mod tests {
             0.5,
             0.1,
             0.0,
-            0.8,
             (0.4, 0.4, 0.2),
             (6000.0, 3000.0, 1000.0),
             None,

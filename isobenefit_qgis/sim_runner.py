@@ -70,7 +70,6 @@ class IsobenefitTask(QgsTask):
         build_prob,
         cent_prob_nb,
         cent_prob_isol,
-        pop_target_cent_threshold,
         prob_distribution,
         density_factors,
         random_seed,
@@ -112,7 +111,6 @@ class IsobenefitTask(QgsTask):
         self.build_prob = float(build_prob)
         self.cent_prob_nb = float(cent_prob_nb)
         self.cent_prob_isol = float(cent_prob_isol)
-        self.pop_target_cent_threshold = float(pop_target_cent_threshold)
         self.prob_distribution = tuple(float(p) for p in prob_distribution)
         self.density_factors = tuple(float(d) for d in density_factors)
         self.random_seed = int(random_seed)
@@ -275,7 +273,7 @@ class IsobenefitTask(QgsTask):
             state, origin, density, seeds,
             self.granularity_m, self._centre_walk(), self._green_walk(),
             self.max_populat, self.min_green_span,
-            self.build_prob, self.cent_prob_nb, self.cent_prob_isol, self.pop_target_cent_threshold,
+            self.build_prob, self.cent_prob_nb, self.cent_prob_isol,
             self.prob_distribution, self.density_factors,
             self.total_iters, self.random_seed,
             min_park_area_m2=self.min_park_area_m2, sterile=sterile,
@@ -518,7 +516,6 @@ class IsobenefitTask(QgsTask):
                 self.build_prob,
                 self.cent_prob_nb,
                 self.cent_prob_isol,
-                self.pop_target_cent_threshold,
                 self.prob_distribution,
                 self.density_factors,
                 self.total_iters,
