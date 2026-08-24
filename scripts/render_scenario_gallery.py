@@ -72,7 +72,7 @@ TIER_STYLE = {
 
 # The curated presets. Each is (id, label, note, overrides); overrides patch the scenario's
 # params.json. "centre_mode" picks the post-processing centre option (default "placed").
-def presets_for(name: str, params: dict, has_stops: bool = False) -> list[dict]:
+def presets_for(name: str, params: dict, has_stops: bool = False, has_centres: bool = True) -> list[dict]:
     base = [
         {"id": "baseline", "label": "Baseline run", "note": "The scenario's own params.json, as shipped."},
         {"id": "walk800", "label": "Shorter centre walk (800 m)",
@@ -104,6 +104,10 @@ def presets_for(name: str, params: dict, has_stops: bool = False) -> list[dict]:
                          note="An earned centre may start away from existing development "
                               "(the baseline keeps growth attached).",
                          overrides={"allow_detached": True})
+    if not has_centres:
+        # with no centre anywhere, every existing settlement is sterile and attached growth
+        # has nothing to nucleate against: the preset would render an empty window
+        base = [p for p in base if p["id"] != "compact"]
     if has_stops:
         base.append({"id": "corridor", "label": "Transit corridor preference",
                      "note": "Growth concentrates along transit: development draws outside the "
@@ -487,7 +491,8 @@ def entry_for(folder: str, extent_key: str, extent, params, layers, title, subti
         "image": rel, "metrics": None, "settings": None, "params_file": None,
     })
 
-    for preset in presets_for(name, params, has_stops=bool(sub.get("stops"))):
+    for preset in presets_for(name, params, has_stops=bool(sub.get("stops")),
+                              has_centres=bool(sub.get("seeds"))):
         disp, metrics = run_preset(sub, p, preset)
         rel = f"{name}/{preset['id']}.png"
         render_png(disp, layers, sub, gran, os.path.join(OUT, rel),

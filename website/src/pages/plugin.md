@@ -83,8 +83,10 @@ parameters for a run.
   expression of local intent. A point or area added where a mixed-use centre is planned draws
   growth around it; removing one examines a future without it.
 - **Terrain**: `steep.geojson` holds slope bands (15° / 20° / 25° / 30°) from the Copernicus
-  GLO-30 elevation model. The bands at or above the scenario's maximum slope belong in the
-  unbuildable layer (*Vector → Data Management Tools → Merge Vector Layers*).
+  GLO-30 elevation model. Select it as the **Steep slopes** layer and set **Slope limit
+  (degrees)**; the bands at or above that limit are treated as unbuildable, and the rest of the
+  layer is left alone. Leave the limit empty to apply no slope constraint. Do not merge the
+  bands into the unbuildable layer, which would carve every band whatever its slope.
 - **Parameters**: in **Isobenefit Urbanism**, *Load parameters* with the scenario's
   `params.json` fills in the dialog.
 - **Running**: select the layers in the *Input layers* group, confirm the suggested CRS,

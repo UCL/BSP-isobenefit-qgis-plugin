@@ -8,7 +8,7 @@ author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
 about=The Isobenefit Urbanism QGIS plugin explores walkable urban development against real-world datasets. It grows settlements by simple rules: every new home must sit within a walking distance of a mixed-use centre (shops, services) and of green space. The model follows Luca D'Acci's Isobenefit Urbanism (D'Acci 2019, Journal of Environmental Management; D'Acci & Voto 2023, SoftwareX) and reimplements the cellular automaton originally coded by Michele Voto, with documented departures and extensions (fixed existing fabric, OSM inputs, transit-oriented growth, centre post-processing). See the homepage for the full guide and worked scenarios.
-    The plugin bundles an OpenStreetMap extraction tool, ships seven worked scenarios in the repository's "scenarios" folder, and writes reproducible runs (each run saves a parameters sidecar that the dialog can reload).
+    The plugin bundles an OpenStreetMap extraction tool, ships six worked scenarios in the repository's "scenarios" folder, and writes reproducible runs (each run saves a parameters sidecar that the dialog can reload).
     This plugin is marked experimental: enable "Show also Experimental Plugins" in the plugin manager settings to see it.
     On first use, the plugin offers to install its simulation engine (the "isobenefit" package from PyPI) into the QGIS Python environment; this needs an internet connection and a QGIS restart. No manual package installation is required.
     Licensed under the GNU AGPL-3.0-or-later (see the LICENSE file).

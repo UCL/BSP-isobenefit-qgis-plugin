@@ -1,7 +1,7 @@
 {
   "schema": "isobenefit-params/1",
   "name": "medellin_pajarito",
-  "notes": "Planned hillside expansion on Medellin's northwestern slopes (Pajarito / Ciudadela Nuevo Occidente), metrocable-served social housing at height. Steep terrain makes the green network and short walks decisive; slopes belong in the unbuildable layer. Densities are indicative tiers at household 3.1; confirm against POT zoning.  Terrain steeper than 20 degrees is fetched into the unbuildable layer from the open global DEM.",
+  "notes": "Planned hillside expansion on Medellin's northwestern slopes (Pajarito / Ciudadela Nuevo Occidente), metrocable-served social housing at height. Steep terrain makes the green network and short walks decisive. Densities are indicative tiers at household 3.1; confirm against POT zoning.  Terrain steeper than 20 degrees is fetched into the steep-slopes layer from the open global DEM; the slope limit of 20 applies it.",
   "random_seed": 42,
   "optimise_centres": true,
   "centre_m2_per_person": 20,

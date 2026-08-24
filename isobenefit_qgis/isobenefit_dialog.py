@@ -129,6 +129,11 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.green_walk_dist = QtWidgets.QLineEdit("400", self)
         self.green_walk_dist.setToolTip("How far people will walk to a park.")
         acc.addRow("Green walk (m)", self.green_walk_dist)
+        self.slope_max_deg = QtWidgets.QLineEdit("", self)
+        self.slope_max_deg.setToolTip(
+            "Ground at or above this slope is treated as unbuildable, read from the steep-slopes "
+            "layer's bands. Leave empty to apply no slope limit."
+        )
         acc.addRow("Slope limit (degrees)", self.slope_max_deg)
         self.stop_catchment_dist = QtWidgets.QLineEdit("400", self)
         self.stop_catchment_dist.setToolTip(
@@ -174,11 +179,6 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "denser or more populous catchments get bigger centres."
         )
         pp.addRow("Centre area (m² per person)", self.centre_m2_person)
-        self.slope_max_deg = QtWidgets.QLineEdit("", self)
-        self.slope_max_deg.setToolTip(
-            "Ground at or above this slope is treated as unbuildable, read from the steep-slopes "
-            "layer's bands. Leave empty to apply no slope limit."
-        )
         self.min_settlement = QtWidgets.QLineEdit("2000", self)
         self.min_settlement.setToolTip(
             "The service viability threshold: the population a settlement must reach to support a "

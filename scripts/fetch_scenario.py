@@ -253,6 +253,11 @@ def fetch(folder: str) -> None:
 
     meta = {"crs": crs, "source": "OpenStreetMap via Overpass (ODbL)",
             "queries": "isobenefit_qgis.osm_queries.build_combined_query"}
+    # The coordinates are projected metres, so every file has to say so. A GeoJSON with no
+    # `crs` member is longitude and latitude by definition, and QGIS would place the layer
+    # off the coast of Africa; the `metadata` member below is ours and no reader honours it.
+    crs_member = {"type": "name",
+                  "properties": {"name": f"urn:ogc:def:crs:EPSG::{crs.split(':')[1]}"}}
 
     # Terrain: slope bands from the Copernicus GLO-30 DSM, written as a SEPARATE editable layer
     # (steep.geojson) rather than baked into unbuildable — trim or extend with local knowledge,
@@ -272,7 +277,8 @@ def fetch(folder: str) -> None:
                            "selects which bands preclude development")
     steep_path = os.path.join(folder, "steep.geojson")
     with open(steep_path, "w", encoding="utf-8") as fh:
-        json.dump({"type": "FeatureCollection", "metadata": steep_meta, "features": steep_features}, fh,
+        json.dump({"type": "FeatureCollection", "crs": crs_member, "metadata": steep_meta,
+                   "features": steep_features}, fh,
                   separators=(",", ":"))
     print(f"  steep: {len(steep_features)} features -> {steep_path} ({os.path.getsize(steep_path) // 1024} kB)")
 
@@ -292,7 +298,8 @@ def fetch(folder: str) -> None:
                     "geometry": json.loads(json.dumps(mapping(g), default=float)),
                 }
             )
-        fc = {"type": "FeatureCollection", "metadata": meta, "features": features}
+        fc = {"type": "FeatureCollection", "crs": crs_member, "metadata": meta,
+              "features": features}
         path = os.path.join(folder, f"{ds}.geojson")
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(fc, fh, separators=(",", ":"))
@@ -300,6 +307,7 @@ def fetch(folder: str) -> None:
 
     hull_fc = {
         "type": "FeatureCollection",
+        "crs": crs_member,
         "metadata": meta,
         "features": [{"type": "Feature",
                       "properties": {"role": "osm_download", "note": "convex hull of the extents features"},

@@ -1314,54 +1314,6 @@
      "params_file": "kigali_east/walk1600_params.json"
     },
     {
-     "id": "compact",
-     "label": "Attached growth only",
-     "note": "Every earned centre must join existing development: one contiguous settlement.",
-     "overrides": {
-      "allow_detached": false
-     },
-     "image": "kigali_east/compact.png",
-     "metrics": {
-      "served_coverage": 0.0,
-      "served_coverage_incl_existing": 0.0,
-      "centre_access": 2400.0,
-      "green_access": 800.0,
-      "population": 0.0,
-      "centre_m2_per_person": 0.0,
-      "green_m2_per_person": 0.0,
-      "built_cells": 7667.0
-     },
-     "settings": {
-      "crs": "EPSG:32736",
-      "grid_size_m": 25,
-      "max_iterations": 400,
-      "target_population": 60000,
-      "allow_detached": false,
-      "slope_max_deg": 15,
-      "random_seed": 42,
-      "centre_walk_m": 1200,
-      "green_walk_m": 400,
-      "optimise_centres": true,
-      "centre_m2_per_person": 20,
-      "min_settlement_pop": 2000,
-      "min_green_span_m": 400,
-      "densities_km2": {
-       "high": 35000,
-       "medium": 20000,
-       "low": 10000
-      },
-      "shares": {
-       "high": 0.2,
-       "medium": 0.4,
-       "low": 0.4
-      },
-      "ensemble": true,
-      "ensemble_runs": 50,
-      "name": "kigali_east_compact"
-     },
-     "params_file": "kigali_east/compact_params.json"
-    },
-    {
      "id": "viability4000",
      "label": "Larger centres (4,000 people)",
      "note": "A centre must gather 4,000 people before the next is earned, so the same target arrives as fewer, larger settlements.",

@@ -338,6 +338,10 @@ class IsobenefitTask(QgsTask):
 
             state = np.full((rows, cols), -1, dtype=np.int16)
             state = gis_io.burn_layer(state, self.extents_layer, self.target_crs, geotransform, 0)
+            # the extents polygon is the study area, and the layers that follow are not clipped
+            # to it: a built or green feature reaching past the boundary would otherwise put
+            # fabric, and developable land, outside the area the planner drew
+            inside = state == 0
             origin = np.full((rows, cols), -1, dtype=np.int16)
             if self.built_layer is not None:
                 state = gis_io.burn_layer(state, self.built_layer, self.target_crs, geotransform, 1)
@@ -347,6 +351,9 @@ class IsobenefitTask(QgsTask):
                 state = gis_io.burn_layer(state, self.green_layer, self.target_crs, geotransform, 0)
                 origin = gis_io.burn_layer(origin, self.green_layer, self.target_crs, geotransform, 0)
                 self._log("Burned existing green areas.")
+            # everything the two burns placed beyond the boundary goes back to nothing
+            state = np.where(inside, state, -1)
+            origin = np.where(inside, origin, -1)
             if self.unbuildable_layer is not None:
                 # Carve unbuildable land (water, airports, military, quarries) AND the buffered
                 # motorway/railway/river barrier corridors from the OSM tool — these cells must
@@ -390,6 +397,9 @@ class IsobenefitTask(QgsTask):
                 # true centre cell) or as point seeds (one cell each).
                 if self.centre_seeds_layer.geometryType() == Qgis.GeometryType.Polygon:
                     seeds = gis_io.polygon_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
+                    # a centre stands in the fabric it serves: a polygon reaching over open
+                    # land or water would otherwise plant centres on ground nobody lives on
+                    seeds = [(r, c) for r, c in seeds if origin[r, c] == 1]
                     self._log(f"Placed {len(seeds)} centre cell(s) from polygon areas.")
                 else:
                     seeds = gis_io.point_cells(self.centre_seeds_layer, self.target_crs, geotransform, rows, cols)
@@ -532,6 +542,16 @@ class IsobenefitTask(QgsTask):
             # are sterile: new growth never nucleates against them, so every settlement a
             # run grows carries a centre
             sterile = grid.sterile_fabric(origin == 1, sim_seeds)
+            if not sim_seeds and not self.allow_detached:
+                # nothing can nucleate: growth attaches only to fabric that carries a centre,
+                # and without a centre layer every existing settlement is sterile
+                self._log(
+                    "No centres were supplied and detached settlements are switched off, so "
+                    "growth has nothing to start from. Supply an urban-centres layer, or allow "
+                    "detached settlements.",
+                    level=Qgis.MessageLevel.Warning,
+                    notify=True,
+                )
             if sterile.any():
                 self._log(
                     f"{int(sterile.sum())} existing cells sit in settlements without a centre; "

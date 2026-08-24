@@ -46,7 +46,7 @@ const base = import.meta.env.BASE_URL
         <table id="metrics-table" style="display:none">
           <tr>
             <th>Served incl. existing</th><th>Avg walk to centre</th><th>Avg walk to green</th>
-            <th>New population</th><th>Centre m²/person</th><th>Green m²/person</th>
+            <th>New population</th><th>Centre m²/person</th>
           </tr>
           <tr id="metrics-row"></tr>
         </table>
@@ -223,8 +223,7 @@ const base = import.meta.env.BASE_URL
         row.innerHTML = ''
         for (const v of [fmtPct(m.served_coverage_incl_existing ?? m.served_coverage),
                          fmtM(m.centre_access), fmtM(m.green_access),
-                         fmtN(m.population), String(Math.round(m.centre_m2_per_person)),
-                         String(Math.round(m.green_m2_per_person))]) {
+                         fmtN(m.population), String(Math.round(m.centre_m2_per_person))]) {
           const td = document.createElement('td')
           td.textContent = v
           row.appendChild(td)

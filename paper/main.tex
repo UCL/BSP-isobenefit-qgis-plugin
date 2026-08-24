@@ -219,7 +219,7 @@ local knowledge.
 The simulation tool rasterises the input layers to a working grid at a
 user-selected cell size, such as 50~m, though a finer grid may be
 preferable where the extent and the available computation allow. Each
-cell takes its class from the layer that intersects it:
+cell takes its class from the layer covering its centre:
 existing built fabric, green space, or unbuildable land. A cell that
 intersects none of the layers is marked open land. The tool then adds
 to the unbuildable class in two ways. It carves corridors along
@@ -249,7 +249,9 @@ excluded from new development before the run.
 The growth rules and all reported metrics measure
 distance with the bounded grid walk: the shortest path over
 traversable cells, which detours around unbuildable land and is cut
-off at the maximum walking distance. The path is computed by
+off at the maximum walking distance. A diagonal step between two
+blocked cells is refused, so a walk cannot pass through the corner
+where a carved corridor meets itself. The path is computed by
 Dijkstra search.
 
 \subsection{The growth rules}
