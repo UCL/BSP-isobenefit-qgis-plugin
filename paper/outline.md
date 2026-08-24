@@ -25,9 +25,16 @@ competing interests.
 1. A reworking of the published Isobenefit rules for real geography: frozen
    built fabric, protected green, water and infrastructure barriers, slope
    limits, and walkable (grid-walk) distances in place of straight lines.
-2. A plan-derivation pipeline on top of the cellular automaton: ensembles with
-   likelihood surfaces, selection of the best single run, and four outputs
-   (raw, grown, placed, fewest) in which the walk constraint is hard.
+2. REVISED 2026-08-24 at Gareth's direction: enhancements beyond the
+   published model, not the pipeline. Separated walking distances (centre
+   and green, each with its own rules), transit-oriented development as an
+   explicit heuristic (hubs anchor centres, corridor preference), and
+   post-processing that optimises centre placement and grades densities.
+   The ensemble is demoted to supporting machinery, not a claim. TOD is
+   integrated through the text (2026-08-24): the introduction's gap
+   paragraph, the contributions, the renamed Methods subsection
+   (transit-oriented growth), the corridor demonstration's viability
+   reading, the discussion, and the conclusion.
 3. An open, reproducible implementation: Rust engine on PyPI, thin QGIS
    plugin, seven worked scenarios on committed OSM data, deterministic under
    parallelism, verified end to end in CI.
@@ -55,7 +62,7 @@ result, availability.
 ### 2. Background (~800 words)
 
 - D'Acci (2019, J. Environmental Management 246:128-140); D'Acci and Voto
-  (2023, SoftwareX 22:101408) and the isobenefit-cities code, with its
+  (2023, SoftwareX 23:101408) and the isobenefit-cities code, with its
   published defaults (build prob 0.5, T* = 5 cells ~ 1 km, cap 500,000,
   density tiers at 0.7/0.3/0).
 - Adjacent literature: 15-minute city, walkability thresholds (WHO and
@@ -115,9 +122,10 @@ scenarios (Dnipro, Celina, Kigali) are named once as available in the
 repository and otherwise dropped from the paper.
 
 - Cambourne (new settlement, the reference demo): the four-output report
-  table (population, coverage, walks, centre counts) and the reading of it
-  (placement cut the average centre walk 482 to 436 m; fewest gave most of it
-  back for two fewer centres).
+  table (population, coverage, walks, centre counts). At the 15,000 target
+  (2026-08-24) the reading is raw versus the plans: raw reaches 97%, the
+  three options coincide (23 centres each, 30% of target), and the corridor
+  demonstration retains 81% by concentrating growth into viable settlements.
 - Crews Hill, London (green-belt release, ~5,500 homes around a rail
   station): policy-live UK case; walkable extension versus car-led sprawl.
 - Medellin Pajarito (hillside expansion, slopes over 20 degrees unbuildable
@@ -187,19 +195,25 @@ Leaves two or three slots spare.
    under this behaviour. The old 51%-of-target question is superseded: the
    demonstration window now credits 84% raw against 62% in the plan
    options, with pruning of failed satellites as the only cause.
-4. Push the v0.13.0 tag once Gareth signs off the paper state; the tag
-   triggers CI to publish the core to PyPI and the plugin zip.
-5. Decide the Cambourne scenario target: at baseline settings the window's
-   developable land holds about 13,200 of the 30,000 target (recomputed
-   2026-08-20 with true-area existing-centre seeds), which the paper
-   currently reports as a capacity finding. Lowering the target is the
-   alternative.
+4. DONE 2026-08-22: the v0.13.0 tag is pushed and CI published the core
+   and the plugin zip.
+5. RESOLVED 2026-08-24: the Cambourne target is lowered from 30,000 to
+   15,000 at Gareth's direction. Full-resolution consequences: raw reaches
+   14,592 (97%) but pruning cuts the plan options to 4,546 (30%), the
+   three options coincide (23 centres each), and the corridor
+   demonstration now RAISES the population (12,155, 81%) by gathering
+   growth into settlements that meet the threshold. The paper reports the
+   gap as the viability story and the corridor as a lever against it.
 6. Gallery preview resolution: the availability width test is measured in
    cells, so coarse preview grids (Dnipro at 135 m) exclude much more land
    than the full-resolution runs. Decide whether previews should run finer
    or the width should be defined in metres.
 7. Confirm authorship list and order with the UCL team.
-8. Reference list: gather DOIs (two core sources are in theory.md; add
-   15-minute-city, WHO and Natural England green-access sources).
+8. RESOLVED 2026-08-24: all journal DOIs verified against Crossref
+   (SoftwareX volume is 23, not 22), the ESA GLO-30 DOI resolves via
+   DataCite handles, Barton et al. gained its Routledge DOI
+   (10.4324/9780429321245), WHO 2016 its IRIS URL, and Natural England
+   its NE265 report number. Books without DOIs (Batty 2005, Calthorpe
+   1993) legitimately have none.
 9. APC funding or waiver.
 10. Editor reply on the deadline extension.

@@ -33,37 +33,31 @@ University College London. \pending{confirm the corresponding author.}}}
 
 \begin{abstract}
 \noindent
-Isobenefit Urbanism proposes settlements in which every resident lives
+Isobenefit Urbanism proposes settlements in which every home lies
 within a walk of a mixed-use centre and of green space. The published
-model formalises this proposition as a cellular automaton growing on a
-uniform abstract plain. This paper adapts the growth rules to real
-terrain, where existing towns, fragmented green space, rivers,
-railways, motorways, and steep slopes constrain development, and
-implements them as an open-source QGIS plugin. Inputs come
-from OpenStreetMap and the Copernicus GLO-30 elevation model, and
-users can edit the downloaded layers or supply their own.
-Existing fabric is fixed and served by its own centres, and new
-growth expands toward a population target that counts new residents
-only, while the rules keep a mixed-use centre and green space within
-a walk of every new home. These walks are bounded grid walks, which
-detour around land unsuitable for building. Transit hubs (stations
-or points the planner designates) anchor pinned mixed-use
-centres, and a corridor preference concentrates growth within the
-walkable catchment of existing or proposed transit. The growth rules
-are stochastic, so the plugin runs an ensemble and maps where
-development is more likely under the constraints. The plan is drawn
-from the best single run and post-processed into four outputs that keep
-every new home within the centre walk. Three hypothetical cases,
-each dominated
-by a different constraint, demonstrate the pipeline: a new settlement
-at Cambourne, a green-belt release at Crews Hill in London, and a
-hillside expansion at Pajarito in Medell\'in. A further Cambourne run
-strings growth along a proposed bus corridor, with a bus rapid
-transit hub anchoring a new settlement. The outputs are scenario
-sketches for discussion and feedback at the early stages of
-planning. All scenario data, parameters,
-and code are open, and the results rebuild from committed sources at
-fixed seeds.
+model grows such settlements on an abstract plain, where a few rules
+guarantee the walks while the urban form emerges. Real places arrive
+with existing towns, fragmented green space, rivers, railways,
+motorways, and steep slopes, and with the transit around which policy
+already organises growth. This paper adapts the model to real terrain
+and implements it as an open-source QGIS plugin, so that the rules
+become an instrument for steering development on an actual site. The
+plugin prepares a scenario from OpenStreetMap and elevation data, or
+from the user's own layers, keeps existing settlements as they stand,
+and simulates growth within the land released for development. The
+planner steers the outcome through the scenario settings: the walking
+distances, the population target for new residents, the density tiers
+and their shares, the land withheld from development, and the
+existing or proposed transit toward which growth is drawn. The result
+is a set of plan options written as GIS layers, in which every new
+home keeps a mixed-use centre and green space within the chosen
+walks. Three hypothetical cases demonstrate the pipeline: a new
+settlement at Cambourne, a green-belt release at Crews Hill in
+London, and a hillside expansion at Pajarito in Medell\'in, each
+shaped by a different dominant constraint. The outputs are scenario
+sketches for discussion and feedback at the early stages of planning.
+All code, scenario data, and parameters are open, and every result
+rebuilds from committed sources at fixed seeds.
 \end{abstract}
 
 \section{Introduction}
@@ -88,21 +82,19 @@ centres and to green space. This abstraction keeps the morphology of the
 rules easy to study. In real-world use the model must
 accommodate constraints such as towns, fragmented green space,
 rivers, railways, motorways, and steep slopes, and its outputs must
-be standard GIS layers.
+be standard GIS layers. Real places also bring transit, and the
+walkable-access premise of Isobenefit Urbanism is shared by
+transit-oriented development, which holds that growth and density
+belong within walking reach of transit \citep{calthorpe1993,
+cervero_kockelman1997, ibraeva2020}.
 This paper operationalises Isobenefit Urbanism as a QGIS plugin, an
 instrument planning workflows can incorporate for conceptualising
 options and consulting residents and experts
 \citep[cf.][]{waddell2002}. The plugin
-prepares the inputs, runs the model under these constraints,
-post-processes the results, and writes the derived plans as GIS
-layers.
-
-The same walkable-access premise underlies transit-oriented
-development, which holds that growth and density belong within
-walking reach of transit \citep{calthorpe1993, cervero_kockelman1997,
-ibraeva2020}, so the plugin anchors a mixed-use centre at each rail
-and tram station and can draw growth toward transit corridors,
-existing or proposed.
+prepares the inputs, runs the model under these constraints, anchors
+a mixed-use centre at each station, draws growth toward existing or
+proposed transit where the planner asks for it, post-processes the
+results, and writes the derived plans as GIS layers.
 
 The contributions are:
 
@@ -116,11 +108,14 @@ The contributions are:
 \item An open, reproducible implementation: a QGIS plugin that wraps a
   simulation engine published on PyPI, with documentation and the
   case-study scenarios.
-\item A plan-derivation pipeline on top of the automaton. An ensemble
-  of runs yields likelihood layers, which indicate where development
-  is more likely under the constraints; the plan options come from
-  the best single run, with centres and densities arranged for
-  walkable access.
+\item Enhancements beyond the published model. The single radius is
+  separated into two walking distances, one to a centre and one to
+  green space, each with its own rules. Transit-oriented development
+  enters as an explicit heuristic: transit hubs anchor centres, and a
+  corridor preference draws growth toward existing or proposed
+  transit. Post-processing optimises the placement of centres and
+  grades the densities from centre to edge, and the plan options keep
+  every new home within the centre walk.
 \end{enumerate}
 
 We demonstrate the pipeline on three case studies, each dominated by a
@@ -386,7 +381,7 @@ and centre audit, so every post-processing edit stays visible. A
 single run, outside the ensemble, is written instead as a
 temporal animation of the growth, one frame per step.
 
-\subsection{Public transport}
+\subsection{Transit-oriented growth}
 \label{sec:transit}
 
 Transit enters the model through the hubs and the corridors.
@@ -578,7 +573,7 @@ span, a 2-hectare minimum park area, and fifty ensemble runs.}
 \midrule
 Theme & New settlement & Green-belt release & Hillside expansion \\
 CRS / grid & EPSG:27700, 50~m & EPSG:27700, 25~m & EPSG:32618, 25~m \\
-Target (new residents) & 30{,}000 & 13{,}000 & 40{,}000 \\
+Target (new residents) & 15{,}000 & 13{,}000 & 40{,}000 \\
 Tiers & 6{,}000 / 3{,}000 / 1{,}500 & 26{,}000 / 15{,}500 / 9{,}500 &
 35{,}000 / 18{,}000 / 8{,}000 \\
 Shares & 0.2 / 0.3 / 0.5 & 0.2 / 0.5 / 0.3 & 0.3 / 0.4 / 0.3 \\
@@ -592,31 +587,29 @@ Slope limit & None & None & Over 20\(^\circ\) unbuildable \\
 \subsection{Cambourne: a new settlement and the four outputs}
 
 Cambourne is a fast-growing Cambridgeshire new settlement. The
-30{,}000 target is hypothetical and reflects no assessment of
+15{,}000 target is hypothetical and reflects no assessment of
 local housing need. This reference case presents the four outputs
 (Table~\ref{tab:fouroutputs}), varies the centre walk, and ends with
 the transit demonstration, a proposed
 corridor and hub. Figure~\ref{fig:cambourne}
 shows the selected plan under the
 baseline and 1{,}600~m centre walks. At the baseline 1{,}200~m
-walk, the plan accommodates about 21{,}600 of the 30{,}000 target,
-and new homes average a 242~m walk to a centre and 104~m to green
+walk, the plan accommodates 4{,}546 of the 15{,}000 target,
+and new homes average a 264~m walk to a centre and 92~m to green
 space. At 1{,}600~m the wider catchments gather more new homes
 toward the threshold, and the sweep of
 Table~\ref{tab:sweep} quantifies the response.
 
 Table~\ref{tab:fouroutputs} reproduces the Cambourne scenario's run
 report, which records the four outputs. The raw grown
-state slightly overshoots the target (31{,}129 of 30{,}000). Pruning
-reduces the plan to 72\% of target, because part of the population
-grew in pockets that hold too few new homes to meet the
-2{,}000-person threshold; those pockets revert to nature. The three
-plan options differ only in centres, with populations within 0.1\%
-of each other. Optimised placement consolidates to 43 centre areas
-against 46 as grown, and the mean centre walk ranges from 236 to
-244~m across the options. Fewest centres starts from the optimised
-placement and removes centres only while every home keeps one within
-the walk.
+state approaches the target (14{,}592 of 15{,}000), but much of
+that growth lies in dispersed pockets that hold too few new homes
+to meet the 2{,}000-person threshold. Pruning removes them, they
+revert to nature, and the plan options retain 30\% of the target.
+The three plan options coincide in this case: each keeps 23 centre
+areas and the same population, and their mean centre walks agree
+within 1~m, so the contrast lies between the raw grown state and
+the plans rather than among the options.
 
 A final run exercises both transit levers. We draw a proposed bus
 corridor from Cambourne's eastern edge across the plain to the
@@ -626,20 +619,22 @@ The corridor preference is 0.95 and every other setting stays at the
 baseline. Growth and its satellite settlements string along the route
 instead of spreading across the window (Figure~\ref{fig:corridor}),
 and the share of new homes within the transit catchments rises from
-5\% to 72\%. The hub lies just beyond the centre walk of the
+16\% to 78\%. The hub lies just beyond the centre walk of the
 existing centres, so its catchment holds land they do not serve, and a new
 settlement gathers around its pinned centre at the junction. The
-population accommodated falls from 21{,}567 to 13{,}160, because
-draws outside the catchments run at a twentieth of their probability,
-and the run log warns when the catchments' developable capacity sits
-under the target. The mean walks change little (296~m against 242~m
-to a centre, 114~m against 104~m to green space), and every home
-keeps both walks. A planner sets the preference to balance transit
-alignment against the population accommodated.
+population accommodated rises from 4{,}546 to 12{,}155: draws
+outside the catchments run at a twentieth of their probability, so
+the growth that the baseline scatters into sub-threshold pockets
+gathers instead into fewer and larger settlements along the route,
+and these meet the threshold and survive pruning. The mean walks
+concede little (304~m against 264~m to a centre, 113~m against 92~m
+to green space), and every home keeps both walks. In this window the
+corridor preference aligns growth with transit and, by concentrating
+it, raises the population the plan retains.
 
 \begin{table}[t]
 \centering
-\caption{Run report for the Cambourne scenario (30{,}000-person
+\caption{Run report for the Cambourne scenario (15{,}000-person
 target): the raw grown state and the three plan options. Walks are
 measured over new homes.}
 \label{tab:fouroutputs}
@@ -648,14 +643,14 @@ measured over new homes.}
 \toprule
 Metric & Raw & As grown & Optimised placement & Fewest centres \\
 \midrule
-Population accommodated & 31{,}129 & 21{,}582 & 21{,}567 & 21{,}567 \\
-Share of target & 104\% & 72\% & 72\% & 72\% \\
-Built cells (incl.\ existing) & 6{,}110 & 4{,}768 & 4{,}768 & 4{,}768 \\
-Mixed-use centre areas & 64 & 46 & 43 & 43 \\
-Mean walk to a centre (m) & 276 & 244 & 242 & 236 \\
-Mean walk to green space (m) & 102 & 104 & 104 & 104 \\
-Centre \sqm{} per person & 4 & 17 & 16 & 16 \\
-Green \sqm{} per person & 1{,}590 & 2{,}449 & 2{,}451 & 2{,}451 \\
+Population accommodated & 14{,}592 & 4{,}546 & 4{,}546 & 4{,}546 \\
+Share of target & 97\% & 30\% & 30\% & 30\% \\
+Built cells (incl.\ existing) & 3{,}789 & 2{,}379 & 2{,}379 & 2{,}379 \\
+Mixed-use centre areas & 51 & 23 & 23 & 23 \\
+Mean walk to a centre (m) & 231 & 265 & 264 & 264 \\
+Mean walk to green space (m) & 91 & 92 & 92 & 92 \\
+Centre \sqm{} per person & 5 & 9 & 10 & 10 \\
+Green \sqm{} per person & 3{,}790 & 12{,}943 & 12{,}943 & 12{,}943 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -768,8 +763,8 @@ three cases. The centre walk sets the size of a centre's catchment,
 and a wider catchment gathers more new homes toward the threshold.
 The walk therefore also governs which centres are viable. Cambourne, where
 viability limits the baseline plan, responds most, with the
-population accommodated rising from 10{,}800 at 800~m to 21{,}600
-at 1{,}200~m and 27{,}500 at 1{,}600~m. At Cambourne's greenfield
+population accommodated rising from 2{,}900 at 800~m to 4{,}500
+at 1{,}200~m and 10{,}500 at 1{,}600~m. At Cambourne's greenfield
 densities an 800~m catchment holds too few new homes to sustain a
 centre, so the 2{,}000-person threshold rules out many of the study
 window's detached mid-sized pockets. Crews Hill holds near
@@ -791,7 +786,7 @@ settings.}
 \toprule
 Scenario & 800~m & 1{,}200~m (baseline) & 1{,}600~m \\
 \midrule
-Cambourne & 306~m & 242~m & 243~m \\
+Cambourne & 329~m & 264~m & 235~m \\
 Crews Hill & 65~m & 145~m & 143~m \\
 Pajarito & 51~m & 51~m & 50~m \\
 \bottomrule
@@ -823,16 +818,20 @@ railways, or rivers.
 
 \subsection{The post-processing gap}
 
-The gap between the raw grown state and the plan options (104\%
-against 72\% of target at the Cambourne baseline) is produced by
+The gap between the raw grown state and the plan options (97\%
+against 30\% of target at the Cambourne baseline) is produced by
 pruning alone. The pruned growth lies in pockets that held too few
-new homes to meet the 2{,}000-person threshold when the run met its
-target, and a plan that kept them as free-standing settlements
-would promise centres their populations cannot sustain. A threshold that removes 30\% of the
+new homes to meet the 2{,}000-person threshold when the run
+approached its target, and a plan that kept them as free-standing
+settlements would promise centres their populations cannot sustain.
+A threshold that removes two thirds of the
 grown population at the baseline walk indicates that the permitted
 walk, the dispersal setting, and the threshold interact
 strongly, so the threshold warrants per-scenario scrutiny rather
-than a single default.
+than a single default. The Cambourne transit demonstration shows
+one lever against the loss: concentrating growth along a corridor
+gathers it into settlements that meet the threshold, and the plan
+retains 81\% of the target against the baseline's 30\%.
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -846,7 +845,10 @@ the best single run, and derives the four outputs, with the walk
 constraint enforced in every option. In the three case studies the
 outcome follows the dominant constraint: viability at Cambourne, the
 reachable extent of the release at Crews Hill, and terrain at
-Pajarito. The
+Pajarito. The transit levers place transit-oriented development in
+the same pipeline, and the Cambourne corridor demonstration shows
+them steering growth to a proposed route while retaining more of
+the target. The
 software, data, and parameters are open,
 and the results rebuild from committed sources at fixed seeds.
 
