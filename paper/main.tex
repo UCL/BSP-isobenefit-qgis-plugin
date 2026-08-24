@@ -79,22 +79,28 @@ The published model runs on an abstract grid, in which every cell
 starts as nature, distances are straight lines, and a single radius,
 typically about a fifteen-minute walk, governs access both to
 centres and to green space. This abstraction keeps the morphology of the
-rules easy to study. In real-world use the model must
-accommodate constraints such as towns, fragmented green space,
-rivers, railways, motorways, and steep slopes, and its outputs must
-be standard GIS layers. Real places also bring transit, and the
-walkable-access premise of Isobenefit Urbanism is shared by
-transit-oriented development, which holds that growth and density
+rules easy to study. On a real site the model meets existing towns,
+fragmented green space, rivers, railways, motorways, and steep
+slopes, together with the transit around which policy already
+organises growth; the walkable-access premise of Isobenefit Urbanism is shared
+by transit-oriented development, which holds that growth and density
 belong within walking reach of transit \citep{calthorpe1993,
-cervero_kockelman1997, ibraeva2020}.
+cervero_kockelman1997, ibraeva2020}. Carried onto such a site, the
+rules can steer where development goes, provided the model respects
+what stands and returns its results in the formats planning practice
+uses.
+
 This paper operationalises Isobenefit Urbanism as a QGIS plugin, an
 instrument planning workflows can incorporate for conceptualising
 options and consulting residents and experts
-\citep[cf.][]{waddell2002}. The plugin
-prepares the inputs, runs the model under these constraints, anchors
-a mixed-use centre at each station, draws growth toward existing or
-proposed transit where the planner asks for it, post-processes the
-results, and writes the derived plans as GIS layers.
+\citep[cf.][]{waddell2002}. The plugin prepares the inputs, keeps
+existing settlements as they stand, and grows new development within
+the land a scenario releases. The planner steers the outcome through
+the scenario settings: the two walking distances, the population
+target for new residents, the density tiers and their shares, the
+land withheld from development, and the existing or proposed transit
+toward which growth is drawn. The results are post-processed into
+plan options and written as GIS layers.
 
 The contributions are:
 
@@ -119,7 +125,7 @@ The contributions are:
 \end{enumerate}
 
 We demonstrate the pipeline on three case studies, each dominated by a
-different constraint.
+different constraint and each steered through a different setting.
 Sections~\ref{sec:background} to~\ref{sec:discussion} cover the background,
 the methods, the case studies, and the discussion.
 
@@ -550,7 +556,7 @@ levers with a proposed corridor and hub. Table~\ref{tab:scenarios}
 gives the settings, and a closing centre-walk sweep covers all
 three cases.
 
-The cases are demonstrations of how the tool works; their windows,
+The cases demonstrate how a planner steers the tool; their windows,
 targets, and density presets are hypothetical. An
 application in practice would set these in consultation with local
 residents, planners, and experts.
@@ -837,7 +843,8 @@ retains 81\% of the target against the baseline's 30\%.
 \label{sec:conclusion}
 
 This implementation builds on the published model and turns Isobenefit
-Urbanism into an instrument a planner can run on a real place. It
+Urbanism into an instrument a planner can run on a real place and
+steer through its settings. It
 keeps the published growth rules recognisable and adapts them to real
 geography through the departures that Table~\ref{tab:rules} records. The
 plan-derivation pipeline scores every run on walkable access, keeps
