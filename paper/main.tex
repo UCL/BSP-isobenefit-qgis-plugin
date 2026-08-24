@@ -54,7 +54,7 @@ home keeps a mixed-use centre and green space within the chosen
 walks. Three hypothetical cases demonstrate the pipeline: a new
 settlement at Cambourne, a green-belt release at Crews Hill in
 London, and a hillside expansion at Pajarito in Medell\'in, each
-shaped by a different dominant constraint. The outputs are scenario
+sensitive to a different setting. The outputs are scenario
 sketches for discussion and feedback at the early stages of planning.
 All code, scenario data, and parameters are open, and every result
 rebuilds from committed sources at fixed seeds.
@@ -274,9 +274,11 @@ hectares by default, which follows Natural England's accessible
 natural greenspace standard \citep{naturalengland2010}. New
 development may not shrink a park below the minimum, whether by
 splitting it or by building along its edge, and a green corridor
-between developments may not narrow below a minimum span. Every
-built cell, the existing fabric included, must keep a park within
-the green walk.
+between two settlements may not narrow below a minimum span. Green
+that one settlement encloses on its own, in the crook of a C or a U,
+is a bay rather than a corridor, and the settlement may build into
+it. Every built cell, the existing fabric included, must keep a park
+within the green walk.
 
 A candidate that passes every check builds by a random draw. The draw
 staggers the built edge so that ensemble members differ; it paces
@@ -482,8 +484,9 @@ and does not shape the plan &
 Unchanged \\
 \addlinespace[2pt]
 Nature stays one connected region at least T\(^*\) wide &
-Local rules: a green corridor between developments keeps a minimum
-span, and a park keeps a minimum area &
+Local rules: a corridor between two settlements keeps a minimum span,
+and a park keeps a minimum area; green a settlement encloses on its
+own is a bay it may build into &
 Modified \\
 \addlinespace[2pt]
 Every built cell keeps nature within T\(^*\) &
@@ -570,12 +573,13 @@ in this paper rebuilds offline from source at fixed seeds.
 \section{Case studies}
 \label{sec:cases}
 
-We ran the pipeline on three demonstration cases, each dominated by a
-different constraint: a
+We ran the pipeline on three demonstration cases chosen for contrast
+in the land they offer: a
 free-standing new settlement (Cambourne, UK), a green-belt release at a
 metropolitan edge (Crews Hill, London), and a topography-bound hillside
-expansion (Pajarito, Medell\'in). Each case's figure varies the
-setting that shows its dominant constraint most clearly: the centre
+expansion (Pajarito, Medell\'in). All three hold their target, so what
+the cases separate is the setting each is most sensitive to, and each
+case's figure varies that setting: the centre
 walk at Cambourne, the shares at Crews Hill, and attachment and the
 viability threshold at Pajarito.
 All three run at the default corridor preference of 0; Cambourne,
@@ -759,7 +763,7 @@ pinned centre in both settings, and the release grows around it. Full scenario r
 \label{fig:crewshill}
 \end{figure}
 
-\subsection{Pajarito, Medell\'in: topography as the dominant constraint}
+\subsection{Pajarito, Medell\'in: growth shaped by terrain}
 
 Pajarito and Ciudadela Nuevo Occidente on Medell\'in's northwestern slopes
 are a planned expansion of high-rise social housing served by the
@@ -800,23 +804,23 @@ seed 42.}
 \subsection{Sensitivity to the centre walk}
 
 The centre walk is swept across 800, 1{,}200, and 1{,}600~m for the
-three cases. The centre walk sets the size of a centre's catchment,
-and a wider catchment gathers more new homes toward the threshold.
-The walk therefore also governs which centres are viable. Cambourne, where
-every case now reaches its target at every setting: Cambourne
-houses 14{,}692 to 15{,}141, Crews Hill 13{,}005 to 13{,}242, and
-Pajarito 40{,}012 to 40{,}502. What the walk changes is the mean
-walk itself, and it does not fall monotonically as the walk widens.
-A wider walk lets one centre gather its quota from more land, so
-fewer centres are founded and the homes they serve stand further
-away; a narrower walk founds more centres, each closer to its
-homes, until the catchments grow too small to gather the threshold
-at all. Crews Hill shows the first effect most clearly, at 84~m
-under an 800~m walk against 269~m at the baseline.
-Table~\ref{tab:sweep} reports the mean centre walk of new homes,
-which responds less regularly, because each figure comes from one
-selected run and the centre-walk setting changes which run is
-selected.
+three cases. Every case reaches its target at every setting:
+Cambourne houses 14{,}692 to 15{,}141, Crews Hill 13{,}005 to
+13{,}242, and Pajarito 40{,}012 to 40{,}502. The walk does not
+decide how many people fit; it decides how many centres serve them,
+and how far they walk.
+
+A centre is founded when the population nearest it reaches the
+threshold, so a wider walk lets one centre gather that population
+from more land. Fewer centres are founded, each serving a larger
+settlement, and the mean walk rises. Crews Hill shows this most
+plainly, at 84~m under an 800~m walk against 269~m at the baseline.
+The response is not monotonic, because two effects meet: a narrower
+walk founds more centres, but it also bounds how far a home may sit
+from one, and at Cambourne's greenfield densities an 800~m
+catchment gathers the threshold slowly enough that the mean walk
+rises again. Each figure also comes from one selected run, and the
+setting changes which run is selected.
 
 \begin{table}[t]
 \centering
@@ -910,10 +914,12 @@ keeps the published growth rules recognisable and adapts them to real
 geography through the departures that Table~\ref{tab:rules} records. The
 plan-derivation pipeline scores every run on walkable access, keeps
 the best single run, and derives the four outputs, with the walk
-constraint enforced in every option. In the three case studies the
-outcome follows the dominant constraint: viability at Cambourne, the
-reachable extent of the release at Crews Hill, and terrain at
-Pajarito. The Cambourne corridor demonstration shows the transit
+constraint enforced in every option. All three case studies hold their
+population target, and what separates them is the setting each
+answers to: the centre walk governs how many centres serve
+Cambourne, the density shares govern how much of the Crews Hill
+release is built on, and at Pajarito the terrain decides whether
+growth may detach at all. The Cambourne corridor demonstration shows the transit
 levers steering growth to a proposed route while retaining more of
 the target. The
 software, data, and parameters are open,
