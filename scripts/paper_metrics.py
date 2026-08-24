@@ -41,8 +41,8 @@ FIGS = os.path.join(REPO, "paper", "figures")
 
 # scenario -> presets the manuscript cites (id, params overrides). Each case-study FIGURE
 # demonstrates one dial where its scenario binds hardest (Cambourne: centre walk; Crews Hill:
-# density mix; Pajarito: dispersal); the walk presets are computed for every case because the
-# cross-scenario sweep table cites them.
+# density mix; Pajarito: attachment and the viability threshold); the walk presets are
+# computed for every case because the cross-scenario sweep table cites them.
 PLAN = {
     "cambourne": [
         ("baseline", {}),
@@ -61,8 +61,8 @@ PLAN = {
         ("baseline", {}),
         ("walk800", {"centre_walk_m": 800.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
-        ("compact", {"dispersal": "off"}),
-        ("dispersed", {"dispersal": "aggressive"}),
+        ("compact", {"allow_detached": False}),
+        ("quota4000", {"min_settlement_pop": 4000}),
     ],
 }
 
@@ -74,7 +74,7 @@ PAPER_PANELS = {
     ("london_crews_hill", "denser"): "london_crews_hill_denser.png",
     ("medellin_pajarito", "baseline"): "medellin_pajarito_baseline.png",
     ("medellin_pajarito", "compact"): "medellin_pajarito_compact.png",
-    ("medellin_pajarito", "dispersed"): "medellin_pajarito_dispersed.png",
+    ("medellin_pajarito", "quota4000"): "medellin_pajarito_quota4000.png",
 }
 
 # the transit demonstration pair: the baseline plan and the corridor-preference plan,
@@ -144,8 +144,8 @@ def run_preset(sub, params, overrides, runs=50):
         base_state.copy(), base_origin.copy(),
         np.zeros_like(base_state, np.float32), sim_seeds,
         gran, walk, green_walk, float(p["target_population"]),
-        float(p.get("min_green_span_m", 400.0)), float(p.get("build_prob", 0.25)), 0.01,
-        _gallery.DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
+        float(p.get("min_green_span_m", 400.0)), _gallery.BUILD_PROB,
+        _gallery.centre_quota(p), _gallery.allow_detached(p),
         shares, tiers, int(p.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(base_origin == 1, sub["seeds"]),

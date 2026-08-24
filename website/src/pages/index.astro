@@ -411,10 +411,11 @@ const dg = (name: string) => `${base}images/${name}.svg`
         and land beside a barrier may be built right up to it.
       </li>
       <li>
-        <strong>Guards on centre seeding.</strong> At most one new centre seeds per iteration; a candidate
-        whose only built neighbour is not a centre may not build (which suppresses one-cell tendrils); and
-        the neighbouring-centre seeding probability is fixed at 0.01 rather than exposed as a dial. A centre
-        that ends up serving too few homes is removed in post-processing, so seeding needs no cap of its own.
+        <strong>Centres are earned, not drawn.</strong> Each new home is charged to the centre it is
+        nearest, and a centre founds the next one once that population reaches the service viability
+        threshold, or once it has no room left to grow. The number of settlements therefore follows the
+        population rather than the size of the window or the resolution of the grid, and a candidate whose
+        only built neighbour is not a centre still may not build (which suppresses one-cell tendrils).
       </li>
       <li>
         <strong>Real-data grounding.</strong> Existing fabric is fixed (never redeveloped); water,

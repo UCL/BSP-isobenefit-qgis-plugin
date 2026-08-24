@@ -35,9 +35,17 @@ pub struct Params {
     /// to qualify as a park. Defaults to [`DEFAULT_MIN_PARK_AREA_M2`]
     /// (2 ha) when the caller passes none.
     pub min_park_area_m2: f64,
+    /// Pace of the built edge, not a structural control: it staggers growth so
+    /// ensemble members differ. Centre creation is governed by
+    /// [`Params::centre_quota_people`], so the plan does not depend on this value.
     pub build_prob: f64,
-    pub cent_prob_nb: f64,
-    pub cent_prob_isol: f64,
+    /// The service viability threshold, in people. A centre releases the next
+    /// centre once the new population nearest to it reaches this figure, so
+    /// growth creates exactly the centres post-processing is willing to keep.
+    pub centre_quota_people: f64,
+    /// May a released centre start away from existing fabric (a satellite), or
+    /// must it attach to development that already exists?
+    pub allow_detached: bool,
     pub prob_distribution: (f64, f64, f64),
     /// Corridor preference. Outside the transit catchment the build and
     /// dispersal draws run at `prob * (1 - corridor_weight)`; inside they are
@@ -60,8 +68,8 @@ impl Params {
         max_populat: f64,
         min_green_span_m: f64,
         build_prob: f64,
-        cent_prob_nb: f64,
-        cent_prob_isol: f64,
+        centre_quota_people: f64,
+        allow_detached: bool,
         prob_distribution: (f64, f64, f64),
         density_factors_km2: (f64, f64, f64),
         min_park_area_m2: Option<f64>,
@@ -77,8 +85,7 @@ impl Params {
             min_green_span_m,
             min_park_area_m2,
             build_prob,
-            cent_prob_nb,
-            cent_prob_isol,
+            centre_quota_people,
             prob_distribution.0,
             prob_distribution.1,
             prob_distribution.2,
@@ -106,13 +113,14 @@ impl Params {
         }
         for (name, p) in [
             ("build_prob", build_prob),
-            ("cent_prob_nb", cent_prob_nb),
-            ("cent_prob_isol", cent_prob_isol),
             ("corridor_weight", corridor_weight),
         ] {
             if !(0.0..=1.0).contains(&p) {
                 return Err(format!("{name} must lie in [0, 1]"));
             }
+        }
+        if centre_quota_people <= 0.0 {
+            return Err("centre_quota_people must be positive".to_string());
         }
         if prob_distribution.0 < 0.0 || prob_distribution.1 < 0.0 || prob_distribution.2 < 0.0 {
             return Err("prob_distribution components must not be negative".to_string());
@@ -143,8 +151,8 @@ impl Params {
             min_green_span_m,
             min_park_area_m2,
             build_prob,
-            cent_prob_nb,
-            cent_prob_isol,
+            centre_quota_people,
+            allow_detached,
             prob_distribution,
             corridor_weight,
             high_per_block: density_factors_km2.0 * block,
@@ -249,6 +257,39 @@ pub fn try_build(
     true
 }
 
+/// Assigns to centre `idx` every cell it is now nearest to, and moves the
+/// population of any cell it takes over from the centre that held it. Keeps the
+/// nearest-centre partition exact as centres are added, so each resident is
+/// charged to exactly one centre.
+#[allow(clippy::too_many_arguments)]
+fn claim_cells(
+    state: &Array2<i16>,
+    centre_id: &mut Array2<i32>,
+    centre_dist: &mut Array2<f32>,
+    density: &Array2<f32>,
+    centre_pop: &mut [f64],
+    idx: usize,
+    y: usize,
+    x: usize,
+    centre_distance_m: f64,
+    granularity_m: f64,
+) {
+    let opts = DijkstraOpts::new(centre_distance_m, granularity_m);
+    let d = agg_dijkstra_dist(state, y, x, &[0, 1, 2], &opts);
+    for ((r, c), &dist) in d.indexed_iter() {
+        if !dist.is_finite() || dist as f32 >= centre_dist[[r, c]] {
+            continue;
+        }
+        let prev = centre_id[[r, c]];
+        if prev >= 0 {
+            centre_pop[prev as usize] -= density[[r, c]] as f64;
+        }
+        centre_id[[r, c]] = idx as i32;
+        centre_dist[[r, c]] = dist as f32;
+        centre_pop[idx] += density[[r, c]] as f64;
+    }
+}
+
 /// The full simulation state. Construct via [`Simulation::new`], then drive with
 /// [`Simulation::step`] / [`Simulation::run`].
 #[derive(Clone)]
@@ -271,6 +312,22 @@ pub struct Simulation {
     /// stop or corridor cell; hubs included). `None` when no corridor layer is
     /// supplied, in which case `corridor_weight` never acts.
     pub transit_catchment: Option<Array2<bool>>,
+    /// Index of the nearest centre to each cell (-1 where none is within the
+    /// centre walk), and the walk to it. New homes are charged to the centre
+    /// they are nearest, so catchments partition instead of overlapping and a
+    /// resident counts once.
+    pub centre_id: Array2<i32>,
+    pub centre_dist: Array2<f32>,
+    /// Per centre: the new population nearest to it, and whether it has already
+    /// released its successor.
+    pub centre_pop: Vec<f64>,
+    pub centre_released: Vec<bool>,
+    /// Centres earned but not yet placed. A centre is placed at the first
+    /// eligible location the shuffled scan reaches.
+    pub pending_centres: usize,
+    /// Consecutive iterations in which nothing was built: the signal that the
+    /// settled catchments are built out and a centre is owed on those grounds.
+    pub stalled_iters: usize,
     pub params: Params,
     pub total_iters: usize,
     pub current_iter: usize,
@@ -314,6 +371,9 @@ impl Simulation {
         // seed centres and aggregate their accessibility
         let mut cent_acc = Array2::<i32>::zeros(dim);
         let cent_opts = DijkstraOpts::new(params.centre_distance_m, params.granularity_m);
+        let mut centre_id = Array2::<i32>::from_elem(dim, -1);
+        let mut centre_dist = Array2::<f32>::from_elem(dim, f32::INFINITY);
+        let mut centre_pop: Vec<f64> = Vec::new();
         for &(r, c) in centre_seeds {
             if r >= dim.0 || c >= dim.1 {
                 return Err("centre seed falls outside the grid".to_string());
@@ -325,6 +385,20 @@ impl Simulation {
             origin[[r, c]] = 2;
             cent_acc =
                 cent_acc + agg_dijkstra_cont(&state, r, c, &[0, 1, 2], &[0, 1, 2], &cent_opts);
+            let idx = centre_pop.len();
+            centre_pop.push(0.0);
+            claim_cells(
+                &state,
+                &mut centre_id,
+                &mut centre_dist,
+                &density,
+                &mut centre_pop,
+                idx,
+                r,
+                c,
+                params.centre_distance_m,
+                params.granularity_m,
+            );
         }
         let (park, green_acc) = prepare_park_arrs(
             &state,
@@ -341,6 +415,9 @@ impl Simulation {
         for &(r, c) in centre_seeds {
             anchored[[r, c]] = true;
         }
+        // with no centre anywhere, nothing can build: the first centre is owed from the start
+        let pending_centres = usize::from(centre_pop.is_empty());
+        let centre_released = vec![false; centre_pop.len()];
         Ok(Simulation {
             state,
             origin,
@@ -350,6 +427,12 @@ impl Simulation {
             cent_acc,
             anchored,
             transit_catchment,
+            centre_id,
+            centre_dist,
+            centre_pop,
+            centre_released,
+            pending_centres,
+            stalled_iters: 0,
             params,
             total_iters,
             current_iter: 0,
@@ -372,11 +455,39 @@ impl Simulation {
             self.params.med_per_block,
             self.params.low_per_block,
         ) as f32;
+        // charge the new residents to the centre they are nearest, and release the
+        // next centre once that one carries a viable settlement's worth
+        let owner = self.centre_id[[y, x]];
+        if owner >= 0 {
+            let owner = owner as usize;
+            self.centre_pop[owner] += self.density[[y, x]] as f64;
+            if !self.centre_released[owner]
+                && self.centre_pop[owner] >= self.params.centre_quota_people
+            {
+                self.centre_released[owner] = true;
+                self.pending_centres += 1;
+            }
+        }
     }
 
     fn plant_centre(&mut self, y: usize, x: usize) {
         self.state[[y, x]] = 2;
         self.anchored[[y, x]] = true;
+        let idx = self.centre_pop.len();
+        self.centre_pop.push(0.0);
+        self.centre_released.push(false);
+        claim_cells(
+            &self.state,
+            &mut self.centre_id,
+            &mut self.centre_dist,
+            &self.density,
+            &mut self.centre_pop,
+            idx,
+            y,
+            x,
+            self.params.centre_distance_m,
+            self.params.granularity_m,
+        );
         let opts = DijkstraOpts::new(self.params.centre_distance_m, self.params.granularity_m);
         // the distance field gives the access footprint (finite == reachable within a walk,
         // matching the old path==target==[0,1,2] agg)
@@ -406,6 +517,7 @@ impl Simulation {
         let (rows, cols) = self.state.dim();
         let mut rng = rng_for(self.master_seed, self.current_iter as u64);
         let mut centrality_this_iter = false;
+        let mut built_this_iter = 0usize;
 
         // shuffle the visiting order (Fisher-Yates with the iteration RNG)
         let mut idxs: Vec<(usize, usize)> = (0..rows)
@@ -450,9 +562,11 @@ impl Simulation {
                         self.state[[y, x]] = 1;
                         self.anchored[[y, x]] = true;
                         self.assign_density(y, x, &mut rng);
+                        built_this_iter += 1;
                     }
                 } else if !centrality_this_iter
-                    && rng.gen::<f64>() < self.corridor_prob(p.cent_prob_nb, y, x)
+                    && self.pending_centres > 0
+                    && self.corridor_prob(1.0, y, x) > rng.gen::<f64>()
                     && try_build(
                         y,
                         x,
@@ -465,12 +579,17 @@ impl Simulation {
                         p.min_park_area_m2,
                     )
                 {
+                    // an earned centre, placed where the settlement has outgrown its own
+                    self.pending_centres -= 1;
                     self.plant_centre(y, x);
                     self.assign_density(y, x, &mut rng);
+                    built_this_iter += 1;
                     centrality_this_iter = true;
                 }
             } else if !centrality_this_iter
-                && rng.gen::<f64>() < self.corridor_prob(p.cent_prob_isol, y, x)
+                && p.allow_detached
+                && self.pending_centres > 0
+                && self.corridor_prob(1.0, y, x) > rng.gen::<f64>()
                 && try_build(
                     y,
                     x,
@@ -483,10 +602,26 @@ impl Simulation {
                     p.min_park_area_m2,
                 )
             {
+                // an earned centre, starting a settlement away from existing fabric
+                self.pending_centres -= 1;
                 self.plant_centre(y, x);
                 self.assign_density(y, x, &mut rng);
+                built_this_iter += 1;
                 centrality_this_iter = true;
             }
+        }
+        // A centre also earns its successor by running out of room: where catchments hold
+        // too little developable land for any one of them to reach the quota, growth would
+        // otherwise stop with the target unmet. Three consecutive iterations without a
+        // single build means the settled area is built out, not merely unlucky in its draws.
+        if built_this_iter == 0 {
+            self.stalled_iters += 1;
+        } else {
+            self.stalled_iters = 0;
+        }
+        if self.stalled_iters >= 3 && self.pending_centres == 0 && self.pop_target_ratio < 1.0 {
+            self.pending_centres += 1;
+            self.stalled_iters = 0;
         }
         self.pop_target_ratio = self.density.sum() as f64 / p.max_populat;
     }
@@ -612,8 +747,8 @@ mod tests {
             1_000_000.0,     // max_populat (high, so tests never short-circuit on target)
             100.0,           // min_green_span_m (1 block -> the span check never blocks)
             0.6,             // build_prob
-            0.1,             // cent_prob_nb
-            0.0,             // cent_prob_isol
+            2000.0,          // centre_quota_people
+            false,           // allow_detached
             (0.4, 0.4, 0.2), // prob distribution
             (6000.0, 3000.0, 1000.0),
             None, // min_park_area_m2 -> the 2 ha default
@@ -650,8 +785,8 @@ mod tests {
             1.0,
             800.0,
             0.1,
-            0.0,
-            0.0,
+            2000.0,
+            false,
             (0.5, 0.4, 0.2),
             (3.0, 2.0, 1.0),
             None,
@@ -669,8 +804,8 @@ mod tests {
             1.0,
             800.0,
             0.1,
-            0.0,
-            0.0,
+            2000.0,
+            false,
             (0.4, 0.4, 0.2),
             (1.0, 2.0, 3.0),
             None,
@@ -823,8 +958,7 @@ mod tests {
         sterile[[25, 26]] = true;
         let mut params = growth_params();
         params.centre_distance_m = 10_000.0; // every cell within the seed centre's walk
-        params.cent_prob_nb = 0.0;
-        params.cent_prob_isol = 0.0; // no new centres: growth can only attach
+        params.centre_quota_people = f64::INFINITY; // no centre is ever earned: growth can only attach
         let mut with_mask = Simulation::new(
             state.clone(),
             origin.clone(),
@@ -901,8 +1035,8 @@ mod tests {
             0.0,
             800.0,
             0.1,
-            0.0,
-            0.0,
+            2000.0,
+            false,
             (0.4, 0.4, 0.2),
             (3.0, 2.0, 1.0),
             None,
@@ -930,8 +1064,8 @@ mod tests {
             1_000_000.0,
             100.0,
             0.6,
-            0.1,
-            0.01, // isolated centres ON: exercises the itx-0 planting branch
+            2000.0,
+            true, // detached centres ON: exercises the itx-0 planting branch
             (0.4, 0.4, 0.2),
             (6000.0, 3000.0, 1000.0),
             None,
@@ -1102,8 +1236,8 @@ mod tests {
                 1000.0,
                 100.0,
                 build_prob,
-                0.1,
-                0.0,
+                2000.0,
+                false,
                 (0.4, 0.4, 0.2),
                 (high, 3000.0, 1000.0),
                 None,
@@ -1139,8 +1273,8 @@ mod tests {
             1000.0,
             100.0,
             0.5,
-            0.1,
-            0.0,
+            2000.0,
+            false,
             (0.4, 0.4, 0.2),
             (6000.0, 3000.0, 1000.0),
             None,
@@ -1209,7 +1343,7 @@ mod tests {
         let density = Array2::<f32>::zeros((grid, grid));
         let mut params = growth_params();
         params.corridor_weight = 1.0;
-        params.cent_prob_isol = 0.05; // dispersal ON: its draw must be confined too
+        params.allow_detached = true; // detached centres ON: their placement must be confined too
         let seed_cell = (grid / 2, 5); // inside the catchment
         let mut sim = Simulation::new(
             state,

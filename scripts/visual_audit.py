@@ -385,7 +385,7 @@ def _ca_track():
         print(f"\n[CA track skipped] engine ran but the audit could not drive it: {exc}")
 
 
-def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
+def _ca_plan(isobenefit, *, allow_detached, quota, seed, build_prob=0.25):
     """Grow one CA run to its population target and return the recommended plan (so the CA's
     development pattern is shown through the same plan codes as the post-process track). Array
     dtypes mirror sim_runner: state/origin int16, density float32, seeds a list of (row, col)."""
@@ -398,7 +398,7 @@ def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
     seeds = [(40, 40)]  # one centre seed so the core has centre access and growth can start
     sim = isobenefit.Simulation(
         state, origin, density, seeds, GRAN, MAX_DIST, GREEN_DIST, 20000.0, MIN_GREEN_SPAN,
-        build_prob, 0.0, cent_prob_isol,
+        build_prob, quota, allow_detached,
         (0.4, 0.4, 0.2), (6000.0, 3000.0, 1000.0), 200, seed,  # density factors descending
     )
     st = np.asarray(isobenefit.run_ensemble(sim, seed, 1)[0])
@@ -413,19 +413,18 @@ def _ca_plan(isobenefit, *, cent_prob_isol, build_prob, seed):
 def _run_ca_track(isobenefit):
     figure(
         "13_dispersed_development",
-        "Dispersed development (CA isolated seeding): Off -> Aggressive lets new settlements form away from the core",
+        "Dispersed development: whether an earned centre may start away from the existing core",
         [
-            P(_ca_plan(isobenefit, cent_prob_isol=0.0, build_prob=0.3, seed=1), "Off (compact, contiguous)"),
-            P(_ca_plan(isobenefit, cent_prob_isol=0.0001, build_prob=0.3, seed=1), "Moderate"),
-            P(_ca_plan(isobenefit, cent_prob_isol=0.04, build_prob=0.3, seed=1), "Aggressive (satellites)"),
+            P(_ca_plan(isobenefit, allow_detached=False, quota=2000.0, seed=1), "Attached (compact, contiguous)"),
+            P(_ca_plan(isobenefit, allow_detached=True, quota=2000.0, seed=1), "Detached settlements allowed"),
         ],
     )
     figure(
-        "14_build_probability",
-        "Build probability: the per-step growth rate (lower = tighter, more compact development)",
+        "14_centre_quota",
+        "Service viability threshold: the population a centre gathers before the next one is earned",
         [
-            P(_ca_plan(isobenefit, cent_prob_isol=0.0, build_prob=0.1, seed=2), "slow growth (0.1)"),
-            P(_ca_plan(isobenefit, cent_prob_isol=0.0, build_prob=0.5, seed=2), "fast growth (0.5)"),
+            P(_ca_plan(isobenefit, allow_detached=True, quota=1000.0, seed=2), "1,000 people per centre"),
+            P(_ca_plan(isobenefit, allow_detached=True, quota=4000.0, seed=2), "4,000 people per centre"),
         ],
     )
 

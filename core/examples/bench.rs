@@ -19,8 +19,8 @@ fn make_sim(rows: usize, cols: usize, seed: u64) -> Simulation {
         5_000_000.0, // max_populat (high so it never stops early)
         100.0,       // min_green_span_m
         0.25,        // build_prob
-        0.05,        // cent_prob_nb
-        0.0,         // cent_prob_isol
+        2000.0,      // centre_quota_people
+        false,       // allow_detached
         (0.4, 0.4, 0.2),
         (6000.0, 3000.0, 1000.0),
         None, // min_park_area_m2 -> the 2 ha default

@@ -105,17 +105,14 @@ class IsobenefitDialog(QtWidgets.QDialog):
         sim.addRow("Grid size (m)", self.grid_size_m)
         self.max_populat = QtWidgets.QLineEdit("100000", self)
         sim.addRow("Target population", self.max_populat)
-        self.build_prob = QtWidgets.QLineEdit("0.25", self)
-        self.build_prob.setToolTip("Per-step probability that an eligible cell develops (the growth rate).")
-        sim.addRow("Build probability", self.build_prob)
         self.dispersal_mode = QtWidgets.QComboBox(self)
-        self.dispersal_mode.addItem("Off (compact)", 0.0)
-        self.dispersal_mode.addItem("Moderate", 0.0001)
-        self.dispersal_mode.addItem("Aggressive", 0.04)
-        self.dispersal_mode.setCurrentIndex(1)  # Moderate by default
+        self.dispersal_mode.addItem("Attached (compact)", False)
+        self.dispersal_mode.addItem("Detached settlements allowed", True)
+        self.dispersal_mode.setCurrentIndex(1)
         self.dispersal_mode.setToolTip(
-            "How readily new settlements form away from existing development (satellite/leapfrog growth).\n"
-            "Off: one compact, contiguous town. Moderate/Aggressive: increasingly polycentric."
+            "Where a new centre may go once growth has earned one.\n"
+            "Attached: growth stays contiguous with existing development.\n"
+            "Detached: a new settlement may start away from it (satellite growth)."
         )
         sim.addRow("Dispersed development", self.dispersal_mode)
         self.random_seed = QtWidgets.QLineEdit("42", self)
@@ -473,7 +470,6 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "grid_size_m": (self.grid_size_m, "grid size"),
             "max_iterations": (self.n_iterations, "max iterations"),
             "target_population": (self.max_populat, "target population"),
-            "build_prob": (self.build_prob, "build probability"),
             "random_seed": (self.random_seed, "random seed"),
             "centre_walk_m": (self.centre_walk_dist, "centre walk"),
             "green_walk_m": (self.green_walk_dist, "green walk"),
@@ -499,16 +495,14 @@ class IsobenefitDialog(QtWidgets.QDialog):
             for tier, widget in widgets.items():
                 if tier in params.get(group, {}):
                     set_text(widget, f"{tier} {noun}", params[group][tier])
-        if "dispersal" in params:
-            wanted = str(params["dispersal"]).lower()
-            for i in range(self.dispersal_mode.count()):
-                if self.dispersal_mode.itemText(i).lower().startswith(wanted[:3]):
-                    if i != self.dispersal_mode.currentIndex():
-                        changes.append(
-                            f"dispersal {self.dispersal_mode.currentText()} to {self.dispersal_mode.itemText(i)}"
-                        )
-                    self.dispersal_mode.setCurrentIndex(i)
-                    break
+        if "allow_detached" in params:
+            wanted = 1 if bool(params["allow_detached"]) else 0
+            if wanted != self.dispersal_mode.currentIndex():
+                changes.append(
+                    f"dispersed development {self.dispersal_mode.currentText()} "
+                    f"to {self.dispersal_mode.itemText(wanted)}"
+                )
+            self.dispersal_mode.setCurrentIndex(wanted)
         for key, widget, label in (
             ("optimise_centres", self.optimise_centres_check, "optimise centres"),
             ("ensemble", self.ensemble_check, "ensemble"),

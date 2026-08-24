@@ -31,7 +31,20 @@ from isobenefit_qgis import grid as G  # noqa: E402
 
 OUT = os.path.join(REPO, "website", "public", "gallery")
 MAX_CELLS = 150  # preview grids are capped at ~150 cells a side
-DISPERSAL = {"off": 0.0, "moderate": 0.0001, "aggressive": 0.04}
+BUILD_PROB = 0.25  # paces the edge and varies members; does not shape the plan
+DISPERSAL = {"off": False, "moderate": True, "aggressive": True}
+
+
+def centre_quota(p):
+    """People a centre must gather before the next is earned: the viability threshold."""
+    return float(p.get("min_settlement_pop", 2000.0))
+
+
+def allow_detached(p):
+    """May an earned centre start away from existing fabric?"""
+    if "allow_detached" in p:
+        return bool(p["allow_detached"])
+    return DISPERSAL.get(str(p.get("dispersal", "moderate")), True)
 
 # colours mirror the plugin palette exactly (same convention as website/scripts/demonstrators.py)
 def _hex(rgb):
@@ -264,7 +277,7 @@ def run_preset(sub, params, preset):
     sim = isobenefit.Simulation(
         state, origin.copy(), np.zeros_like(state, np.float32), sim_seeds,
         gran, walk, green_walk, float(p["target_population"]), float(p.get("min_green_span_m", 400.0)),
-        float(p.get("build_prob", 0.25)), 0.01, DISPERSAL.get(str(p.get("dispersal", "moderate")), 0.0001),
+        BUILD_PROB, centre_quota(p), allow_detached(p),
         shares, tiers, int(p.get("max_iterations", 300)), int(p.get("random_seed", 42)),
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
@@ -400,7 +413,7 @@ def render_legend(path):
 
 
 _SCHEMA_KEYS = (
-    "crs", "grid_size_m", "max_iterations", "target_population", "build_prob", "dispersal",
+    "crs", "grid_size_m", "max_iterations", "target_population", "allow_detached",
     "random_seed", "centre_walk_m", "green_walk_m", "optimise_centres", "centre_m2_per_person",
     "min_settlement_pop", "min_green_span_m", "densities_km2", "shares", "ensemble", "ensemble_runs",
 )

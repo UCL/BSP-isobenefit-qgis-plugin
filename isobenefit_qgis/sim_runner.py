@@ -68,8 +68,7 @@ class IsobenefitTask(QgsTask):
         max_populat,
         min_green_span,
         build_prob,
-        cent_prob_nb,
-        cent_prob_isol,
+        allow_detached,
         prob_distribution,
         density_factors,
         random_seed,
@@ -109,8 +108,7 @@ class IsobenefitTask(QgsTask):
         self.max_populat = float(max_populat)
         self.min_green_span = float(min_green_span)
         self.build_prob = float(build_prob)
-        self.cent_prob_nb = float(cent_prob_nb)
-        self.cent_prob_isol = float(cent_prob_isol)
+        self.allow_detached = bool(allow_detached)
         self.prob_distribution = tuple(float(p) for p in prob_distribution)
         self.density_factors = tuple(float(d) for d in density_factors)
         self.random_seed = int(random_seed)
@@ -145,6 +143,13 @@ class IsobenefitTask(QgsTask):
         density of a new block over the three tiers, so it is what the population accounting, the
         per-person metrics and the centre provision size against."""
         return float(sum(p * d for p, d in zip(self.prob_distribution, self.density_factors)))
+
+    def _centre_quota(self) -> float:
+        """The population a centre must gather before the next one is earned: the service
+        viability threshold itself, so growth creates the centres post-processing keeps."""
+        return float(
+            self.centre_min_settlement * self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
+        )
 
     def _write_tiered_plan(self, path: str, plan, label: str) -> np.ndarray:
         """Arrange the drawn density tiers by walking distance to the final mixed-use centres, then
@@ -191,9 +196,7 @@ class IsobenefitTask(QgsTask):
         return self.green_distance_m or self.max_distance_m
 
     def _report_param_lines(self) -> list[str]:
-        dispersal = {0.0: "Off", 0.0001: "Moderate", 0.04: "Aggressive"}.get(
-            round(self.cent_prob_isol, 4), f"{self.cent_prob_isol:g}"
-        )
+        dispersal = "Detached settlements allowed" if self.allow_detached else "Attached growth only"
         cwalk = self._centre_walk()
         gwalk = self._green_walk()
         min_pop = self.centre_min_settlement * self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
@@ -207,7 +210,6 @@ class IsobenefitTask(QgsTask):
             f"  Grid size             : {self.granularity_m:.0f} m",
             f"  Max iterations        : {self.total_iters}",
             f"  Target population     : {self.max_populat:,.0f}",
-            f"  Build probability     : {self.build_prob:g}",
             f"  Dispersed development : {dispersal}",
             f"  Centre walk           : {cwalk:.0f} m",
             f"  Green walk            : {gwalk:.0f} m",
@@ -273,7 +275,7 @@ class IsobenefitTask(QgsTask):
             state, origin, density, seeds,
             self.granularity_m, self._centre_walk(), self._green_walk(),
             self.max_populat, self.min_green_span,
-            self.build_prob, self.cent_prob_nb, self.cent_prob_isol,
+            self.build_prob, self._centre_quota(), self.allow_detached,
             self.prob_distribution, self.density_factors,
             self.total_iters, self.random_seed,
             min_park_area_m2=self.min_park_area_m2, sterile=sterile,
@@ -514,8 +516,8 @@ class IsobenefitTask(QgsTask):
                 self.max_populat,
                 self.min_green_span,
                 self.build_prob,
-                self.cent_prob_nb,
-                self.cent_prob_isol,
+                self._centre_quota(),
+                self.allow_detached,
                 self.prob_distribution,
                 self.density_factors,
                 self.total_iters,

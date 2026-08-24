@@ -23,8 +23,7 @@ _FIELD_TYPES: dict[str, type] = {
     "grid_size_m": float,
     "max_iterations": int,
     "target_population": float,
-    "build_prob": float,
-    "dispersal": str,  # off | moderate | aggressive
+    "allow_detached": bool,
     "random_seed": int,
     "centre_walk_m": float,
     "green_walk_m": float,

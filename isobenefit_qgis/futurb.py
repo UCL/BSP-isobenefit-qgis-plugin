@@ -16,6 +16,10 @@ from . import bootstrap, osm_fetcher, params_io, sim_runner
 from .isobenefit_dialog import IsobenefitDialog  # Import the code for the dialog
 from .osm_dialog import OsmDialog
 
+# Paces the built edge and gives ensemble members their variation. Centre creation is
+# governed by the service viability threshold, so this value does not shape the plan.
+BUILD_PROB = 0.25
+
 
 def _positive(value):
     """Guard for dialog numbers that must be strictly positive (a 0 grid size would
@@ -287,14 +291,12 @@ class Isobenefit:
             if not 0.0 <= corridor_weight <= 1.0:
                 raise ValueError(f"corridor preference {corridor_weight} outside [0, 1]")
             random_seed = int(self.dlg.random_seed.text())
-            build_prob = float(self.dlg.build_prob.text())
-            if not 0.0 < build_prob <= 1.0:
-                raise ValueError(f"build probability {build_prob} outside (0, 1]")
-            # Dispersed-development selector -> the CA's isolated-seeding rate. Infill centrality is a
-            # sensible internal default now (the recommended plan re-derives centres in
-            # post-processing, so it no longer needs to be user-facing).
-            cent_prob_nb = 0.01
-            cent_prob_isol = float(self.dlg.dispersal_mode.currentData())
+            # The build probability paces the built edge and gives ensemble members their
+            # variation; it no longer decides how many centres appear, so it is an internal
+            # constant rather than a setting. Dispersed development is now a placement
+            # choice: may an earned centre start away from existing fabric?
+            build_prob = BUILD_PROB
+            allow_detached = bool(self.dlg.dispersal_mode.currentData())
             # Three explicit density tiers, each drawn at its own probability. The engine wants the
             # densities descending (high, med, low) and the probabilities summing to 1 — the dialog
             # guards both, so this only mirrors that order.
@@ -351,8 +353,7 @@ class Isobenefit:
             max_populat=max_populat,
             min_green_span=min_green_span,
             build_prob=build_prob,
-            cent_prob_nb=cent_prob_nb,
-            cent_prob_isol=cent_prob_isol,
+            allow_detached=allow_detached,
             prob_distribution=prob_distribution,
             density_factors=density_factors,
             random_seed=random_seed,
@@ -387,8 +388,7 @@ class Isobenefit:
                     "grid_size_m": granularity_m,
                     "max_iterations": total_iters,
                     "target_population": max_populat,
-                    "build_prob": build_prob,
-                    "dispersal": self.dlg.dispersal_mode.currentText().split(" ")[0].lower(),
+                    "allow_detached": allow_detached,
                     "random_seed": random_seed,
                     "centre_walk_m": centre_distance_m,
                     "green_walk_m": green_distance_m,

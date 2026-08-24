@@ -67,8 +67,8 @@ def main():
     template = isobenefit.Simulation(
         state, origin, np.zeros_like(state, np.float32), sub["seeds"],
         gran, walk, green_walk, target,
-        float(params.get("min_green_span_m", 400.0)), float(params.get("build_prob", 0.25)),
-        0.01, _gallery.DISPERSAL.get(str(params.get("dispersal", "moderate")), 0.0001),
+        float(params.get("min_green_span_m", 400.0)), _gallery.BUILD_PROB,
+        _gallery.centre_quota(params), _gallery.allow_detached(params),
         shares, tiers, int(params.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),

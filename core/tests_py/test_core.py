@@ -29,8 +29,8 @@ def make_sim(grid: int = 30, seed: int = 0, total_iters: int = 25, **kwargs) -> 
         1_000_000.0,  # max_populat
         100.0,  # min_green_span_m
         0.6,  # build_prob
-        0.1,  # cent_prob_nb
-        0.0,  # cent_prob_isol
+        2000.0,  # centre_quota_people
+        False,  # allow_detached
         (0.4, 0.4, 0.2),  # prob_distribution
         (6000.0, 3000.0, 1000.0),  # density_factors_km2
         total_iters,
@@ -149,8 +149,8 @@ def test_bad_prob_distribution_raises() -> None:
             1_000_000.0,
             100.0,
             0.6,
-            0.1,
-            0.0,
+            2000.0,
+            False,
             (0.5, 0.4, 0.2),  # sums to 1.1 -> invalid
             (6000.0, 3000.0, 1000.0),
             5,
