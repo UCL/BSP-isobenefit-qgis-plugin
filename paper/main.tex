@@ -48,7 +48,7 @@ and simulates growth within the land released for development. The
 planner steers the outcome through the scenario settings: the walking
 distances, the population target for new residents, the density tiers
 and their shares, the land withheld from development, and the
-existing or proposed transit toward which growth is drawn. The result
+existing or proposed transit toward which growth can be drawn. The result
 is a set of plan options written as GIS layers, in which every new
 home keeps a mixed-use centre and green space within the chosen
 walks. Three hypothetical cases demonstrate the pipeline: a new
@@ -97,7 +97,7 @@ the land a scenario releases. The planner steers the outcome through
 the scenario settings: the two walking distances, the population
 target for new residents, the density tiers and their shares, the
 land withheld from development, and the existing or proposed transit
-toward which growth is drawn. The results are post-processed into
+toward which growth can be drawn. The results are post-processed into
 plan options, alternative centre arrangements on the same grown
 fabric, and written as GIS layers.
 
@@ -116,9 +116,9 @@ The contributions are:
 \item Enhancements beyond the published model. The single radius is
   separated into two walking distances, one to a centre and one to
   green space, each with its own rules. Transit-oriented development
-  enters as an explicit heuristic: transit hubs anchor centres, and a
-  corridor preference draws growth toward existing or proposed
-  transit. Post-processing optimises the placement of centres and
+  enters as an optional heuristic: transit hubs anchor centres, and a
+  corridor preference, zero by default, draws growth toward existing
+  or proposed transit. Post-processing optimises the placement of centres and
   grades the densities from centre to edge, and the plan options keep
   every new home within the centre walk.
 \end{enumerate}
@@ -291,14 +291,10 @@ leapfrogging: by a per-cell draw, a new centre may seed on open land
 away from existing development and begin a satellite settlement.
 Setting the probability to zero disables leapfrogging.
 
-Transit also enters the draws. Transit corridors, mapped from bus
-stops or drawn as proposed routes, project the stop catchment via the
-grid walk, and the hubs project the wider hub catchment in the same
-way. Outside both catchments the build, seeding, and dispersal draws
-are scaled by one minus the corridor preference, a weight from 0 to 1
-(Section~\ref{sec:transit}). At the default of 0 the draws are
-unchanged, and higher settings concentrate growth and satellite
-settlements along existing or proposed transit.
+A scenario may also ask growth to favour land that transit serves,
+in which case the build, seeding, and dispersal draws above are
+weighted in its favour (Section~\ref{sec:transit}). Unless the
+planner asks for this, the draws stand as described.
 
 \subsection{Ensembles and selection}
 \label{sec:ensemble}
@@ -395,33 +391,56 @@ temporal animation of the growth, one frame per step.
 \subsection{Transit-oriented growth}
 \label{sec:transit}
 
-Transit enters the model through the hubs and the corridors.
-Each transit hub seeds a centre at the start of a
-run, so development gathers around it, and post-processing pins the
-centre, which is neither pruned nor repositioned and is sized like
-any other. A point added to the hubs layer places
-a designated centre by hand, such as a transit-oriented development
-around a planned station. Transit corridors attract growth. The
-corridor preference of Section~\ref{sec:growth} scales the
-development draws outside the transit catchments, so a preference
-above 0 concentrates growth and satellite settlements along existing
-or proposed transit. The run report gives the share of new homes
+Where a planner wants growth to follow transit, two settings
+express that intent, and a scenario that leaves them alone runs the
+growth rules as the preceding sections describe.
+
+The first is the hubs layer. Each transit hub seeds a centre at the
+start of a run, so development gathers around it, and
+post-processing pins the centre, which is neither pruned nor
+repositioned and is sized like any other. Stations enter the layer
+with the scenario's other inputs; a point added by hand designates
+a centre where the planner intends one, such as a transit-oriented
+development around a planned station.
+
+The second is the corridor preference, which sets how strongly
+growth favours the land transit serves. That land is the transit
+catchment: the area within the stop catchment of a bus stop or a
+drawn route, or within the wider hub catchment of a hub, measured
+by the grid walk. Inside it, development proceeds at the ordinary
+build, seeding, and dispersal probabilities; outside it, those
+probabilities are reduced in proportion to the preference. At a
+preference of 0.5 development outside the catchments is half as
+likely as inside, and at 0.95, the setting used in the
+demonstration below, a twentieth as likely, which is enough to
+string a new settlement along a route. The default is 0, at which
+the catchments carry no weight and growth follows the rules of
+Section~\ref{sec:growth} alone; the case studies use this default
+except where stated.
+
+Whatever the settings, the run report gives the share of new homes
 within the transit catchments and the mean walk to the nearest
-transit stop or hub. These metrics
-do not enter run selection. The baseline case studies
-leave the preference at 0, so their reported numbers do not depend on
-the corridor mechanism. A Cambourne demonstration raises the
-preference to 0.95 (Section~\ref{sec:cases}).
+transit stop or hub, so a plan grown without any transit intent can
+still be read against the transit that exists. These metrics do not
+enter run selection.
 
 \subsection{Rule adaptations}
 \label{sec:rules}
 
-Table~\ref{tab:rules} records the treatment of each published rule
-under three statuses: unchanged (the mechanism is the same, with its
-parameters exposed as settings), modified (the behaviour differs), or
-extension (no counterpart in the published model). Most of the
-changes adapt the published model from its uniform abstract plain to
-the real inputs of Section~\ref{sec:inputs}.
+The reference for every comparison in this section is the published
+model as formalised by \citet{dacci2019} and coded in the
+Isobenefit-cities simulator \citep{dacci_voto2023, voto_code}: its
+rules as implemented there, on the uniform abstract plain, at its
+published defaults. The comparison is with that reference
+implementation rather than with Isobenefit Urbanism as a concept,
+which admits realisations other than the automaton.
+
+Against that reference, Table~\ref{tab:rules} records the treatment
+of each rule under three statuses: unchanged (the mechanism is the
+same, with its parameters exposed as settings), modified (the
+behaviour differs), or extension (no counterpart in the reference).
+Most of the changes carry the model from the abstract plain to the
+real inputs of Section~\ref{sec:inputs}.
 
 \begin{table}[!tp]
 \centering
@@ -454,8 +473,9 @@ new development may not shrink a park below the minimum park area &
 Modified \\
 \addlinespace[2pt]
 Every built cell keeps nature within T\(^*\) &
-Same: a park must stay within the green walk of every built cell,
-the newly built cell included &
+Same rule, and it binds every built cell including the newly built
+one; the distance is the green walk, configured independently of
+the centre walk rather than sharing the single radius &
 Unchanged \\
 \addlinespace[2pt]
 New centralities seed near under-served built land at a set
@@ -556,8 +576,10 @@ metropolitan edge (Crews Hill, London), and a topography-bound hillside
 expansion (Pajarito, Medell\'in). Each case's figure varies the
 setting that shows its dominant constraint most clearly: the centre
 walk at Cambourne, the shares at Crews Hill, and dispersal at Pajarito.
-Cambourne, the reference case, additionally demonstrates the transit
-levers with a proposed corridor and hub. Table~\ref{tab:scenarios}
+All three run at the default corridor preference of 0; Cambourne,
+the reference case, then repeats with the transit settings raised,
+which is the only run in the paper that uses them.
+Table~\ref{tab:scenarios}
 gives the settings, and a closing centre-walk sweep covers all
 three cases.
 
@@ -621,7 +643,8 @@ The three plan options coincide in this case: each keeps 23 centre
 areas and the same population, and their mean centre walks agree
 within 1~m.
 
-A final run exercises both transit levers. We draw a proposed bus
+A final run turns the transit settings on, which the preceding runs
+left at their defaults. We draw a proposed bus
 corridor from Cambourne's eastern edge across the plain to the
 window's north-eastern village and add a proposed bus rapid transit
 stop as a transit hub at its southern end beside the A428 junction.
