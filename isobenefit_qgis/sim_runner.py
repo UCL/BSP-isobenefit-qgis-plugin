@@ -267,7 +267,8 @@ class IsobenefitTask(QgsTask):
         return not self.isCanceled()
 
     def _log_iterations_to_target(
-        self, isobenefit, state, origin, density, seeds, sterile=None, transit_catchment=None
+        self, isobenefit, state, origin, density, seeds, sterile=None, transit_catchment=None,
+        provision_seeds=None,
     ) -> str:
         """Step ONE representative run to the population target and log how many iterations it took,
         so the user sees that typically only ~N steps run before the target of M is met (well under
@@ -284,6 +285,7 @@ class IsobenefitTask(QgsTask):
             self.total_iters, self.random_seed,
             min_park_area_m2=self.min_park_area_m2, sterile=sterile,
             transit_catchment=transit_catchment, corridor_weight=self.corridor_weight,
+            provision_seeds=provision_seeds,
         )
         iters = 0
         while sample.current_iter < self.total_iters and sample.pop_target_ratio < 1.0:
@@ -368,6 +370,15 @@ class IsobenefitTask(QgsTask):
                 # turn that building into unbuildable land
                 state = np.where((carved == -1) & (origin != 1), -1, state)
                 self._log("Carved unbuildable land + barrier corridors (motorways/railways/rivers).")
+            if self.slope_max_deg is not None and self.steep_layer is None:
+                # the limit alone does nothing: it selects bands from a layer that was not given
+                self._log(
+                    f"A slope limit of {self.slope_max_deg:g} degrees was set but no steep-slopes "
+                    "layer was selected, so no ground is excluded for slope. Choose the scenario's "
+                    "steep.geojson in the Steep slopes box.",
+                    level=Qgis.MessageLevel.Warning,
+                    notify=True,
+                )
             if self.steep_layer is not None and self.slope_max_deg is not None:
                 # Slope bands are supplied as a separate layer so they can be edited from local
                 # knowledge; the bands at or above the limit preclude development. Existing
@@ -375,7 +386,8 @@ class IsobenefitTask(QgsTask):
                 limit = self.slope_max_deg
 
                 def _at_or_above(feat, limit=limit):
-                    band = feat.attribute("min_slope_deg") if feat.fieldNameIndex("min_slope_deg") >= 0 else None
+                    idx = feat.fields().indexOf("min_slope_deg")
+                    band = feat.attribute(idx) if idx >= 0 else None
                     try:
                         return band is not None and float(band) >= limit
                     except (TypeError, ValueError):
@@ -415,18 +427,6 @@ class IsobenefitTask(QgsTask):
                         f"cell, {n_dropped} dropped (no buildable cell within two blocks)."
                     )
 
-            n_pocket = grid.green_unviable_pockets(
-                state, origin, self.centre_min_settlement,
-                existing_centres=seeds, granularity_m=self.granularity_m,
-                centre_distance_m=self._centre_walk(),
-            )
-            if n_pocket:
-                self._log(
-                    f"Marked {n_pocket} cell(s) of unserviceable pockets as protected green: "
-                    "land unable to hold a viable settlement and beyond the centre walk of "
-                    "any existing centre."
-                )
-
             # Transit inputs: two layers with two roles. Corridors (bus stops or drawn
             # corridor lines) are growth anchors — their walkable catchment attracts
             # development through the corridor preference — while hubs (stations) anchor a
@@ -463,6 +463,22 @@ class IsobenefitTask(QgsTask):
                         f"{n_lost} station(s) dropped: no walkable cell within two blocks.",
                         Qgis.MessageLevel.Warning,
                     )
+            # Land that can host no viable settlement is set aside before the run. This has to
+            # follow the transit block: a hub anchors a centre, so a pocket within its walk is
+            # servable and must not be ruled out.
+            n_pocket = grid.green_unviable_pockets(
+                state, origin, self.centre_min_settlement,
+                existing_centres=list(seeds) + [a for a in station_anchors if a not in set(seeds)],
+                granularity_m=self.granularity_m,
+                centre_distance_m=self._centre_walk(),
+            )
+            if n_pocket:
+                self._log(
+                    f"Marked {n_pocket} cell(s) of unserviceable pockets as protected green: "
+                    "land unable to hold a viable settlement and beyond the centre walk of "
+                    "any existing centre or transit hub."
+                )
+
             def _mask(cells):
                 if not cells:
                     return None
@@ -591,6 +607,7 @@ class IsobenefitTask(QgsTask):
                 self._log(f"Running an ensemble of {n} simulations across {cores} cores…")
                 iter_summary = self._log_iterations_to_target(
                     isobenefit, state, origin, density, sim_seeds, sterile=sterile,
+                    provision_seeds=station_anchors,
                     transit_catchment=transit_catchment,
                 )
                 # Collect each run's final layout (not just the blended average): the

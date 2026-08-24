@@ -522,7 +522,7 @@ Post-processing arranges the centres three ways and grades the drawn
 densities, keeping every new home within the centre walk &
 A centre is founded at the edge of the development that earns it and the
 settlement then grows past it, which at Cambourne leaves the mean walk
-56~m longer than it need be, 384~m against 328~m. A plan drawing also needs a density gradient the growth rules
+57~m longer than it need be, 385~m against 328~m. A plan drawing also needs a density gradient the growth rules
 cannot place, since a cell draws its tier before the settlement around
 it exists \\
 \addlinespace[3pt]
@@ -646,10 +646,10 @@ where new development has none within the walk and the population
 justifies one, so post-processing neither adds nor removes any: all
 four outputs carry the same 26 centre areas, of which 20 are the
 existing centres the window already has and six were earned by the
-new residents. Pruning takes 200 of the 15{,}262 people grown in the optimised
-placement and 150 in the as-grown arrangement, and the options are
-left differing in where their centres sit. The
-walk falls from 499~m in the raw state to 384~m once the centres are
+new residents. Pruning takes 200 of the 15{,}262 people grown, leaving the three
+options housing the same 15{,}062 and differing only in where their
+centres sit. The
+walk falls from 499~m in the raw state to 385~m once the centres are
 sized to the residents they serve and growth no centre reaches is
 pruned, and to 328~m once each centre is moved central to the homes it
 serves. Fewest centres removes none, because every centre was earned
@@ -667,16 +667,16 @@ The corridor preference is 0.95 and every other setting stays at the
 baseline. Growth and its satellite settlements string along the route
 instead of spreading across the window (Figure~\ref{fig:corridor}),
 and the share of new homes within the transit catchments rises from
-9\% to 88\%. The hub lies just beyond the centre walk of the
+9\% to 89\%. The hub lies just beyond the centre walk of the
 existing centres, so its catchment holds land they do not serve, and a new
 settlement gathers around its pinned centre at the junction. The
-population accommodated moves little, 15{,}134 against 15{,}062,
+population accommodated moves little, 14{,}927 against 15{,}062,
 because the catchments hold enough developable land for a
 settlement of this size; what changes is where it sits. The mean
-centre walk lengthens from 328 to 353~m, since growth strung along
+centre walk lengthens from 328 to 339~m, since growth strung along
 a route is served by centres spaced along it rather than gathered
-around a core, while the walk to green space rises from 118 to
-119~m. Every home keeps a centre within the walk. Where the catchments hold less
+around a core, while the walk to green space falls from 118 to
+117~m. Every home keeps a centre within the walk. Where the catchments hold less
 land the preference draws growth into a smaller area, and the run
 report gives the share of homes within them either way.
 
@@ -693,13 +693,13 @@ so it reads below the 20~\sqm{} the sizing rule applies.}
 \toprule
 Metric & Raw & As grown & Optimised placement & Fewest centres \\
 \midrule
-Population accommodated & 15{,}262 & 15{,}112 & 15{,}062 & 15{,}062 \\
-Share of target & 102\% & 101\% & 100\% & 100\% \\
+Population accommodated & 15{,}262 & 15{,}062 & 15{,}062 & 15{,}062 \\
+Share of target & 102\% & 100\% & 100\% & 100\% \\
 Built cells (incl.\ existing) & 3{,}883 & 3{,}855 & 3{,}855 & 3{,}855 \\
 Mixed-use centre areas & 26 & 26 & 26 & 26 \\
-Mean walk to a centre (m) & 499 & 384 & 328 & 328 \\
+Mean walk to a centre (m) & 499 & 385 & 328 & 328 \\
 Mean walk to green space (m) & 117 & 118 & 118 & 118 \\
-Centre \sqm{} per person & 1 & 11 & 12 & 12 \\
+Centre \sqm{} per person & 1 & 10 & 12 & 12 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -744,14 +744,14 @@ the site boundary and the allocation's scale. Whether the release
 should proceed is a question for the plan's examination and its
 public consultation.
 
-Under the baseline settings the plan houses 13{,}321 new residents
+Under the baseline settings the plan houses 13{,}104 new residents
 against a 13{,}000 target, and they
-average a 262~m walk to a centre and 64~m to green space.
+average a 266~m walk to a centre and 63~m to green space.
 Figure~\ref{fig:crewshill} varies the shares on the fixed boundary.
 Because the release can hold the target at any of the three mixes,
 the shares set the land it takes rather than the population: 0.5 /
-0.3 / 0.2 (high / medium / low) houses 13{,}526 on 69~ha of new
-land, and 0.1 / 0.3 / 0.6 houses 13{,}411 on 104~ha, half as much
+0.3 / 0.2 (high / medium / low) houses 13{,}294 on 68~ha of new
+land, and 0.1 / 0.3 / 0.6 houses 13{,}322 on 103~ha, half as much
 again for the same people. The
 station's hub centre is pinned against the rail line, and the
 new development forms around the station.
@@ -764,7 +764,7 @@ new development forms around the station.
 \caption{The selected plan for the Crews Hill release, with
 attached growth, at shares of 0.1 / 0.3 / 0.6 (high / medium / low)
 (left) and 0.5 / 0.3 / 0.2 (right). The two settings
-house 13{,}411 and 13{,}526 people on 104 and 69~ha of new land: the
+house 13{,}322 and 13{,}294 people on 103 and 68~ha of new land: the
 denser mix leaves 35~ha more as green space. The rail station (ringed marker) anchors a
 pinned centre in both settings, and the release grows around it. Full scenario resolution, seed 42.}
 \label{fig:crewshill}
@@ -790,8 +790,8 @@ Requiring growth to stay attached to existing development collapses
 the plan to 5{,}126, because a centre may then only be founded
 against fabric that already exists and the benches are unreachable
 across the steep ground between them. Raising the viability
-threshold from 2{,}000 to 4{,}000 people houses 39{,}283 in fewer
-and larger settlements, at a 192~m mean centre walk.
+threshold from 2{,}000 to 4{,}000 people houses 40{,}351 in fewer
+and larger settlements, at a 156~m mean centre walk.
 
 \begin{figure}[!tp]
 \centering
@@ -812,15 +812,15 @@ seed 42.}
 
 The centre walk is swept across 800, 1{,}200, and 1{,}600~m for the
 three cases. The population accommodated moves little across the
-sweep: Cambourne houses 14{,}065 to 15{,}062, Crews Hill 13{,}321
-to 13{,}558, and Pajarito 38{,}429 to 39{,}321. What the walk
+sweep: Cambourne houses 14{,}136 to 15{,}141, Crews Hill 13{,}104
+to 13{,}252, and Pajarito 38{,}429 to 39{,}308. What the walk
 changes is how many centres serve those residents and how far they
 walk to one.
 
 A centre is founded once the population nearest it reaches the
 viability threshold, so a wider walk lets a centre gather that
 population from more land, and fewer centres are founded. Crews
-Hill shows this plainly, at 88~m under an 800~m walk against 262~m
+Hill shows this plainly, at 91~m under an 800~m walk against 266~m
 at the baseline, where its centres are correspondingly smaller: 19~\sqm{}
 of centre land per resident at 800~m against 9~\sqm{} at the baseline. The mean walk does not rise with the setting in
 every case, because the walk also bounds how far a home may sit
@@ -838,8 +838,8 @@ settings.}
 \toprule
 Scenario & 800~m & 1{,}200~m (baseline) & 1{,}600~m \\
 \midrule
-Cambourne & 342~m & 328~m & 419~m \\
-Crews Hill & 88~m & 262~m & 271~m \\
+Cambourne & 331~m & 328~m & 346~m \\
+Crews Hill & 91~m & 266~m & 275~m \\
 Pajarito & 117~m & 137~m & 147~m \\
 \bottomrule
 \end{tabular}
@@ -880,10 +880,10 @@ breaks.
 Placement is the clearest gain. A centre is founded at the edge of the
 development that earned it, because that is where growth had reached,
 and the settlement then grows past it. At the Cambourne baseline the new
-homes average a 384~m walk to the centres where the run left them and
+homes average a 385~m walk to the centres where the run left them and
 328~m once each is moved to the point central to the homes it serves.
 That step changes no fabric and no centre count: it moves 26 centres
-and shortens the mean walk by 56~m. The raw state's 499~m is not the
+and shortens the mean walk by 57~m. The raw state's 499~m is not the
 comparison, since its centres are single cells that post-processing has
 yet to size.
 
@@ -923,8 +923,8 @@ compared directly.
 The three windows answer to different settings, and each says something
 the others cannot. At Crews Hill the release holds its population under
 every density mix tried, so the shares set the land it takes rather than
-the population it houses: the densest mix builds on 69~ha of new land and
-the lightest on 104~ha, half as much again for the same people. Where
+the population it houses: the densest mix builds on 68~ha of new land and
+the lightest on 103~ha, half as much again for the same people. Where
 a boundary is fixed by policy, as a green-belt release is, that is the
 trade the shares actually govern.
 

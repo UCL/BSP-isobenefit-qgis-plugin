@@ -821,7 +821,10 @@ impl Simulation {
                 if state[[y, x]] != 0 || origin[[y, x]] == 0 || cent_acc[[y, x]] <= 0 {
                     continue;
                 }
-                let attached = iter_nbs(rows, cols, y, x, false)
+                // rook, exactly as the build rule attaches: a queen test would report room
+                // at cells the run can never build on, and the build-out release would
+                // never fire
+                let attached = iter_nbs(rows, cols, y, x, true)
                     .into_iter()
                     .any(|(ny, nx)| state[[ny, nx]] > 0 && anchored[[ny, nx]]);
                 if !attached {

@@ -121,6 +121,15 @@ pub fn agg_dijkstra_cont(
             if !path_state.contains(&state[[ny, nx]]) {
                 continue;
             }
+            // a diagonal step may not squeeze between two cells the path cannot use,
+            // so growth measures the walk exactly as the scoring does
+            if ny != y
+                && nx != x
+                && !path_state.contains(&state[[y, nx]])
+                && !path_state.contains(&state[[ny, x]])
+            {
+                continue;
+            }
             if nd < dist[[ny, nx]] {
                 dist[[ny, nx]] = nd;
                 heap.push(HeapItem {
@@ -176,6 +185,14 @@ pub fn agg_dijkstra_dist(
                 continue;
             }
             if !path_state.contains(&state[[ny, nx]]) {
+                continue;
+            }
+            // as above: no diagonal squeeze between two cells the path cannot use
+            if ny != y
+                && nx != x
+                && !path_state.contains(&state[[y, nx]])
+                && !path_state.contains(&state[[ny, x]])
+            {
                 continue;
             }
             if nd < dist[[ny, nx]] {

@@ -1478,7 +1478,11 @@ def _mark_existing(plan: np.ndarray, existing_built=None, existing_centres=None)
         if 0 <= ey < out.shape[0] and 0 <= ex < out.shape[1] and out[ey, ex] == PLAN_CENTRE:
             out[ey, ex] = PLAN_EXIST_CENTRE
     if existing_built is not None:
-        out[(out == PLAN_BUILT) & np.asarray(existing_built, dtype=bool)] = PLAN_EXIST_BUILT
+        ex_mask = np.asarray(existing_built, dtype=bool)
+        out[(out == PLAN_BUILT) & ex_mask] = PLAN_EXIST_BUILT
+        # a centre grown over existing fabric is centre land the town already had: leaving it
+        # coded as new would count its residents twice, once as existing and once as new
+        out[(out == PLAN_CENTRE) & ex_mask] = PLAN_EXIST_CENTRE
     return out
 
 
