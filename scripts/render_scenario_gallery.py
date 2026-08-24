@@ -431,7 +431,7 @@ def render_legend(path):
 
 
 _SCHEMA_KEYS = (
-    "crs", "grid_size_m", "max_iterations", "target_population", "allow_detached",
+    "crs", "grid_size_m", "max_iterations", "target_population", "allow_detached", "slope_max_deg",
     "random_seed", "centre_walk_m", "green_walk_m", "optimise_centres", "centre_m2_per_person",
     "min_settlement_pop", "min_green_span_m", "densities_km2", "shares", "ensemble", "ensemble_runs",
 )

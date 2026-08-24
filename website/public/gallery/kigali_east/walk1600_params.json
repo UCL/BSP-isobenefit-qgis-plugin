@@ -4,6 +4,7 @@
   "max_iterations": 400,
   "target_population": 60000,
   "allow_detached": true,
+  "slope_max_deg": 15,
   "random_seed": 42,
   "centre_walk_m": 1600.0,
   "green_walk_m": 400,

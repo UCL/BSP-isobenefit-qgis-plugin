@@ -220,6 +220,12 @@ pub fn walk_distance(
                 if b[[ny, nx]] {
                     continue;
                 }
+                // a diagonal step may not squeeze between two blocked cells: a walk
+                // cannot pass through the corner where a carved corridor, a river or a
+                // steep band meets itself
+                if ny != y && nx != x && b[[y, nx]] && b[[ny, x]] {
+                    continue;
+                }
             }
             let ystep = (ny as f64 - y as f64).abs();
             let xstep = (nx as f64 - x as f64).abs();

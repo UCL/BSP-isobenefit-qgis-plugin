@@ -59,6 +59,8 @@ class IsobenefitTask(QgsTask):
         built_layer,
         green_layer,
         unbuildable_layer,
+        steep_layer=None,
+        slope_max_deg=None,
         centre_seeds_layer,
         transit_stops_layer=None,
         stations_layer=None,
@@ -99,6 +101,8 @@ class IsobenefitTask(QgsTask):
         self.built_layer = _snapshot(built_layer)
         self.green_layer = _snapshot(green_layer)
         self.unbuildable_layer = _snapshot(unbuildable_layer)
+        self.steep_layer = _snapshot(steep_layer)
+        self.slope_max_deg = None if slope_max_deg is None else float(slope_max_deg)
         self.centre_seeds_layer = _snapshot(centre_seeds_layer)
         self.transit_stops_layer = _snapshot(transit_stops_layer)
         self.stations_layer = _snapshot(stations_layer)
@@ -346,11 +350,39 @@ class IsobenefitTask(QgsTask):
             if self.unbuildable_layer is not None:
                 # Carve unbuildable land (water, airports, military, quarries) AND the buffered
                 # motorway/railway/river barrier corridors from the OSM tool — these cells must
-                # never develop. all_touched so thin corridors leave no gaps. Done before the CA.
-                state = gis_io.burn_layer(
-                    state, self.unbuildable_layer, self.target_crs, geotransform, -1, all_touched=True
+                # never develop. Burned by cell centre, like every other layer: burning every
+                # touched cell carved up to a cell beyond each edge, which cost real developable
+                # land (at Cambourne it doubled the carved area). Walks cannot cut a diagonal
+                # corner between two carved cells, so a corridor still blocks them.
+                carved = gis_io.burn_layer(
+                    np.full_like(state, 0), self.unbuildable_layer, self.target_crs, geotransform, -1
                 )
+                # existing fabric is fixed: a corridor clipping a mapped building does not
+                # turn that building into unbuildable land
+                state = np.where((carved == -1) & (origin != 1), -1, state)
                 self._log("Carved unbuildable land + barrier corridors (motorways/railways/rivers).")
+            if self.steep_layer is not None and self.slope_max_deg is not None:
+                # Slope bands are supplied as a separate layer so they can be edited from local
+                # knowledge; the bands at or above the limit preclude development. Existing
+                # fabric stands whatever the ground does under it.
+                limit = self.slope_max_deg
+
+                def _at_or_above(feat, limit=limit):
+                    band = feat.attribute("min_slope_deg") if feat.fieldNameIndex("min_slope_deg") >= 0 else None
+                    try:
+                        return band is not None and float(band) >= limit
+                    except (TypeError, ValueError):
+                        return False
+
+                steep = gis_io.burn_layer(
+                    np.full_like(state, 0), self.steep_layer, self.target_crs, geotransform, -1,
+                    feature_filter=_at_or_above,
+                )
+                n_steep = int(((steep == -1) & (origin != 1) & (state != -1)).sum())
+                state = np.where((steep == -1) & (origin != 1), -1, state)
+                self._log(
+                    f"Carved ground at or above {self.slope_max_deg:g} degrees: {n_steep:,} cell(s)."
+                )
             density = np.zeros((rows, cols), dtype=np.float32)
             seeds = []
             if self.centre_seeds_layer is not None:

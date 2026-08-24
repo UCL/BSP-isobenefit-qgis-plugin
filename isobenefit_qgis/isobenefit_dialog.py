@@ -129,6 +129,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         self.green_walk_dist = QtWidgets.QLineEdit("400", self)
         self.green_walk_dist.setToolTip("How far people will walk to a park.")
         acc.addRow("Green walk (m)", self.green_walk_dist)
+        acc.addRow("Slope limit (degrees)", self.slope_max_deg)
         self.stop_catchment_dist = QtWidgets.QLineEdit("400", self)
         self.stop_catchment_dist.setToolTip(
             "How far people walk to a bus stop. Sets the catchment around the transit "
@@ -173,6 +174,11 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "denser or more populous catchments get bigger centres."
         )
         pp.addRow("Centre area (m² per person)", self.centre_m2_person)
+        self.slope_max_deg = QtWidgets.QLineEdit("", self)
+        self.slope_max_deg.setToolTip(
+            "Ground at or above this slope is treated as unbuildable, read from the steep-slopes "
+            "layer's bands. Leave empty to apply no slope limit."
+        )
         self.min_settlement = QtWidgets.QLineEdit("2000", self)
         self.min_settlement.setToolTip(
             "The service viability threshold: the population a settlement must reach to support a "
@@ -294,6 +300,12 @@ class IsobenefitDialog(QtWidgets.QDialog):
         inp.addRow("Existing green [opt]", self.green_layer_box)
         self.unbuildable_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
         inp.addRow("Unbuildable [opt]", self.unbuildable_layer_box)
+        self.steep_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
+        self.steep_layer_box.setToolTip(
+            "Slope bands from the OSM download (steep.geojson). Bands at or above the slope limit "
+            "below are treated as unbuildable."
+        )
+        inp.addRow("Steep slopes [opt]", self.steep_layer_box)
         self.centre_seeds_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer | Qgis.LayerFilter.PointLayer)
         inp.addRow("Urban centres [opt]", self.centre_seeds_layer_box)
         self.transit_stops_layer_box = _layer_combo(
@@ -339,6 +351,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         "built": "built_layer_box",
         "green": "green_layer_box",
         "unbuildable": "unbuildable_layer_box",
+        "steep": "steep_layer_box",
         "centres": "centre_seeds_layer_box",
         "stops": "transit_stops_layer_box",
         "stations": "stations_layer_box",
@@ -476,6 +489,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "min_green_span_m": (self.min_green_span, "min green span"),
             "min_park_area_ha": (self.min_park_area, "min park area"),
             "min_settlement_pop": (self.min_settlement, "service viability"),
+            "slope_max_deg": (self.slope_max_deg, "slope limit"),
             "centre_m2_per_person": (self.centre_m2_person, "centre m² per person"),
             "stop_catchment_m": (self.stop_catchment_dist, "stop catchment"),
             "hub_catchment_m": (self.hub_catchment_dist, "hub catchment"),

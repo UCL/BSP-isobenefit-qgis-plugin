@@ -56,13 +56,14 @@ def _srs_from_crs(target_crs) -> "osr.SpatialReference":
     return srs
 
 
-def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=False):
+def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=False, feature_filter=None):
     """Reproject ``layer`` to the target CRS and burn ``burn_value`` into ``arr``.
 
     Returns a new int16 array; the input is not mutated. Geometries are transformed
     before rasterizing (the fix for the long-standing CRS bug). With ``all_touched`` every cell the
-    geometry touches is burned (not just those whose centre it covers) — used for the unbuildable
-    carve so thin barrier corridors (motorways/railways/rivers) leave no gaps.
+    geometry touches is burned, not only those whose centre it covers. ``feature_filter`` takes a
+    feature and returns whether to burn it, which lets one layer supply several bands (the slope
+    bands, of which only those at or above the limit are carved).
     """
     rows, cols = arr.shape
     srs = _srs_from_crs(target_crs)
@@ -76,6 +77,8 @@ def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=Fal
     xform = QgsCoordinateTransform(layer.crs(), target_crs, QgsProject.instance())
     defn = ogr_layer.GetLayerDefn()
     for feat in layer.getFeatures():
+        if feature_filter is not None and not feature_filter(feat):
+            continue
         geom = QgsGeometry(feat.geometry())
         if geom.isEmpty():
             continue

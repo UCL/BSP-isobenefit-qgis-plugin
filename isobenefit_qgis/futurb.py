@@ -296,6 +296,11 @@ class Isobenefit:
             # constant rather than a setting. Dispersed development is now a placement
             # choice: may an earned centre start away from existing fabric?
             build_prob = BUILD_PROB
+            # an empty slope limit means no limit, so the steep layer is reported only
+            slope_text = self.dlg.slope_max_deg.text().strip()
+            slope_max_deg = float(slope_text) if slope_text else None
+            if slope_max_deg is not None and not 0.0 < slope_max_deg < 90.0:
+                raise ValueError(f"slope limit {slope_max_deg} outside (0, 90)")
             allow_detached = bool(self.dlg.dispersal_mode.currentData())
             # Three explicit density tiers, each drawn at its own probability. The engine wants the
             # densities descending (high, med, low) and the probabilities summing to 1 — the dialog
@@ -344,6 +349,8 @@ class Isobenefit:
             built_layer=self.dlg.built_layer_box.currentLayer(),
             green_layer=self.dlg.green_layer_box.currentLayer(),
             unbuildable_layer=self.dlg.unbuildable_layer_box.currentLayer(),
+            steep_layer=self.dlg.steep_layer_box.currentLayer(),
+            slope_max_deg=slope_max_deg,
             centre_seeds_layer=self.dlg.centre_seeds_layer_box.currentLayer(),
             transit_stops_layer=self.dlg.transit_stops_layer_box.currentLayer(),
             stations_layer=self.dlg.stations_layer_box.currentLayer(),
@@ -389,6 +396,7 @@ class Isobenefit:
                     "max_iterations": total_iters,
                     "target_population": max_populat,
                     "allow_detached": allow_detached,
+                    "slope_max_deg": slope_max_deg,
                     "random_seed": random_seed,
                     "centre_walk_m": centre_distance_m,
                     "green_walk_m": green_distance_m,

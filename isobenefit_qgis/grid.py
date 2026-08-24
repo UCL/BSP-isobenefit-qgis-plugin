@@ -862,6 +862,9 @@ def _walk_distance(
         for dy, dx, w in steps:
             ny, nx = y + dy, x + dx
             if 0 <= ny < rows and 0 <= nx < cols and (blocked is None or not blocked[ny, nx]):
+                # a diagonal step may not squeeze between two blocked cells (mirrors the engine)
+                if dy and dx and blocked is not None and blocked[y, nx] and blocked[ny, x]:
+                    continue
                 nd = d + w * g
                 if nd <= max_distance_m and nd < dist[ny, nx]:
                     dist[ny, nx] = nd
