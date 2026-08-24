@@ -360,13 +360,13 @@
      "image": "cambourne/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.943,
-      "centre_access": 530.156,
-      "green_access": 151.243,
-      "population": 14889.825,
-      "centre_m2_per_person": 14.688,
-      "green_m2_per_person": 3521.284,
-      "built_cells": 1175.0
+      "served_coverage_incl_existing": 0.942,
+      "centre_access": 421.266,
+      "green_access": 154.312,
+      "population": 14451.21,
+      "centre_m2_per_person": 15.694,
+      "green_m2_per_person": 3638.809,
+      "built_cells": 1156.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -427,13 +427,13 @@
      "image": "celina_tx/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.804,
-      "centre_access": 244.423,
-      "green_access": 141.33,
-      "population": 47587.5,
-      "centre_m2_per_person": 18.019,
-      "green_m2_per_person": 402.784,
-      "built_cells": 6722.0
+      "served_coverage_incl_existing": 0.769,
+      "centre_access": 280.409,
+      "green_access": 131.282,
+      "population": 49362.5,
+      "centre_m2_per_person": 16.561,
+      "green_m2_per_person": 381.514,
+      "built_cells": 6856.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -474,13 +474,13 @@
      "image": "celina_tx/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.802,
-      "centre_access": 241.534,
-      "green_access": 146.919,
-      "population": 49050.0,
-      "centre_m2_per_person": 17.533,
-      "green_m2_per_person": 384.557,
-      "built_cells": 6832.0
+      "served_coverage_incl_existing": 0.782,
+      "centre_access": 218.348,
+      "green_access": 125.151,
+      "population": 46075.0,
+      "centre_m2_per_person": 17.417,
+      "green_m2_per_person": 421.921,
+      "built_cells": 6601.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -521,13 +521,13 @@
      "image": "celina_tx/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.844,
-      "centre_access": 330.479,
-      "green_access": 136.986,
-      "population": 48862.5,
-      "centre_m2_per_person": 16.577,
-      "green_m2_per_person": 387.056,
-      "built_cells": 6824.0
+      "served_coverage_incl_existing": 0.899,
+      "centre_access": 392.742,
+      "green_access": 125.331,
+      "population": 49537.5,
+      "centre_m2_per_person": 14.585,
+      "green_m2_per_person": 379.309,
+      "built_cells": 6873.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -568,13 +568,13 @@
      "image": "celina_tx/compact.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.779,
-      "centre_access": 269.185,
-      "green_access": 144.042,
-      "population": 50200.0,
-      "centre_m2_per_person": 16.982,
-      "green_m2_per_person": 371.514,
-      "built_cells": 6929.0
+      "served_coverage_incl_existing": 0.794,
+      "centre_access": 285.843,
+      "green_access": 138.383,
+      "population": 49787.5,
+      "centre_m2_per_person": 16.42,
+      "green_m2_per_person": 377.002,
+      "built_cells": 6881.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -615,13 +615,13 @@
      "image": "celina_tx/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.76,
-      "centre_access": 375.475,
-      "green_access": 153.736,
-      "population": 46975.0,
-      "centre_m2_per_person": 15.381,
-      "green_m2_per_person": 399.787,
-      "built_cells": 6655.0
+      "served_coverage_incl_existing": 0.79,
+      "centre_access": 283.445,
+      "green_access": 137.787,
+      "population": 48262.5,
+      "centre_m2_per_person": 16.472,
+      "green_m2_per_person": 382.854,
+      "built_cells": 6776.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -666,13 +666,13 @@
      "image": "celina_tx/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.654,
-      "centre_access": 240.705,
-      "green_access": 109.57,
-      "population": 48734.0,
-      "centre_m2_per_person": 14.21,
-      "green_m2_per_person": 506.577,
-      "built_cells": 4514.0
+      "served_coverage_incl_existing": 0.701,
+      "centre_access": 207.009,
+      "green_access": 106.717,
+      "population": 47878.5,
+      "centre_m2_per_person": 13.942,
+      "green_m2_per_person": 516.411,
+      "built_cells": 4499.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -713,13 +713,13 @@
      "image": "celina_tx/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.804,
-      "centre_access": 258.915,
-      "green_access": 141.33,
-      "population": 47587.5,
-      "centre_m2_per_person": 17.547,
-      "green_m2_per_person": 402.784,
-      "built_cells": 6722.0
+      "served_coverage_incl_existing": 0.765,
+      "centre_access": 301.496,
+      "green_access": 131.282,
+      "population": 49362.5,
+      "centre_m2_per_person": 16.409,
+      "green_m2_per_person": 381.514,
+      "built_cells": 6856.0
      },
      "settings": {
       "crs": "EPSG:32614",
@@ -826,12 +826,12 @@
      "image": "dnipro/walk800.png",
      "metrics": {
       "served_coverage": 0.982,
-      "served_coverage_incl_existing": 0.693,
-      "centre_access": 105.01,
-      "green_access": 218.065,
-      "population": 275529.195,
-      "centre_m2_per_person": 21.563,
-      "green_m2_per_person": 4.63,
+      "served_coverage_incl_existing": 0.691,
+      "centre_access": 107.79,
+      "green_access": 219.581,
+      "population": 276356.61,
+      "centre_m2_per_person": 21.433,
+      "green_m2_per_person": 4.616,
       "built_cells": 3622.0
      },
      "settings": {
@@ -874,12 +874,12 @@
      "metrics": {
       "served_coverage": 0.983,
       "served_coverage_incl_existing": 0.905,
-      "centre_access": 133.515,
-      "green_access": 218.988,
-      "population": 286285.59,
-      "centre_m2_per_person": 20.371,
-      "green_m2_per_person": 3.692,
-      "built_cells": 3634.0
+      "centre_access": 129.913,
+      "green_access": 218.252,
+      "population": 284630.76,
+      "centre_m2_per_person": 20.81,
+      "green_m2_per_person": 4.098,
+      "built_cells": 3628.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -920,13 +920,13 @@
      "image": "dnipro/compact.png",
      "metrics": {
       "served_coverage": 0.981,
-      "served_coverage_incl_existing": 0.828,
-      "centre_access": 164.945,
-      "green_access": 220.733,
-      "population": 259808.31,
-      "centre_m2_per_person": 19.641,
-      "green_m2_per_person": 8.698,
-      "built_cells": 3568.0
+      "served_coverage_incl_existing": 0.829,
+      "centre_access": 157.539,
+      "green_access": 224.102,
+      "population": 268082.46,
+      "centre_m2_per_person": 19.919,
+      "green_m2_per_person": 7.138,
+      "built_cells": 3587.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -966,14 +966,14 @@
      },
      "image": "dnipro/viability4000.png",
      "metrics": {
-      "served_coverage": 0.982,
-      "served_coverage_incl_existing": 0.82,
-      "centre_access": 135.664,
-      "green_access": 223.075,
-      "population": 273046.95,
-      "centre_m2_per_person": 20.491,
-      "green_m2_per_person": 4.072,
-      "built_cells": 3604.0
+      "served_coverage": 0.981,
+      "served_coverage_incl_existing": 0.819,
+      "centre_access": 126.315,
+      "green_access": 223.023,
+      "population": 267668.753,
+      "centre_m2_per_person": 20.699,
+      "green_m2_per_person": 4.221,
+      "built_cells": 3603.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1018,13 +1018,13 @@
      "image": "dnipro/denser.png",
      "metrics": {
       "served_coverage": 0.98,
-      "served_coverage_incl_existing": 0.834,
-      "centre_access": 117.919,
-      "green_access": 200.577,
-      "population": 332405.775,
-      "centre_m2_per_person": 18.367,
-      "green_m2_per_person": 8.389,
-      "built_cells": 3539.0
+      "served_coverage_incl_existing": 0.827,
+      "centre_access": 128.644,
+      "green_access": 200.447,
+      "population": 331315.92,
+      "centre_m2_per_person": 18.208,
+      "green_m2_per_person": 8.581,
+      "built_cells": 3536.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1111,14 +1111,14 @@
      },
      "image": "dnipro/corridor.png",
      "metrics": {
-      "served_coverage": 0.982,
-      "served_coverage_incl_existing": 0.831,
-      "centre_access": 123.004,
-      "green_access": 216.978,
-      "population": 271805.828,
-      "centre_m2_per_person": 20.92,
-      "green_m2_per_person": 5.498,
-      "built_cells": 3610.0
+      "served_coverage": 0.983,
+      "served_coverage_incl_existing": 0.838,
+      "centre_access": 131.573,
+      "green_access": 217.803,
+      "population": 285871.883,
+      "centre_m2_per_person": 20.656,
+      "green_m2_per_person": 3.889,
+      "built_cells": 3631.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1179,13 +1179,13 @@
      "image": "kigali_east/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.222,
-      "centre_access": 165.331,
-      "green_access": 128.393,
-      "population": 61752.375,
-      "centre_m2_per_person": 12.887,
-      "green_m2_per_person": 295.622,
-      "built_cells": 9269.0
+      "served_coverage_incl_existing": 0.322,
+      "centre_access": 124.933,
+      "green_access": 94.479,
+      "population": 59597.775,
+      "centre_m2_per_person": 17.193,
+      "green_m2_per_person": 308.11,
+      "built_cells": 9216.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1226,13 +1226,13 @@
      "image": "kigali_east/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.198,
-      "centre_access": 80.975,
-      "green_access": 124.86,
-      "population": 60251.85,
-      "centre_m2_per_person": 19.728,
-      "green_m2_per_person": 304.194,
-      "built_cells": 9233.0
+      "served_coverage_incl_existing": 0.211,
+      "centre_access": 66.657,
+      "green_access": 99.12,
+      "population": 57712.5,
+      "centre_m2_per_person": 20.035,
+      "green_m2_per_person": 319.895,
+      "built_cells": 9167.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1273,13 +1273,13 @@
      "image": "kigali_east/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.24,
-      "centre_access": 275.971,
-      "green_access": 131.974,
-      "population": 60598.125,
-      "centre_m2_per_person": 9.925,
-      "green_m2_per_person": 302.256,
-      "built_cells": 9239.0
+      "served_coverage_incl_existing": 0.414,
+      "centre_access": 123.764,
+      "green_access": 93.96,
+      "population": 60444.225,
+      "centre_m2_per_person": 17.22,
+      "green_m2_per_person": 303.059,
+      "built_cells": 9238.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1368,12 +1368,12 @@
      "metrics": {
       "served_coverage": 1.0,
       "served_coverage_incl_existing": 0.222,
-      "centre_access": 266.135,
-      "green_access": 136.286,
-      "population": 60444.225,
-      "centre_m2_per_person": 8.677,
-      "green_m2_per_person": 303.059,
-      "built_cells": 9238.0
+      "centre_access": 183.28,
+      "green_access": 100.52,
+      "population": 61598.475,
+      "centre_m2_per_person": 13.61,
+      "green_m2_per_person": 296.394,
+      "built_cells": 9268.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1418,13 +1418,13 @@
      "image": "kigali_east/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.166,
-      "centre_access": 143.679,
-      "green_access": 109.289,
-      "population": 60725.7,
-      "centre_m2_per_person": 11.204,
-      "green_m2_per_person": 314.826,
-      "built_cells": 8843.0
+      "served_coverage_incl_existing": 0.267,
+      "centre_access": 82.755,
+      "green_access": 85.682,
+      "population": 56956.162,
+      "centre_m2_per_person": 16.07,
+      "green_m2_per_person": 338.258,
+      "built_cells": 8770.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1465,13 +1465,13 @@
      "image": "kigali_east/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.222,
-      "centre_access": 165.331,
-      "green_access": 128.393,
-      "population": 61752.375,
-      "centre_m2_per_person": 12.887,
-      "green_m2_per_person": 295.622,
-      "built_cells": 9269.0
+      "served_coverage_incl_existing": 0.322,
+      "centre_access": 124.933,
+      "green_access": 94.479,
+      "population": 59597.775,
+      "centre_m2_per_person": 17.193,
+      "green_m2_per_person": 308.11,
+      "built_cells": 9216.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1512,13 +1512,13 @@
      "image": "kigali_east/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.216,
-      "centre_access": 220.37,
-      "green_access": 137.035,
-      "population": 55519.425,
-      "centre_m2_per_person": 10.906,
-      "green_m2_per_person": 334.61,
-      "built_cells": 9110.0
+      "served_coverage_incl_existing": 0.084,
+      "centre_access": 65.622,
+      "green_access": 119.427,
+      "population": 21738.375,
+      "centre_m2_per_person": 19.842,
+      "green_m2_per_person": 936.376,
+      "built_cells": 8232.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1626,13 +1626,13 @@
      "image": "london_crews_hill/walk800.png",
      "metrics": {
       "served_coverage": 0.999,
-      "served_coverage_incl_existing": 0.738,
-      "centre_access": 140.244,
-      "green_access": 68.364,
-      "population": 13608.54,
-      "centre_m2_per_person": 17.592,
-      "green_m2_per_person": 233.39,
-      "built_cells": 3181.0
+      "served_coverage_incl_existing": 0.745,
+      "centre_access": 112.295,
+      "green_access": 68.672,
+      "population": 13395.24,
+      "centre_m2_per_person": 19.283,
+      "green_m2_per_person": 236.233,
+      "built_cells": 3194.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1720,13 +1720,13 @@
      "image": "london_crews_hill/detached.png",
      "metrics": {
       "served_coverage": 0.999,
-      "served_coverage_incl_existing": 0.812,
-      "centre_access": 449.89,
-      "green_access": 60.287,
-      "population": 12598.92,
-      "centre_m2_per_person": 9.287,
-      "green_m2_per_person": 260.094,
-      "built_cells": 3136.0
+      "served_coverage_incl_existing": 0.805,
+      "centre_access": 283.738,
+      "green_access": 64.683,
+      "population": 11376.0,
+      "centre_m2_per_person": 11.867,
+      "green_m2_per_person": 296.756,
+      "built_cells": 3026.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1768,12 +1768,12 @@
      "metrics": {
       "served_coverage": 0.999,
       "served_coverage_incl_existing": 0.814,
-      "centre_access": 325.605,
-      "green_access": 65.749,
-      "population": 13096.62,
-      "centre_m2_per_person": 12.37,
-      "green_m2_per_person": 217.774,
-      "built_cells": 3169.0
+      "centre_access": 513.308,
+      "green_access": 66.072,
+      "population": 13196.16,
+      "centre_m2_per_person": 6.888,
+      "green_m2_per_person": 215.381,
+      "built_cells": 3180.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1979,13 +1979,13 @@
      "image": "medellin_pajarito/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.755,
-      "centre_access": 112.129,
-      "green_access": 115.246,
-      "population": 40824.607,
-      "centre_m2_per_person": 18.154,
-      "green_m2_per_person": 158.976,
-      "built_cells": 1872.0
+      "served_coverage_incl_existing": 0.742,
+      "centre_access": 84.527,
+      "green_access": 98.392,
+      "population": 36998.572,
+      "centre_m2_per_person": 17.952,
+      "green_m2_per_person": 180.779,
+      "built_cells": 1774.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2026,13 +2026,13 @@
      "image": "medellin_pajarito/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.694,
-      "centre_access": 116.587,
-      "green_access": 100.226,
-      "population": 39196.507,
-      "centre_m2_per_person": 16.997,
-      "green_m2_per_person": 163.409,
-      "built_cells": 1828.0
+      "served_coverage_incl_existing": 0.663,
+      "centre_access": 128.364,
+      "green_access": 104.56,
+      "population": 35004.15,
+      "centre_m2_per_person": 16.661,
+      "green_m2_per_person": 188.708,
+      "built_cells": 1729.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2073,13 +2073,13 @@
      "image": "medellin_pajarito/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.798,
-      "centre_access": 104.004,
-      "green_access": 110.211,
-      "population": 39562.83,
-      "centre_m2_per_person": 17.863,
-      "green_m2_per_person": 167.322,
-      "built_cells": 1841.0
+      "served_coverage_incl_existing": 0.788,
+      "centre_access": 111.644,
+      "green_access": 109.052,
+      "population": 36795.06,
+      "centre_m2_per_person": 17.776,
+      "green_m2_per_person": 183.65,
+      "built_cells": 1773.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2167,13 +2167,13 @@
      "image": "medellin_pajarito/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.721,
-      "centre_access": 120.736,
-      "green_access": 114.202,
-      "population": 31503.735,
-      "centre_m2_per_person": 17.034,
-      "green_m2_per_person": 178.822,
-      "built_cells": 1639.0
+      "served_coverage_incl_existing": 0.735,
+      "centre_access": 153.822,
+      "green_access": 123.625,
+      "population": 35533.283,
+      "centre_m2_per_person": 16.356,
+      "green_m2_per_person": 152.673,
+      "built_cells": 1742.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2218,13 +2218,13 @@
      "image": "medellin_pajarito/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.73,
-      "centre_access": 81.571,
-      "green_access": 99.987,
-      "population": 39342.713,
-      "centre_m2_per_person": 17.757,
-      "green_m2_per_person": 185.037,
-      "built_cells": 1662.0
+      "served_coverage_incl_existing": 0.715,
+      "centre_access": 95.382,
+      "green_access": 96.71,
+      "population": 37209.375,
+      "centre_m2_per_person": 17.741,
+      "green_m2_per_person": 197.986,
+      "built_cells": 1619.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2265,13 +2265,13 @@
      "image": "medellin_pajarito/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.755,
-      "centre_access": 112.129,
-      "green_access": 115.246,
-      "population": 40824.607,
-      "centre_m2_per_person": 18.154,
-      "green_m2_per_person": 158.976,
-      "built_cells": 1872.0
+      "served_coverage_incl_existing": 0.742,
+      "centre_access": 100.258,
+      "green_access": 98.392,
+      "population": 36998.572,
+      "centre_m2_per_person": 17.952,
+      "green_m2_per_person": 180.779,
+      "built_cells": 1774.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2312,13 +2312,13 @@
      "image": "medellin_pajarito/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.679,
-      "centre_access": 165.747,
-      "green_access": 99.787,
-      "population": 22711.995,
-      "centre_m2_per_person": 13.998,
-      "green_m2_per_person": 325.434,
-      "built_cells": 1427.0
+      "served_coverage_incl_existing": 0.537,
+      "centre_access": 286.896,
+      "green_access": 77.97,
+      "population": 5372.73,
+      "centre_m2_per_person": 7.915,
+      "green_m2_per_person": 1536.258,
+      "built_cells": 1001.0
      },
      "settings": {
       "crs": "EPSG:32618",

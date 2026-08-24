@@ -183,6 +183,68 @@ pub fn try_build(
     min_park_area_m2: f64,
     built_labels: Option<&Array2<i32>>,
 ) -> bool {
+    build_inner(
+        y,
+        x,
+        state,
+        park,
+        green_acc,
+        granularity_m,
+        green_distance_m,
+        min_green_span_m,
+        min_park_area_m2,
+        built_labels,
+        true,
+    )
+}
+
+/// Would `(y, x)` pass every build check? Runs exactly the checks [`try_build`]
+/// runs and consumes nothing, so a caller can ask whether land is still
+/// developable without building on it.
+#[allow(clippy::too_many_arguments)]
+pub fn can_build(
+    y: usize,
+    x: usize,
+    state: &Array2<i16>,
+    park: &mut Array2<bool>,
+    green_acc: &mut Array2<i32>,
+    granularity_m: f64,
+    green_distance_m: f64,
+    min_green_span_m: f64,
+    min_park_area_m2: f64,
+    built_labels: Option<&Array2<i32>>,
+) -> bool {
+    build_inner(
+        y,
+        x,
+        state,
+        park,
+        green_acc,
+        granularity_m,
+        green_distance_m,
+        min_green_span_m,
+        min_park_area_m2,
+        built_labels,
+        false,
+    )
+}
+
+/// The shared body: every rejection check first, then the park bookkeeping,
+/// which is applied only when `commit` is set.
+#[allow(clippy::too_many_arguments)]
+fn build_inner(
+    y: usize,
+    x: usize,
+    state: &Array2<i16>,
+    park: &mut Array2<bool>,
+    green_acc: &mut Array2<i32>,
+    granularity_m: f64,
+    green_distance_m: f64,
+    min_green_span_m: f64,
+    min_park_area_m2: f64,
+    built_labels: Option<&Array2<i32>>,
+    commit: bool,
+) -> bool {
     let (rows, cols) = state.dim();
 
     let (_tot, longest_urban_run, _urban_regions) = count_cont_nbs(state, y, x, &[1, 2]);
@@ -222,6 +284,7 @@ pub fn try_build(
         // itself must already reach a park
         return green_acc[[y, x]] > 0;
     }
+    // beyond here the cell leaves the park, which is the only part that writes
 
     // the cell leaves the park: subtract its footprint — every cell it served.
     // Footprints are static (built land stays traversable, unbuildable land
@@ -249,6 +312,9 @@ pub fn try_build(
             }
         }
     }
+    if !commit {
+        return true;
+    }
     for y2 in y0..y1 {
         for x2 in x0..x1 {
             green_acc[[y2, x2]] -= dec[[y2, x2]];
@@ -259,9 +325,17 @@ pub fn try_build(
 }
 
 /// Assigns to centre `idx` every cell it is now nearest to, and moves the
-/// population of any cell it takes over from the centre that held it. Keeps the
-/// nearest-centre partition exact as centres are added, so each resident is
-/// charged to exactly one centre.
+/// population of any cell it takes over from the centre that held it.
+///
+/// `sources` are the cells the centre occupies, so a centre drawn as an area is
+/// one centre measured from its nearest cell rather than one per covered cell.
+/// Ties are broken on the centres' canonical keys (their lowest cell), so the
+/// partition depends on where the centres are and not on the order they were
+/// supplied in.
+///
+/// Only `centre_pop` moves. Earning credit stays with the centre the population
+/// was charged to when it was built, so a resident cannot pay for a second
+/// centre by being reassigned to a nearer one.
 #[allow(clippy::too_many_arguments)]
 fn claim_cells(
     state: &Array2<i16>,
@@ -269,19 +343,46 @@ fn claim_cells(
     centre_dist: &mut Array2<f32>,
     density: &Array2<f32>,
     centre_pop: &mut [f64],
+    centre_key: &[(usize, usize)],
     idx: usize,
-    y: usize,
-    x: usize,
+    sources: &[(usize, usize)],
     centre_distance_m: f64,
     granularity_m: f64,
 ) {
     let opts = DijkstraOpts::new(centre_distance_m, granularity_m);
-    let d = agg_dijkstra_dist(state, y, x, &[0, 1, 2], &opts);
+    let mut field: Option<Array2<f64>> = None;
+    for &(sy, sx) in sources {
+        let d = agg_dijkstra_dist(state, sy, sx, &[0, 1, 2], &opts);
+        field = Some(match field {
+            None => d,
+            Some(mut acc) => {
+                for (a, &b) in acc.iter_mut().zip(d.iter()) {
+                    if b < *a {
+                        *a = b;
+                    }
+                }
+                acc
+            }
+        });
+    }
+    let Some(d) = field else { return };
     for ((r, c), &dist) in d.indexed_iter() {
-        if !dist.is_finite() || dist as f32 >= centre_dist[[r, c]] {
+        if !dist.is_finite() {
             continue;
         }
+        let cur = centre_dist[[r, c]];
         let prev = centre_id[[r, c]];
+        let takes = if (dist as f32) < cur {
+            true
+        } else if (dist as f32) == cur && prev >= 0 {
+            // equidistant: the centre with the lower canonical key owns the cell
+            centre_key[idx] < centre_key[prev as usize]
+        } else {
+            false
+        };
+        if !takes {
+            continue;
+        }
         if prev >= 0 {
             centre_pop[prev as usize] -= density[[r, c]] as f64;
         }
@@ -319,16 +420,19 @@ pub struct Simulation {
     /// resident counts once.
     pub centre_id: Array2<i32>,
     pub centre_dist: Array2<f32>,
-    /// Per centre: the new population nearest to it, and whether it has already
-    /// released its successor.
+    /// Per centre: the new population nearest to it now.
     pub centre_pop: Vec<f64>,
-    pub centre_released: Vec<bool>,
+    /// Per centre: the population charged to it as it was built. Unlike
+    /// `centre_pop` this never moves, so reassigning a resident to a nearer
+    /// centre cannot buy a second centre with the same people.
+    pub centre_credit: Vec<f64>,
+    /// Per centre: how many successors it has earned so far.
+    pub centre_releases: Vec<u32>,
+    /// Per centre: its lowest cell, the key that breaks distance ties.
+    pub centre_key: Vec<(usize, usize)>,
     /// Centres earned but not yet placed. A centre is placed at the first
     /// eligible location the shuffled scan reaches.
     pub pending_centres: usize,
-    /// Consecutive iterations in which nothing was built: the signal that the
-    /// settled catchments are built out and a centre is owed on those grounds.
-    pub stalled_iters: usize,
     pub params: Params,
     pub total_iters: usize,
     pub current_iter: usize,
@@ -375,6 +479,7 @@ impl Simulation {
         let mut centre_id = Array2::<i32>::from_elem(dim, -1);
         let mut centre_dist = Array2::<f32>::from_elem(dim, f32::INFINITY);
         let mut centre_pop: Vec<f64> = Vec::new();
+        let mut centre_key: Vec<(usize, usize)> = Vec::new();
         for &(r, c) in centre_seeds {
             if r >= dim.0 || c >= dim.1 {
                 return Err("centre seed falls outside the grid".to_string());
@@ -386,17 +491,35 @@ impl Simulation {
             origin[[r, c]] = 2;
             cent_acc =
                 cent_acc + agg_dijkstra_cont(&state, r, c, &[0, 1, 2], &[0, 1, 2], &cent_opts);
+        }
+        // A centre drawn as an area is one centre, not one per covered cell: the seeds
+        // are grouped into contiguous areas, and each area earns and is measured as a
+        // single centre from whichever of its cells is nearest.
+        let seed_areas = label_components(&state.mapv(|v| v == 2), true);
+        let mut areas: Vec<Vec<(usize, usize)>> = Vec::new();
+        for ((r, c), &lbl) in seed_areas.indexed_iter() {
+            if lbl <= 0 {
+                continue;
+            }
+            let i = (lbl - 1) as usize;
+            while areas.len() <= i {
+                areas.push(Vec::new());
+            }
+            areas[i].push((r, c));
+        }
+        for cells in &areas {
             let idx = centre_pop.len();
             centre_pop.push(0.0);
+            centre_key.push(*cells.iter().min().expect("a labelled area has cells"));
             claim_cells(
                 &state,
                 &mut centre_id,
                 &mut centre_dist,
                 &density,
                 &mut centre_pop,
+                &centre_key,
                 idx,
-                r,
-                c,
+                cells,
                 params.centre_distance_m,
                 params.granularity_m,
             );
@@ -418,7 +541,8 @@ impl Simulation {
         }
         // with no centre anywhere, nothing can build: the first centre is owed from the start
         let pending_centres = usize::from(centre_pop.is_empty());
-        let centre_released = vec![false; centre_pop.len()];
+        let centre_credit = vec![0.0; centre_pop.len()];
+        let centre_releases = vec![0u32; centre_pop.len()];
         Ok(Simulation {
             state,
             origin,
@@ -431,9 +555,10 @@ impl Simulation {
             centre_id,
             centre_dist,
             centre_pop,
-            centre_released,
+            centre_credit,
+            centre_releases,
+            centre_key,
             pending_centres,
-            stalled_iters: 0,
             params,
             total_iters,
             current_iter: 0,
@@ -461,11 +586,15 @@ impl Simulation {
         let owner = self.centre_id[[y, x]];
         if owner >= 0 {
             let owner = owner as usize;
-            self.centre_pop[owner] += self.density[[y, x]] as f64;
-            if !self.centre_released[owner]
-                && self.centre_pop[owner] >= self.params.centre_quota_people
-            {
-                self.centre_released[owner] = true;
+            let people = self.density[[y, x]] as f64;
+            self.centre_pop[owner] += people;
+            self.centre_credit[owner] += people;
+            // a centre earns a successor for every whole quota it has housed. Credit is
+            // what this centre was charged as it grew, so the same residents cannot earn
+            // a second centre after being reassigned to a nearer one.
+            let earned = (self.centre_credit[owner] / self.params.centre_quota_people) as u32;
+            while self.centre_releases[owner] < earned {
+                self.centre_releases[owner] += 1;
                 self.pending_centres += 1;
             }
         }
@@ -476,16 +605,18 @@ impl Simulation {
         self.anchored[[y, x]] = true;
         let idx = self.centre_pop.len();
         self.centre_pop.push(0.0);
-        self.centre_released.push(false);
+        self.centre_credit.push(0.0);
+        self.centre_releases.push(0);
+        self.centre_key.push((y, x));
         claim_cells(
             &self.state,
             &mut self.centre_id,
             &mut self.centre_dist,
             &self.density,
             &mut self.centre_pop,
+            &self.centre_key,
             idx,
-            y,
-            x,
+            &[(y, x)],
             self.params.centre_distance_m,
             self.params.granularity_m,
         );
@@ -617,20 +748,66 @@ impl Simulation {
                 centrality_this_iter = true;
             }
         }
-        // A centre also earns its successor by running out of room: where catchments hold
-        // too little developable land for any one of them to reach the quota, growth would
-        // otherwise stop with the target unmet. Three consecutive iterations without a
-        // single build means the settled area is built out, not merely unlucky in its draws.
-        if built_this_iter == 0 {
-            self.stalled_iters += 1;
-        } else {
-            self.stalled_iters = 0;
-        }
-        if self.stalled_iters >= 3 && self.pending_centres == 0 && self.pop_target_ratio < 1.0 {
-            self.pending_centres += 1;
-            self.stalled_iters = 0;
-        }
         self.pop_target_ratio = self.density.sum() as f64 / p.max_populat;
+        // A centre is also owed when the settled area is built out: where the land within
+        // reach holds too little for any centre to earn its quota, growth would otherwise
+        // stop with the target unmet. This asks whether any cell inside the current
+        // catchments could still build, rather than inferring it from a quiet iteration,
+        // which at a low build rate is only the draws being unlucky.
+        if self.pending_centres == 0
+            && self.pop_target_ratio < 1.0
+            && !self.catchment_has_room(&built_labels)
+        {
+            self.pending_centres += 1;
+        }
+        let _ = built_this_iter;
+    }
+
+    /// Is there any cell inside the current catchments that could still be built?
+    ///
+    /// Scans in a fixed order and stops at the first cell that passes every build
+    /// check, so the usual answer costs almost nothing; only a built-out grid pays
+    /// for the full sweep. Nothing is consumed.
+    fn catchment_has_room(&mut self, built_labels: &Array2<i32>) -> bool {
+        let (rows, cols) = self.state.dim();
+        let p = self.params;
+        let Simulation {
+            state,
+            origin,
+            park,
+            green_acc,
+            cent_acc,
+            anchored,
+            ..
+        } = self;
+        for y in 0..rows {
+            for x in 0..cols {
+                if state[[y, x]] != 0 || origin[[y, x]] == 0 || cent_acc[[y, x]] <= 0 {
+                    continue;
+                }
+                let attached = iter_nbs(rows, cols, y, x, false)
+                    .into_iter()
+                    .any(|(ny, nx)| state[[ny, nx]] > 0 && anchored[[ny, nx]]);
+                if !attached {
+                    continue;
+                }
+                if can_build(
+                    y,
+                    x,
+                    state,
+                    park,
+                    green_acc,
+                    p.granularity_m,
+                    p.green_distance_m,
+                    p.min_green_span_m,
+                    p.min_park_area_m2,
+                    Some(built_labels),
+                ) {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     /// Runs up to `total_iters` iterations, stopping early once the population
@@ -851,6 +1028,189 @@ mod tests {
         let one = run_with(1);
         let many = run_with(4);
         assert_eq!(one, many);
+    }
+
+    /// A quiet iteration is not build-out. At a low build rate most iterations
+    /// place nothing, and the run must not read that as a full catchment and
+    /// start founding settlements: that would make the build rate decide how
+    /// many centres appear, which is what the quota exists to prevent.
+    #[test]
+    fn a_low_build_rate_does_not_invent_centres() {
+        let counts: Vec<usize> = [0.02, 0.1, 0.5]
+            .iter()
+            .map(|&bp| {
+                let n = 60;
+                let mut state = Array2::<i16>::zeros((n, n));
+                let origin = Array2::<i16>::from_elem((n, n), -1);
+                state[[30, 30]] = 1;
+                let params = Params::from_raw(
+                    100.0,
+                    10_000.0,
+                    10_000.0,
+                    1.0e12,
+                    100.0,
+                    bp,
+                    1.0e15,
+                    true,
+                    (0.4, 0.4, 0.2),
+                    (6000.0, 3000.0, 1000.0),
+                    None,
+                    None,
+                )
+                .unwrap();
+                let mut sim = Simulation::new(
+                    state,
+                    origin,
+                    Array2::<f32>::zeros((n, n)),
+                    &[(30, 30)],
+                    None,
+                    None,
+                    params,
+                    60,
+                    7,
+                )
+                .unwrap();
+                sim.run();
+                sim.centre_pop.len()
+            })
+            .collect();
+        // the quota is unreachable, so the only centre is the seed, whatever the rate
+        assert_eq!(counts, vec![1, 1, 1], "build rate changed the centre count");
+    }
+
+    /// Population inherited from a neighbouring centre must not buy a centre a
+    /// second time: a newly planted centre takes over cells that already paid
+    /// for the centre that founded it.
+    #[test]
+    fn inherited_population_does_not_earn_a_centre() {
+        let n = 40;
+        let mut state = Array2::<i16>::zeros((n, n));
+        let origin = Array2::<i16>::from_elem((n, n), -1);
+        state[[20, 20]] = 1;
+        let params = Params::from_raw(
+            100.0,
+            1500.0,
+            1500.0,
+            1.0e9,
+            100.0,
+            1.0,
+            2000.0,
+            true,
+            (0.4, 0.4, 0.2),
+            (6000.0, 3000.0, 1000.0),
+            None,
+            None,
+        )
+        .unwrap();
+        let mut sim = Simulation::new(
+            state,
+            origin,
+            Array2::<f32>::zeros((n, n)),
+            &[(20, 20)],
+            None,
+            None,
+            params,
+            40,
+            3,
+        )
+        .unwrap();
+        sim.run();
+        // every centre beyond the seed was earned by population charged as it was
+        // built, so the centres can never outrun the population that paid for them
+        let earned = (sim.centre_pop.len() - 1) as f64;
+        let justified = sim.density.sum() as f64 / 2000.0;
+        assert!(
+            earned <= justified + 1.0,
+            "{earned} centres earned against {justified:.1} justified by population",
+        );
+    }
+
+    /// A centre drawn as an area is one centre. Supplying the same area as many
+    /// cells must not create one quota counter per cell.
+    #[test]
+    fn a_centre_drawn_as_an_area_is_one_centre() {
+        let n = 30;
+        let state = Array2::<i16>::zeros((n, n));
+        let origin = Array2::<i16>::from_elem((n, n), -1);
+        let params = Params::from_raw(
+            100.0,
+            800.0,
+            800.0,
+            1.0e9,
+            100.0,
+            0.5,
+            2000.0,
+            false,
+            (0.4, 0.4, 0.2),
+            (6000.0, 3000.0, 1000.0),
+            None,
+            None,
+        )
+        .unwrap();
+        let mut block = Vec::new();
+        for y in 14..19 {
+            for x in 14..19 {
+                block.push((y, x));
+            }
+        }
+        let sim = Simulation::new(
+            state.clone(),
+            origin.clone(),
+            Array2::<f32>::zeros((n, n)),
+            &block,
+            None,
+            None,
+            params,
+            10,
+            1,
+        )
+        .unwrap();
+        assert_eq!(sim.centre_pop.len(), 1, "a 5x5 centre area is one centre");
+    }
+
+    /// The partition must depend on where the centres are, not on the order the
+    /// seeds arrived in: a layer yields its features in file order.
+    #[test]
+    fn seed_order_does_not_change_the_result() {
+        let run = |seeds: &[(usize, usize)]| {
+            let n = 50;
+            let state = Array2::<i16>::zeros((n, n));
+            let origin = Array2::<i16>::from_elem((n, n), -1);
+            let params = Params::from_raw(
+                100.0,
+                1200.0,
+                1200.0,
+                1.0e9,
+                100.0,
+                0.4,
+                2000.0,
+                true,
+                (0.4, 0.4, 0.2),
+                (6000.0, 3000.0, 1000.0),
+                None,
+                None,
+            )
+            .unwrap();
+            let mut sim = Simulation::new(
+                state,
+                origin,
+                Array2::<f32>::zeros((n, n)),
+                seeds,
+                None,
+                None,
+                params,
+                30,
+                11,
+            )
+            .unwrap();
+            sim.run();
+            (sim.state.clone(), sim.density.sum(), sim.centre_pop.len())
+        };
+        let forward = run(&[(25, 25), (25, 29), (29, 25)]);
+        let reversed = run(&[(29, 25), (25, 29), (25, 25)]);
+        assert_eq!(forward.0, reversed.0, "seed order changed the built state");
+        assert_eq!(forward.1, reversed.1, "seed order changed the population");
+        assert_eq!(forward.2, reversed.2, "seed order changed the centre count");
     }
 
     #[test]
