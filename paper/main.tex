@@ -100,7 +100,8 @@ the scenario settings: the two walking distances, the population
 target for new residents, the density tiers and their shares, the
 land withheld from development, and the existing or proposed transit
 toward which growth is drawn. The results are post-processed into
-plan options and written as GIS layers.
+plan options, alternative centre arrangements on the same grown
+fabric, and written as GIS layers.
 
 The contributions are:
 
@@ -319,55 +320,62 @@ constraints away; the blended result no longer satisfies the walking
 limits, so the layers are informational only. We instead select the
 best single run, the one whose candidate plan from the
 post-processing of Section~\ref{sec:fouroutputs} scores lowest.
-The score averages the new homes' walks to a centre and to green
-space, counting a home beyond either walk at twice that walk's
-limit and any unhoused remainder of the population target as
-homes beyond both walks, so a run cannot score well by housing
-fewer people.
+When a run houses the whole target within the walks, its score is
+simply the mean walk of its new homes to a centre and to green
+space. Two penalty terms cover the shortfalls: a home beyond
+either walk enters the average at twice that walk's limit, and
+each unhoused person of the target enters as a home beyond both
+walks. A run therefore cannot improve its score by housing fewer
+people; the lowest score belongs to the run that houses the
+target at the shortest walks.
 
-A reported mean walk averages over the new homes that reach a
-centre or green space within the walk.
+The mean walks reported in this paper carry no penalty terms;
+each averages over the new homes that reach a centre or green
+space within the walk.
 
 \subsection{Post-processing and the four outputs}
 \label{sec:fouroutputs}
 
-Post-processing checks each run before a plan is drawn.
-The first check is viability: each centre, repositioned central to
-the homes it serves, must gather at least the threshold population
-of new homes within the centre walk. A centre that falls short is
-removed, and any growth left without a centre within the walk is
-pruned back to nature, an outcome the three plan options share. Existing centres, the hub centres,
-and the existing fabric are unaffected;
-pruning is the only step that removes growth, and the run
-report confirms that every surviving centre meets the threshold.
+Post-processing turns the best single run into the four outputs.
+The first, the raw grown state, is the run exactly as it grew,
+coloured by the density tiers it drew. The other three are plan
+options: the same fabric and densities under three centre
+arrangements. Deriving them takes three steps, and no step may
+leave a new home beyond the centre walk of a centre.
 
-Post-processing then redistributes the drawn densities within each
-settlement, with the highest tiers at the core and lower tiers
-toward the edge; because the values are only redistributed, the
-run's shares and its population do not change.
+The first step makes the centres viable. Each centre is
+re-positioned central to the new homes it serves and must gather
+at least the threshold population within the centre walk. A centre
+that falls short is removed, and growth left without a centre
+within the walk is pruned back to nature. Existing centres, the
+hub centres, and the existing fabric are untouched, and pruning is
+the only step that removes growth.
 
-The last step produces the three plan options, which
-together with the raw grown state form the four outputs. \emph{Raw}
-shows the best single run as it grew, coloured by the density
-tiers it drew. The three options share the same fabric and
-arranged density and differ only in their centres. \emph{As grown} keeps the run's
-centres, adding one only where pruning removed a cluster's serving
-centre. \emph{Optimised placement} keeps the repositioned centres
-and adds one wherever provision is missing;
-infill too small to meet the threshold is served by existing
-centres and receives no centre of its own. \emph{Fewest centres}
-removes centres one at a time for as long as every home keeps one
-within the walk. Every option enforces the walk constraint: no edit
-may leave a new home beyond the centre walk of a centre. Optimised
-placement is the selected plan; run selection scores each run's
-optimised-placement candidate, and the case studies report that
-option.
+The second step arranges the densities. Within each settlement the
+drawn values are redistributed so the highest tiers sit at the
+core and the lower tiers toward the edge; the shares and the
+population are unchanged.
+
+The third step arranges the centres, and it is here that the
+options differ. \emph{As grown} keeps the run's centres where they
+seeded, adding one only where pruning removed a cluster's serving
+centre. \emph{Optimised placement} moves each centre to the point
+central to the new homes it serves, shortening the general walk,
+and adds a centre wherever new development lacks provision within
+the walk. \emph{Fewest centres} starts from the optimised
+placement and removes the most redundant centre, one at a time,
+for as long as every home keeps a centre within the walk: the
+fewest centres the walk constraint permits. Infill too small to
+meet the threshold is served by an existing centre within the walk
+and receives no centre of its own. Optimised placement is the
+selected plan; run selection scores each run's optimised-placement
+candidate, and the case studies report that option.
 
 A centre is a mixed-use district whose cells carry homes at the
 arranged densities alongside floor area for services. Each centre
 is sized by the new residents nearest to it, at 20~m\(^2\) of
 centre area per resident by default, and each resident counts
-toward one centre, so total provision follows the population. The
+toward one centre. The
 default covers the shops, services, and workplaces of
 neighbourhood-centre standards \citep{barton2021}. Because amenity
 provision scales sublinearly with settlement size
