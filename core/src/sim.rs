@@ -9,7 +9,7 @@ use crate::access::{
     agg_dijkstra_cont, agg_dijkstra_dist, park_threshold_cells, prepare_park_arrs, DijkstraOpts,
 };
 use crate::density::{random_density, rng_for, splitmix64};
-use crate::neighbours::{count_cont_nbs, green_spans, iter_nbs};
+use crate::neighbours::{count_cont_nbs, green_spans, iter_nbs, label_components};
 use ndarray::Array2;
 use rand_chacha::ChaCha8Rng;
 use rayon::prelude::*;
@@ -181,6 +181,7 @@ pub fn try_build(
     green_distance_m: f64,
     min_green_span_m: f64,
     min_park_area_m2: f64,
+    built_labels: Option<&Array2<i32>>,
 ) -> bool {
     let (rows, cols) = state.dim();
 
@@ -193,7 +194,7 @@ pub fn try_build(
         }
     }
     // don't crimp a green corridor below the minimum span
-    if !green_spans(state, y, x, granularity_m, min_green_span_m) {
+    if !green_spans(state, y, x, granularity_m, min_green_span_m, built_labels) {
         return false;
     }
 
@@ -529,6 +530,9 @@ impl Simulation {
         }
 
         let old_state = self.state.clone();
+        // one labelling per iteration: a settlement's own arms must not read as the far
+        // side of a green corridor when growth thickens into a bay it encloses
+        let built_labels = label_components(&old_state.mapv(|v| v > 0), true);
         let p = self.params;
         for (y, x) in idxs {
             if self.state[[y, x]] != 0 {
@@ -557,6 +561,7 @@ impl Simulation {
                             p.green_distance_m,
                             p.min_green_span_m,
                             p.min_park_area_m2,
+                            Some(&built_labels),
                         )
                     {
                         self.state[[y, x]] = 1;
@@ -577,6 +582,7 @@ impl Simulation {
                         p.green_distance_m,
                         p.min_green_span_m,
                         p.min_park_area_m2,
+                        Some(&built_labels),
                     )
                 {
                     // an earned centre, placed where the settlement has outgrown its own
@@ -600,6 +606,7 @@ impl Simulation {
                     p.green_distance_m,
                     p.min_green_span_m,
                     p.min_park_area_m2,
+                    Some(&built_labels),
                 )
             {
                 // an earned centre, starting a settlement away from existing fabric
@@ -1110,7 +1117,7 @@ mod tests {
         let state = Array2::from_shape_vec((1, 5), vec![0i16, 1, 1, 2, 0]).unwrap();
         let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 10_000.0);
         assert!(!try_build(
-            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 100.0, 10_000.0
+            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 100.0, 10_000.0, None
         ));
         // rejection must leave the arrays untouched
         let (park2, acc2) = prepare_park_arrs(&state, 300.0, 100.0, 10_000.0);
@@ -1129,11 +1136,11 @@ mod tests {
         let state = Array2::from_shape_vec((1, 5), vec![0i16, 1, 1, 2, 0]).unwrap();
         let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 10_000.0);
         assert!(!try_build(
-            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 100.0, 10_000.0
+            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 100.0, 10_000.0, None
         ));
         let (mut park6, mut acc6) = prepare_park_arrs(&state, 600.0, 100.0, 10_000.0);
         assert!(try_build(
-            0, 4, &state, &mut park6, &mut acc6, 100.0, 600.0, 100.0, 10_000.0
+            0, 4, &state, &mut park6, &mut acc6, 100.0, 600.0, 100.0, 10_000.0, None
         ));
         // the accepted build removed the candidate from the park set and its
         // footprint from the counts
@@ -1150,7 +1157,7 @@ mod tests {
         let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
         assert!(!park[[0, 1]] && !park[[0, 2]]);
         assert!(!try_build(
-            0, 2, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+            0, 2, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0, None
         ));
 
         // extend the row with a 4-cell park within the walk: the same build now
@@ -1160,7 +1167,7 @@ mod tests {
         assert!(!park[[0, 1]] && !park[[0, 2]] && park[[0, 4]]);
         let acc_before = acc.clone();
         assert!(try_build(
-            0, 2, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+            0, 2, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0, None
         ));
         assert_eq!(acc, acc_before);
     }
@@ -1174,7 +1181,7 @@ mod tests {
         let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
         assert!(park[[0, 4]]);
         assert!(!try_build(
-            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+            0, 4, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0, None
         ));
 
         // with one spare cell (a 5-cell park) the same build passes and the
@@ -1182,7 +1189,7 @@ mod tests {
         let state = Array2::from_shape_vec((1, 7), vec![-1i16, 0, 0, 0, 0, 0, 2]).unwrap();
         let (mut park, mut acc) = prepare_park_arrs(&state, 300.0, 100.0, 40_000.0);
         assert!(try_build(
-            0, 5, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0
+            0, 5, &state, &mut park, &mut acc, 100.0, 300.0, 200.0, 40_000.0, None
         ));
         assert!(!park[[0, 5]]);
         let mut after = state.clone();

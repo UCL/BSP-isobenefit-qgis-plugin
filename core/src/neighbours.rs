@@ -144,36 +144,85 @@ pub fn green_span(line: ArrayView1<i16>, start: usize, positive: bool) -> (i64, 
     (span, None)
 }
 
-/// True if filling `(y, x)` would not crimp any orthogonal green corridor below
-/// the minimum span. A span of 0 (immediately bounded) is allowed; a nonzero
-/// span shorter than `min_green_span_m / granularity_m` blocks the fill when it
-/// terminates at built land or the grid edge. A span bounded by unbuildable land
-/// is exempt: the minimum-width rule protects green corridors *between*
-/// developments, and land beside a river or carved road corridor may be built
-/// right up to it (growth would otherwise never be able to approach a barrier).
+/// True if filling `(y, x)` would not crimp a green corridor **between distinct
+/// developments** below the minimum span.
+///
+/// The span is measured along each axis from the candidate to the first
+/// non-green cell. A run is only protected when it separates the candidate from
+/// built land belonging to a *different* settlement than the one the candidate
+/// is joining: that is a corridor between developments, and pinching it would
+/// leave a strip too narrow to serve as green space between them.
+///
+/// A settlement's own arms do not constrain it. Where growth forms a C, U or N,
+/// the green enclosed by those arms is a bay of one settlement rather than a
+/// corridor between two, so the settlement may thicken into it; the park-area
+/// rule and the green-walk guard still apply to what is built. Without this the
+/// bay could never be filled, and runs left narrow fingers with a permanent
+/// green slot on either side.
+///
+/// A span of 0 (the candidate already touches built land) is always allowed, and
+/// unbuildable land (water, a carved corridor) terminates a run without
+/// protecting it, since it is not usable green.
+///
+/// `built_labels` carries connected-component labels of built land; with `None`
+/// every built terminator is treated as foreign, which is the conservative
+/// behaviour.
 pub fn green_spans(
     state: &Array2<i16>,
     y: usize,
     x: usize,
     granularity_m: f64,
     min_green_span_m: f64,
+    built_labels: Option<&Array2<i32>>,
 ) -> bool {
     let row = state.row(y);
     let col = state.column(x);
+    // the settlements this candidate is joining: their own arms may not block it
+    let mut own: Vec<i32> = Vec::new();
+    if let Some(lbl) = built_labels {
+        for (ny, nx) in iter_nbs(state.dim().0, state.dim().1, y, x, false) {
+            let l = lbl[[ny, nx]];
+            if l != 0 && !own.contains(&l) {
+                own.push(l);
+            }
+        }
+    }
+    let (rows, cols) = state.dim();
     let spans = [
-        green_span(row, x, false),
-        green_span(row, x, true),
-        green_span(col, y, false),
-        green_span(col, y, true),
+        (
+            green_span(row, x, false),
+            (y as i64, x as i64 - 1),
+            (0i64, -1i64),
+        ),
+        (green_span(row, x, true), (y as i64, x as i64 + 1), (0, 1)),
+        (green_span(col, y, false), (y as i64 - 1, x as i64), (-1, 0)),
+        (green_span(col, y, true), (y as i64 + 1, x as i64), (1, 0)),
     ];
     let span_blocks = min_green_span_m / granularity_m;
-    for (s, terminator) in spans {
-        if matches!(terminator, Some(v) if v < 0) {
+    for ((s, terminator), _first, (dy, dx)) in spans {
+        match terminator {
+            // the array edge, or unbuildable land: nothing to keep a corridor from
+            None => continue,
+            Some(v) if v < 0 => continue,
+            _ => {}
+        }
+        if s == 0 || (s as f64) >= span_blocks {
             continue;
         }
-        if (s as f64) < span_blocks && s != 0 {
-            return false;
+        // the cell that terminates this run
+        let ty = y as i64 + dy * (s + 1);
+        let tx = x as i64 + dx * (s + 1);
+        if ty < 0 || tx < 0 || ty >= rows as i64 || tx >= cols as i64 {
+            continue;
         }
+        if let Some(lbl) = built_labels {
+            let l = lbl[[ty as usize, tx as usize]];
+            // the candidate's own settlement across a bay does not constrain it
+            if l != 0 && own.contains(&l) {
+                continue;
+            }
+        }
+        return false;
     }
     true
 }
@@ -182,6 +231,26 @@ pub fn green_spans(
 mod tests {
     use super::*;
     use ndarray::array;
+
+    #[test]
+    fn a_settlements_own_arms_do_not_block_thickening() {
+        // a U of one settlement: arms in columns 0 and 4, base along the bottom row.
+        // The bay between the arms is 3 cells wide, under a 300 m (3-block) span.
+        let state = array![[1, 0, 0, 0, 1], [1, 0, 0, 0, 1], [1, 1, 1, 1, 1],];
+        let labels = label_components(&state.mapv(|v| v > 0), true);
+        // without labels the far arm reads as the other side of a corridor
+        assert!(!green_spans(&state, 1, 1, 100.0, 300.0, None));
+        // with them it is the same settlement, so the arm may thicken into its own bay
+        assert!(green_spans(&state, 1, 1, 100.0, 300.0, Some(&labels)));
+    }
+
+    #[test]
+    fn a_corridor_between_two_settlements_is_still_protected() {
+        // two separate settlements with a 3-cell green corridor between them
+        let state = array![[1, 0, 0, 0, 1], [1, 0, 0, 0, 1], [1, 0, 0, 0, 1],];
+        let labels = label_components(&state.mapv(|v| v > 0), true);
+        assert!(!green_spans(&state, 1, 1, 100.0, 300.0, Some(&labels)));
+    }
 
     #[test]
     fn rook_corner_has_two_neighbours() {
@@ -260,18 +329,27 @@ mod tests {
         // a short green strip against a river/carved corridor may be built on;
         // the same strip against built land is a protected corridor and blocks
         let riverside = array![[1i16, 0, 0, 0, -1]];
-        assert!(green_spans(&riverside, 0, 1, 100.0, 300.0));
+        assert!(green_spans(&riverside, 0, 1, 100.0, 300.0, None));
         let between_built = array![[1i16, 0, 0, 0, 1]];
-        assert!(!green_spans(&between_built, 0, 1, 100.0, 300.0));
+        assert!(!green_spans(&between_built, 0, 1, 100.0, 300.0, None));
     }
 
     #[test]
-    fn green_spans_blocks_short_corridor() {
-        // a single green cell flanked by built on the row -> span 0 both sides on x,
-        // but full column of green. min span 3 cells (300m / 100m).
+    fn a_run_reaching_the_grid_edge_is_not_a_corridor() {
+        // a single green cell flanked by built on the row, green to the edge above and
+        // below. min span 3 cells (300 m / 100 m). The short runs up and down end at the
+        // array edge, not at another development, so they constrain nothing.
         let state = array![[0, 0, 0], [1, 0, 1], [0, 0, 0]];
-        // x spans at (1,1): left=0 (built at col0), right=0 (built at col2) -> allowed (0)
-        // y spans: up and down are green to the edge -> 1 each, which is < 3 and != 0 -> blocked
-        assert!(!green_spans(&state, 1, 1, 100.0, 300.0));
+        let labels = label_components(&state.mapv(|v| v > 0), true);
+        assert!(green_spans(&state, 1, 1, 100.0, 300.0, Some(&labels)));
+    }
+
+    #[test]
+    fn a_short_run_to_a_foreign_settlement_still_blocks() {
+        // the same candidate, but with a second settlement two cells below: that run is
+        // a corridor between developments and is protected.
+        let state = array![[0, 0, 0], [1, 0, 1], [0, 0, 0], [0, 3, 0]];
+        let labels = label_components(&state.mapv(|v| v > 0), true);
+        assert!(!green_spans(&state, 1, 1, 100.0, 300.0, Some(&labels)));
     }
 }
