@@ -286,19 +286,25 @@ according to the shares, and a run stops when it reaches the
 population target.
 
 New centres are earned rather than drawn. Each new home is charged to
-the centre it is nearest, measured by the grid walk, so catchments
-partition and a resident counts once. When a centre has gathered the
-service viability threshold, it releases one new centre, which is
-placed at the next cell the scan reaches that lies beyond the centre
-walk of every existing centre. Growth therefore creates centres at
-the rate the population justifies, and each centre carries a viable
-settlement's population before the next is founded. A centre also
-releases its successor when it can no longer grow, which is what
-happens where terrain confines a catchment to less land than the
-threshold needs; without that provision growth would halt with the
-target unmet. One setting governs where a released centre may go:
-either it must attach to existing development, or it may start a
-satellite away from it.
+the centre nearest it, measured by the grid walk, so catchments
+partition and a resident counts once. Only centres that provide for new
+development hold that account: those the run founds, and the centres
+pinned at transit hubs. An existing centre serves the town it stands
+in, so new homes beyond every provision centre are charged instead to
+the growth that has none, which earns centres on the same terms. Once
+an account reaches the service viability threshold it releases a
+centre, and each further threshold releases another, so the number of
+settlements follows the population rather than the size of the window
+or the pace of growth.
+
+A released centre is placed at the next cell the scan reaches that has
+no provision within the centre walk, which is where post-processing
+would otherwise have to add one. A centre is also released when the
+land within reach is built out, which is what happens where terrain
+confines development to less ground than the threshold needs; without
+it a run would stop with its target unmet. One setting governs where a
+released centre may go: either it must attach to existing development,
+or it may start a settlement away from it.
 
 A scenario may also ask growth to favour land that transit serves,
 in which case the build draw above, and the placement of a released

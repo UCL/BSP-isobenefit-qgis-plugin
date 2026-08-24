@@ -78,12 +78,15 @@ unbuildable, streets, stops, stations, railways, industrial), Copernicus
 GLO-30 slope bands, rasterisation to a working grid, corridor carving for
 major roads, railways and rivers. Source: `plugin.md`, `scenarios/README.md`.
 
-3.2 Rule adaptations (~700). Condense the 14-row table from
-`website/src/pages/theory.md` into Display item 1, with each row tagged
-unchanged, reparameterised, modified or extension. Text walks the
-substantive modifications: walkable distance in place of straight lines,
-local green-span rules in place of global connectivity, seeding guards,
-shuffled visit order, new-residents-only population accounting.
+3.2 Rule adaptations (~700). REWRITTEN 2026-08-24 at Gareth's direction:
+Display item 1 is a table of DEPARTURES ONLY, eight rows, each giving the
+published rule, ours, and WHY, with the status column dropped. Rules we
+kept are not listed. The eight: one radius to four walking distances;
+seeding probabilities to a population per centre; straight lines to
+bounded walks; global green connectivity to local rules; the population
+cap counting new residents only; centres and densities arranged in
+post-processing; ensembles with one run selected; transit settings.
+Gareth rejected the earlier 16-row inventory as padding.
 
 3.3 Ensembles and selection (~350). Fifty runs, likelihood surfaces, why the
 best single run and not a consensus (averaging blurs run-level coherence;
@@ -122,22 +125,21 @@ scenarios (Dnipro, Celina, Kigali) are named once as available in the
 repository and otherwise dropped from the paper.
 
 - Cambourne (new settlement, the reference demo): the four-output report
-  table (population, coverage, walks, centre counts). At the 15,000 target
-  (2026-08-24) the reading is raw versus the plans: raw reaches 97%, the
-  three options coincide (23 centres each, 30% of target), and the corridor
-  demonstration retains 81% by concentrating growth into viable settlements.
+  table. As of the 2026-08-24 engine work all four outputs carry the SAME 26
+  centre areas (20 existing, 6 earned) and the same population, so the
+  options differ only in where the centres sit: 499 m as grown, 328 m
+  placed, and fewest centres removes none because every centre was earned.
 - Crews Hill, London (green-belt release, ~5,500 homes around a rail
   station): policy-live UK case; walkable extension versus car-led sprawl.
 - Medellin Pajarito (hillside expansion, slopes over 20 degrees unbuildable
   across ~30% of the window, Metrocable anchors): topography as the binding
   constraint.
 - Display item: three-scenario settings table (grid, target, tiers, shares,
-  dispersal, slope) from `scenarios/`.
-- Cross-scenario centre-walk sweep (400 / 800 / 1600 m) as the main
-  comparative table, with the accounting caveat stated plainly: coverage
-  counts every home including existing fabric.
-- Numbers caveat: gallery metrics are computed at preview resolution with
-  seed 42; regenerate at full scenario resolution before submission.
+  dispersed development, slope) from `scenarios/`.
+- Cross-scenario centre-walk sweep (800 / 1,200 / 1,600 m). Every case
+  houses close to its target across the sweep, so the table reports the mean
+  centre walk and the text explains it through the number of centres
+  founded, not through a population ceiling.
 
 ### 6. Discussion and limitations (~900 words)
 
@@ -179,41 +181,56 @@ Leaves two or three slots spare.
 
 ## Open items before submission
 
-1. REMOVED 2026-08-19: the Freiburg comparison is out of the paper and the
+Items 1-4 and 8 below are settled and kept only as the record of why.
+Everything still open is listed first.
+
+### Open
+
+1. Confirm the authorship list and order with the UCL team.
+2. APC funding or a waiver.
+3. Editor reply on the deadline extension.
+4. `\pending` markers in the manuscript: the corresponding author, the
+   Zenodo DOI for code availability, and the competing-interests wording.
+5. Tag v0.14.0. Held 2026-08-24 at Gareth's direction until the paper
+   settles, so the published version matches the manuscript's numbers.
+6. Gallery preview resolution. The website renders previews at about 150
+   cells a side while the paper runs full resolution, so the two are not
+   comparable for the same preset. The scale-dependence that made this
+   worse is gone (centres now follow population, not cell count), but the
+   availability width test is still measured in cells.
+
+### Settled, with the reasoning
+
+7. REMOVED 2026-08-19: the Freiburg comparison is out of the paper and the
    repository. A realised district embodies expert design and constraints the
    model never sees, so scoring the output against it implied a replication
-   test the paper does not intend. The scenario, validation scripts, audit
-   scripts, cached layers, and gallery entry were deleted (recoverable from
-   git history at e9419eb and earlier).
-2. RESOLVED 2026-08-18: the paper no longer cites gallery numbers.
-   `scripts/paper_metrics.py` computes all case-study metrics at full
-   scenario resolution (fifty-run ensembles).
-3. RESOLVED 2026-08-19 (v0.13.0, tag not yet pushed): absorption removed,
-   availability rule added at grid preparation (local width via a 3x3
-   opening plus rook-connected region capacity), hamlet prune, and the
-   infill provision exception. All numbers in the paper are regenerated
-   under this behaviour. The old 51%-of-target question is superseded: the
-   demonstration window now credits 84% raw against 62% in the plan
-   options, with pruning of failed satellites as the only cause.
-4. DONE 2026-08-22: the v0.13.0 tag is pushed and CI published the core
-   and the plugin zip.
-5. RESOLVED 2026-08-24: the Cambourne target is lowered from 30,000 to
-   15,000 at Gareth's direction. Full-resolution consequences: raw reaches
-   14,592 (97%) but pruning cuts the plan options to 4,546 (30%), the
-   three options coincide (23 centres each), and the corridor
-   demonstration now RAISES the population (12,155, 81%) by gathering
-   growth into settlements that meet the threshold. The paper reports the
-   gap as the viability story and the corridor as a lever against it.
-6. Gallery preview resolution: the availability width test is measured in
-   cells, so coarse preview grids (Dnipro at 135 m) exclude much more land
-   than the full-resolution runs. Decide whether previews should run finer
-   or the width should be defined in metres.
-7. Confirm authorship list and order with the UCL team.
-8. RESOLVED 2026-08-24: all journal DOIs verified against Crossref
-   (SoftwareX volume is 23, not 22), the ESA GLO-30 DOI resolves via
-   DataCite handles, Barton et al. gained its Routledge DOI
-   (10.4324/9780429321245), WHO 2016 its IRIS URL, and Natural England
-   its NE265 report number. Books without DOIs (Batty 2005, Calthorpe
-   1993) legitimately have none.
-9. APC funding or waiver.
-10. Editor reply on the deadline extension.
+   test the paper does not intend (recoverable from git history at e9419eb).
+8. RESOLVED 2026-08-18: the paper cites no gallery numbers.
+   `scripts/paper_metrics.py` computes every case-study metric at full
+   scenario resolution.
+9. DONE 2026-08-22: v0.13.0 tagged and published.
+10. RESOLVED 2026-08-24: the Cambourne target is 15,000, set by Gareth.
+11. RESOLVED 2026-08-24: every reference verified against Crossref and
+    DataCite; SoftwareX is volume 23, Barton et al. gained its Routledge
+    DOI, WHO 2016 its IRIS URL, Natural England its NE265 number. Batty
+    2005 and Calthorpe 1993 have no DOIs to find.
+
+## Model changes of 2026-08-24, and where they left the paper
+
+The day's engine work changed every reported number, so the manuscript was
+regenerated throughout. In order: the 80% centre-seeding cap removed; centres
+reformulated from a seeding probability to a population per centre; the green
+span rule corrected so a settlement may build into a bay it encloses itself;
+four defects in the earned-centres design fixed after an engine review (a
+build-out test in place of a dry-iteration guess, credit that does not move
+with reassigned population, one ledger per centre area rather than per cell,
+and a canonical tie-break so layer order cannot change a plan); the plugin
+brought into line with the scripts (a slope limit it never applied, barriers
+carved by cell centre, walks that cannot cut a diagonal corner); and existing
+centres stopped earning centres, so growth and post-processing now agree on
+what an existing centre provides.
+
+Where that leaves the case studies: all three windows house close to their
+target, so the cases are separated by the setting each answers to rather than
+by a population ceiling. Cambourne's four outputs now carry the same 26 centre
+areas, and the options differ only in where the centres sit.
