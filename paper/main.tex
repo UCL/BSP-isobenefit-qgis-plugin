@@ -86,9 +86,7 @@ organises growth; the walkable-access premise of Isobenefit Urbanism is shared
 by transit-oriented development, which holds that growth and density
 belong within walking reach of transit \citep{calthorpe1993,
 cervero_kockelman1997, ibraeva2020}. Carried onto such a site, the
-rules can steer where development goes, provided the model respects
-what stands and returns its results in the formats planning practice
-uses.
+rules can steer where development goes.
 
 This paper operationalises Isobenefit Urbanism as a QGIS plugin, an
 instrument planning workflows can incorporate for conceptualising
@@ -126,7 +124,7 @@ The contributions are:
 \end{enumerate}
 
 We demonstrate the pipeline on three case studies, each dominated by a
-different constraint and each steered through a different setting.
+different constraint and steered through a different setting.
 Sections~\ref{sec:background} to~\ref{sec:discussion} cover the background,
 the methods, the case studies, and the discussion.
 
@@ -321,15 +319,14 @@ limits, so the layers are informational only. We instead select the
 best single run, the one whose candidate plan from the
 post-processing of Section~\ref{sec:fouroutputs} scores lowest.
 When a run houses the whole target within the walks, its score is
-simply the mean walk of its new homes to a centre and to green
-space. Two penalty terms cover the shortfalls: a home beyond
+the mean walk of its new homes to a centre and to green
+space. Two penalty terms apply otherwise: a home beyond
 either walk enters the average at twice that walk's limit, and
 each unhoused person of the target enters as a home beyond both
 walks. A run therefore cannot improve its score by housing fewer
-people; the lowest score belongs to the run that houses the
-target at the shortest walks.
+people.
 
-The mean walks reported in this paper carry no penalty terms;
+The mean walks reported in this paper include no penalty terms;
 each averages over the new homes that reach a centre or green
 space within the walk.
 
@@ -339,11 +336,11 @@ space within the walk.
 Post-processing turns the best single run into the four outputs.
 The first, the raw grown state, is the run exactly as it grew,
 coloured by the density tiers it drew. The other three are plan
-options: the same fabric and densities under three centre
-arrangements. Deriving them takes three steps, and no step may
-leave a new home beyond the centre walk of a centre.
+options: the same fabric and drawn densities under three centre
+arrangements. No post-processing edit may leave a new home beyond
+the centre walk of a centre.
 
-The first step makes the centres viable. Each centre is
+Post-processing begins with viability. Each centre is
 re-positioned central to the new homes it serves and must gather
 at least the threshold population within the centre walk. A centre
 that falls short is removed, and growth left without a centre
@@ -351,18 +348,13 @@ within the walk is pruned back to nature. Existing centres, the
 hub centres, and the existing fabric are untouched, and pruning is
 the only step that removes growth.
 
-The second step arranges the densities. Within each settlement the
-drawn values are redistributed so the highest tiers sit at the
-core and the lower tiers toward the edge; the shares and the
-population are unchanged.
-
-The third step arranges the centres, and it is here that the
-options differ. \emph{As grown} keeps the run's centres where they
+The centres are then arranged, in one of three ways.
+\emph{As grown} keeps the run's centres where they
 seeded, adding one only where pruning removed a cluster's serving
-centre. \emph{Optimised placement} moves each centre to the point
-central to the new homes it serves, shortening the general walk,
-and adds a centre wherever new development lacks provision within
-the walk. \emph{Fewest centres} starts from the optimised
+centre. \emph{Optimised placement} keeps each centre at the
+position central to the new homes it serves, which shortens their
+mean walk, and adds a centre wherever new development lacks
+provision within the walk. \emph{Fewest centres} starts from the optimised
 placement and removes the most redundant centre, one at a time,
 for as long as every home keeps a centre within the walk: the
 fewest centres the walk constraint permits. Infill too small to
@@ -370,6 +362,11 @@ meet the threshold is served by an existing centre within the walk
 and receives no centre of its own. Optimised placement is the
 selected plan; run selection scores each run's optimised-placement
 candidate, and the case studies report that option.
+
+The densities are arranged last, once the centres are final.
+Within each settlement the drawn values are redistributed to grade
+from a dense core around the centres to a lighter edge; the shares
+and the population are unchanged.
 
 A centre is a mixed-use district whose cells carry homes at the
 arranged densities alongside floor area for services. Each centre
@@ -622,8 +619,7 @@ to meet the 2{,}000-person threshold. Pruning removes them, they
 revert to nature, and the plan options retain 30\% of the target.
 The three plan options coincide in this case: each keeps 23 centre
 areas and the same population, and their mean centre walks agree
-within 1~m, so the contrast lies between the raw grown state and
-the plans rather than among the options.
+within 1~m.
 
 A final run exercises both transit levers. We draw a proposed bus
 corridor from Cambourne's eastern edge across the plain to the
@@ -641,10 +637,10 @@ outside the catchments run at a twentieth of their probability, so
 the growth that the baseline scatters into sub-threshold pockets
 gathers instead into fewer and larger settlements along the route,
 and these meet the threshold and survive pruning. The mean walks
-concede little (304~m against 264~m to a centre, 113~m against 92~m
+change little (304~m against 264~m to a centre, 113~m against 92~m
 to green space), and every home keeps both walks. In this window the
-corridor preference aligns growth with transit and, by concentrating
-it, raises the population the plan retains.
+corridor preference aligns growth with transit and raises the
+population the plan retains.
 
 \begin{table}[t]
 \centering
@@ -843,9 +839,9 @@ grown population at the baseline walk indicates that the permitted
 walk, the dispersal setting, and the threshold interact
 strongly, so the threshold warrants per-scenario scrutiny rather
 than a single default. The Cambourne transit demonstration shows
-one lever against the loss: concentrating growth along a corridor
-gathers it into settlements that meet the threshold, and the plan
-retains 81\% of the target against the baseline's 30\%.
+one response: concentrating growth along a corridor gathers it
+into settlements that meet the threshold, and the plan retains
+81\% of the target against the baseline's 30\%.
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -860,9 +856,8 @@ the best single run, and derives the four outputs, with the walk
 constraint enforced in every option. In the three case studies the
 outcome follows the dominant constraint: viability at Cambourne, the
 reachable extent of the release at Crews Hill, and terrain at
-Pajarito. The transit levers place transit-oriented development in
-the same pipeline, and the Cambourne corridor demonstration shows
-them steering growth to a proposed route while retaining more of
+Pajarito. The Cambourne corridor demonstration shows the transit
+levers steering growth to a proposed route while retaining more of
 the target. The
 software, data, and parameters are open,
 and the results rebuild from committed sources at fixed seeds.
