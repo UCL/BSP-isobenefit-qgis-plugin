@@ -36,6 +36,7 @@ impl PySimulation {
         sterile = None,
         transit_catchment = None,
         corridor_weight = None,
+        provision_seeds = None,
     ))]
     fn new(
         py: Python<'_>,
@@ -59,6 +60,7 @@ impl PySimulation {
         sterile: Option<PyReadonlyArray2<bool>>,
         transit_catchment: Option<PyReadonlyArray2<bool>>,
         corridor_weight: Option<f64>,
+        provision_seeds: Option<Vec<(usize, usize)>>,
     ) -> PyResult<Self> {
         let params = Params::from_raw(
             granularity_m,
@@ -80,6 +82,9 @@ impl PySimulation {
         let density = density.as_array().to_owned();
         let sterile = sterile.map(|s| s.as_array().to_owned());
         let transit_catchment = transit_catchment.map(|t| t.as_array().to_owned());
+        // with none given every seed earns, which is the behaviour a caller that
+        // supplies only existing centres expects
+        let provision_seeds = provision_seeds.unwrap_or_else(|| centre_seeds.clone());
         // the constructor's green-access build is the heaviest single call; run it
         // (and its rayon fan-out) without holding the GIL
         let inner = py
@@ -89,6 +94,7 @@ impl PySimulation {
                     origin,
                     density,
                     &centre_seeds,
+                    &provision_seeds,
                     sterile,
                     transit_catchment,
                     params,

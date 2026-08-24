@@ -558,6 +558,7 @@ class IsobenefitTask(QgsTask):
                 sterile=sterile,
                 transit_catchment=transit_catchment,
                 corridor_weight=self.corridor_weight,
+                provision_seeds=station_anchors,
             )
             # Only NEW development is counted, so a run always starts from zero population and grows
             # toward the new-only target; existing fabric is context and never contributes here.

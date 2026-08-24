@@ -72,6 +72,7 @@ def main():
         shares, tiers, int(params.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
+        provision_seeds=[],
     )
     states = [np.asarray(s) for s in isobenefit.run_ensemble(template, seed, RUNS)]
 

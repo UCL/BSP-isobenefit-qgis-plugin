@@ -405,6 +405,10 @@ pub struct Simulation {
     /// Per cell: how many park cells lie within the green walk.
     pub green_acc: Array2<i32>,
     pub cent_acc: Array2<i32>,
+    /// Centres within the centre walk that count as provision for new development:
+    /// the ones the run founds, plus hubs. Existing centres serve the town they
+    /// stand in, so they let growth attach (`cent_acc`) without providing for it.
+    pub prov_acc: Array2<i32>,
     /// Built cells that can anchor new growth. Existing fabric whose settlement holds no
     /// centre (an outlying farmstead or hamlet) is sterile: development nucleates only
     /// against centred fabric, or from a dispersal-seeded centre of its own. Every cell
@@ -430,6 +434,12 @@ pub struct Simulation {
     pub centre_releases: Vec<u32>,
     /// Per centre: its lowest cell, the key that breaks distance ties.
     pub centre_key: Vec<(usize, usize)>,
+    /// Population built with no provision centre within the centre walk. Existing
+    /// centres serve the town they already stand in and provide nothing for new
+    /// development, so new growth beyond a provision centre's reach accumulates
+    /// here and founds a centre of its own once it justifies one.
+    pub unserved_credit: f64,
+    pub unserved_releases: u32,
     /// Centres earned but not yet placed. A centre is placed at the first
     /// eligible location the shuffled scan reaches.
     pub pending_centres: usize,
@@ -449,6 +459,7 @@ impl Simulation {
         mut origin: Array2<i16>,
         density: Array2<f32>,
         centre_seeds: &[(usize, usize)],
+        provision_seeds: &[(usize, usize)],
         sterile: Option<Array2<bool>>,
         transit_catchment: Option<Array2<bool>>,
         params: Params,
@@ -476,6 +487,7 @@ impl Simulation {
         // seed centres and aggregate their accessibility
         let mut cent_acc = Array2::<i32>::zeros(dim);
         let cent_opts = DijkstraOpts::new(params.centre_distance_m, params.granularity_m);
+        let mut prov_acc = Array2::<i32>::zeros(dim);
         let mut centre_id = Array2::<i32>::from_elem(dim, -1);
         let mut centre_dist = Array2::<f32>::from_elem(dim, f32::INFINITY);
         let mut centre_pop: Vec<f64> = Vec::new();
@@ -507,10 +519,22 @@ impl Simulation {
             }
             areas[i].push((r, c));
         }
+        let provision: std::collections::HashSet<(usize, usize)> =
+            provision_seeds.iter().copied().collect();
         for cells in &areas {
+            // an existing centre serves the town it stands in: it holds no ledger and
+            // claims no new residents, so growth near it still earns its own centre.
+            // A hub is new provision and behaves like a centre the run founded.
+            if !cells.iter().any(|c| provision.contains(c)) {
+                continue;
+            }
             let idx = centre_pop.len();
             centre_pop.push(0.0);
             centre_key.push(*cells.iter().min().expect("a labelled area has cells"));
+            for &(r, c) in cells {
+                prov_acc =
+                    prov_acc + agg_dijkstra_cont(&state, r, c, &[0, 1, 2], &[0, 1, 2], &cent_opts);
+            }
             claim_cells(
                 &state,
                 &mut centre_id,
@@ -540,7 +564,7 @@ impl Simulation {
             anchored[[r, c]] = true;
         }
         // with no centre anywhere, nothing can build: the first centre is owed from the start
-        let pending_centres = usize::from(centre_pop.is_empty());
+        let pending_centres = usize::from(centre_seeds.is_empty());
         let centre_credit = vec![0.0; centre_pop.len()];
         let centre_releases = vec![0u32; centre_pop.len()];
         Ok(Simulation {
@@ -550,6 +574,7 @@ impl Simulation {
             park,
             green_acc,
             cent_acc,
+            prov_acc,
             anchored,
             transit_catchment,
             centre_id,
@@ -558,6 +583,8 @@ impl Simulation {
             centre_credit,
             centre_releases,
             centre_key,
+            unserved_credit: 0.0,
+            unserved_releases: 0,
             pending_centres,
             params,
             total_iters,
@@ -583,20 +610,25 @@ impl Simulation {
         ) as f32;
         // charge the new residents to the centre they are nearest, and release the
         // next centre once that one carries a viable settlement's worth
+        let people = self.density[[y, x]] as f64;
         let owner = self.centre_id[[y, x]];
-        if owner >= 0 {
+        // a centre earns a successor for every whole quota it has housed. Credit is what a
+        // centre was charged as it grew, so the same residents cannot earn a second centre
+        // after being reassigned to a nearer one. New homes beyond every provision centre
+        // are charged to the pool, which earns centres on the same terms.
+        let (credit, releases) = if owner >= 0 {
             let owner = owner as usize;
-            let people = self.density[[y, x]] as f64;
             self.centre_pop[owner] += people;
             self.centre_credit[owner] += people;
-            // a centre earns a successor for every whole quota it has housed. Credit is
-            // what this centre was charged as it grew, so the same residents cannot earn
-            // a second centre after being reassigned to a nearer one.
-            let earned = (self.centre_credit[owner] / self.params.centre_quota_people) as u32;
-            while self.centre_releases[owner] < earned {
-                self.centre_releases[owner] += 1;
-                self.pending_centres += 1;
-            }
+            (self.centre_credit[owner], &mut self.centre_releases[owner])
+        } else {
+            self.unserved_credit += people;
+            (self.unserved_credit, &mut self.unserved_releases)
+        };
+        let earned = (credit / self.params.centre_quota_people) as u32;
+        while *releases < earned {
+            *releases += 1;
+            self.pending_centres += 1;
         }
     }
 
@@ -626,6 +658,7 @@ impl Simulation {
         let d = agg_dijkstra_dist(&self.state, y, x, &[0, 1, 2], &opts);
         let inc = d.mapv(|v| if v.is_finite() { 1 } else { 0 });
         self.cent_acc = &self.cent_acc + &inc;
+        self.prov_acc = &self.prov_acc + &inc;
     }
 
     /// The draw probability for cell `(y, x)`: outside the transit catchment
@@ -680,28 +713,13 @@ impl Simulation {
                 .into_iter()
                 .any(|(ny, nx)| old_state[[ny, nx]] > 0 && self.anchored[[ny, nx]]);
             if attached {
-                if self.cent_acc[[y, x]] > 0 {
-                    if rng.gen::<f64>() < self.corridor_prob(p.build_prob, y, x)
-                        && try_build(
-                            y,
-                            x,
-                            &self.state,
-                            &mut self.park,
-                            &mut self.green_acc,
-                            p.granularity_m,
-                            p.green_distance_m,
-                            p.min_green_span_m,
-                            p.min_park_area_m2,
-                            Some(&built_labels),
-                        )
-                    {
-                        self.state[[y, x]] = 1;
-                        self.anchored[[y, x]] = true;
-                        self.assign_density(y, x, &mut rng);
-                        built_this_iter += 1;
-                    }
-                } else if !centrality_this_iter
+                // an earned centre goes where new development has no provision within the
+                // walk, which is what post-processing would otherwise have to repair. That
+                // includes land an existing centre reaches: the town serves its own
+                // residents, and new growth beside it still needs a centre of its own.
+                if !centrality_this_iter
                     && self.pending_centres > 0
+                    && self.prov_acc[[y, x]] == 0
                     && self.corridor_prob(1.0, y, x) > rng.gen::<f64>()
                     && try_build(
                         y,
@@ -716,12 +734,30 @@ impl Simulation {
                         Some(&built_labels),
                     )
                 {
-                    // an earned centre, placed where the settlement has outgrown its own
                     self.pending_centres -= 1;
                     self.plant_centre(y, x);
                     self.assign_density(y, x, &mut rng);
                     built_this_iter += 1;
                     centrality_this_iter = true;
+                } else if self.cent_acc[[y, x]] > 0
+                    && rng.gen::<f64>() < self.corridor_prob(p.build_prob, y, x)
+                    && try_build(
+                        y,
+                        x,
+                        &self.state,
+                        &mut self.park,
+                        &mut self.green_acc,
+                        p.granularity_m,
+                        p.green_distance_m,
+                        p.min_green_span_m,
+                        p.min_park_area_m2,
+                        Some(&built_labels),
+                    )
+                {
+                    self.state[[y, x]] = 1;
+                    self.anchored[[y, x]] = true;
+                    self.assign_density(y, x, &mut rng);
+                    built_this_iter += 1;
                 }
             } else if !centrality_this_iter
                 && p.allow_detached
@@ -951,6 +987,7 @@ mod tests {
             origin,
             density,
             &[(grid / 2, grid / 2)],
+            &[(grid / 2, grid / 2)],
             None,
             None,
             growth_params(),
@@ -1063,6 +1100,7 @@ mod tests {
                     origin,
                     Array2::<f32>::zeros((n, n)),
                     &[(30, 30)],
+                    &[(30, 30)],
                     None,
                     None,
                     params,
@@ -1106,6 +1144,7 @@ mod tests {
             state,
             origin,
             Array2::<f32>::zeros((n, n)),
+            &[(20, 20)],
             &[(20, 20)],
             None,
             None,
@@ -1158,6 +1197,7 @@ mod tests {
             origin.clone(),
             Array2::<f32>::zeros((n, n)),
             &block,
+            &block,
             None,
             None,
             params,
@@ -1195,6 +1235,7 @@ mod tests {
                 state,
                 origin,
                 Array2::<f32>::zeros((n, n)),
+                seeds,
                 seeds,
                 None,
                 None,
@@ -1290,6 +1331,7 @@ mod tests {
             origin,
             density,
             &[(grid / 2, grid / 2)],
+            &[(grid / 2, grid / 2)],
             None,
             None,
             growth_params(),
@@ -1331,6 +1373,7 @@ mod tests {
             origin.clone(),
             density.clone(),
             &[(2, 2)],
+            &[(2, 2)],
             Some(sterile),
             None,
             params,
@@ -1338,8 +1381,19 @@ mod tests {
             9,
         )
         .unwrap();
-        let mut without_mask =
-            Simulation::new(state, origin, density, &[(2, 2)], None, None, params, 25, 9).unwrap();
+        let mut without_mask = Simulation::new(
+            state,
+            origin,
+            density,
+            &[(2, 2)],
+            &[(2, 2)],
+            None,
+            None,
+            params,
+            25,
+            9,
+        )
+        .unwrap();
         with_mask.run();
         without_mask.run();
         let near = |s: &Simulation| {
@@ -1443,6 +1497,7 @@ mod tests {
             state,
             origin,
             density,
+            &[(12, 4)],
             &[(12, 4)],
             None,
             None,
@@ -1584,6 +1639,7 @@ mod tests {
             origin,
             density,
             &[(4, 4)],
+            &[(4, 4)],
             None,
             None,
             growth_params(),
@@ -1669,6 +1725,7 @@ mod tests {
             origin.clone(),
             density.clone(),
             &[(grid / 2, grid / 2)],
+            &[(grid / 2, grid / 2)],
             None,
             Some(catchment),
             growth_params(),
@@ -1680,6 +1737,7 @@ mod tests {
             state,
             origin,
             density,
+            &[(grid / 2, grid / 2)],
             &[(grid / 2, grid / 2)],
             None,
             None,
@@ -1716,6 +1774,7 @@ mod tests {
             state,
             origin,
             density,
+            &[seed_cell],
             &[seed_cell],
             None,
             Some(catchment.clone()),

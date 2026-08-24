@@ -300,6 +300,7 @@ def run_preset(sub, params, preset):
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
         transit_catchment=catchment, corridor_weight=corridor_w,
+        provision_seeds=hubs,
     )
     sim.run()
     st = np.asarray(sim.snapshot()["state"])
