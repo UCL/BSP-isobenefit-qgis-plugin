@@ -191,8 +191,11 @@ Everything still open is listed first.
 3. Editor reply on the deadline extension.
 4. `\pending` markers in the manuscript: the corresponding author, the
    Zenodo DOI for code availability, and the competing-interests wording.
-5. Tag v0.14.0. Held 2026-08-24 at Gareth's direction until the paper
-   settles, so the published version matches the manuscript's numbers.
+5. Tag v0.15.0. v0.14.0 was tagged and published 2026-08-24; 0.15.0 has
+   since accumulated the walkable-links feature, the graded transit
+   preference (default 0.35), the centre-over-existing fix, the
+   density-from-centre rework and the settled panel palette, none of it
+   re-reviewed. Run the three reviewers once more, then tag.
 6. Gallery preview resolution. The website renders previews at about 150
    cells a side while the paper runs full resolution, so the two are not
    comparable for the same preset. The scale-dependence that made this
@@ -234,3 +237,27 @@ Where that leaves the case studies: all three windows house close to their
 target, so the cases are separated by the setting each answers to rather than
 by a population ceiling. Cambourne's four outputs now carry the same 26 centre
 areas, and the options differ only in where the centres sit.
+
+## Model changes of 2026-08-25, and where they left the paper
+
+Barriers are crossable where people can walk: the OSM download writes a
+walkable-ways layer (editable, its own dialog input), applied after the
+carves, marking corridor cells walkable-but-unbuildable (state -2, drawn
+magenta as "walkable link"). Transit became a graded preference: every
+stop, station and corridor cell projects a pull fading to zero at its
+catchment edge, one setting for all of it, default 0.35, so growth leans
+toward the transit a scenario supplies; the proposed corridor and hub are
+inputs of the demonstration alone, requested via include_proposed. A new
+centre never grows over existing housing, so the existing/new split is
+the input's in every panel. Density grades by the walk to the MIDDLE of
+the nearest centre (depth only breaks ties), tapering through the centre
+area into the fabric. Panel palette settled: amber ramp for new built,
+red for new centres, mid-brown/near-black for existing, green nature,
+azure water, slate barriers, magenta links, teal transit; fabric dots
+0.38, ground 0.34, nature 0.24.
+
+Headline numbers now in the paper: Cambourne 14,385 at a 255 m centre
+walk (raw 15,483, nothing added or removed by post-processing, pruning
+1,098); Crews Hill 13,193 at 137 m with two thirds of new homes within a
+walk of the station or a stop; Pajarito 40,062 at 116 m; the corridor
+demonstration 14,906 at 359 m with the transit share 44% to 86%.
