@@ -26,14 +26,14 @@
      "overrides": {},
      "image": "cambourne/baseline.png",
      "metrics": {
-      "served_coverage": 0.998,
-      "served_coverage_incl_existing": 0.953,
-      "centre_access": 490.241,
-      "green_access": 145.324,
-      "population": 13989.51,
-      "centre_m2_per_person": 7.527,
-      "green_m2_per_person": 3770.482,
-      "built_cells": 1136.0
+      "served_coverage": 1.0,
+      "served_coverage_incl_existing": 0.94,
+      "centre_access": 477.892,
+      "green_access": 133.046,
+      "population": 12073.455,
+      "centre_m2_per_person": 7.38,
+      "green_m2_per_person": 4424.541,
+      "built_cells": 1053.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -74,13 +74,13 @@
      "image": "cambourne/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.807,
-      "centre_access": 394.613,
-      "green_access": 145.06,
-      "population": 8772.3,
-      "centre_m2_per_person": 8.31,
-      "green_m2_per_person": 6213.296,
-      "built_cells": 910.0
+      "served_coverage_incl_existing": 0.849,
+      "centre_access": 326.92,
+      "green_access": 141.93,
+      "population": 12650.58,
+      "centre_m2_per_person": 10.885,
+      "green_m2_per_person": 4200.922,
+      "built_cells": 1078.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -121,13 +121,13 @@
      "image": "cambourne/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.983,
-      "centre_access": 564.606,
-      "green_access": 136.648,
-      "population": 15651.63,
-      "centre_m2_per_person": 8.28,
-      "green_m2_per_person": 3347.824,
-      "built_cells": 1208.0
+      "served_coverage_incl_existing": 0.982,
+      "centre_access": 681.777,
+      "green_access": 141.997,
+      "population": 12742.92,
+      "centre_m2_per_person": 2.543,
+      "green_m2_per_person": 4192.093,
+      "built_cells": 1082.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -168,13 +168,13 @@
      "image": "cambourne/compact.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.959,
-      "centre_access": 437.713,
-      "green_access": 139.954,
-      "population": 15143.76,
-      "centre_m2_per_person": 10.163,
-      "green_m2_per_person": 3456.354,
-      "built_cells": 1186.0
+      "served_coverage_incl_existing": 0.953,
+      "centre_access": 539.823,
+      "green_access": 139.164,
+      "population": 14474.295,
+      "centre_m2_per_person": 6.156,
+      "green_m2_per_person": 3632.446,
+      "built_cells": 1157.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -215,13 +215,13 @@
      "image": "cambourne/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.928,
-      "centre_access": 673.882,
-      "green_access": 145.376,
-      "population": 8587.62,
+      "served_coverage_incl_existing": 0.922,
+      "centre_access": 763.65,
+      "green_access": 126.569,
+      "population": 7017.84,
       "centre_m2_per_person": 0.0,
-      "green_m2_per_person": 6362.95,
-      "built_cells": 902.0
+      "green_m2_per_person": 7864.728,
+      "built_cells": 834.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -266,13 +266,13 @@
      "image": "cambourne/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.928,
-      "centre_access": 493.512,
-      "green_access": 135.947,
-      "population": 12859.56,
-      "centre_m2_per_person": 5.039,
-      "green_m2_per_person": 4245.402,
-      "built_cells": 908.0
+      "served_coverage_incl_existing": 0.925,
+      "centre_access": 455.661,
+      "green_access": 126.354,
+      "population": 10818.36,
+      "centre_m2_per_person": 5.241,
+      "green_m2_per_person": 5091.345,
+      "built_cells": 848.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -312,14 +312,14 @@
      },
      "image": "cambourne/fewest.png",
      "metrics": {
-      "served_coverage": 0.998,
-      "served_coverage_incl_existing": 0.95,
-      "centre_access": 463.265,
-      "green_access": 145.324,
-      "population": 13989.51,
-      "centre_m2_per_person": 8.685,
-      "green_m2_per_person": 3770.482,
-      "built_cells": 1136.0
+      "served_coverage": 1.0,
+      "served_coverage_incl_existing": 0.94,
+      "centre_access": 494.252,
+      "green_access": 133.046,
+      "population": 12073.455,
+      "centre_m2_per_person": 7.38,
+      "green_m2_per_person": 4424.541,
+      "built_cells": 1053.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -355,18 +355,19 @@
      "label": "Transit corridor preference",
      "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
      "overrides": {
-      "corridor_weight": 0.95
+      "corridor_weight": 0.95,
+      "include_proposed": true
      },
      "image": "cambourne/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.948,
-      "centre_access": 440.865,
-      "green_access": 145.814,
-      "population": 14751.315,
-      "centre_m2_per_person": 14.826,
-      "green_m2_per_person": 3557.642,
-      "built_cells": 1169.0
+      "served_coverage_incl_existing": 0.943,
+      "centre_access": 497.41,
+      "green_access": 146.305,
+      "population": 13066.11,
+      "centre_m2_per_person": 12.398,
+      "green_m2_per_person": 4061.744,
+      "built_cells": 1096.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -394,6 +395,7 @@
       "ensemble": true,
       "ensemble_runs": 50,
       "corridor_weight": 0.95,
+      "include_proposed": true,
       "name": "cambourne_corridor"
      },
      "params_file": "cambourne/corridor_params.json"
@@ -779,13 +781,13 @@
      "image": "dnipro/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.846,
-      "centre_access": 167.159,
-      "green_access": 208.946,
-      "population": 232917.323,
-      "centre_m2_per_person": 14.789,
-      "green_m2_per_person": 4.773,
-      "built_cells": 3631.0
+      "served_coverage_incl_existing": 0.847,
+      "centre_access": 163.489,
+      "green_access": 203.834,
+      "population": 217610.145,
+      "centre_m2_per_person": 14.991,
+      "green_m2_per_person": 8.208,
+      "built_cells": 3594.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -826,13 +828,13 @@
      "image": "dnipro/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.708,
-      "centre_access": 127.108,
-      "green_access": 203.529,
-      "population": 231676.2,
-      "centre_m2_per_person": 16.834,
-      "green_m2_per_person": 5.035,
-      "built_cells": 3628.0
+      "served_coverage_incl_existing": 0.706,
+      "centre_access": 136.878,
+      "green_access": 205.955,
+      "population": 230435.078,
+      "centre_m2_per_person": 16.213,
+      "green_m2_per_person": 5.299,
+      "built_cells": 3625.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -874,12 +876,12 @@
      "metrics": {
       "served_coverage": 1.0,
       "served_coverage_incl_existing": 0.918,
-      "centre_access": 208.427,
-      "green_access": 197.582,
-      "population": 218851.268,
-      "centre_m2_per_person": 14.573,
-      "green_m2_per_person": 7.911,
-      "built_cells": 3597.0
+      "centre_access": 167.409,
+      "green_access": 207.627,
+      "population": 224229.465,
+      "centre_m2_per_person": 15.118,
+      "green_m2_per_person": 6.665,
+      "built_cells": 3610.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -920,13 +922,13 @@
      "image": "dnipro/compact.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.837,
-      "centre_access": 219.758,
-      "green_access": 209.317,
-      "population": 210990.825,
-      "centre_m2_per_person": 13.648,
-      "green_m2_per_person": 9.847,
-      "built_cells": 3578.0
+      "served_coverage_incl_existing": 0.843,
+      "centre_access": 215.584,
+      "green_access": 210.191,
+      "population": 211404.533,
+      "centre_m2_per_person": 13.362,
+      "green_m2_per_person": 9.742,
+      "built_cells": 3579.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -967,13 +969,13 @@
      "image": "dnipro/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.844,
-      "centre_access": 168.486,
-      "green_access": 206.331,
-      "population": 218851.268,
-      "centre_m2_per_person": 14.906,
-      "green_m2_per_person": 5.663,
-      "built_cells": 3597.0
+      "served_coverage_incl_existing": 0.838,
+      "centre_access": 167.921,
+      "green_access": 206.229,
+      "population": 219678.683,
+      "centre_m2_per_person": 15.016,
+      "green_m2_per_person": 5.475,
+      "built_cells": 3599.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1019,12 +1021,12 @@
      "metrics": {
       "served_coverage": 1.0,
       "served_coverage_incl_existing": 0.846,
-      "centre_access": 138.744,
-      "green_access": 191.178,
-      "population": 257205.78,
-      "centre_m2_per_person": 14.951,
-      "green_m2_per_person": 10.77,
-      "built_cells": 3540.0
+      "centre_access": 149.266,
+      "green_access": 188.24,
+      "population": 258295.635,
+      "centre_m2_per_person": 14.253,
+      "green_m2_per_person": 10.584,
+      "built_cells": 3542.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1065,13 +1067,13 @@
      "image": "dnipro/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.841,
-      "centre_access": 249.168,
-      "green_access": 208.946,
-      "population": 232917.323,
-      "centre_m2_per_person": 12.206,
-      "green_m2_per_person": 4.773,
-      "built_cells": 3631.0
+      "served_coverage_incl_existing": 0.842,
+      "centre_access": 203.515,
+      "green_access": 203.834,
+      "population": 217610.145,
+      "centre_m2_per_person": 13.149,
+      "green_m2_per_person": 8.208,
+      "built_cells": 3594.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1107,18 +1109,19 @@
      "label": "Transit corridor preference",
      "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
      "overrides": {
-      "corridor_weight": 0.95
+      "corridor_weight": 0.95,
+      "include_proposed": true
      },
      "image": "dnipro/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
       "served_coverage_incl_existing": 0.848,
-      "centre_access": 141.428,
-      "green_access": 203.554,
-      "population": 230021.37,
-      "centre_m2_per_person": 16.48,
-      "green_m2_per_person": 5.388,
-      "built_cells": 3624.0
+      "centre_access": 153.778,
+      "green_access": 205.722,
+      "population": 232503.615,
+      "centre_m2_per_person": 15.756,
+      "green_m2_per_person": 4.86,
+      "built_cells": 3630.0
      },
      "settings": {
       "crs": "EPSG:32636",
@@ -1146,6 +1149,7 @@
       "ensemble": true,
       "ensemble_runs": 50,
       "corridor_weight": 0.95,
+      "include_proposed": true,
       "name": "dnipro_corridor"
      },
      "params_file": "dnipro/corridor_params.json"
@@ -1179,13 +1183,13 @@
      "image": "kigali_east/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.321,
-      "centre_access": 124.921,
-      "green_access": 94.445,
-      "population": 59597.775,
-      "centre_m2_per_person": 17.193,
-      "green_m2_per_person": 308.11,
-      "built_cells": 9216.0
+      "served_coverage_incl_existing": 0.257,
+      "centre_access": 110.895,
+      "green_access": 99.245,
+      "population": 62945.1,
+      "centre_m2_per_person": 16.858,
+      "green_m2_per_person": 288.927,
+      "built_cells": 9303.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1227,13 +1231,13 @@
      "image": "kigali_east/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.212,
-      "centre_access": 66.645,
-      "green_access": 98.953,
-      "population": 57712.5,
-      "centre_m2_per_person": 20.035,
-      "green_m2_per_person": 319.895,
-      "built_cells": 9167.0
+      "served_coverage_incl_existing": 0.215,
+      "centre_access": 72.406,
+      "green_access": 94.928,
+      "population": 60367.275,
+      "centre_m2_per_person": 19.691,
+      "green_m2_per_person": 303.512,
+      "built_cells": 9236.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1275,13 +1279,13 @@
      "image": "kigali_east/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.412,
-      "centre_access": 123.752,
-      "green_access": 93.943,
-      "population": 60444.225,
-      "centre_m2_per_person": 17.22,
-      "green_m2_per_person": 303.059,
-      "built_cells": 9238.0
+      "served_coverage_incl_existing": 0.306,
+      "centre_access": 110.895,
+      "green_access": 99.245,
+      "population": 62945.1,
+      "centre_m2_per_person": 16.858,
+      "green_m2_per_person": 288.927,
+      "built_cells": 9303.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1323,13 +1327,13 @@
      "image": "kigali_east/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.217,
-      "centre_access": 191.049,
-      "green_access": 105.074,
-      "population": 60905.925,
-      "centre_m2_per_person": 13.1,
-      "green_m2_per_person": 300.362,
-      "built_cells": 9250.0
+      "served_coverage_incl_existing": 0.267,
+      "centre_access": 155.445,
+      "green_access": 114.278,
+      "population": 59944.05,
+      "centre_m2_per_person": 15.472,
+      "green_m2_per_person": 306.027,
+      "built_cells": 9225.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1375,13 +1379,13 @@
      "image": "kigali_east/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.265,
-      "centre_access": 82.654,
-      "green_access": 85.659,
-      "population": 56956.162,
-      "centre_m2_per_person": 16.07,
-      "green_m2_per_person": 338.258,
-      "built_cells": 8770.0
+      "served_coverage_incl_existing": 0.244,
+      "centre_access": 78.345,
+      "green_access": 84.072,
+      "population": 62119.912,
+      "centre_m2_per_person": 16.658,
+      "green_m2_per_person": 306.88,
+      "built_cells": 8870.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1423,13 +1427,13 @@
      "image": "kigali_east/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.321,
-      "centre_access": 124.921,
-      "green_access": 94.445,
-      "population": 59597.775,
-      "centre_m2_per_person": 17.193,
-      "green_m2_per_person": 308.11,
-      "built_cells": 9216.0
+      "served_coverage_incl_existing": 0.257,
+      "centre_access": 111.659,
+      "green_access": 99.245,
+      "population": 62945.1,
+      "centre_m2_per_person": 16.858,
+      "green_m2_per_person": 288.927,
+      "built_cells": 9303.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1466,18 +1470,19 @@
      "label": "Transit corridor preference",
      "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
      "overrides": {
-      "corridor_weight": 0.95
+      "corridor_weight": 0.95,
+      "include_proposed": true
      },
      "image": "kigali_east/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.084,
-      "centre_access": 66.953,
-      "green_access": 113.201,
-      "population": 21084.3,
-      "centre_m2_per_person": 19.977,
-      "green_m2_per_person": 967.057,
-      "built_cells": 8215.0
+      "served_coverage_incl_existing": 0.009,
+      "centre_access": 51.676,
+      "green_access": 72.586,
+      "population": 2693.25,
+      "centre_m2_per_person": 20.301,
+      "green_m2_per_person": 7930.075,
+      "built_cells": 7737.0
      },
      "settings": {
       "crs": "EPSG:32736",
@@ -1506,6 +1511,7 @@
       "ensemble": true,
       "ensemble_runs": 50,
       "corridor_weight": 0.95,
+      "include_proposed": true,
       "name": "kigali_east_corridor"
      },
      "params_file": "kigali_east/corridor_params.json"
@@ -1539,13 +1545,13 @@
      "image": "london_crews_hill/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.822,
-      "centre_access": 295.877,
-      "green_access": 64.378,
-      "population": 12883.32,
-      "centre_m2_per_person": 10.479,
-      "green_m2_per_person": 269.092,
-      "built_cells": 3161.0
+      "served_coverage_incl_existing": 0.823,
+      "centre_access": 341.756,
+      "green_access": 59.872,
+      "population": 13125.06,
+      "centre_m2_per_person": 11.657,
+      "green_m2_per_person": 262.97,
+      "built_cells": 3178.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1586,13 +1592,13 @@
      "image": "london_crews_hill/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.755,
-      "centre_access": 120.17,
-      "green_access": 71.263,
-      "population": 13139.28,
-      "centre_m2_per_person": 16.919,
-      "green_m2_per_person": 241.863,
-      "built_cells": 3179.0
+      "served_coverage_incl_existing": 0.752,
+      "centre_access": 105.739,
+      "green_access": 67.748,
+      "population": 13267.26,
+      "centre_m2_per_person": 16.349,
+      "green_m2_per_person": 238.919,
+      "built_cells": 3188.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1634,12 +1640,12 @@
      "metrics": {
       "served_coverage": 1.0,
       "served_coverage_incl_existing": 0.883,
-      "centre_access": 550.457,
-      "green_access": 63.019,
-      "population": 13110.84,
-      "centre_m2_per_person": 6.727,
-      "green_m2_per_person": 264.354,
-      "built_cells": 3177.0
+      "centre_access": 344.09,
+      "green_access": 66.021,
+      "population": 13068.18,
+      "centre_m2_per_person": 11.295,
+      "green_m2_per_person": 265.423,
+      "built_cells": 3174.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1680,13 +1686,13 @@
      "image": "london_crews_hill/detached.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.87,
-      "centre_access": 501.163,
-      "green_access": 61.734,
-      "population": 11802.6,
-      "centre_m2_per_person": 8.693,
-      "green_m2_per_person": 299.527,
-      "built_cells": 3085.0
+      "served_coverage_incl_existing": 0.822,
+      "centre_access": 397.577,
+      "green_access": 60.581,
+      "population": 12741.12,
+      "centre_m2_per_person": 12.362,
+      "green_m2_per_person": 272.802,
+      "built_cells": 3151.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1728,12 +1734,12 @@
      "metrics": {
       "served_coverage": 1.0,
       "served_coverage_incl_existing": 0.823,
-      "centre_access": 507.552,
-      "green_access": 66.203,
-      "population": 13082.4,
-      "centre_m2_per_person": 6.879,
-      "green_m2_per_person": 250.206,
-      "built_cells": 3175.0
+      "centre_access": 482.049,
+      "green_access": 64.167,
+      "population": 13068.18,
+      "centre_m2_per_person": 4.339,
+      "green_m2_per_person": 250.548,
+      "built_cells": 3174.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1779,12 +1785,12 @@
      "metrics": {
       "served_coverage": 1.0,
       "served_coverage_incl_existing": 0.813,
-      "centre_access": 305.698,
-      "green_access": 57.613,
-      "population": 13143.465,
-      "centre_m2_per_person": 11.504,
-      "green_m2_per_person": 292.115,
-      "built_cells": 3002.0
+      "centre_access": 301.064,
+      "green_access": 58.96,
+      "population": 13108.275,
+      "centre_m2_per_person": 9.2,
+      "green_m2_per_person": 293.036,
+      "built_cells": 3000.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1825,13 +1831,13 @@
      "image": "london_crews_hill/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.822,
-      "centre_access": 295.877,
-      "green_access": 64.378,
-      "population": 12883.32,
-      "centre_m2_per_person": 10.479,
-      "green_m2_per_person": 269.092,
-      "built_cells": 3161.0
+      "served_coverage_incl_existing": 0.823,
+      "centre_access": 341.756,
+      "green_access": 59.872,
+      "population": 13125.06,
+      "centre_m2_per_person": 11.657,
+      "green_m2_per_person": 262.97,
+      "built_cells": 3178.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1867,18 +1873,19 @@
      "label": "Transit corridor preference",
      "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
      "overrides": {
-      "corridor_weight": 0.95
+      "corridor_weight": 0.95,
+      "include_proposed": true
      },
      "image": "london_crews_hill/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.814,
-      "centre_access": 483.729,
-      "green_access": 70.618,
-      "population": 10963.62,
-      "centre_m2_per_person": 7.224,
-      "green_m2_per_person": 327.292,
-      "built_cells": 3026.0
+      "served_coverage_incl_existing": 0.816,
+      "centre_access": 200.684,
+      "green_access": 70.412,
+      "population": 10394.82,
+      "centre_m2_per_person": 13.593,
+      "green_m2_per_person": 348.664,
+      "built_cells": 2986.0
      },
      "settings": {
       "crs": "EPSG:27700",
@@ -1906,6 +1913,7 @@
       "ensemble": true,
       "ensemble_runs": 50,
       "corridor_weight": 0.95,
+      "include_proposed": true,
       "name": "london_crews_hill_corridor"
      },
      "params_file": "london_crews_hill/corridor_params.json"
@@ -1939,13 +1947,13 @@
      "image": "medellin_pajarito/baseline.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.843,
-      "centre_access": 111.7,
-      "green_access": 85.957,
-      "population": 40865.31,
-      "centre_m2_per_person": 17.393,
-      "green_m2_per_person": 160.7,
-      "built_cells": 1873.0
+      "served_coverage_incl_existing": 0.771,
+      "centre_access": 105.465,
+      "green_access": 90.21,
+      "population": 38789.482,
+      "centre_m2_per_person": 17.906,
+      "green_m2_per_person": 171.963,
+      "built_cells": 1822.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -1987,13 +1995,13 @@
      "image": "medellin_pajarito/walk800.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.682,
-      "centre_access": 114.807,
-      "green_access": 94.997,
-      "population": 38056.838,
-      "centre_m2_per_person": 17.24,
-      "green_m2_per_person": 169.58,
-      "built_cells": 1804.0
+      "served_coverage_incl_existing": 0.699,
+      "centre_access": 125.389,
+      "green_access": 95.469,
+      "population": 39969.855,
+      "centre_m2_per_person": 17.023,
+      "green_m2_per_person": 159.082,
+      "built_cells": 1851.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2035,13 +2043,13 @@
      "image": "medellin_pajarito/walk1600.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.827,
-      "centre_access": 126.516,
-      "green_access": 92.352,
-      "population": 38667.375,
-      "centre_m2_per_person": 16.025,
-      "green_m2_per_person": 178.843,
-      "built_cells": 1819.0
+      "served_coverage_incl_existing": 0.834,
+      "centre_access": 145.805,
+      "green_access": 91.246,
+      "population": 41720.062,
+      "centre_m2_per_person": 16.357,
+      "green_m2_per_person": 162.116,
+      "built_cells": 1894.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2083,13 +2091,13 @@
      "image": "medellin_pajarito/compact.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.593,
-      "centre_access": 178.717,
-      "green_access": 85.624,
-      "population": 7285.747,
-      "centre_m2_per_person": 10.284,
-      "green_m2_per_person": 1130.66,
-      "built_cells": 1048.0
+      "served_coverage_incl_existing": 0.594,
+      "centre_access": 182.978,
+      "green_access": 102.191,
+      "population": 7448.557,
+      "centre_m2_per_person": 10.059,
+      "green_m2_per_person": 1104.858,
+      "built_cells": 1052.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2131,13 +2139,13 @@
      "image": "medellin_pajarito/viability4000.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.767,
-      "centre_access": 149.834,
-      "green_access": 108.183,
-      "population": 37609.11,
-      "centre_m2_per_person": 16.853,
-      "green_m2_per_person": 147.1,
-      "built_cells": 1793.0
+      "served_coverage_incl_existing": 0.776,
+      "centre_access": 164.454,
+      "green_access": 104.256,
+      "population": 40498.987,
+      "centre_m2_per_person": 14.8,
+      "green_m2_per_person": 133.053,
+      "built_cells": 1864.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2183,13 +2191,13 @@
      "image": "medellin_pajarito/denser.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.745,
-      "centre_access": 139.074,
-      "green_access": 88.863,
-      "population": 37903.95,
-      "centre_m2_per_person": 15.653,
-      "green_m2_per_person": 195.694,
-      "built_cells": 1633.0
+      "served_coverage_incl_existing": 0.741,
+      "centre_access": 131.153,
+      "green_access": 95.248,
+      "population": 36812.475,
+      "centre_m2_per_person": 15.347,
+      "green_m2_per_person": 202.706,
+      "built_cells": 1611.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2231,13 +2239,13 @@
      "image": "medellin_pajarito/fewest.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.843,
-      "centre_access": 111.7,
-      "green_access": 85.957,
-      "population": 40865.31,
-      "centre_m2_per_person": 17.393,
-      "green_m2_per_person": 160.7,
-      "built_cells": 1873.0
+      "served_coverage_incl_existing": 0.771,
+      "centre_access": 124.156,
+      "green_access": 90.21,
+      "population": 38789.482,
+      "centre_m2_per_person": 16.601,
+      "green_m2_per_person": 171.963,
+      "built_cells": 1822.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2274,18 +2282,19 @@
      "label": "Transit corridor preference",
      "note": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it.",
      "overrides": {
-      "corridor_weight": 0.95
+      "corridor_weight": 0.95,
+      "include_proposed": true
      },
      "image": "medellin_pajarito/corridor.png",
      "metrics": {
       "served_coverage": 1.0,
-      "served_coverage_incl_existing": 0.583,
-      "centre_access": 195.536,
-      "green_access": 80.477,
-      "population": 6268.185,
-      "centre_m2_per_person": 8.723,
-      "green_m2_per_person": 1322.285,
-      "built_cells": 1023.0
+      "served_coverage_incl_existing": 0.689,
+      "centre_access": 168.739,
+      "green_access": 80.659,
+      "population": 19211.58,
+      "centre_m2_per_person": 13.703,
+      "green_m2_per_person": 397.905,
+      "built_cells": 1341.0
      },
      "settings": {
       "crs": "EPSG:32618",
@@ -2314,6 +2323,7 @@
       "ensemble": true,
       "ensemble_runs": 50,
       "corridor_weight": 0.95,
+      "include_proposed": true,
       "name": "medellin_pajarito_corridor"
      },
      "params_file": "medellin_pajarito/corridor_params.json"

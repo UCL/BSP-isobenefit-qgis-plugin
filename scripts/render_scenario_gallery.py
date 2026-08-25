@@ -32,6 +32,10 @@ from isobenefit_qgis import grid as G  # noqa: E402
 OUT = os.path.join(REPO, "website", "public", "gallery")
 MAX_CELLS = 150  # preview grids are capped at ~150 cells a side
 BUILD_PROB = 0.25  # paces the edge and varies members; does not shape the plan
+# Growth leans toward the transit a scenario supplies, without being dictated by it. A
+# scenario with no stops, stations or corridor is unaffected: the field is then absent and
+# every draw runs at its ordinary rate.
+DEFAULT_TRANSIT_PREFERENCE = 0.35
 DISPERSAL = {"off": False, "moderate": True, "aggressive": True}
 
 
@@ -76,6 +80,26 @@ TIER_STYLE = {
 
 # The curated presets. Each is (id, label, note, overrides); overrides patch the scenario's
 # params.json. "centre_mode" picks the post-processing centre option (default "placed").
+
+def transit_attraction(state, gran, stop_cells, hub_cells, stop_reach, hub_reach):
+    """How strongly transit favours each cell: 1 at a stop, hub or corridor cell, falling
+    linearly to 0 at the edge of that source's catchment, and the strongest pull wins where
+    two overlap. A field rather than a mask, so growth is drawn toward transit by degree
+    instead of stepping off a cliff at the catchment edge. Returns None when no transit is
+    supplied, which leaves growth untouched."""
+    import numpy as _np
+    field = None
+    for cells, reach in ((stop_cells, stop_reach), (hub_cells, hub_reach)):
+        if not cells or reach <= 0:
+            continue
+        m = _np.zeros(state.shape, bool)
+        for r, c in cells:
+            m[r, c] = True
+        d = G._walk_distance(m, gran, reach, blocked=(state == -1))
+        pull = _np.where(_np.isfinite(d), 1.0 - _np.minimum(d, reach) / reach, 0.0)
+        field = pull if field is None else _np.maximum(field, pull)
+    return None if field is None else field.astype(_np.float32)
+
 def presets_for(name: str, params: dict, has_stops: bool = False, has_centres: bool = True) -> list[dict]:
     base = [
         {"id": "baseline", "label": "Baseline run", "note": "The scenario's own params.json, as shipped."},
@@ -121,7 +145,7 @@ def presets_for(name: str, params: dict, has_stops: bool = False, has_centres: b
                              "existing stops. The large ringed marker is a proposed bus rapid "
                              "transit stop treated as a transit hub: it anchors a pinned "
                              "centre, so a new settlement gathers around it.",
-                     "overrides": {"corridor_weight": 0.95}})
+                     "overrides": {"corridor_weight": 0.95, "include_proposed": True}})
     return base
 
 
@@ -299,25 +323,22 @@ def run_preset(sub, params, preset):
     # probability. Corridor cells (existing stops plus any proposed route the scenario
     # ships) project the stop catchment; a proposed hub projects the wider hub catchment,
     # seeds a centre in growth, and is pinned in post-processing (the plugin's behaviour).
-    corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
-    catchment = None
+    corridor_w = float(p.get("corridor_weight", DEFAULT_TRANSIT_PREFERENCE))
     # rail and tram stations anchor a pinned centre in every run; a hand-drawn proposed
     # hub joins them only when the scenario is asked to develop along transit
+    # A drawn corridor and a proposed hub are inputs of the demonstration that asks for
+    # them, not of any run whose preference happens to be above zero.
+    use_proposed = bool(p.get("include_proposed", False))
     hubs = list(sub.get("stations", []))
-    if corridor_w > 0.0:
+    if use_proposed:
         hubs += [h for h in sub.get("proposed_hubs", []) if h not in set(hubs)]
-    corridor_cells = sub.get("stops", []) + sub.get("corridor", [])
-    if corridor_w > 0.0 and (corridor_cells or hubs):
-        catchment = np.zeros_like(state, bool)
-        for cells, reach_key, default in ((corridor_cells, "stop_catchment_m", 400.0),
-                                          (hubs, "hub_catchment_m", 1200.0)):
-            if cells:
-                mask = np.zeros_like(state, bool)
-                for r, c in cells:
-                    mask[r, c] = True
-                d = G._walk_distance(mask, gran, float(p.get(reach_key, default)),
-                                     blocked=(state == -1))
-                catchment |= np.isfinite(d)
+    corridor_cells = list(sub.get("stops", [])) + (
+        list(sub.get("corridor", [])) if use_proposed else []
+    )
+    catchment = transit_attraction(
+        state, gran, corridor_cells, hubs,
+        float(p.get("stop_catchment_m", 400.0)), float(p.get("hub_catchment_m", 1200.0)),
+    )
     sim_seeds = sub["seeds"] + [h for h in hubs if h not in set(sub["seeds"])]
     sim = isobenefit.Simulation(
         state, origin.copy(), np.zeros_like(state, np.float32), sim_seeds,
@@ -326,7 +347,7 @@ def run_preset(sub, params, preset):
         shares, tiers, int(p.get("max_iterations", 300)), int(p.get("random_seed", 42)),
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
-        transit_catchment=catchment, corridor_weight=corridor_w,
+        transit_attraction=catchment, corridor_weight=corridor_w,
         provision_seeds=hubs,
     )
     sim.run()

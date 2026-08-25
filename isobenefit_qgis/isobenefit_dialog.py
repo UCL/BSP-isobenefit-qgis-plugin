@@ -147,14 +147,15 @@ class IsobenefitDialog(QtWidgets.QDialog):
             "catchment around the transit hub layer; the default matches the centre walk."
         )
         acc.addRow("Hub catchment (m)", self.hub_catchment_dist)
-        self.corridor_weight = QtWidgets.QLineEdit("0", self)
+        self.corridor_weight = QtWidgets.QLineEdit("0.35", self)
         self.corridor_weight.setToolTip(
-            "Transit-oriented growth. 0 (default): the corridor layer is reported only and growth "
-            "is unchanged. Higher values scale down development outside the stop catchment, "
-            "concentrating growth along transit; 1 confines growth to the catchment entirely. "
-            "Needs a transit corridor or hub layer."
+            "How strongly growth leans toward transit. The pull is strongest at a stop, station "
+            "or corridor cell and tapers to nothing at the edge of its catchment, so development "
+            "gathers around transit rather than stopping at a boundary. 0 ignores transit "
+            "entirely; 1 confines growth to what transit reaches. Needs a stops, stations or "
+            "corridor layer; without one, nothing changes."
         )
-        acc.addRow("Corridor preference (0–1)", self.corridor_weight)
+        acc.addRow("Transit preference (0–1)", self.corridor_weight)
 
         # --- Post-processing ----------------------------------------------------------
         # Turns the raw CA result into scenario options. The plugin saves the existing fabric, the

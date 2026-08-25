@@ -159,11 +159,11 @@ def test_bad_prob_distribution_raises() -> None:
 
 
 def test_zero_corridor_weight_matches_no_catchment() -> None:
-    # a catchment mask with the weight at 0 must reproduce the unbiased run exactly
+    # an attraction field with the weight at 0 must reproduce the unbiased run exactly
     grid = 30
-    catchment = np.zeros((grid, grid), dtype=bool)
-    catchment[: grid // 2, :] = True
-    a = make_sim(grid=grid, seed=11, transit_catchment=catchment, corridor_weight=0.0)
+    catchment = np.zeros((grid, grid), dtype=np.float32)
+    catchment[: grid // 2, :] = 1.0
+    a = make_sim(grid=grid, seed=11, transit_attraction=catchment, corridor_weight=0.0)
     b = make_sim(grid=grid, seed=11)
     a.run()
     b.run()
@@ -174,14 +174,14 @@ def test_zero_corridor_weight_matches_no_catchment() -> None:
 def test_full_corridor_weight_confines_growth() -> None:
     # with the weight at 1, every cell built during the run lies inside the catchment
     grid = 30
-    catchment = np.zeros((grid, grid), dtype=bool)
-    catchment[:, : grid // 2 + 1] = True  # includes the (grid//2, grid//2) seed cell
-    sim = make_sim(grid=grid, seed=13, transit_catchment=catchment, corridor_weight=1.0)
+    catchment = np.zeros((grid, grid), dtype=np.float32)
+    catchment[:, : grid // 2 + 1] = 1.0  # includes the (grid//2, grid//2) seed cell
+    sim = make_sim(grid=grid, seed=13, transit_attraction=catchment, corridor_weight=1.0)
     sim.run()
     assert sim.population > 0
     state = sim.snapshot()["state"]
     grown = state > 0
-    assert not (grown & ~catchment).any()
+    assert not (grown & (catchment == 0.0)).any()
 
 
 def test_out_of_range_corridor_weight_raises() -> None:

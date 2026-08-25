@@ -34,7 +34,7 @@ impl PySimulation {
         total_iters, random_seed,
         min_park_area_m2 = None,
         sterile = None,
-        transit_catchment = None,
+        transit_attraction = None,
         corridor_weight = None,
         provision_seeds = None,
     ))]
@@ -58,7 +58,7 @@ impl PySimulation {
         random_seed: u64,
         min_park_area_m2: Option<f64>,
         sterile: Option<PyReadonlyArray2<bool>>,
-        transit_catchment: Option<PyReadonlyArray2<bool>>,
+        transit_attraction: Option<PyReadonlyArray2<f32>>,
         corridor_weight: Option<f64>,
         provision_seeds: Option<Vec<(usize, usize)>>,
     ) -> PyResult<Self> {
@@ -81,7 +81,7 @@ impl PySimulation {
         let origin = origin.as_array().to_owned();
         let density = density.as_array().to_owned();
         let sterile = sterile.map(|s| s.as_array().to_owned());
-        let transit_catchment = transit_catchment.map(|t| t.as_array().to_owned());
+        let transit_attraction = transit_attraction.map(|t| t.as_array().to_owned());
         // with none given every seed earns, which is the behaviour a caller that
         // supplies only existing centres expects
         let provision_seeds = provision_seeds.unwrap_or_else(|| centre_seeds.clone());
@@ -96,7 +96,7 @@ impl PySimulation {
                     &centre_seeds,
                     &provision_seeds,
                     sterile,
-                    transit_catchment,
+                    transit_attraction,
                     params,
                     total_iters,
                     random_seed,

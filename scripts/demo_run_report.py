@@ -72,7 +72,15 @@ def main():
         shares, tiers, int(params.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(origin == 1, sub["seeds"]),
-        provision_seeds=[],
+        provision_seeds=list(sub.get("stations", [])),
+        # the same transit lean the baseline preset runs under, so this table and the
+        # case-study figures describe one run rather than two
+        transit_attraction=_gallery.transit_attraction(
+            state, gran, list(sub.get("stops", [])), list(sub.get("stations", [])),
+            float(params.get("stop_catchment_m", 400.0)),
+            float(params.get("hub_catchment_m", 1200.0)),
+        ),
+        corridor_weight=float(params.get("corridor_weight", _gallery.DEFAULT_TRANSIT_PREFERENCE)),
     )
     states = [np.asarray(s) for s in isobenefit.run_ensemble(template, seed, RUNS)]
 

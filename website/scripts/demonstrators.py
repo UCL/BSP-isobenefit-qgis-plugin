@@ -148,14 +148,14 @@ def substrate():
 
 
 def grow(sub, pop=12000.0, detached=True, seed=11, bp=0.25, quota=2000.0, iters=400, stages=(),
-         transit_catchment=None, corridor_weight=0.0):
+         transit_attraction=None, corridor_weight=0.0):
     """Step one CA run on the substrate; return (final state, final density, {iter: (state, density)}
     at ``stages``). Density is carried so growth stages can be coloured by their drawn tier."""
     sim = isobenefit.Simulation(
         sub["state"].copy(), sub["origin"].copy(), sub["density"].copy(), sub["seeds"],
         GRAN, WALK, GREEN_WALK, pop, GREEN_SPAN, bp, quota, detached, TIER_PROBS, DENSITY_TIERS, iters, seed,
         sterile=G.sterile_fabric(sub["origin"] == 1, sub["seeds"]),
-        transit_catchment=transit_catchment, corridor_weight=corridor_weight,
+        transit_attraction=transit_attraction, corridor_weight=corridor_weight,
     )
     snaps = {}
     while sim.current_iter < iters and sim.pop_target_ratio < 1.0:
@@ -453,13 +453,15 @@ def main():
     stop_mask = np.zeros_like(sub["state"], bool)
     for r, c in sub["stops"] + sub["corridor"]:
         stop_mask[r, c] = True
-    catchment = np.isfinite(
-        G._walk_distance(stop_mask, GRAN, STOP_CATCHMENT, blocked=(sub["state"] == -1))
-    )
-    st_corr, dens_corr, _ = grow(sub, transit_catchment=catchment, corridor_weight=0.95)
+    d = G._walk_distance(stop_mask, GRAN, STOP_CATCHMENT, blocked=(sub["state"] == -1))
+    # the pull is strongest at the route and fades to nothing at the edge of its catchment
+    catchment = np.where(
+        np.isfinite(d), 1.0 - np.minimum(d, STOP_CATCHMENT) / STOP_CATCHMENT, 0.0
+    ).astype(np.float32)
+    st_corr, dens_corr, _ = grow(sub, transit_attraction=catchment, corridor_weight=0.95)
     st_off, dens_off, _ = grow(sub)
     render_multi(sub, [
-        (growth_codes(sub, st_off, dens_off), "Corridor preference 0 (off)"),
+        (growth_codes(sub, st_off, dens_off), "Transit preference 0 (off)"),
         (growth_codes(sub, st_corr, dens_corr), "Corridor preference 0.95"),
     ], "demo_corridor", "Transit-oriented growth: a proposed corridor", unb, water=wat,
         overlay=lambda ox, oy: transit_overlay(sub, 5, ox, oy))

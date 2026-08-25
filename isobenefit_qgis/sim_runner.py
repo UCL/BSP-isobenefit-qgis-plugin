@@ -269,7 +269,7 @@ class IsobenefitTask(QgsTask):
         return not self.isCanceled()
 
     def _log_iterations_to_target(
-        self, isobenefit, state, origin, density, seeds, sterile=None, transit_catchment=None,
+        self, isobenefit, state, origin, density, seeds, sterile=None, transit_attraction=None,
         provision_seeds=None,
     ) -> str:
         """Step ONE representative run to the population target and log how many iterations it took,
@@ -286,7 +286,7 @@ class IsobenefitTask(QgsTask):
             self.prob_distribution, self.density_factors,
             self.total_iters, self.random_seed,
             min_park_area_m2=self.min_park_area_m2, sterile=sterile,
-            transit_catchment=transit_catchment, corridor_weight=self.corridor_weight,
+            transit_attraction=transit_attraction, corridor_weight=self.corridor_weight,
             provision_seeds=provision_seeds,
         )
         iters = 0
@@ -515,19 +515,27 @@ class IsobenefitTask(QgsTask):
             # Corridors and hubs each project their own catchment (the stop catchment and
             # the wider hub catchment), and the field is their union. With the weight at 0
             # (the default) nothing changes and the masks are skipped entirely.
-            transit_catchment = None
-            if (transit_stops is not None or transit_hubs is not None) and self.corridor_weight > 0.0:
-                transit_catchment = np.zeros((rows, cols), dtype=bool)
+            # Growth leans toward transit by degree: 1 at a stop, hub or corridor cell,
+            # tapering to nothing at the edge of that source's catchment, strongest pull
+            # winning where two overlap. A scenario with no transit is unaffected.
+            transit_attraction = None
+            if transit_stops is not None or transit_hubs is not None:
                 for mask, reach in ((transit_stops, self.stop_catchment_m),
                                     (transit_hubs, self.hub_catchment_m)):
-                    if mask is not None:
-                        d = grid._walk_distance(mask, self.granularity_m, reach, blocked=(state == -1))
-                        transit_catchment |= np.isfinite(d)
+                    if mask is None or reach <= 0:
+                        continue
+                    d = grid._walk_distance(mask, self.granularity_m, reach, blocked=(state == -1))
+                    pull = np.where(np.isfinite(d), 1.0 - np.minimum(d, reach) / reach, 0.0)
+                    transit_attraction = pull if transit_attraction is None else np.maximum(
+                        transit_attraction, pull
+                    )
+                transit_attraction = transit_attraction.astype(np.float32)
                 cell_pop = self._mean_new_density_km2() * self.granularity_m**2 / 1.0e6
-                capacity = float(((state == 0) & transit_catchment).sum()) * cell_pop
+                reached = transit_attraction > 0.0
+                capacity = float(((state == 0) & reached).sum()) * cell_pop
                 self._log(
-                    f"Corridor preference {self.corridor_weight:.2f}: growth favours the "
-                    f"{int(transit_catchment.sum()):,}-cell catchment within "
+                    f"Transit preference {self.corridor_weight:.2f}: growth leans toward the "
+                    f"{int(reached.sum()):,} cell(s) within "
                     f"{self.stop_catchment_m:.0f} m of a corridor cell or "
                     f"{self.hub_catchment_m:.0f} m of a hub."
                 )
@@ -608,7 +616,7 @@ class IsobenefitTask(QgsTask):
                 self.random_seed,
                 min_park_area_m2=self.min_park_area_m2,
                 sterile=sterile,
-                transit_catchment=transit_catchment,
+                transit_attraction=transit_attraction,
                 corridor_weight=self.corridor_weight,
                 provision_seeds=station_anchors,
             )
@@ -624,7 +632,7 @@ class IsobenefitTask(QgsTask):
                 iter_summary = self._log_iterations_to_target(
                     isobenefit, state, origin, density, sim_seeds, sterile=sterile,
                     provision_seeds=station_anchors,
-                    transit_catchment=transit_catchment,
+                    transit_attraction=transit_attraction,
                 )
                 # Collect each run's final layout (not just the blended average): the
                 # likelihood layers come from all runs, and the idealised scenario is the

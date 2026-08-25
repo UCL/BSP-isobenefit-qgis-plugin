@@ -48,7 +48,7 @@ PLAN = {
         ("baseline", {}),
         ("walk800", {"centre_walk_m": 800.0}),
         ("walk1600", {"centre_walk_m": 1600.0}),
-        ("corridor", {"corridor_weight": 0.95}),
+        ("corridor", {"corridor_weight": 0.95, "include_proposed": True}),
     ],
     "london_crews_hill": [
         ("baseline", {}),
@@ -112,14 +112,17 @@ def run_preset(sub, params, overrides, runs=50):
     # cells project the stop catchment, hubs the wider hub catchment.
     catchment_m = float(p.get("stop_catchment_m", 400.0))
     hub_catchment_m = float(p.get("hub_catchment_m", 1200.0))
-    corridor_w = float(p.get("corridor_weight", 0.0) or 0.0)
+    corridor_w = float(p.get("corridor_weight", _gallery.DEFAULT_TRANSIT_PREFERENCE))
     # rail and tram stations anchor a pinned centre in every run; a hand-drawn proposed
     # hub joins them only when the scenario is asked to develop along transit
+    # A drawn corridor and a proposed hub are inputs of the demonstration that asks for
+    # them, not of any run whose preference happens to be above zero.
+    use_proposed = bool(p.get("include_proposed", False))
     hubs = list(sub.get("stations", []))
-    if corridor_w > 0.0:
+    if use_proposed:
         hubs += [h for h in sub.get("proposed_hubs", []) if h not in set(hubs)]
     corridor_cells = list(sub.get("stops", []))
-    if corridor_w > 0.0:
+    if use_proposed:
         corridor_cells += list(sub.get("corridor", []))
 
     def _mask(cells):
@@ -131,13 +134,10 @@ def run_preset(sub, params, overrides, runs=50):
         return m
 
     stop_mask, hub_mask = _mask(corridor_cells), _mask(hubs)
-    catchment = None
-    if corridor_w > 0.0 and (stop_mask is not None or hub_mask is not None):
-        catchment = np.zeros_like(base_state, bool)
-        for mask, reach in ((stop_mask, catchment_m), (hub_mask, hub_catchment_m)):
-            if mask is not None:
-                d = G._walk_distance(mask, gran, reach, blocked=(base_state == -1))
-                catchment |= np.isfinite(d)
+    # transit draws growth toward it by degree, from the stop or hub outward
+    catchment = _gallery.transit_attraction(
+        base_state, gran, corridor_cells, hubs, catchment_m, hub_catchment_m
+    )
 
     # the plugin's own ensemble runner, so the paper's numbers come from the same
     # member seeding the plugin (and demo_run_report.py) would produce
@@ -153,7 +153,7 @@ def run_preset(sub, params, overrides, runs=50):
         shares, tiers, int(p.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
         sterile=G.sterile_fabric(base_origin == 1, sub["seeds"]),
-        transit_catchment=catchment, corridor_weight=corridor_w,
+        transit_attraction=catchment, corridor_weight=corridor_w,
         provision_seeds=hubs,
     )
     states = [np.asarray(s) for s in isobenefit.run_ensemble(template, seed, runs)]

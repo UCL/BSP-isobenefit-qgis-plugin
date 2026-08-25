@@ -417,7 +417,11 @@ pub struct Simulation {
     /// Cells within the walkable catchment of a transit growth anchor (a bus
     /// stop or corridor cell; hubs included). `None` when no corridor layer is
     /// supplied, in which case `corridor_weight` never acts.
-    pub transit_catchment: Option<Array2<bool>>,
+    /// Per cell, how strongly transit favours it: 1 at a stop, hub or corridor cell,
+    /// falling to 0 at the edge of that source's catchment. A field rather than a mask,
+    /// so growth is drawn toward transit by degree instead of stepping off a cliff at
+    /// the catchment boundary.
+    pub transit_attraction: Option<Array2<f32>>,
     /// Index of the nearest centre to each cell (-1 where none is within the
     /// centre walk), and the walk to it. New homes are charged to the centre
     /// they are nearest, so catchments partition instead of overlapping and a
@@ -461,7 +465,7 @@ impl Simulation {
         centre_seeds: &[(usize, usize)],
         provision_seeds: &[(usize, usize)],
         sterile: Option<Array2<bool>>,
-        transit_catchment: Option<Array2<bool>>,
+        transit_attraction: Option<Array2<f32>>,
         params: Params,
         total_iters: usize,
         master_seed: u64,
@@ -475,7 +479,7 @@ impl Simulation {
                 return Err("sterile mask must share the state's shape".to_string());
             }
         }
-        if let Some(t) = &transit_catchment {
+        if let Some(t) = &transit_attraction {
             if t.dim() != dim {
                 return Err("transit catchment mask must share the state's shape".to_string());
             }
@@ -576,7 +580,7 @@ impl Simulation {
             cent_acc,
             prov_acc,
             anchored,
-            transit_catchment,
+            transit_attraction,
             centre_id,
             centre_dist,
             centre_pop,
@@ -667,9 +671,14 @@ impl Simulation {
     /// a green cell to development (build, neighbour centre, dispersal), so at
     /// weight 1 no growth of any kind crosses the catchment boundary.
     fn corridor_prob(&self, base: f64, y: usize, x: usize) -> f64 {
-        match &self.transit_catchment {
-            Some(m) if !m[[y, x]] => base * (1.0 - self.params.corridor_weight),
-            _ => base,
+        match &self.transit_attraction {
+            // full rate where transit is nearest, tapering to `1 - weight` of it where
+            // transit does not reach; at weight 0 the field has no effect at all
+            Some(a) => {
+                let pull = a[[y, x]].clamp(0.0, 1.0) as f64;
+                base * (1.0 - self.params.corridor_weight * (1.0 - pull))
+            }
+            None => base,
         }
     }
 
@@ -1730,7 +1739,7 @@ mod tests {
             &[(grid / 2, grid / 2)],
             &[(grid / 2, grid / 2)],
             None,
-            Some(catchment),
+            Some(catchment.mapv(|v| if v { 1.0f32 } else { 0.0 })),
             growth_params(),
             25,
             11,
@@ -1780,7 +1789,7 @@ mod tests {
             &[seed_cell],
             &[seed_cell],
             None,
-            Some(catchment.clone()),
+            Some(catchment.mapv(|v| if v { 1.0f32 } else { 0.0 })),
             params,
             25,
             13,

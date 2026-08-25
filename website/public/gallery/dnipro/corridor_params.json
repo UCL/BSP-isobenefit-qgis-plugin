@@ -24,6 +24,7 @@
   "ensemble": true,
   "ensemble_runs": 50,
   "corridor_weight": 0.95,
+  "include_proposed": true,
   "schema": "isobenefit-params/1",
   "name": "dnipro_corridor",
   "notes": "Growth concentrates along transit: development draws outside the transit catchments (400 m of a stop or drawn route, 1,200 m of a hub) are scaled by one minus the corridor preference (0.95 here). The teal line is a proposed bus route and the teal dots the existing stops. The large ringed marker is a proposed bus rapid transit stop treated as a transit hub: it anchors a pinned centre, so a new settlement gathers around it."

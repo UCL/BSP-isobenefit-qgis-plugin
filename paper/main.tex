@@ -48,7 +48,7 @@ and simulates growth within the land released for development. The
 planner steers the outcome through the scenario settings: the walking
 distances, the population target for new residents, the density tiers
 and their shares, the land withheld from development, and the
-existing or proposed transit toward which growth can be drawn. The result
+existing or proposed transit that growth leans toward. The result
 is a set of plan options written as GIS layers, in which every new
 home keeps a mixed-use centre and green space within the chosen
 walks. Three hypothetical cases demonstrate the pipeline: a new
@@ -113,9 +113,9 @@ The contributions are:
 \item Enhancements beyond the published model. The single radius is
   separated into two walking distances, one to a centre and one to
   green space, each with its own rules. Transit-oriented development
-  enters as an optional heuristic: transit hubs anchor centres, and a
-  corridor preference, zero by default, draws growth toward existing
-  or proposed transit. A centre is founded once the population it
+  enters as a graded preference: transit hubs anchor centres, and growth
+  leans toward the transit a scenario supplies, strongest at a stop or
+  station and fading with the walk to it. A centre is founded once the population it
   would serve justifies one, in place of a seeding probability, so the
   number of settlements follows from the threshold and the population
   rather than from a per-cell probability; where each centre lands
@@ -316,10 +316,11 @@ it a run would stop with its target unmet. One setting governs where a
 released centre may go: either it must attach to existing development,
 or it may start a settlement away from it.
 
-A scenario may also ask growth to favour land that transit serves,
-in which case the build draw above, and the placement of a released
-centre, are weighted in its favour (Section~\ref{sec:transit}).
-Unless the planner asks for this, both stand as described.
+Where a scenario supplies transit, the build draw above and the
+placement of a released centre lean toward it, by an amount that fades
+with the walk to the nearest stop or station
+(Section~\ref{sec:transit}). With no transit supplied, both stand as
+described.
 
 \subsection{Ensembles and selection}
 \label{sec:ensemble}
@@ -423,38 +424,34 @@ temporal animation of the growth, one frame per step.
 \subsection{Transit-oriented growth}
 \label{sec:transit}
 
-Where a planner wants growth to follow transit, two settings
-express that intent, and a scenario that leaves them alone runs the
-growth rules as the preceding sections describe.
+Growth leans toward the transit a scenario supplies. Each stop, station
+and corridor cell projects a pull that is strongest at the source and
+fades to nothing at the edge of its catchment: 400~m for a stop or a
+drawn route, 1{,}200~m for a station or a designated hub, both measured
+by the grid walk, with the strongest pull taken where two overlap. The
+development draws are scaled between the full rate where transit is
+nearest and a fraction of it where transit does not reach, so
+development gathers around transit by degree rather than stepping off a
+cliff at a boundary. A scenario that supplies no transit layer is
+unaffected: with no pull anywhere, every draw runs at its ordinary rate.
 
-The first is the hubs layer. Each transit hub seeds a centre at the
-start of a run, so development gathers around it, and
-post-processing pins the centre, which is neither pruned nor
-repositioned and is sized like any other. Stations enter the layer
-with the scenario's other inputs; a point added by hand designates
-a centre where the planner intends one, such as a transit-oriented
-development around a planned station.
+Two settings govern this. The transit preference sets how strongly the
+lean applies, from 0, which ignores transit, to 1, which confines growth
+to what transit reaches; the default of 0.35 favours transit-served land
+without letting it dictate the plan. The two catchment distances set how
+far the pull carries, and they differ because a station draws from
+further than a bus stop does.
 
-The second is the corridor preference, which sets how strongly
-growth favours the land transit serves. That land is the transit
-catchment: the area within the stop catchment of a bus stop or a
-drawn route, or within the wider hub catchment of a hub, measured
-by the grid walk. Inside it, development proceeds at the ordinary
-likelihood, and a released centre may be placed there; outside it,
-both are reduced in proportion to the preference. At a
-preference of 0.5 development outside the catchments is half as
-likely as inside, and at 0.95, the setting used in the
-demonstration below, a twentieth as likely, which is enough to
-string a new settlement along a route. The default is 0, at which
-the catchments carry no weight and growth follows the rules of
-Section~\ref{sec:growth} alone; the case studies use this default
-except where stated.
+A transit hub does one thing more. It seeds a centre at the start of a
+run, so development gathers around it, and post-processing pins that
+centre, which is neither pruned nor repositioned and is sized like any
+other. Stations enter the hubs layer with the scenario's other inputs; a
+point added by hand designates a centre where the planner intends one,
+such as a transit-oriented development around a planned station.
 
 Whatever the settings, the run report gives the share of new homes
-within the transit catchments and the mean walk to the nearest
-transit stop or hub, so a plan grown without any transit intent can
-still be read against the transit that exists. These metrics do not
-enter run selection.
+within the transit catchments and the mean walk to the nearest stop or
+hub. These metrics do not enter run selection.
 
 \subsection{Rule adaptations}
 \label{sec:rules}
@@ -530,7 +527,7 @@ Post-processing arranges the centres three ways and grades the drawn
 densities, keeping every new home within the centre walk &
 A centre is founded at the edge of the development that earns it and the
 settlement then grows past it, which at Cambourne leaves the mean walk
-59~m longer than it need be, 376~m against 317~m. A plan drawing also needs a density gradient the growth rules
+111~m longer than it need be, 366~m against 255~m. A plan drawing also needs a density gradient the growth rules
 cannot place, since a cell draws its tier before the settlement around
 it exists \\
 \addlinespace[3pt]
@@ -543,10 +540,12 @@ apart: the layers show where development is likely, and the selected run
 supplies the plan \\
 \addlinespace[3pt]
 Growth is spatially uniform &
-Transit hubs pin a centre, and a corridor preference concentrates growth
-within the transit catchments; both are optional &
+Growth leans toward the transit a scenario supplies, strongest at a stop
+or station and fading to nothing at the edge of its catchment; hubs also
+pin a centre &
 Policy already organises growth around transit, so a plan that ignores
-it is harder to adopt \\
+it is harder to adopt. The lean is graded because a catchment boundary
+is a modelling device, not something a resident experiences \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -591,9 +590,10 @@ setting each is most sensitive to, and each
 case's figure varies that setting: the centre
 walk at Cambourne, the shares at Crews Hill, and attachment and the
 viability threshold at Pajarito.
-All three run at the default corridor preference of 0; Cambourne,
-the reference case, then repeats with the transit settings raised,
-which is the only run in the paper that uses them.
+All three run at the default transit preference of 0.35, leaning
+toward the stops and stations each window already has; Cambourne, the
+reference case, then repeats with a proposed corridor and hub and the
+preference raised to 0.95.
 Table~\ref{tab:scenarios}
 gives the settings, and a closing centre-walk sweep covers all
 three cases.
@@ -644,9 +644,9 @@ the transit demonstration, a proposed
 corridor and hub. Figure~\ref{fig:cambourne}
 shows the selected plan under the
 baseline and 1{,}600~m centre walks. At the baseline 1{,}200~m
-walk, the plan accommodates 15{,}055 new residents against a
-15{,}000 target, and they average a 317~m walk to a centre and
-123~m to green space. Table~\ref{tab:sweep} sweeps the walk.
+walk, the plan accommodates 14{,}385 new residents against a
+15{,}000 target, and they average a 255~m walk to a centre and
+108~m to green space. Table~\ref{tab:sweep} sweeps the walk.
 
 Table~\ref{tab:fouroutputs} reproduces the Cambourne scenario's run
 report, which records the four outputs. Growth founds a centre only
@@ -654,15 +654,14 @@ where new development has none within the walk and the population
 justifies one, so post-processing neither adds nor removes any: all
 four outputs carry the same 26 centre areas, of which 20 are the
 existing centres the window already has and six were earned by the
-new residents. Pruning takes 221 of the 15{,}276 people grown, leaving the three
-options housing the same 15{,}055 and differing only in where their
+new residents. Pruning takes 1{,}098 of the 15{,}483 people grown, leaving the three
+options housing the same 14{,}385 and differing only in where their
 centres sit. The
-walk falls from 490~m in the raw state to 376~m once the centres are
+walk falls from 512~m in the raw state to 366~m once the centres are
 sized to the residents they serve and growth no centre reaches is
-pruned, and to 317~m once each centre is moved central to the homes it
-serves. Fewest centres removes none, because every centre was earned
-and none is redundant: it returns the same 317~m and the same 26
-areas. A centre is founded at the
+pruned, and to 255~m once each centre is moved central to the homes it
+serves. Fewest centres trades some of that back, 322~m for four centres
+fewer. A centre is founded at the
 edge of the development that earns it, which is why the raw figure
 is the outlier.
 
@@ -675,16 +674,16 @@ The corridor preference is 0.95 and every other setting stays at the
 baseline. Growth and its satellite settlements string along the route
 instead of spreading across the window (Figure~\ref{fig:corridor}),
 and the share of new homes within the transit catchments rises from
-9\% to 89\%. The hub lies just beyond the centre walk of the
+44\% to 86\%. The hub lies just beyond the centre walk of the
 existing centres, so its catchment holds land they do not serve, and a new
 settlement gathers around its pinned centre at the junction. The
-population accommodated moves little, 14{,}920 against 15{,}055,
+population accommodated moves little, 14{,}906 against 14{,}385,
 because the catchments hold enough developable land for a
 settlement of this size; what changes is where it sits. The mean
-centre walk lengthens from 317 to 368~m, since growth strung along
+centre walk lengthens from 255 to 359~m, since growth strung along
 a route is served by centres spaced along it rather than gathered
-around a core, while the walk to green space falls from 123 to
-116~m. Every home keeps a centre within the walk. Where the catchments hold less
+around a core, while the walk to green space rises from 108 to
+120~m. Every home keeps a centre within the walk. Where the catchments hold less
 land the preference draws growth into a smaller area, and the run
 report gives the share of homes within them either way.
 
@@ -701,13 +700,13 @@ so it reads below the 20~\sqm{} the sizing rule applies.}
 \toprule
 Metric & Raw & As grown & Optimised placement & Fewest centres \\
 \midrule
-Population accommodated & 15{,}276 & 15{,}055 & 15{,}055 & 15{,}055 \\
-Share of target & 102\% & 100\% & 100\% & 100\% \\
-Built cells (incl.\ existing) & 3{,}885 & 3{,}854 & 3{,}854 & 3{,}854 \\
-Mixed-use centre areas & 26 & 26 & 26 & 26 \\
-Mean walk to a centre (m) & 490 & 376 & 317 & 317 \\
-Mean walk to green space (m) & 122 & 123 & 123 & 123 \\
-Centre \sqm{} per person & 1 & 10 & 12 & 12 \\
+Population accommodated & 15{,}483 & 14{,}385 & 14{,}385 & 14{,}385 \\
+Share of target & 103\% & 96\% & 96\% & 96\% \\
+Built cells (incl.\ existing) & 3{,}914 & 3{,}760 & 3{,}760 & 3{,}760 \\
+Mixed-use centre areas & 26 & 29 & 30 & 26 \\
+Mean walk to a centre (m) & 512 & 366 & 255 & 322 \\
+Mean walk to green space (m) & 107 & 108 & 108 & 108 \\
+Centre \sqm{} per person & 1 & 12 & 15 & 14 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -729,7 +728,9 @@ Full scenario resolution, seed 42.}
 \includegraphics[width=0.48\textwidth]{figures/cambourne_transit_corridor.png}\\[6pt]
 \includegraphics[width=\textwidth]{figures/legend.png}
 \caption{The selected plan for the Cambourne window at the baseline
-corridor preference of 0 (left) and at 0.95 (right). Both panels
+default transit preference of 0.35, without the proposed inputs
+(left), and with the drawn corridor and hub at a preference of 0.95
+(right). Both panels
 overlay the drawn bus route (teal line), the existing stops (teal
 dots), and the proposed hub (ringed teal marker); the route and the
 hub are inputs to the right-hand run alone, and are drawn on the left
@@ -752,14 +753,16 @@ the site boundary and the allocation's scale. Whether the release
 should proceed is a question for the plan's examination and its
 public consultation.
 
-Under the baseline settings the plan houses 13{,}104 new residents
+Under the baseline settings the plan houses 13{,}183 new residents
 against a 13{,}000 target, and they
-average a 266~m walk to a centre and 63~m to green space.
+average a 146~m walk to a centre and 60~m to green space. Two thirds of
+them are within a walk of the station or a bus stop, since growth leans
+toward the transit the window already has.
 Figure~\ref{fig:crewshill} varies the shares on the fixed boundary.
 Because the release can hold the target at any of the three mixes,
 the shares set the land it takes rather than the population: 0.5 /
-0.3 / 0.2 (high / medium / low) houses 13{,}294 on 68~ha of new
-land, and 0.1 / 0.3 / 0.6 houses 13{,}322 on 103~ha, half as much
+0.3 / 0.2 (high / medium / low) houses 13{,}111 on 67~ha of new
+land, and 0.1 / 0.3 / 0.6 houses 13{,}120 on 101~ha, half as much
 again for the same people. The
 station's hub centre is pinned against the rail line, and the
 new development forms around the station.
@@ -772,8 +775,8 @@ new development forms around the station.
 \caption{The selected plan for the Crews Hill release, with
 attached growth, at shares of 0.1 / 0.3 / 0.6 (high / medium / low)
 (left) and 0.5 / 0.3 / 0.2 (right). The two settings
-house 13{,}322 and 13{,}294 people on 103 and 68~ha of new land: the
-denser mix leaves 35~ha more as green space. The rail station (ringed marker) anchors a
+house 13{,}120 and 13{,}111 people on 101 and 67~ha of new land: the
+denser mix leaves 34~ha more as green space. The rail station (ringed marker) anchors a
 pinned centre in both settings, and the release grows around it. Full scenario resolution, seed 42.}
 \label{fig:crewshill}
 \end{figure}
@@ -789,17 +792,17 @@ km\(^2\)) reflects the area's housing towers. The scenario is a
 hypothetical demonstration on the district's terrain and carries no
 recommendation for its future development.
 
-At the baseline walk the plan accommodates 40{,}112 against the
-40{,}000 target with a 113~m mean
+At the baseline walk the plan accommodates 40{,}062 against the
+40{,}000 target with a 116~m mean
 centre walk for new homes; the steep slopes fragment the buildable
 land into detached benches of gentler ground.
 Figure~\ref{fig:medellin} varies the two settings that bind here.
 Requiring growth to stay attached to existing development collapses
-the plan to 5{,}126, because a centre may then only be founded
+the plan to 5{,}025, because a centre may then only be founded
 against fabric that already exists and the benches are unreachable
 across the steep ground between them. Raising the viability
-threshold from 2{,}000 to 4{,}000 people houses 39{,}484 in fewer
-and larger settlements, at a 141~m mean centre walk.
+threshold from 2{,}000 to 4{,}000 people houses 38{,}981 in fewer
+and larger settlements, at a 183~m mean centre walk.
 
 \begin{figure}[!tp]
 \centering
@@ -820,17 +823,16 @@ seed 42.}
 
 The centre walk is swept across 800, 1{,}200, and 1{,}600~m for the
 three cases. The population accommodated moves little across the
-sweep: Cambourne houses 13{,}723 to 15{,}461, Crews Hill 13{,}104
-to 13{,}252, and Pajarito 39{,}496 to 40{,}112. What the walk
+sweep: Cambourne houses 14{,}385 to 15{,}262, Crews Hill 13{,}025
+to 13{,}183, and Pajarito 39{,}559 to 40{,}062. What the walk
 changes is how many centres serve those residents and how far they
 walk to one.
 
 A centre is founded once the population nearest it reaches the
 viability threshold, so a wider walk lets a centre gather that
 population from more land, and fewer centres are founded. Crews
-Hill shows this plainly, at 91~m under an 800~m walk against 266~m
-at the baseline, where its centres are correspondingly smaller: 19~\sqm{}
-of centre land per resident at 800~m against 9~\sqm{} at the baseline. The mean walk does not rise with the setting in
+Hill shows this plainly, at 87~m under an 800~m walk against 146~m
+at the baseline and 298~m at 1{,}600~m. The mean walk does not rise with the setting in
 every case, because the walk also bounds how far a home may sit
 from its centre, and the two effects meet differently on each
 window's land. Each figure comes from one selected run, and the
@@ -846,9 +848,9 @@ settings.}
 \toprule
 Scenario & 800~m & 1{,}200~m (baseline) & 1{,}600~m \\
 \midrule
-Cambourne & 316~m & 317~m & 299~m \\
-Crews Hill & 91~m & 266~m & 275~m \\
-Pajarito & 88~m & 113~m & 121~m \\
+Cambourne & 307~m & 255~m & 329~m \\
+Crews Hill & 87~m & 146~m & 298~m \\
+Pajarito & 123~m & 116~m & 125~m \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -888,10 +890,10 @@ breaks.
 Placement is the clearest gain. A centre is founded at the edge of the
 development that earned it, because that is where growth had reached,
 and the settlement then grows past it. At the Cambourne baseline the new
-homes average a 376~m walk to the centres where the run left them and
-317~m once each is moved to the point central to the homes it serves.
-That step changes no fabric and no centre count: it moves 26 centres
-and shortens the mean walk by 59~m. The raw state's 490~m is not the
+homes average a 366~m walk to the centres where the run left them and
+255~m once each is moved to the point central to the homes it serves.
+That step changes no fabric: it moves the centres and shortens the mean
+walk by 111~m. The raw state's 512~m is not the
 comparison, since its centres are single cells that post-processing has
 yet to size.
 
@@ -931,14 +933,14 @@ compared directly.
 The three windows answer to different settings, and each says something
 the others cannot. At Crews Hill the release holds its population under
 every density mix tried, so the shares set the land it takes rather than
-the population it houses: the densest mix builds on 68~ha of new land and
-the lightest on 103~ha, half as much again for the same people. Where
+the population it houses: the densest mix builds on 67~ha of new land and
+the lightest on 101~ha, half as much again for the same people. Where
 a boundary is fixed by policy, as a green-belt release is, that is the
 trade the shares actually govern.
 
 Pajarito is the case where a setting decides the outcome rather than
 shading it. Requiring growth to stay attached to existing development
-houses 5{,}126 against 40{,}112 when detached settlements are allowed,
+houses 5{,}025 against 40{,}062 when detached settlements are allowed,
 because the benches of gentler ground are separated by slopes over 20
 degrees and a centre may only be founded on land growth can reach.
 Whether that difference is a finding or an artefact depends on what the
