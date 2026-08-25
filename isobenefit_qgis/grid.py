@@ -127,7 +127,7 @@ STATE_CROSSING = -2
 PLAN_PALETTE = [
     (PLAN_GREEN, _GREEN, "Recommended green network"),
     (PLAN_REJECT_UNSERVABLE, (214, 96, 77), "Rejected: no viable centre within the walk"),
-    (PLAN_CROSSING, (95, 99, 104), "Barrier with a pedestrian crossing"),
+    (PLAN_CROSSING, (224, 33, 138), "Barrier with a pedestrian crossing"),
     (PLAN_EXIST_BUILT, _EXIST_BUILT, "Existing development"),
     (PLAN_EXIST_CENTRE, _EXIST_CENTRE, "Existing mixed-use centre"),
     (PLAN_BUILT_LOW, _BUILT_LOW, "New development — low density"),

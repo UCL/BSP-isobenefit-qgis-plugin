@@ -61,25 +61,32 @@ GREEN, STREET, INK = _hex((89, 176, 60)), "#a9a9a9", "#333333"
 # Barriers are drawn solid and dark rather than as pale specks: a carved rail or river
 # corridor can sever land that looks open on the map, and a reader who cannot see the
 # wall reads the gap as available.
-UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#6e9dc4", "#ffffff"
-# One dot size for every kind of ground that is not development: nature, water, steep and
-# unbuildable all read as fields, and a field stays calm when its texture is uniform. The
-# barriers are distinguished by their dark colour, not by outsizing everything around them.
-GROUND_RAD = 0.24
+# Water is a saturated azure: intense enough to read as water, and hue-separated from the
+# indigo of an existing centre, which reads purple (navy would sit between the two). The
+# crossing is magenta, the one hue family the palette leaves free: yellows and oranges are
+# the built tiers, reds the new centres, purples the existing fabric, teal the transit, and
+# on a dark grey corridor a few magenta dots read as markers rather than as ground.
+UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#2e75b6", "#e0218a"
+# One dot size for every class except nature: development, existing fabric, barriers and
+# water all draw at the same middle weight, distinguished by colour rather than by bulk,
+# and the nature field alone stays finer so the settlements read against it.
+DOT_RAD = 0.34
+GROUND_RAD = DOT_RAD
+NATURE_RAD = 0.24
 
 TRANSIT = "#0b7285"  # transit stop markers, the site's stops colour
 TIER_STYLE = {
-    G.PLAN_GREEN: (GREEN, GROUND_RAD),
-    G.PLAN_EXIST_BUILT: (EXIST_BUILT, 0.42),
-    G.PLAN_EXIST_CENTRE: (EXIST_CENTRE, 0.46),
-    G.PLAN_BUILT_LOW: (BUILT_LOW, 0.42),
-    G.PLAN_BUILT_MED: (BUILT_MED, 0.42),
-    G.PLAN_BUILT_HIGH: (BUILT_HIGH, 0.42),
-    G.PLAN_CENTRE_LOW: (CENTRE_LOW, 0.46),
-    G.PLAN_CENTRE_MED: (CENTRE_MED, 0.46),
-    G.PLAN_CENTRE_HIGH: (CENTRE_HIGH, 0.46),
-    G.PLAN_BUILT: (BUILT_MED, 0.42),
-    G.PLAN_CENTRE: (CENTRE_MED, 0.46),
+    G.PLAN_GREEN: (GREEN, NATURE_RAD),
+    G.PLAN_EXIST_BUILT: (EXIST_BUILT, DOT_RAD),
+    G.PLAN_EXIST_CENTRE: (EXIST_CENTRE, DOT_RAD),
+    G.PLAN_BUILT_LOW: (BUILT_LOW, DOT_RAD),
+    G.PLAN_BUILT_MED: (BUILT_MED, DOT_RAD),
+    G.PLAN_BUILT_HIGH: (BUILT_HIGH, DOT_RAD),
+    G.PLAN_CENTRE_LOW: (CENTRE_LOW, DOT_RAD),
+    G.PLAN_CENTRE_MED: (CENTRE_MED, DOT_RAD),
+    G.PLAN_CENTRE_HIGH: (CENTRE_HIGH, DOT_RAD),
+    G.PLAN_BUILT: (BUILT_MED, DOT_RAD),
+    G.PLAN_CENTRE: (CENTRE_MED, DOT_RAD),
 }
 
 # The curated presets. Each is (id, label, note, overrides); overrides patch the scenario's
@@ -434,7 +441,7 @@ def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
             elif unbuildable[r, c]:
                 col, radf = UNBUILDABLE, GROUND_RAD  # other exclusions: airfields, military, barriers
             elif inside[r, c]:
-                col, radf = GREEN, GROUND_RAD  # untouched land inside the extents
+                col, radf = GREEN, NATURE_RAD  # untouched land inside the extents
             else:
                 continue  # outside the study area: blank
             cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
@@ -501,12 +508,7 @@ def render_legend(path):
         draw.text((x, margin), title, fill=_rgb(INK), font=title_f)
         for ri, (label, colour) in enumerate(items):
             cy = top + ri * row_h + row_h / 2
-            if colour == CROSSING:
-                # white on white paper needs a hairline outline in the legend alone
-                draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(CROSSING),
-                             outline=_rgb(UNBUILDABLE), width=2)
-            else:
-                draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(colour))
+            draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(colour))
             draw.text((x + 68, cy - 24), label, fill=_rgb(INK), font=label_f)
     im = im.resize((cw // 2, ch // 2), Image.LANCZOS)
     os.makedirs(os.path.dirname(path), exist_ok=True)
