@@ -35,8 +35,8 @@ _BUILT_HIGH = (232, 146, 20)  # deep amber, saturated and yellow: brown belongs 
 _CENTRE_LOW = (252, 187, 161)
 _CENTRE_MED = (239, 101, 72)
 _CENTRE_HIGH = (179, 18, 24)
-_EXIST_BUILT = (128, 99, 76)  # dark neutral brown: the new ramp is vivid yellow-amber, the old town is dull and dark
-_EXIST_CENTRE = (0, 0, 0)  # black: the strongest mark on the map, and the cartographic convention for what already stands
+_EXIST_BUILT = (128, 99, 76)  # dark neutral brown: the new ramp is vivid amber, the old town dull and dark
+_EXIST_CENTRE = (0, 0, 0)  # black: the strongest mark on the map, the convention for what already stands
 _GREEN = (54, 109, 35)
 
 # (class code, (r, g, b), legend label) — the single-run animation palette.

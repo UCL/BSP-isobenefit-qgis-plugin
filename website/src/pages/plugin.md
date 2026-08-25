@@ -87,6 +87,10 @@ parameters for a run.
   (degrees)**; the bands at or above that limit are treated as unbuildable, and the rest of the
   layer is left alone. Leave the limit empty to apply no slope constraint. Do not merge the
   bands into the unbuildable layer, which would carve every band whatever its slope.
+- **Walkable ways**: `walkable.geojson` holds the footpaths and streets a pedestrian can use.
+  Select it as the **Walkable ways** layer: where one of these crosses an unbuildable corridor,
+  that cell stays undeveloped but walks may pass through it, so a footbridge or level crossing
+  keeps both sides connected. Edit the layer, or supply your own, to say where crossings exist.
 - **Parameters**: in **Isobenefit Urbanism**, *Load parameters* with the scenario's
   `params.json` fills in the dialog.
 - **Running**: select the layers in the *Input layers* group, confirm the suggested CRS,

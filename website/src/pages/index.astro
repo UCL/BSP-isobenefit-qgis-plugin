@@ -123,13 +123,17 @@ const dg = (name: string) => `${base}images/${name}.svg`
       rasterised first: existing built fabric becomes <em>fixed</em> built cells, downloaded green becomes
       protected green cells, centre <em>areas</em> become centre cells across their full extent, and water,
       industrial land and buffered barrier corridors (major roads, railways, rivers) are marked
-      <strong>unbuildable</strong>, so the simulation never develops them. Every run on this page starts
-      from this grid:
+      <strong>unbuildable</strong>, so the simulation never develops them. Where a pedestrian-navigable
+      road or footpath crosses an unbuildable corridor, that cell is marked <strong>walkable</strong>
+      instead: still never developed, but a walk may pass through it, so a footbridge or level crossing
+      keeps access viable across a railway or river rather than the corridor severing everything beyond
+      it. The walkable ways come as their own downloaded layer, so crossings can be edited from local
+      knowledge. Every run on this page starts from this grid:
     </p>
     <figure>
       <img class="hero" src={dg('demo_substrate')} alt="Cambourne rasterised to the simulation grid" />
-      <figcaption>The town as cells. The light purple dots are the existing built fabric, the indigo dots its
-      existing centres, the light blue dots water, and the light grey dots other unbuildable cells; the A428
+      <figcaption>The town as cells. The brown dots are the existing built fabric, the black dots its
+      existing centres, the blue dots water, and the grey dots other unbuildable cells; the A428
       corridor and the waterways stand out. The small green dots are free land, and the real street network stays visible beneath.</figcaption>
     </figure>
   </section>
@@ -417,7 +421,9 @@ const dg = (name: string) => `${base}images/${name}.svg`
       </li>
       <li>
         <strong>Real-data grounding.</strong> Existing fabric is fixed (never redeveloped); water,
-        industrial land and barrier corridors (major roads, railways, rivers) are carved out as unbuildable;
+        industrial land and barrier corridors (major roads, railways, rivers) are carved out as
+        unbuildable, and a cell where a pedestrian-navigable way crosses a corridor is marked walkable,
+        never developed but open to walks, so access stays viable across a bridge or level crossing;
         downloaded centre <em>areas</em> act as true multi-cell centres; and an OSM extraction tool supplies
         all of it. Rail and tram stations anchor centres; stops feed the report's transit readout. The
         growth rules and the scoring both measure bounded walks over the grid, blocked by unbuildable
