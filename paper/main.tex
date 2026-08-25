@@ -123,14 +123,12 @@ The contributions are:
   space; a graded preference toward transit, with hubs anchoring
   centres; centres founded by the population they serve rather than
   by a seeding probability; and post-processing that places the
-  centres and grades the densities, keeping new homes within the
-  centre walk.
+  centres and grades the densities, keeping new homes within a walk
+  of a centre.
 \end{enumerate}
 
 We demonstrate the pipeline on three case studies, each dominated by a
 different constraint and steered through a different setting.
-Sections~\ref{sec:background} to~\ref{sec:discussion} cover the background,
-the methods, the case studies, and the discussion.
 
 \section{Background}
 \label{sec:background}
@@ -212,7 +210,8 @@ fetch these layers from OpenStreetMap
 \citep{osm} with the preparation tool. The layers cover existing
 built fabric, protected green space, existing mixed-use centres,
 unbuildable land (the areas treated as unavailable for development),
-streets, public-transport stops, rail and tram stations,
+streets, the walkable ways (footpaths and streets a pedestrian may
+use), public-transport stops, rail and tram stations,
 railways, and industrial land, which counts as unbuildable for new
 homes. Terrain slope is mapped from the Copernicus GLO-30 elevation model
 \citep{copernicus_glo30} as bands steeper than 15, 20, 25, and 30
@@ -231,8 +230,8 @@ intersects none of the layers is marked open land. The tool then adds
 to the unbuildable class in two ways: it carves corridors along
 motorways, trunk and primary roads, railways, rivers, canals, and
 streams, and it marks the slope
-bands that lie above the scenario's slope limit. The remaining street
-geometry is kept for display only.
+bands that lie above the scenario's slope limit. Street geometry the
+walkable-ways layer does not carry is kept for display only.
 
 The model treats new development and the existing fabric differently.
 The existing fabric stays as mapped, and the model does not redevelop it,
@@ -259,8 +258,8 @@ the shortest path over traversable cells, which detours around
 unbuildable land and is cut off at the maximum walking distance. A diagonal step between two
 blocked cells is refused, so a walk cannot pass through the corner
 where two blocked cells meet. A corridor is crossable where a
-way people can walk crosses it: the walkable-ways layer, footpaths and
-streets a pedestrian may use, is applied after the carving, and the
+way people can walk crosses it: the walkable-ways layer is applied
+after the carving, and the
 cells it touches stay closed to development though a walk may pass
 through them. Without that, a carved corridor severs land a
 pedestrian can reach, and a footbridge over a railway has no
@@ -310,7 +309,9 @@ the nearest centre that provides for new development, measured by the
 grid walk: one the run founded, or one pinned at a transit hub. An
 existing centre serves the town it stands in and takes no charge. New
 homes with no such centre within the walk accumulate in a single
-unserved account instead. Once any account reaches the service
+unserved account instead. Infill near an existing centre is charged
+this way too, though post-processing later serves it from that
+centre rather than granting it one of its own. Once any account reaches the service
 viability threshold, it releases a centre, and each further threshold
 releases another, so the number of settlements follows the population
 that justifies them rather than a probability.
@@ -341,9 +342,7 @@ complete settlement pattern that satisfies the constraints, so
 runs build in different places. The likelihood layers
 summarise this variation by recording, for each cell, the fraction
 of runs in which it ended as built land or as green space, which indicates how
-likely an area is to develop under the constraints. The case studies
-that follow report the selected plan alone; the likelihood layers are
-a separate output for reading the pattern rather than drawing a plan.
+likely an area is to develop under the constraints.
 
 Because the runs vary cell by cell, averaging them blends the
 constraints away; the blended result no longer satisfies the walking
@@ -356,8 +355,11 @@ to green space, weighted equally. Both enter in metres, so the centre
 walk, having the longer limit, carries more of it. Two penalty terms apply otherwise: a home beyond
 either walk enters the average at twice that walk's limit, and
 each unhoused person of the target enters as a home beyond both
-walks. A run therefore cannot improve its score by housing fewer
-people.
+walks. A candidate keeps its homes within the centre walk by
+construction, so the penalties bear on green access and on the
+unhoused remainder, and a run cannot improve its score by housing
+fewer people. The case studies that follow report the selected plan
+alone.
 
 The mean walks reported in this paper include no penalty terms;
 each averages over the new homes that reach a centre or green
@@ -698,8 +700,8 @@ serve, and to 273~m once each centre is moved central to the homes
 it serves. Fewest centres trades some of that back, 292~m for two
 centres fewer.
 
-A final run turns the transit settings on, which the preceding runs
-left at their defaults. We draw a proposed bus
+A final run adds proposed transit, which the preceding runs did not
+use. We draw a proposed bus
 corridor from Cambourne's eastern edge across the plain to the
 window's north-eastern village and add a proposed bus rapid transit
 stop as a transit hub at the corridor's Cambourne end, beside the
@@ -717,9 +719,7 @@ settlement of this size; only its location changes. The mean
 centre walk lengthens from 273 to 348~m, since growth strung along
 a route is served by centres spaced along it rather than gathered
 around a core, while the walk to green space rises from 116 to
-127~m. The walk constraint holds nonetheless. Where the catchments hold
-less land, the preference draws growth into a smaller area, and the run
-report gives the share of homes within them either way.
+127~m. The walk constraint holds nonetheless.
 
 \begin{table}[t]
 \centering
@@ -940,10 +940,10 @@ yet to size.
 Viability is the second. The growth rules found a centre only where the
 population justifies one, so the pass has little to remove at the
 Cambourne baseline, 477 of the 15{,}497 residents grown, and it
-works mainly as an audit. It checks the
-surviving centres against the threshold in the run report and, at
-each edit rather than in a final check, enforces that no
-plan option leaves a home beyond the centre walk of a centre.
+works mainly as an audit. The run report records the surviving
+centres against the threshold; separately, each post-processing
+edit enforces that no plan option leaves a home beyond the centre
+walk of a centre.
 
 Two details of the accounting matter for reading the centre counts. A
 centre passes the viability test on the new homes within its centre
@@ -1009,8 +1009,8 @@ says nothing about whether its land can be brought forward. The
 inputs carry the limits of their sources. OpenStreetMap coverage
 varies by place; at Pajarito the informal fabric is likely to be
 under-mapped, so the existing development the model keeps fixed is
-less complete there than in the UK cases, and the slope bands stand
-in for buildability rather than for geological hazard. The
+less complete there than in the UK cases. The slope bands stand in
+for buildability rather than for geological hazard. The
 demonstrations are hypothetical throughout: no case has been
 evaluated with the planners and residents the tool is intended to
 serve. That evaluation belongs to applied work with a live plan, and
