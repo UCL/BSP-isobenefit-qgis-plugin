@@ -350,6 +350,7 @@ class Isobenefit:
             green_layer=self.dlg.green_layer_box.currentLayer(),
             unbuildable_layer=self.dlg.unbuildable_layer_box.currentLayer(),
             steep_layer=self.dlg.steep_layer_box.currentLayer(),
+            walkable_layer=self.dlg.walkable_layer_box.currentLayer(),
             slope_max_deg=slope_max_deg,
             centre_seeds_layer=self.dlg.centre_seeds_layer_box.currentLayer(),
             transit_stops_layer=self.dlg.transit_stops_layer_box.currentLayer(),

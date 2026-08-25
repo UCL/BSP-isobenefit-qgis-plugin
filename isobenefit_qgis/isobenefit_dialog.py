@@ -300,6 +300,16 @@ class IsobenefitDialog(QtWidgets.QDialog):
         inp.addRow("Existing green [opt]", self.green_layer_box)
         self.unbuildable_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
         inp.addRow("Unbuildable [opt]", self.unbuildable_layer_box)
+        self.walkable_layer_box = _layer_combo(
+            Qgis.LayerFilter.LineLayer | Qgis.LayerFilter.PolygonLayer
+        )
+        self.walkable_layer_box.setToolTip(
+            "Ways people can walk (footpaths, residential streets, bridges). Applied after the "
+            "unbuildable carve: where one of these crosses a barrier, the barrier is walkable "
+            "there, so a footbridge over a motorway connects both sides. Edit the layer, or "
+            "supply your own, to say where crossings exist."
+        )
+        inp.addRow("Walkable ways [opt]", self.walkable_layer_box)
         self.steep_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
         self.steep_layer_box.setToolTip(
             "Slope bands from the OSM download (steep.geojson). Bands at or above the slope limit "
@@ -351,6 +361,7 @@ class IsobenefitDialog(QtWidgets.QDialog):
         "built": "built_layer_box",
         "green": "green_layer_box",
         "unbuildable": "unbuildable_layer_box",
+        "walkable": "walkable_layer_box",
         "steep": "steep_layer_box",
         "centres": "centre_seeds_layer_box",
         "stops": "transit_stops_layer_box",

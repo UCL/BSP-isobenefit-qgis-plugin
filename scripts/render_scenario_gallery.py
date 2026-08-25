@@ -54,7 +54,11 @@ BUILT_LOW, BUILT_MED, BUILT_HIGH = _hex(G._BUILT_LOW), _hex(G._BUILT_MED), _hex(
 CENTRE_LOW, CENTRE_MED, CENTRE_HIGH = _hex(G._CENTRE_LOW), _hex(G._CENTRE_MED), _hex(G._CENTRE_HIGH)
 EXIST_BUILT, EXIST_CENTRE = _hex(G._EXIST_BUILT), _hex(G._EXIST_CENTRE)
 GREEN, STREET, INK = _hex((89, 176, 60)), "#a9a9a9", "#333333"
-UNBUILDABLE, STEEP, WATER = "#c8c8c8", "#6e6e6e", "#a8c8e4"
+# Barriers are drawn solid and dark rather than as pale specks: a carved rail or river
+# corridor can sever land that looks open on the map, and a reader who cannot see the
+# wall reads the gap as available.
+UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#6e9dc4", "#f2f2f2"
+
 TRANSIT = "#0b7285"  # transit stop markers, the site's stops colour
 TIER_STYLE = {
     G.PLAN_GREEN: (GREEN, 0.18),
@@ -125,13 +129,14 @@ def load_scenario(folder: str):
     with open(os.path.join(folder, "params.json"), encoding="utf-8") as fh:
         params = json.load(fh)
     layers = {}
-    for name in ("built", "green", "unbuildable", "centres", "streets", "water", "stops",
-                 "stations", "proposed_corridor", "proposed_station"):
+    for name in ("built", "green", "unbuildable", "centres", "streets", "walkable", "water",
+                 "stops", "stations", "proposed_corridor", "proposed_station"):
         path = os.path.join(folder, f"{name}.geojson")
         if os.path.exists(path):
             with open(path, encoding="utf-8") as fh:
                 fc = json.load(fh)
             layers[name] = [shapely.make_valid(shapely.geometry.shape(f["geometry"])) for f in fc["features"]]
+
     # terrain: steep.geojson bands at/above the scenario's slope_max_deg preclude development
     steep_path = os.path.join(folder, "steep.geojson")
     slope_max = params.get("slope_max_deg")
@@ -194,6 +199,24 @@ def substrate(extent, layers, gran):
         c, r = int((p.x - gt[0]) / gran), int((gt[3] - p.y) / gran)
         if 0 <= r < rows and 0 <= c < cols and built[r, c] and not cent[r, c]:
             seeds.append((r, c))
+    # Pedestrian crossings: where a way people can walk crosses a carved barrier, the barrier
+    # is passable there. A footbridge over a railway does not make the railway developable, so
+    # the cell stays out of the buildable set and only the walk changes. Without this a
+    # corridor severs land the planner can plainly reach: at Crews Hill it strands 238 ha of
+    # developable ground 75 m from its station.
+    crossing_cells = []
+    for geom in layers.get("walkable", []):
+        for line in getattr(geom, "geoms", [geom]):
+            if line.geom_type != "LineString" or line.length <= 0:
+                continue
+            for f in np.arange(0.0, 1.0 + 1e-9, (gran / 3) / max(line.length, gran)):
+                pt = line.interpolate(min(f, 1.0), normalized=True)
+                c, r = int((pt.x - gt[0]) / gran), int((gt[3] - pt.y) / gran)
+                if 0 <= r < rows and 0 <= c < cols and state[r, c] == -1:
+                    crossing_cells.append((r, c))
+    for r, c in set(crossing_cells):
+        state[r, c] = G.STATE_CROSSING
+
     # transit stops: point features -> cells, snapped off unbuildable land exactly as the
     # plugin snaps them (a stop often sits on a carved road corridor)
     stops = []
@@ -350,17 +373,27 @@ def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
     steep = steep & unbuildable if steep is not None else np.zeros_like(unbuildable)
     water = sub.get("water")
     water = water & unbuildable if water is not None else np.zeros_like(unbuildable)
+    # a barrier carrying a pedestrian crossing: the same grey as the wall it breaks, with a
+    # light centre, so it reads as a gap in the wall rather than as a fourth kind of ground
+    crossing = (sub["state"] == G.STATE_CROSSING) & inside
     for r in range(H):
         for c in range(W):
             v = int(codes[r, c])
             if v in TIER_STYLE:
                 col, radf = TIER_STYLE[v]
             elif water[r, c]:
-                col, radf = WATER, 0.3  # water bodies and river corridors
+                col, radf = WATER, 0.5  # water bodies and river corridors
             elif steep[r, c]:
-                col, radf = STEEP, 0.3  # steep terrain: excluded for slope
+                col, radf = STEEP, 0.5  # steep terrain: excluded for slope
+            elif crossing[r, c]:
+                cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
+                rad = P * 0.5
+                draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(UNBUILDABLE))
+                rad = P * 0.22
+                draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(CROSSING))
+                continue
             elif unbuildable[r, c]:
-                col, radf = UNBUILDABLE, 0.3  # other exclusions: airfields, military, barriers
+                col, radf = UNBUILDABLE, 0.5  # other exclusions: airfields, military, barriers
             elif inside[r, c]:
                 col, radf = GREEN, 0.18  # untouched land inside the extents
             else:
@@ -404,8 +437,11 @@ LEGEND_GROUPS = [
     ("New built", [("high", BUILT_HIGH), ("medium", BUILT_MED), ("low", BUILT_LOW)]),
     ("Mixed-use centre", [("high", CENTRE_HIGH), ("medium", CENTRE_MED), ("low", CENTRE_LOW)]),
     ("Existing", [("existing built", EXIST_BUILT), ("existing centre", EXIST_CENTRE)]),
-    ("Other", [("nature", GREEN), ("water", WATER), ("steep terrain", STEEP),
-               ("unbuildable", UNBUILDABLE)]),
+    # the three barrier classes block walking as well as building, which is what makes
+    # land beyond them undevelopable however open it looks
+    ("Nature and barriers", [("nature", GREEN), ("water", WATER), ("steep terrain", STEEP),
+                             ("unbuildable", UNBUILDABLE),
+                             ("crossing (walkable)", CROSSING)]),
 ]
 
 

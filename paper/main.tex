@@ -251,7 +251,13 @@ distance with the bounded grid walk: the shortest path over
 traversable cells, which detours around unbuildable land and is cut
 off at the maximum walking distance. A diagonal step between two
 blocked cells is refused, so a walk cannot pass through the corner
-where a carved corridor meets itself. The path is computed by
+where a carved corridor meets itself. A corridor is crossable where a
+way people can walk crosses it: the walkable-ways layer, footpaths and
+streets a pedestrian may use, is applied after the carving, and the
+cells it touches stay closed to development while a walk may pass
+through them. Without that a carved corridor severs land the planner
+can plainly reach, and a footbridge over a railway would count for
+nothing. The path is computed by
 Dijkstra search.
 
 \subsection{The growth rules}
@@ -499,7 +505,9 @@ Distance is measured in a straight line &
 A bounded walk over the grid that cannot cross unbuildable land, used
 for growth and for scoring alike &
 On real ground a straight line crosses motorways, railways and rivers,
-so a straight-line distance is not a distance anyone can walk \\
+so a straight-line distance is not a distance anyone can walk. A
+barrier is crossable where a footpath or street crosses it, so the walk
+follows the bridges and level crossings that exist \\
 \addlinespace[3pt]
 Nature stays one connected region at least T\(^*\) wide &
 Local rules: a corridor between two settlements keeps a minimum span, a
@@ -522,7 +530,7 @@ Post-processing arranges the centres three ways and grades the drawn
 densities, keeping every new home within the centre walk &
 A centre is founded at the edge of the development that earns it and the
 settlement then grows past it, which at Cambourne leaves the mean walk
-57~m longer than it need be, 385~m against 328~m. A plan drawing also needs a density gradient the growth rules
+57~m longer than it need be, 382~m against 325~m. A plan drawing also needs a density gradient the growth rules
 cannot place, since a cell draws its tier before the settlement around
 it exists \\
 \addlinespace[3pt]
@@ -637,8 +645,8 @@ corridor and hub. Figure~\ref{fig:cambourne}
 shows the selected plan under the
 baseline and 1{,}600~m centre walks. At the baseline 1{,}200~m
 walk, the plan accommodates 15{,}062 new residents against a
-15{,}000 target, and they average a 328~m walk to a centre and
-118~m to green space. Table~\ref{tab:sweep} sweeps the walk.
+15{,}000 target, and they average a 325~m walk to a centre and
+117~m to green space. Table~\ref{tab:sweep} sweeps the walk.
 
 Table~\ref{tab:fouroutputs} reproduces the Cambourne scenario's run
 report, which records the four outputs. Growth founds a centre only
@@ -649,11 +657,11 @@ existing centres the window already has and six were earned by the
 new residents. Pruning takes 200 of the 15{,}262 people grown, leaving the three
 options housing the same 15{,}062 and differing only in where their
 centres sit. The
-walk falls from 499~m in the raw state to 385~m once the centres are
+walk falls from 496~m in the raw state to 382~m once the centres are
 sized to the residents they serve and growth no centre reaches is
-pruned, and to 328~m once each centre is moved central to the homes it
+pruned, and to 325~m once each centre is moved central to the homes it
 serves. Fewest centres removes none, because every centre was earned
-and none is redundant: it returns the same 328~m and the same 26
+and none is redundant: it returns the same 325~m and the same 26
 areas. A centre is founded at the
 edge of the development that earns it, which is why the raw figure
 is the outlier.
@@ -667,16 +675,16 @@ The corridor preference is 0.95 and every other setting stays at the
 baseline. Growth and its satellite settlements string along the route
 instead of spreading across the window (Figure~\ref{fig:corridor}),
 and the share of new homes within the transit catchments rises from
-9\% to 89\%. The hub lies just beyond the centre walk of the
+10\% to 80\%. The hub lies just beyond the centre walk of the
 existing centres, so its catchment holds land they do not serve, and a new
 settlement gathers around its pinned centre at the junction. The
-population accommodated moves little, 14{,}927 against 15{,}062,
+population accommodated moves little, 14{,}941 against 15{,}062,
 because the catchments hold enough developable land for a
 settlement of this size; what changes is where it sits. The mean
-centre walk lengthens from 328 to 339~m, since growth strung along
+centre walk lengthens from 325 to 359~m, since growth strung along
 a route is served by centres spaced along it rather than gathered
-around a core, while the walk to green space falls from 118 to
-117~m. Every home keeps a centre within the walk. Where the catchments hold less
+around a core, while the walk to green space rises from 117 to
+120~m. Every home keeps a centre within the walk. Where the catchments hold less
 land the preference draws growth into a smaller area, and the run
 report gives the share of homes within them either way.
 
@@ -697,8 +705,8 @@ Population accommodated & 15{,}262 & 15{,}062 & 15{,}062 & 15{,}062 \\
 Share of target & 102\% & 100\% & 100\% & 100\% \\
 Built cells (incl.\ existing) & 3{,}883 & 3{,}855 & 3{,}855 & 3{,}855 \\
 Mixed-use centre areas & 26 & 26 & 26 & 26 \\
-Mean walk to a centre (m) & 499 & 385 & 328 & 328 \\
-Mean walk to green space (m) & 117 & 118 & 118 & 118 \\
+Mean walk to a centre (m) & 496 & 382 & 325 & 325 \\
+Mean walk to green space (m) & 116 & 117 & 117 & 117 \\
 Centre \sqm{} per person & 1 & 10 & 12 & 12 \\
 \bottomrule
 \end{tabular}
@@ -781,8 +789,8 @@ km\(^2\)) reflects the area's housing towers. The scenario is a
 hypothetical demonstration on the district's terrain and carries no
 recommendation for its future development.
 
-At the baseline walk the plan accommodates 39{,}007 against the
-40{,}000 target with a 137~m mean
+At the baseline walk the plan accommodates 40{,}640 against the
+40{,}000 target with a 100~m mean
 centre walk for new homes; the steep slopes fragment the buildable
 land into detached benches of gentler ground.
 Figure~\ref{fig:medellin} varies the two settings that bind here.
@@ -790,8 +798,8 @@ Requiring growth to stay attached to existing development collapses
 the plan to 5{,}126, because a centre may then only be founded
 against fabric that already exists and the benches are unreachable
 across the steep ground between them. Raising the viability
-threshold from 2{,}000 to 4{,}000 people houses 40{,}351 in fewer
-and larger settlements, at a 156~m mean centre walk.
+threshold from 2{,}000 to 4{,}000 people houses 39{,}936 in fewer
+and larger settlements, at a 190~m mean centre walk.
 
 \begin{figure}[!tp]
 \centering
@@ -813,7 +821,7 @@ seed 42.}
 The centre walk is swept across 800, 1{,}200, and 1{,}600~m for the
 three cases. The population accommodated moves little across the
 sweep: Cambourne houses 14{,}136 to 15{,}141, Crews Hill 13{,}104
-to 13{,}252, and Pajarito 38{,}429 to 39{,}308. What the walk
+to 13{,}252, and Pajarito 40{,}288 to 40{,}916. What the walk
 changes is how many centres serve those residents and how far they
 walk to one.
 
@@ -838,9 +846,9 @@ settings.}
 \toprule
 Scenario & 800~m & 1{,}200~m (baseline) & 1{,}600~m \\
 \midrule
-Cambourne & 331~m & 328~m & 346~m \\
+Cambourne & 328~m & 325~m & 343~m \\
 Crews Hill & 91~m & 266~m & 275~m \\
-Pajarito & 117~m & 137~m & 147~m \\
+Pajarito & 135~m & 100~m & 99~m \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -880,10 +888,10 @@ breaks.
 Placement is the clearest gain. A centre is founded at the edge of the
 development that earned it, because that is where growth had reached,
 and the settlement then grows past it. At the Cambourne baseline the new
-homes average a 385~m walk to the centres where the run left them and
-328~m once each is moved to the point central to the homes it serves.
+homes average a 382~m walk to the centres where the run left them and
+325~m once each is moved to the point central to the homes it serves.
 That step changes no fabric and no centre count: it moves 26 centres
-and shortens the mean walk by 57~m. The raw state's 499~m is not the
+and shortens the mean walk by 57~m. The raw state's 496~m is not the
 comparison, since its centres are single cells that post-processing has
 yet to size.
 
@@ -930,7 +938,7 @@ trade the shares actually govern.
 
 Pajarito is the case where a setting decides the outcome rather than
 shading it. Requiring growth to stay attached to existing development
-houses 5{,}126 against 39{,}007 when detached settlements are allowed,
+houses 5{,}126 against 40{,}640 when detached settlements are allowed,
 because the benches of gentler ground are separated by slopes over 20
 degrees and a centre may only be founded on land growth can reach.
 Whether that difference is a finding or an artefact depends on what the

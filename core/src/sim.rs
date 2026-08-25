@@ -290,7 +290,7 @@ fn build_inner(
     // Footprints are static (built land stays traversable, unbuildable land
     // never changes), so this decrement is exact.
     let acc_opts = DijkstraOpts::new(green_distance_m, granularity_m);
-    let dec = agg_dijkstra_cont(state, y, x, &[0, 1, 2], &[0, 1, 2], &acc_opts);
+    let dec = agg_dijkstra_cont(state, y, x, &[-2, 0, 1, 2], &[0, 1, 2], &acc_opts);
     let reach = (green_distance_m / granularity_m).ceil() as usize + 1;
     let (y0, y1) = (y.saturating_sub(reach), (y + reach + 1).min(rows));
     let (x0, x1) = (x.saturating_sub(reach), (x + reach + 1).min(cols));
@@ -352,7 +352,7 @@ fn claim_cells(
     let opts = DijkstraOpts::new(centre_distance_m, granularity_m);
     let mut field: Option<Array2<f64>> = None;
     for &(sy, sx) in sources {
-        let d = agg_dijkstra_dist(state, sy, sx, &[0, 1, 2], &opts);
+        let d = agg_dijkstra_dist(state, sy, sx, &[-2, 0, 1, 2], &opts);
         field = Some(match field {
             None => d,
             Some(mut acc) => {
@@ -502,7 +502,7 @@ impl Simulation {
             state[[r, c]] = 2;
             origin[[r, c]] = 2;
             cent_acc =
-                cent_acc + agg_dijkstra_cont(&state, r, c, &[0, 1, 2], &[0, 1, 2], &cent_opts);
+                cent_acc + agg_dijkstra_cont(&state, r, c, &[-2, 0, 1, 2], &[0, 1, 2], &cent_opts);
         }
         // A centre drawn as an area is one centre, not one per covered cell: the seeds
         // are grouped into contiguous areas, and each area earns and is measured as a
@@ -532,8 +532,8 @@ impl Simulation {
             centre_pop.push(0.0);
             centre_key.push(*cells.iter().min().expect("a labelled area has cells"));
             for &(r, c) in cells {
-                prov_acc =
-                    prov_acc + agg_dijkstra_cont(&state, r, c, &[0, 1, 2], &[0, 1, 2], &cent_opts);
+                prov_acc = prov_acc
+                    + agg_dijkstra_cont(&state, r, c, &[-2, 0, 1, 2], &[0, 1, 2], &cent_opts);
             }
             claim_cells(
                 &state,
@@ -655,7 +655,7 @@ impl Simulation {
         let opts = DijkstraOpts::new(self.params.centre_distance_m, self.params.granularity_m);
         // the distance field gives the access footprint (finite == reachable within a walk,
         // matching the old path==target==[0,1,2] agg)
-        let d = agg_dijkstra_dist(&self.state, y, x, &[0, 1, 2], &opts);
+        let d = agg_dijkstra_dist(&self.state, y, x, &[-2, 0, 1, 2], &opts);
         let inc = d.mapv(|v| if v.is_finite() { 1 } else { 0 });
         self.cent_acc = &self.cent_acc + &inc;
         self.prov_acc = &self.prov_acc + &inc;

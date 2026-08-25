@@ -116,10 +116,18 @@ PLAN_CENTRE_MED = 10
 PLAN_CENTRE_HIGH = 11
 
 PLAN_REJECT_UNSERVABLE = 12
+# A carved barrier that carries a pedestrian crossing: never developed, like PLAN_NONE, but
+# walkable. A footbridge over a railway does not make the railway a building site, and a
+# model that refuses the crossing severs land the planner can plainly reach on foot.
+PLAN_CROSSING = 13
+# state grids use -2 for the same thing, so the value stays out of the way of the built
+# (>0) and green (0) tests that run everywhere
+STATE_CROSSING = -2
 
 PLAN_PALETTE = [
     (PLAN_GREEN, _GREEN, "Recommended green network"),
     (PLAN_REJECT_UNSERVABLE, (214, 96, 77), "Rejected: no viable centre within the walk"),
+    (PLAN_CROSSING, (95, 99, 104), "Barrier with a pedestrian crossing"),
     (PLAN_EXIST_BUILT, _EXIST_BUILT, "Existing development"),
     (PLAN_EXIST_CENTRE, _EXIST_CENTRE, "Existing mixed-use centre"),
     (PLAN_BUILT_LOW, _BUILT_LOW, "New development — low density"),
@@ -1463,6 +1471,7 @@ def _state_to_plan(state, granularity_m, existing_green=None) -> np.ndarray:
     if existing_green is not None:
         plan[np.asarray(existing_green, dtype=bool)] = PLAN_GREEN  # never drop existing green
     plan[state == -1] = PLAN_NONE  # unbuildable (rivers / roads / etc.) is never developed OR green
+    plan[state == STATE_CROSSING] = PLAN_CROSSING  # a barrier a walk may cross, never built on
     return plan
 
 

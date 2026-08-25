@@ -59,6 +59,15 @@ DATASET_SELECTORS: dict[str, list[tuple[str, str]]] = {
     "streets": [
         ("way", '["highway"]'),
     ],
+    # Ways a pedestrian may use. Downloaded as their own layer because they are applied AFTER
+    # the unbuildable carve: where one of these crosses a barrier corridor, the barrier is
+    # walkable at that cell, which is what a footbridge over a motorway means on the ground.
+    # Motorways and trunk roads are excluded: nobody crosses those on foot where they run.
+    "walkable": [
+        ("way", '["highway"~"^(footway|path|steps|pedestrian|cycleway|bridleway|track|'
+                'living_street|residential|unclassified|service|tertiary|tertiary_link|'
+                'secondary|secondary_link)$"]'),
+    ],
     "railways": [
         ("way", '["railway"~"^(rail|light_rail|subway|tram)$"]'),
     ],
@@ -113,6 +122,11 @@ DATASETS: dict[str, dict[str, str]] = {
     "centres": {"label": "Centres", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "industrial": {"label": "Industrial land", "osm_layer": "multipolygons", "geom_type": "MultiPolygon"},
     "streets": {"label": "Street network", "osm_layer": "lines", "geom_type": "MultiLineString"},
+    "walkable": {
+        "label": "Walkable ways (barrier crossings)",
+        "osm_layer": "lines",
+        "geom_type": "MultiLineString",
+    },
     "railways": {"label": "Railways", "osm_layer": "lines", "geom_type": "MultiLineString"},
     "stops": {"label": "Public-transport stops (growth anchors)", "osm_layer": "points", "geom_type": "Point"},
     "stations": {"label": "Rail / tram stations (centre anchors)", "osm_layer": "points", "geom_type": "Point"},
@@ -131,6 +145,7 @@ DATASET_ORDER: tuple[str, ...] = (
     "centres",
     "industrial",
     "streets",
+    "walkable",
     "railways",
     "stops",
     "stations",
@@ -154,6 +169,7 @@ LAYER_STYLES: dict[str, dict[str, str]] = {
     "unbuildable": {"fill": "200,200,200,130", "outline": "160,160,160"},
     "extents": {"fill": "0,0,0,0", "outline": "211,35,51", "outline_style": "dash"},
     "streets": {"line": "154,154,154", "width": "0.35"},
+    "walkable": {"line": "242,242,242", "width": "0.6"},
     "railways": {"line": "77,77,77", "width": "0.5", "line_style": "dash"},
     "stops": {"marker": "circle", "fill": "11,114,133", "outline": "255,255,255", "size": "2.2"},
     "stations": {"marker": "star", "fill": "11,114,133", "outline": "255,255,255", "size": "4"},
@@ -305,12 +321,19 @@ def is_barrier_line(tags: dict[str, str]) -> bool:
 
 # Extra string fields written per dataset (beyond geometry). The street network carries its
 # highway class for map styling and for classing motorway-grade corridors as barriers.
-DATASET_FIELDS: dict[str, list[str]] = {"streets": ["highway"]}
+# Ways a pedestrian may use, and so the ways that can carry a crossing over a barrier.
+WALKABLE_HIGHWAYS = frozenset({
+    "footway", "path", "steps", "pedestrian", "cycleway", "bridleway", "track",
+    "living_street", "residential", "unclassified", "service", "tertiary",
+    "tertiary_link", "secondary", "secondary_link",
+})
+
+DATASET_FIELDS: dict[str, list[str]] = {"streets": ["highway"], "walkable": ["highway"]}
 
 
 def feature_attributes(dataset: str, tags: dict[str, str]) -> dict[str, str]:
     """Attribute values to persist for a feature, keyed by field name (see DATASET_FIELDS)."""
-    if dataset == "streets":
+    if dataset in ("streets", "walkable"):
         highway = tags.get("highway")
         return {"highway": highway} if highway else {}
     return {}
@@ -325,6 +348,8 @@ def feature_matches(dataset: str, tags: dict[str, str]) -> bool:
     """
     if dataset == "streets":
         return bool(tags.get("highway"))
+    if dataset == "walkable":
+        return tags.get("highway") in WALKABLE_HIGHWAYS
     if dataset == "railways":
         return tags.get("railway") in _RAILWAY_LINES
     if dataset == "stations":

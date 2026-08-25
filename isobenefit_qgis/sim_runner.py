@@ -61,6 +61,7 @@ class IsobenefitTask(QgsTask):
         unbuildable_layer,
         steep_layer=None,
         slope_max_deg=None,
+        walkable_layer=None,
         centre_seeds_layer,
         transit_stops_layer=None,
         stations_layer=None,
@@ -102,6 +103,7 @@ class IsobenefitTask(QgsTask):
         self.green_layer = _snapshot(green_layer)
         self.unbuildable_layer = _snapshot(unbuildable_layer)
         self.steep_layer = _snapshot(steep_layer)
+        self.walkable_layer = _snapshot(walkable_layer)
         self.slope_max_deg = None if slope_max_deg is None else float(slope_max_deg)
         self.centre_seeds_layer = _snapshot(centre_seeds_layer)
         self.transit_stops_layer = _snapshot(transit_stops_layer)
@@ -401,6 +403,20 @@ class IsobenefitTask(QgsTask):
                 state = np.where((steep == -1) & (origin != 1), -1, state)
                 self._log(
                     f"Carved ground at or above {self.slope_max_deg:g} degrees: {n_steep:,} cell(s)."
+                )
+            if self.walkable_layer is not None:
+                # Applied last, over the carves: where a way people can walk crosses a barrier,
+                # the barrier is walkable at that cell. It stays unbuildable — a footbridge does
+                # not make a motorway a building site — so only the walk changes.
+                crossed = gis_io.burn_layer(
+                    np.full_like(state, 0), self.walkable_layer, self.target_crs, geotransform, 1,
+                    all_touched=True,
+                )
+                mask = (crossed == 1) & (state == -1)
+                state = np.where(mask, grid.STATE_CROSSING, state)
+                self._log(
+                    f"Marked {int(mask.sum()):,} barrier cell(s) as walkable crossings from the "
+                    "walkable-ways layer."
                 )
             density = np.zeros((rows, cols), dtype=np.float32)
             seeds = []
