@@ -413,11 +413,16 @@ const dg = (name: string) => `${base}images/${name}.svg`
         and land beside a barrier may be built right up to it.
       </li>
       <li>
-        <strong>Centres are earned, not drawn.</strong> Each new home is charged to the centre it is
-        nearest, and a centre founds the next one once that population reaches the service viability
-        threshold, or once it has no room left to grow. The number of settlements therefore follows the
-        population rather than the size of the window or the resolution of the grid, and a candidate whose
-        only built neighbour is not a centre still may not build (which suppresses one-cell tendrils).
+        <strong>Centres are earned, not drawn.</strong> The published model seeds centralities by
+        probability, and a probability is meaningless to the person setting it: nobody can defend 0.005
+        over 0.01 from a map, and the same value yields a different number of settlements as the window,
+        the cell size or the pace of growth changes. This implementation replaces those draws with a
+        ratio a planner can actually interpret: each new home is charged to the centre it is nearest,
+        and a centre founds the next one once that population reaches the service viability threshold
+        (people per centre), or once it has no room left to grow. How many people a local centre must
+        serve to be viable is a planning judgement with published reference points, the number of
+        settlements follows the population rather than the grid, and a candidate whose only built
+        neighbour is not a centre still may not build (which suppresses one-cell tendrils).
       </li>
       <li>
         <strong>Real-data grounding.</strong> Existing fabric is fixed (never redeveloped); water,
