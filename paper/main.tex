@@ -92,7 +92,9 @@ the obstructions.
 
 This paper operationalises Isobenefit Urbanism as a QGIS plugin for
 the early stages of planning, when options are conceptualised and
-residents and experts consulted \citep[cf.][]{waddell2002}. The
+residents and experts consulted, a role akin to that of
+sketch-planning support systems \citep[cf.][]{klosterman1999,
+geertman_stillwell2004, waddell2002}. The
 plugin also supports transit-oriented development, since policy
 already organises growth around stations and stops, and the premise
 that growth and density belong within walking reach of transit
@@ -144,7 +146,7 @@ the methods, the case studies, and the discussion.
 
 The Isobenefit-cities simulator \citep{dacci_voto2023} belongs to a
 long line of cellular models of urban form with real-world planning
-applications \citep{white_engelen1993,
+applications \citep{white_engelen1993, clarke1997,
 batty2005, sante2010}, and differs from models fitted to observed
 growth in that its rules enforce a walkability guarantee while growth
 proceeds. It grows settlements on a
@@ -184,12 +186,17 @@ longer than the advised 300~m because a walking route goes around
 obstacles and covers more distance than the straight line.
 Transit adds two further distances (Section~\ref{sec:transit}). The
 stop catchment, 400~m by default, bounds the walk to a bus stop or a
-drawn transit route, and matches the quarter-mile bus-stop catchment
+drawn transit route; it matches the quarter-mile bus-stop catchment
 conventional in transit-oriented development \citep{calthorpe1993,
-ibraeva2020}. The hub catchment, 1{,}200~m by default, bounds the
-walk to a station or a designated hub. Station catchments in the same
-practice start at half a mile, and the default matches the centre
-walk, because a hub anchors a centre.
+ibraeva2020}, and observed walks to bus stops are of that order,
+with an 85th-percentile walk of about 520~m in Montreal
+\citep{elgeneidy2014}. The hub catchment, 1{,}200~m by default,
+bounds the walk to a station or a designated hub. People walk
+further to rail than to a bus stop \citep{daniels_mulley2013}:
+station-area practice starts at half a mile, and the same Montreal
+study observes an 85th-percentile walk to commuter rail of about
+1{,}260~m. The default matches the centre walk, because a hub
+anchors a centre.
 Section~\ref{sec:cases} sweeps the centre walk across 800, 1{,}200,
 and 1{,}600~m; the green walk stays at 400~m throughout.
 
@@ -506,7 +513,9 @@ New centralities seed by probability, beside under-served built land
 and on open land at a rate scaled by area &
 A centre is founded once the population nearest it reaches the service
 viability threshold; a scenario chooses whether one may start detached
-from existing development &
+from existing development, and open land that cannot hold the threshold
+and lies beyond the walk of an existing centre is set aside before the
+run &
 A probability is not a quantity a planner can judge, and it does not
 travel: the same value yields a different number of settlements as the
 window, the cell size, or the pace of growth changes. People per centre
@@ -521,6 +530,20 @@ so a straight-line distance is not a distance anyone can walk. A
 barrier is crossable where a footpath or street crosses it, so the walk
 follows the bridges and level crossings that exist \\
 \addlinespace[3pt]
+Each step scans the grid against an unchanged copy, so cells build
+simultaneously &
+Each iteration visits the cells in a shuffled order and builds them in
+place &
+In-place updates let each build see the green network as it stands, so
+the green guards stay exact; the shuffle removes the directional bias of
+a fixed scan, and a per-iteration seed keeps the order reproducible \\
+\addlinespace[3pt]
+A nature cell beside any built land may build &
+New growth attaches only to built land that carries a centre &
+Growth against a centre-less farmstead or hamlet would have no centre to
+serve it, so such fabric stays sterile and the walk constraint holds
+from the first cell \\
+\addlinespace[3pt]
 Nature stays one connected region at least T\(^*\) wide &
 Local rules: a corridor between two settlements keeps a minimum span, a
 park keeps a minimum area, and a built cell keeps a park within the
@@ -528,13 +551,20 @@ green walk &
 Real green space is already fragmented by roads, rivers, and field
 boundaries, so a global connectivity rule either cannot be satisfied or
 preserves accidents of the input. The local rules protect what people
-use \\
+use; the minimum span is narrower than the published T\(^*\)-width,
+which real corridors rarely hold \\
 \addlinespace[3pt]
 The run stops at a population cap &
 The target counts new residents only; existing fabric is fixed and
 treated as served by its own centres &
 Existing residents already have their centres, and counting them would
 let a scenario meet its target without building anything \\
+\addlinespace[3pt]
+A centrality occupies a single cell &
+A centre is a mixed-use area sized at 20~\sqm{} per new resident it
+serves &
+A plan drawing needs centre land in proportion to the people served, and
+neighbourhood-centre standards supply the ratio \\
 \addlinespace[3pt]
 Centralities stay where they seeded, and each block keeps the density it
 drew &
@@ -977,6 +1007,25 @@ Cambourne, by contrast, houses much the same population across the
 settings swept; the settings move the walk instead. This supports
 reading these outputs as sketches of arrangement rather than as
 capacity studies.
+
+\subsection{Limitations}
+
+The outputs are sketches of spatial arrangement, and the model omits
+much of what turns an arrangement into a plan: land ownership and
+assembly, development viability, phasing, infrastructure cost, and
+tenure. A sketch shows where a walkable settlement could sit, and
+says nothing about whether its land can be brought forward. The
+inputs carry the limits of their sources. OpenStreetMap coverage
+varies by place; at Pajarito the informal fabric is likely to be
+under-mapped, so the existing development the model keeps fixed is
+less complete there than in the UK cases, and the slope bands stand
+in for buildability rather than for geological hazard. The
+demonstrations are hypothetical throughout: no case has been
+evaluated with the planners and residents the tool is intended to
+serve, and no generated plan has been compared with a settlement as
+built. Both evaluations belong to applied work with a live plan, and
+until then the tool remains research software whose outputs are
+material for discussion rather than plans to build from.
 
 \section{Conclusion}
 \label{sec:conclusion}
