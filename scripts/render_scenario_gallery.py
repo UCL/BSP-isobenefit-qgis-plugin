@@ -486,7 +486,7 @@ LEGEND_GROUPS = [
     # barriers block walking as well as building, which is what makes land beyond them
     # undevelopable however open it looks; a crossing is a gap in one, not a fourth ground
     ("Barriers", [("water", WATER), ("steep terrain", STEEP), ("unbuildable", UNBUILDABLE),
-                  ("walkable route", CROSSING)]),
+                  ("walkable link", CROSSING)]),
 ]
 
 
