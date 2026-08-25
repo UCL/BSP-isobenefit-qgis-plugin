@@ -71,6 +71,7 @@ UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#2e75b6", "#e0218a"
 # water all draw at the same middle weight, distinguished by colour rather than by bulk,
 # and the nature field alone stays finer so the settlements read against it.
 DOT_RAD = 0.34
+NEW_RAD = 0.38  # new development and its centres, a step above the rest: they are the subject
 GROUND_RAD = DOT_RAD
 NATURE_RAD = 0.24
 
@@ -79,14 +80,14 @@ TIER_STYLE = {
     G.PLAN_GREEN: (GREEN, NATURE_RAD),
     G.PLAN_EXIST_BUILT: (EXIST_BUILT, DOT_RAD),
     G.PLAN_EXIST_CENTRE: (EXIST_CENTRE, DOT_RAD),
-    G.PLAN_BUILT_LOW: (BUILT_LOW, DOT_RAD),
-    G.PLAN_BUILT_MED: (BUILT_MED, DOT_RAD),
-    G.PLAN_BUILT_HIGH: (BUILT_HIGH, DOT_RAD),
-    G.PLAN_CENTRE_LOW: (CENTRE_LOW, DOT_RAD),
-    G.PLAN_CENTRE_MED: (CENTRE_MED, DOT_RAD),
-    G.PLAN_CENTRE_HIGH: (CENTRE_HIGH, DOT_RAD),
-    G.PLAN_BUILT: (BUILT_MED, DOT_RAD),
-    G.PLAN_CENTRE: (CENTRE_MED, DOT_RAD),
+    G.PLAN_BUILT_LOW: (BUILT_LOW, NEW_RAD),
+    G.PLAN_BUILT_MED: (BUILT_MED, NEW_RAD),
+    G.PLAN_BUILT_HIGH: (BUILT_HIGH, NEW_RAD),
+    G.PLAN_CENTRE_LOW: (CENTRE_LOW, NEW_RAD),
+    G.PLAN_CENTRE_MED: (CENTRE_MED, NEW_RAD),
+    G.PLAN_CENTRE_HIGH: (CENTRE_HIGH, NEW_RAD),
+    G.PLAN_BUILT: (BUILT_MED, NEW_RAD),
+    G.PLAN_CENTRE: (CENTRE_MED, NEW_RAD),
 }
 
 # The curated presets. Each is (id, label, note, overrides); overrides patch the scenario's
@@ -485,7 +486,7 @@ LEGEND_GROUPS = [
     # barriers block walking as well as building, which is what makes land beyond them
     # undevelopable however open it looks; a crossing is a gap in one, not a fourth ground
     ("Barriers", [("water", WATER), ("steep terrain", STEEP), ("unbuildable", UNBUILDABLE),
-                  ("crossing (walkable)", CROSSING)]),
+                  ("walkable route", CROSSING)]),
 ]
 
 

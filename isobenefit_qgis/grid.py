@@ -35,8 +35,8 @@ _BUILT_HIGH = (204, 122, 41)
 _CENTRE_LOW = (252, 187, 161)
 _CENTRE_MED = (239, 101, 72)
 _CENTRE_HIGH = (179, 18, 24)
-_EXIST_BUILT = (197, 180, 218)  # light purple: existing fabric recedes yet stays off the new ramps and exclusion greys
-_EXIST_CENTRE = (69, 72, 158)  # indigo, no red content: an isolated centre dot must read new-or-existing on its own
+_EXIST_BUILT = (200, 189, 172)  # light taupe: existing fabric recedes, warm enough to stay off the barrier greys
+_EXIST_CENTRE = (109, 76, 47)  # deep sepia: dark and desaturated, never readable as a new-centre red
 _GREEN = (54, 109, 35)
 
 # (class code, (r, g, b), legend label) — the single-run animation palette.
@@ -127,7 +127,7 @@ STATE_CROSSING = -2
 PLAN_PALETTE = [
     (PLAN_GREEN, _GREEN, "Recommended green network"),
     (PLAN_REJECT_UNSERVABLE, (214, 96, 77), "Rejected: no viable centre within the walk"),
-    (PLAN_CROSSING, (224, 33, 138), "Barrier with a pedestrian crossing"),
+    (PLAN_CROSSING, (224, 33, 138), "Walkable route through a barrier"),
     (PLAN_EXIST_BUILT, _EXIST_BUILT, "Existing development"),
     (PLAN_EXIST_CENTRE, _EXIST_CENTRE, "Existing mixed-use centre"),
     (PLAN_BUILT_LOW, _BUILT_LOW, "New development — low density"),
