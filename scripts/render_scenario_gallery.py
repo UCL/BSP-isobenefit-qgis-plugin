@@ -71,15 +71,15 @@ UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#2e75b6", "#e0218a"
 # water all draw at the same middle weight, distinguished by colour rather than by bulk,
 # and the nature field alone stays finer so the settlements read against it.
 DOT_RAD = 0.34
-NEW_RAD = 0.38  # new development and its centres, a step above the rest: they are the subject
+NEW_RAD = 0.38  # all development, new and existing: fabric outranks ground, colour separates the two
 GROUND_RAD = DOT_RAD
 NATURE_RAD = 0.24
 
 TRANSIT = "#0b7285"  # transit stop markers, the site's stops colour
 TIER_STYLE = {
     G.PLAN_GREEN: (GREEN, NATURE_RAD),
-    G.PLAN_EXIST_BUILT: (EXIST_BUILT, DOT_RAD),
-    G.PLAN_EXIST_CENTRE: (EXIST_CENTRE, DOT_RAD),
+    G.PLAN_EXIST_BUILT: (EXIST_BUILT, NEW_RAD),
+    G.PLAN_EXIST_CENTRE: (EXIST_CENTRE, NEW_RAD),
     G.PLAN_BUILT_LOW: (BUILT_LOW, NEW_RAD),
     G.PLAN_BUILT_MED: (BUILT_MED, NEW_RAD),
     G.PLAN_BUILT_HIGH: (BUILT_HIGH, NEW_RAD),
