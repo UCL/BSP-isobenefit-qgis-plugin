@@ -1536,6 +1536,64 @@ mod tests {
     }
 
     #[test]
+    fn incremental_green_arrays_match_fresh_rebuild_with_crossing() {
+        // as above, but the strip carries a walkable crossing (-2): park
+        // footprints now reach across it, and the incremental decrements must
+        // still match a fresh rebuild cell for cell
+        let grid = 24;
+        let mut state = Array2::<i16>::zeros((grid, grid));
+        for y in 0..grid {
+            state[[y, 10]] = -1;
+        }
+        state[[12, 10]] = -2;
+        let origin = Array2::<i16>::from_elem((grid, grid), -1);
+        let density = Array2::<f32>::zeros((grid, grid));
+        let params = Params::from_raw(
+            100.0,
+            600.0,
+            600.0,
+            1_000_000.0,
+            100.0,
+            0.6,
+            2000.0,
+            true,
+            (0.4, 0.4, 0.2),
+            (6000.0, 3000.0, 1000.0),
+            None,
+            None,
+        )
+        .unwrap();
+        let mut sim = Simulation::new(
+            state,
+            origin,
+            density,
+            &[(12, 4)],
+            &[(12, 4)],
+            None,
+            None,
+            params,
+            40,
+            42,
+        )
+        .unwrap();
+        sim.run();
+        assert!(sim.population() > 0.0, "expected growth");
+        let (fresh_park, fresh_acc) = prepare_park_arrs(
+            &sim.state,
+            params.green_distance_m,
+            params.granularity_m,
+            params.min_park_area_m2,
+        );
+        assert_eq!(sim.park, fresh_park);
+        assert_eq!(sim.green_acc, fresh_acc);
+        // the crossing stays closed to development and is never a park
+        assert_eq!(sim.state[[12, 10]], -2);
+        assert!(!sim.park[[12, 10]]);
+        // no cell may end with a negative access count
+        assert!(sim.green_acc.iter().all(|&v| v >= 0));
+    }
+
+    #[test]
     fn rejects_build_that_leaves_itself_without_park_access() {
         // 1x5 row: green | built | built | centre | candidate green. Threshold 1
         // (span == granularity), so both single green cells are parks. The only

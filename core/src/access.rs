@@ -271,11 +271,12 @@ pub fn park_threshold_cells(min_park_area_m2: f64, granularity_m: f64) -> i64 {
 ///
 /// `park`: green (state 0) cells whose rook-connected green component holds at
 /// least [`park_threshold_cells`] cells. `green_acc[c]`: how many park cells lie
-/// within the green walk of `c`, traversing everything except unbuildable land —
-/// each park cell's bounded footprint, summed in parallel. Unbuildable land never
-/// changes and built land stays traversable, so every footprint is constant for
-/// the whole run and the count stays exact under the single-cell removals
-/// `try_build` applies.
+/// within the green walk of `c`, traversing everything except unbuildable land
+/// (walkable crossings included, matching the decrement in `try_build` and the
+/// centre walks) — each park cell's bounded footprint, summed in parallel.
+/// Unbuildable land never changes and built land stays traversable, so every
+/// footprint is constant for the whole run and the count stays exact under the
+/// single-cell removals `try_build` applies.
 pub fn prepare_park_arrs(
     state: &Array2<i16>,
     green_distance_m: f64,
@@ -305,7 +306,7 @@ pub fn prepare_park_arrs(
     let opts = DijkstraOpts::new(green_distance_m, granularity_m);
     let green_acc = sources
         .par_iter()
-        .map(|&(y, x)| agg_dijkstra_cont(state, y, x, &[0, 1, 2], &[0, 1, 2], &opts))
+        .map(|&(y, x)| agg_dijkstra_cont(state, y, x, &[-2, 0, 1, 2], &[0, 1, 2], &opts))
         .reduce(|| Array2::<i32>::zeros((rows, cols)), |a, b| a + b);
 
     (park, green_acc)
@@ -393,6 +394,30 @@ mod tests {
             assert_eq!(acc[[y, 1]], 0);
             assert!(acc[[y, 3]] > 0);
         }
+    }
+
+    #[test]
+    fn crossing_grants_park_access_through_barrier() {
+        // same layout as above, but the barrier carries a walkable crossing
+        // (-2) at y=2: west cells within the green walk of the crossing now
+        // reach the east park, matching the decrement path in try_build
+        let mut state = Array2::<i16>::zeros((5, 5));
+        for y in 0..5 {
+            state[[y, 0]] = 1;
+            state[[y, 2]] = -1;
+        }
+        state[[2, 2]] = -2;
+        let (park, acc) = prepare_park_arrs(&state, 300.0, 100.0, 90_000.0);
+        for y in 0..5 {
+            assert!(park[[y, 3]] && park[[y, 4]]);
+        }
+        // near the crossing the park is within the 300 m walk
+        assert!(acc[[2, 1]] > 0);
+        assert!(acc[[1, 1]] > 0);
+        assert!(acc[[3, 1]] > 0);
+        // beyond the walk the count stays zero
+        assert_eq!(acc[[0, 1]], 0);
+        assert_eq!(acc[[0, 0]], 0);
     }
 
     #[test]
