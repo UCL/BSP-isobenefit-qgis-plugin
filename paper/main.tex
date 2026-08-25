@@ -6,6 +6,7 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{xltabular}
 \usepackage{natbib}
 \usepackage[hyphens]{url}
 \usepackage{caption}
@@ -486,16 +487,22 @@ why each was made. Rules we kept are not listed, since the table
 records where this implementation differs and what a reader should
 weigh.
 
-\begin{table}[!tp]
-\centering
+{\footnotesize
+\begin{xltabular}{\textwidth}{L L L}
 \caption{Departures from the published model \citep{dacci2019,
 dacci_voto2023, voto_code} and the reason for each.}
-\label{tab:rules}
-\footnotesize
-\begin{tabularx}{\textwidth}{L L L}
+\label{tab:rules} \\
 \toprule
 Published rule & This implementation & Why \\
 \midrule
+\endfirsthead
+\caption*{Table~\ref{tab:rules} (continued).} \\
+\toprule
+Published rule & This implementation & Why \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
 One radius T\(^*\) governs access to centres and to nature alike &
 Four walking distances: the centre walk, the green walk, and the stop
 and hub catchments that transit adds &
@@ -586,9 +593,7 @@ pin a centre &
 Policy already organises growth around transit, so a plan that ignores
 it is harder to adopt. The lean is graded because a catchment boundary
 is a modelling device that residents do not experience \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\end{xltabular}}
 
 \subsection{Software and reproducibility}
 \label{sec:software}
