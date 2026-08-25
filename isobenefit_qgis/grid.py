@@ -35,7 +35,7 @@ _BUILT_HIGH = (204, 122, 41)
 _CENTRE_LOW = (252, 187, 161)
 _CENTRE_MED = (239, 101, 72)
 _CENTRE_HIGH = (179, 18, 24)
-_EXIST_BUILT = (200, 189, 172)  # light taupe: existing fabric recedes, warm enough to stay off the barrier greys
+_EXIST_BUILT = (183, 155, 118)  # warm tan: unmistakably sepia against the green field, still muted enough to recede
 _EXIST_CENTRE = (109, 76, 47)  # deep sepia: dark and desaturated, never readable as a new-centre red
 _GREEN = (54, 109, 35)
 
