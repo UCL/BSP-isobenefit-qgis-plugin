@@ -1605,16 +1605,17 @@ def derive_density(
     """Per-cell density (people/km²) for a FINISHED scenario, arranging the three tiers core-out.
 
     Every new cell was built at one of three densities, drawn at the given probabilities (the mix).
-    Here those drawn values are ARRANGED spatially: new cells are ranked by their INTERIOR DEPTH
-    (how far inside the new fabric they sit), ties broken by the walking distance to the nearest
-    post-processed mixed-use centre, AS A PERCENTILE WITHIN THEIR OWN contiguous settlement. The
-    highest densities go to the lowest percentiles, then medium, then low, so each settlement
-    carries a dense core and a light edge whatever its shape. Depth ranks first because a pure
-    distance ranking fails where a serving centre sits at a settlement's edge (a station anchor
-    against a rail line): distance contours then run in parallel bands across the region instead
-    of ringing its core. The within-settlement percentile gives every settlement its own gradient;
-    a raw global ranking instead starves whole small settlements into a
-    single low tier. The tier counts follow the probabilities (``n_high = round(p_high · N)``, …),
+    Here those drawn values are ARRANGED spatially: new cells are ranked by the WALKING DISTANCE
+    to the nearest post-processed mixed-use centre, ties broken by interior depth (how far inside
+    the new fabric a cell sits), AS A PERCENTILE WITHIN THEIR OWN contiguous settlement. The
+    highest densities go to the lowest percentiles, then medium, then low, so density falls away
+    from each centre. The gradient runs from the centre outward rather than from the edge inward:
+    where a centre stands at a settlement's edge, as a station against a rail line does, density
+    grades away from that centre in bands, which is what a centre in that position means. Depth
+    breaks ties so that, among cells the same walk from a centre, the one buried in the fabric
+    outranks the one on the edge. The within-settlement percentile gives every settlement its own
+    gradient; a raw global ranking instead starves whole small settlements into a single low
+    tier. The tier counts follow the probabilities (``n_high = round(p_high · N)``, …),
     so the population equals the probability-weighted mean over the cells — the same accounting
     the run's stopping rule uses. Existing fabric is not counted (0); non-built cells are 0
     (nodata).
@@ -1632,11 +1633,26 @@ def derive_density(
     n = int(new_built.sum())
     if n == 0:
         return out
-    # walking distance to the nearest centre for every new cell (inf where none is within a walk)
-    if centres.any():
-        dist_field = _walk_distance(centres, g, float(centre_distance_m), blocked=plan == PLAN_NONE)
-    else:
-        dist_field = np.full(plan.shape, np.inf)
+    # Walking distance to the MIDDLE of the nearest centre, not to whichever of its cells is
+    # closest. Measuring to the nearest cell makes every cell inside a centre equidistant at
+    # zero and measures the fabric outside it from the centre's rim, which grades density off
+    # a belt rather than off the centre. From the middle, density peaks at the heart of the
+    # centre, tapers across the centre area, and keeps tapering through the fabric around it.
+    dist_field = np.full(plan.shape, np.inf)
+    blocked = plan == PLAN_NONE
+    for comp in _components(centres):
+        m = np.zeros(plan.shape, dtype=bool)
+        for y, x in comp:
+            m[y, x] = True
+        mid = _interior_point(m)
+        if mid is None:
+            mid = comp[0]
+        seed = np.zeros(plan.shape, dtype=bool)
+        seed[int(mid[0]), int(mid[1])] = True
+        # bounded generously: a centre's own area sits inside this, and the walk beyond it
+        # only has to rank cells, not certify access
+        d = _walk_distance(seed, g, float(centre_distance_m) * 2.0, blocked=blocked)
+        np.minimum(dist_field, d, out=dist_field)
     dists = dist_field[new_built]
     # percentile of distance WITHIN each contiguous settlement, so every settlement grades
     # from dense at its centre to light at its edge, whatever its absolute distances
@@ -1663,8 +1679,9 @@ def derive_density(
     keys = np.full(n, np.inf)
     for lab in np.unique(labels):
         members = labels == lab
-        # deepest first, then nearest the centre; lexsort ranks by its LAST key first
-        order_m = np.lexsort((dists[members], -depth_b[members]))
+        # nearest the centre first, ties broken by depth so a cell buried inside the
+        # fabric outranks one on the edge at the same walk; lexsort ranks by its LAST key
+        order_m = np.lexsort((-depth_b[members], dists[members]))
         r = np.empty(order_m.size, dtype=np.int64)
         r[order_m] = np.arange(order_m.size)
         denom = max(int(members.sum()) - 1, 1)

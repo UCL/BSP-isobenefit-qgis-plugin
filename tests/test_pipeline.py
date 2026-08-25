@@ -1258,9 +1258,11 @@ def test_to_tiered_plan_maps_new_cells_to_tier_codes():
     assert out[0, 3] == PLAN_EXIST_BUILT  # existing untouched
 
 
-def test_derive_density_edge_centre_still_grades_core_out():
-    # a square settlement whose only centre hugs one edge (a station anchor against a rail line)
-    # must still carry its high tier at the interior core, not in bands nearest the centre
+def test_derive_density_grades_away_from_an_edge_centre():
+    # a square settlement whose only centre hugs one edge (a station anchor against a rail
+    # line). Density grades away from the CENTRE, so the high tier sits beside it and the
+    # far corners take the low tier: a centre in that position means exactly that, and
+    # grading from the settlement's interior instead would ignore where its centre is.
     from isobenefit_qgis.grid import derive_density
 
     g = 20
@@ -1269,11 +1271,12 @@ def test_derive_density_edge_centre_still_grades_core_out():
     plan[4, 9] = PLAN_CENTRE  # the centre sits on the square's top edge
     tiers, probs = (6000.0, 3000.0, 1500.0), (0.2, 0.3, 0.5)
     dens = derive_density(plan, 100.0, 4000.0, tiers, probs)
-    assert (dens[9:11, 9:11] == 6000.0).all()  # the deepest cells take the high tier
-    corners = [dens[4, 4], dens[4, 15], dens[15, 4], dens[15, 15]]
-    assert all(v == 1500.0 for v in corners)  # the shallow corners take the low tier
-    top_edge = dens[4, 5:15]
-    assert (top_edge != 6000.0).all()  # edge rows beside the centre no longer outrank the core
+    assert dens[5, 9] == 6000.0  # immediately below the centre: the high tier
+    far = [dens[15, 4], dens[15, 15]]
+    assert all(v == 1500.0 for v in far)  # the corners furthest from it: the low tier
+    # and the gradient is monotonic down the column through the centre
+    column = [dens[r, 9] for r in range(5, 16)]
+    assert column == sorted(column, reverse=True)
 
 
 def test_derive_density_without_centres_still_conserves_population():
