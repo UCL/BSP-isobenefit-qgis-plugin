@@ -118,19 +118,13 @@ The contributions are:
 \item An open, reproducible implementation: a QGIS plugin that wraps a
   simulation engine published on PyPI, with documentation and the
   case-study scenarios.
-\item Enhancements beyond the published model. The single radius is
-  separated into two walking distances, one to a centre and one to
-  green space, each with its own rules. Transit-oriented development
-  enters as a graded preference: transit hubs anchor centres, and growth
-  leans toward the transit a scenario supplies, strongest at a stop or
-  station and fading with the walk to it. A centre is founded once the population it
-  would serve justifies one, in place of a seeding probability, so the
-  number of settlements follows from a viability threshold and the
-  population rather than from a per-cell probability; where each centre lands
-  remains stochastic.
-  Post-processing optimises the placement of centres and
-  grades the densities from centre to edge, and the plan options keep
-  new homes within the centre walk.
+\item Enhancements beyond the published model: two walking distances
+  in place of the single radius, one to a centre and one to green
+  space; a graded preference toward transit, with hubs anchoring
+  centres; centres founded by the population they serve rather than
+  by a seeding probability; and post-processing that places the
+  centres and grades the densities, keeping new homes within the
+  centre walk.
 \end{enumerate}
 
 We demonstrate the pipeline on three case studies, each dominated by a
