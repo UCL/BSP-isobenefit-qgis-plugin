@@ -62,10 +62,14 @@ GREEN, STREET, INK = _hex((89, 176, 60)), "#a9a9a9", "#333333"
 # corridor can sever land that looks open on the map, and a reader who cannot see the
 # wall reads the gap as available.
 UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#6e9dc4", "#ffffff"
+# One dot size for every kind of ground that is not development: nature, water, steep and
+# unbuildable all read as fields, and a field stays calm when its texture is uniform. The
+# barriers are distinguished by their dark colour, not by outsizing everything around them.
+GROUND_RAD = 0.24
 
 TRANSIT = "#0b7285"  # transit stop markers, the site's stops colour
 TIER_STYLE = {
-    G.PLAN_GREEN: (GREEN, 0.18),
+    G.PLAN_GREEN: (GREEN, GROUND_RAD),
     G.PLAN_EXIST_BUILT: (EXIST_BUILT, 0.42),
     G.PLAN_EXIST_CENTRE: (EXIST_CENTRE, 0.46),
     G.PLAN_BUILT_LOW: (BUILT_LOW, 0.42),
@@ -378,10 +382,23 @@ def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
     im = Image.new("RGB", (cw, ch), (255, 255, 255))
     draw = ImageDraw.Draw(im)
     gt = sub["gt"]
+    # Every vector overlay is clipped to the extents polygon before drawing. The extents
+    # are usually a rotated rectangle in the scenario CRS (drawn in another projection),
+    # and the dot field is clipped to them, so an unclipped underlay spills past the dots
+    # and makes the raster read as rotated against the streets. Clipped, the two share one
+    # boundary and the panel reads as a single map.
+    clip = sub.get("extent")
+
+    def _clipped_lines(geom):
+        g2 = geom if clip is None else clip.intersection(geom)
+        if g2.is_empty:
+            return
+        for part in getattr(g2, "geoms", [g2]):
+            if part.geom_type == "LineString":
+                yield part
+
     for geom in layers.get("streets", []):
-        for line in getattr(geom, "geoms", [geom]):
-            if line.geom_type != "LineString":
-                continue
+        for line in _clipped_lines(geom):
             pts = [
                 (PAD + (x - gt[0]) / gran * P, PAD + (gt[3] - y) / gran * P)
                 for x, y in line.simplify(gran / 4).coords
@@ -403,20 +420,21 @@ def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
             if v in TIER_STYLE:
                 col, radf = TIER_STYLE[v]
             elif water[r, c]:
-                col, radf = WATER, 0.5  # water bodies and river corridors
+                col, radf = WATER, GROUND_RAD  # water bodies and river corridors
             elif steep[r, c]:
-                col, radf = STEEP, 0.5  # steep terrain: excluded for slope
+                col, radf = STEEP, GROUND_RAD  # steep terrain: excluded for slope
             elif crossing[r, c]:
+                # a plain white dot on the map: the grey ring muddied it back toward the
+                # barrier colour, and the wall on either side is context enough. The legend
+                # swatch keeps a hairline ring only so white shows against white paper.
                 cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
-                rad = P * 0.5
-                draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(UNBUILDABLE))
-                rad = P * 0.26
+                rad = P * GROUND_RAD
                 draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(CROSSING))
                 continue
             elif unbuildable[r, c]:
-                col, radf = UNBUILDABLE, 0.5  # other exclusions: airfields, military, barriers
+                col, radf = UNBUILDABLE, GROUND_RAD  # other exclusions: airfields, military, barriers
             elif inside[r, c]:
-                col, radf = GREEN, 0.18  # untouched land inside the extents
+                col, radf = GREEN, GROUND_RAD  # untouched land inside the extents
             else:
                 continue  # outside the study area: blank
             cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
@@ -426,9 +444,7 @@ def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
         # the proposed corridor route first (a heavier teal line), then the stops on top,
         # white-ringed so they read over any tier colour
         for geom in layers.get("proposed_corridor", []):
-            for line in getattr(geom, "geoms", [geom]):
-                if line.geom_type != "LineString":
-                    continue
+            for line in _clipped_lines(geom):
                 pts = [
                     (PAD + (x - gt[0]) / gran * P, PAD + (gt[3] - y) / gran * P)
                     for x, y in line.coords
@@ -486,9 +502,9 @@ def render_legend(path):
         for ri, (label, colour) in enumerate(items):
             cy = top + ri * row_h + row_h / 2
             if colour == CROSSING:
-                # drawn as it appears on the map: a gap in the barrier, not a white disc
-                draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(UNBUILDABLE))
-                draw.ellipse([x + 15, cy - 11, x + 37, cy + 11], fill=_rgb(CROSSING))
+                # white on white paper needs a hairline outline in the legend alone
+                draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(CROSSING),
+                             outline=_rgb(UNBUILDABLE), width=2)
             else:
                 draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(colour))
             draw.text((x + 68, cy - 24), label, fill=_rgb(INK), font=label_f)
