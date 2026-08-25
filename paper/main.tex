@@ -143,8 +143,7 @@ applications \citep{white_engelen1993, clarke1997,
 batty2005, sante2010}, and differs from models fitted to observed
 growth in that its rules enforce a walkability guarantee while growth
 proceeds. It grows settlements on a
-square grid that starts as nature, and each simulation step scans
-the grid against an unchanged copy. A nature cell adjacent to built land may
+square grid that starts as nature. A nature cell adjacent to built land may
 become built on two conditions: a centrality must lie within the
 radius T\(^*\), typically about one kilometre or a fifteen-minute
 walk, and building the cell must not breach the green-space rules,
@@ -523,8 +522,7 @@ so a straight-line distance is not a distance anyone can walk. A
 barrier is crossable where a footpath or street crosses it, so the walk
 follows the bridges and level crossings that exist \\
 \addlinespace[3pt]
-Each step scans the grid against an unchanged copy, so cells build
-simultaneously &
+Cells update together at each step &
 Each iteration visits the cells in a shuffled order and builds them in
 place &
 In-place updates let each build see the green network as it stands, so
