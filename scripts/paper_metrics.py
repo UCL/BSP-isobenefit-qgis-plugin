@@ -100,10 +100,6 @@ def run_preset(sub, params, overrides, runs=50):
     cell_km2 = gran * gran / 1e6
     min_cells = max(1, round(float(p.get("min_settlement_pop", 2000.0)) / (mean_density * cell_km2)))
     base_state, base_origin = sub["state"].copy(), sub["origin"].copy()
-    G.green_unviable_pockets(
-        base_state, base_origin, min_cells,
-        existing_centres=sub["seeds"], granularity_m=gran, centre_distance_m=walk,
-    )
 
     # transit: the anchor masks report catchment coverage for every preset; the corridor
     # preference additionally weights the growth draws when an override raises it above 0.
@@ -124,6 +120,14 @@ def run_preset(sub, params, overrides, runs=50):
     corridor_cells = list(sub.get("stops", []))
     if use_proposed:
         corridor_cells += list(sub.get("corridor", []))
+
+    # pocket screening follows the transit block, as in the plugin: a hub anchors a
+    # centre, so a pocket within its walk is servable and must not be ruled out
+    G.green_unviable_pockets(
+        base_state, base_origin, min_cells,
+        existing_centres=sub["seeds"] + [h for h in hubs if h not in set(sub["seeds"])],
+        granularity_m=gran, centre_distance_m=walk,
+    )
 
     def _mask(cells):
         if not cells:
@@ -152,7 +156,7 @@ def run_preset(sub, params, overrides, runs=50):
         _gallery.centre_quota(p), _gallery.allow_detached(p),
         shares, tiers, int(p.get("max_iterations", 300)), seed,
         min_park_area_m2=park_m2,
-        sterile=G.sterile_fabric(base_origin == 1, sub["seeds"]),
+        sterile=G.sterile_fabric(base_origin == 1, sim_seeds),
         transit_attraction=catchment, corridor_weight=corridor_w,
         provision_seeds=hubs,
     )
@@ -181,6 +185,22 @@ def run_preset(sub, params, overrides, runs=50):
             "transit_coverage", "transit_access",
         )
     }
+    # like-for-like transit comparison: the plan of a preset that excludes the
+    # proposed inputs, measured against the catchments the demonstration adds,
+    # so the corridor run's coverage has a matching reference
+    if not use_proposed and (sub.get("proposed_hubs") or sub.get("corridor")):
+        aug_hubs = hubs + [h for h in sub.get("proposed_hubs", []) if h not in set(hubs)]
+        aug_stops = corridor_cells + [c for c in sub.get("corridor", []) if c not in set(corridor_cells)]
+        aug = G.evaluate_plan(
+            plan, gran, max_walk,
+            centre_distance_m=walk, green_distance_m=green_walk,
+            new_density_km2=mean_density,
+            existing_green=(base_origin == 0),
+            min_park_area_m2=park_m2,
+            transit_stops=_mask(aug_stops), stop_catchment_m=catchment_m,
+            transit_hubs=_mask(aug_hubs), hub_catchment_m=hub_catchment_m,
+        )
+        keep["transit_coverage_proposed"] = round(float(aug.get("transit_coverage", 0.0)), 3)
     keep["sim_seconds"] = round(sim_s, 1)
     disp = G.to_tiered_plan(plan, G.derive_density(plan, gran, walk, tiers, shares), tiers)
     return disp, keep
