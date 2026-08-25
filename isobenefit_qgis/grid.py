@@ -740,11 +740,14 @@ def _grow_blob(start, target, built, claimed):
 
 
 def _grow_centres(points, fixed, built, walk, cell_pop, m2_per_person, cell_area_m2,
-                  max_area=CENTRE_AREA_MAX):
+                  max_area=CENTRE_AREA_MAX, growable=None):
     """Grow each new centre POINT into a contiguous AREA on built land, sized by the POPULATION it is
     the nearest centre to (its Voronoi catchment within a walk) at ``m2_per_person`` of centre land
     per resident — like a real centre, bigger where it serves more people. Mixed-use: cells stay
     built/homes, just designated centre; existing/fixed centres are left intact and never grown into.
+    ``growable`` bounds where a centre may spread, and defaults to all built land. Callers pass the
+    NEW development alone: turning existing housing into a mixed-use centre is redevelopment, which
+    this model does not do, and it would also count those residents as new.
     ``cell_pop`` is the per-cell population estimate. Returns the set of (row, col) centre cells.
     """
     points = [(int(y), int(x)) for y, x in points]
@@ -773,7 +776,8 @@ def _grow_centres(points, fixed, built, walk, cell_pop, m2_per_person, cell_area
     claimed = {(int(y), int(x)) for y, x in fixed}  # never grow onto existing/fixed centres
     grown: set = set()
     for j in sorted(range(len(points)), key=lambda k: -targets[k]):  # biggest centres claim first
-        blob = _grow_blob(points[j], targets[j], built, claimed)
+        blob = _grow_blob(points[j], targets[j],
+                          built if growable is None else growable, claimed)
         grown |= blob
         claimed |= blob
     return grown
@@ -1411,7 +1415,8 @@ def optimise_plan(
             minimise_count=False, infill=infill, reposition=False,
         )
         grow_points = list(dict.fromkeys(filled + anchor_on_built))
-        grown = _grow_centres(grow_points, existing_on_built, built, walk, cell_pop, centre_m2_per_person, g * g)
+        grown = _grow_centres(grow_points, existing_on_built, built, walk, cell_pop,
+                              centre_m2_per_person, g * g, growable=built & ~exist_mask)
         new_centres = list(dict.fromkeys(list(grown) + kept))
     else:
         if centre_mode == "placed":
@@ -1429,7 +1434,8 @@ def optimise_plan(
         # existing/true-area centres come pre-sized from the input and are left intact (claimed, not grown).
         grow_points = list(dict.fromkeys(new_centres + anchor_on_built))
         new_centres = _grow_centres(
-            grow_points, existing_on_built, built, walk, cell_pop, centre_m2_per_person, g * g
+            grow_points, existing_on_built, built, walk, cell_pop, centre_m2_per_person, g * g,
+            growable=built & ~exist_mask,
         )
     for y, x in new_centres:
         plan[y, x] = PLAN_CENTRE
@@ -1487,11 +1493,7 @@ def _mark_existing(plan: np.ndarray, existing_built=None, existing_centres=None)
         if 0 <= ey < out.shape[0] and 0 <= ex < out.shape[1] and out[ey, ex] == PLAN_CENTRE:
             out[ey, ex] = PLAN_EXIST_CENTRE
     if existing_built is not None:
-        ex_mask = np.asarray(existing_built, dtype=bool)
-        out[(out == PLAN_BUILT) & ex_mask] = PLAN_EXIST_BUILT
-        # a centre grown over existing fabric is centre land the town already had: leaving it
-        # coded as new would count its residents twice, once as existing and once as new
-        out[(out == PLAN_CENTRE) & ex_mask] = PLAN_EXIST_CENTRE
+        out[(out == PLAN_BUILT) & np.asarray(existing_built, dtype=bool)] = PLAN_EXIST_BUILT
     return out
 
 
