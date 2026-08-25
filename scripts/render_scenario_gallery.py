@@ -57,7 +57,7 @@ GREEN, STREET, INK = _hex((89, 176, 60)), "#a9a9a9", "#333333"
 # Barriers are drawn solid and dark rather than as pale specks: a carved rail or river
 # corridor can sever land that looks open on the map, and a reader who cannot see the
 # wall reads the gap as available.
-UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#6e9dc4", "#f2f2f2"
+UNBUILDABLE, STEEP, WATER, CROSSING = "#5f6368", "#43484d", "#6e9dc4", "#ffffff"
 
 TRANSIT = "#0b7285"  # transit stop markers, the site's stops colour
 TIER_STYLE = {
@@ -389,7 +389,7 @@ def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
                 cx, cy = PAD + c * P + P / 2, PAD + r * P + P / 2
                 rad = P * 0.5
                 draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(UNBUILDABLE))
-                rad = P * 0.22
+                rad = P * 0.26
                 draw.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=_rgb(CROSSING))
                 continue
             elif unbuildable[r, c]:
@@ -436,12 +436,12 @@ def render_png(codes, layers, sub, gran, path, stops=None, hubs=None):
 LEGEND_GROUPS = [
     ("New built", [("high", BUILT_HIGH), ("medium", BUILT_MED), ("low", BUILT_LOW)]),
     ("Mixed-use centre", [("high", CENTRE_HIGH), ("medium", CENTRE_MED), ("low", CENTRE_LOW)]),
-    ("Existing", [("existing built", EXIST_BUILT), ("existing centre", EXIST_CENTRE)]),
-    # the three barrier classes block walking as well as building, which is what makes
-    # land beyond them undevelopable however open it looks
-    ("Nature and barriers", [("nature", GREEN), ("water", WATER), ("steep terrain", STEEP),
-                             ("unbuildable", UNBUILDABLE),
-                             ("crossing (walkable)", CROSSING)]),
+    ("Existing and nature", [("existing built", EXIST_BUILT), ("existing centre", EXIST_CENTRE),
+                             ("nature", GREEN)]),
+    # barriers block walking as well as building, which is what makes land beyond them
+    # undevelopable however open it looks; a crossing is a gap in one, not a fourth ground
+    ("Barriers", [("water", WATER), ("steep terrain", STEEP), ("unbuildable", UNBUILDABLE),
+                  ("crossing (walkable)", CROSSING)]),
 ]
 
 
@@ -464,7 +464,12 @@ def render_legend(path):
         draw.text((x, margin), title, fill=_rgb(INK), font=title_f)
         for ri, (label, colour) in enumerate(items):
             cy = top + ri * row_h + row_h / 2
-            draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(colour))
+            if colour == CROSSING:
+                # drawn as it appears on the map: a gap in the barrier, not a white disc
+                draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(UNBUILDABLE))
+                draw.ellipse([x + 15, cy - 11, x + 37, cy + 11], fill=_rgb(CROSSING))
+            else:
+                draw.ellipse([x + 4, cy - 22, x + 48, cy + 22], fill=_rgb(colour))
             draw.text((x + 68, cy - 24), label, fill=_rgb(INK), font=label_f)
     im = im.resize((cw // 2, ch // 2), Image.LANCZOS)
     os.makedirs(os.path.dirname(path), exist_ok=True)
