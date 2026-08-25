@@ -31,11 +31,11 @@ EXIST_CENTRE = 9
 # Existing fabric is a single muted shade (it carries no density and is not counted).
 _BUILT_LOW = (255, 237, 160)
 _BUILT_MED = (254, 196, 79)
-_BUILT_HIGH = (204, 122, 41)
+_BUILT_HIGH = (232, 146, 20)  # deep amber, saturated and yellow: brown belongs to the existing fabric
 _CENTRE_LOW = (252, 187, 161)
 _CENTRE_MED = (239, 101, 72)
 _CENTRE_HIGH = (179, 18, 24)
-_EXIST_BUILT = (152, 117, 79)  # mid sepia brown: dark enough to hold contrast at dot size, duller than every new tier
+_EXIST_BUILT = (128, 99, 76)  # dark neutral brown: the new ramp is vivid yellow-amber, the old town is dull and dark
 _EXIST_CENTRE = (109, 76, 47)  # deep sepia: dark and desaturated, never readable as a new-centre red
 _GREEN = (54, 109, 35)
 
