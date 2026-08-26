@@ -131,6 +131,14 @@ impl Params {
         if (prob_sum - 1.0).abs() > f64::EPSILON {
             return Err("The prob_distribution parameter must sum to 1.".to_string());
         }
+        // Shares within the 1% input tolerance above are normalised to sum to exactly 1,
+        // so the density draw never hands a rounding remainder to any one tier.
+        let share_sum = prob_distribution.0 + prob_distribution.1 + prob_distribution.2;
+        let prob_distribution = (
+            prob_distribution.0 / share_sum,
+            prob_distribution.1 / share_sum,
+            prob_distribution.2 / share_sum,
+        );
         if !(density_factors_km2.0 > density_factors_km2.1
             && density_factors_km2.1 > density_factors_km2.2)
         {
@@ -372,6 +380,13 @@ fn claim_cells(
         }
         let cur = centre_dist[[r, c]];
         let prev = centre_id[[r, c]];
+        // The f32 comparison is a deliberate tie tolerance, not an accident of storage.
+        // Grid-walk lengths are integer combinations n*g + m*(g*sqrt(2)); by the continued-
+        // fraction bound on |n + m*sqrt(2)|, two GEOMETRICALLY DISTINCT lengths within one
+        // walk limit differ by centimetres or more, while two equal lengths summed in
+        // different step orders differ only by f64 rounding noise. Rounding both to f32
+        // (~0.1 mm at these magnitudes) therefore merges exactly the true ties and none of
+        // the distinct lengths, and the canonical key below settles ownership of the tie.
         let takes = if (dist as f32) < cur {
             true
         } else if (dist as f32) == cur && prev >= 0 {
@@ -690,8 +705,6 @@ impl Simulation {
         self.current_iter += 1;
         let (rows, cols) = self.state.dim();
         let mut rng = rng_for(self.master_seed, self.current_iter as u64);
-        let mut centrality_this_iter = false;
-        let mut built_this_iter = 0usize;
 
         // shuffle the visiting order (Fisher-Yates with the iteration RNG)
         let mut idxs: Vec<(usize, usize)> = (0..rows)
@@ -726,8 +739,11 @@ impl Simulation {
                 // walk, which is what post-processing would otherwise have to repair. That
                 // includes land an existing centre reaches: the town serves its own
                 // residents, and new growth beside it still needs a centre of its own.
-                if !centrality_this_iter
-                    && self.pending_centres > 0
+                // Several owed centres may plant in one iteration: plant_centre updates the
+                // provision field in place, so each successive planting already accounts for
+                // the ones before it, and an owed centre is never deferred by an
+                // iteration-count throttle.
+                if self.pending_centres > 0
                     && self.prov_acc[[y, x]] == 0
                     && self.corridor_prob(1.0, y, x) > rng.gen::<f64>()
                     && try_build(
@@ -746,8 +762,6 @@ impl Simulation {
                     self.pending_centres -= 1;
                     self.plant_centre(y, x);
                     self.assign_density(y, x, &mut rng);
-                    built_this_iter += 1;
-                    centrality_this_iter = true;
                 } else if self.cent_acc[[y, x]] > 0
                     && rng.gen::<f64>() < self.corridor_prob(p.build_prob, y, x)
                     && try_build(
@@ -766,10 +780,8 @@ impl Simulation {
                     self.state[[y, x]] = 1;
                     self.anchored[[y, x]] = true;
                     self.assign_density(y, x, &mut rng);
-                    built_this_iter += 1;
                 }
-            } else if !centrality_this_iter
-                && p.allow_detached
+            } else if p.allow_detached
                 && self.pending_centres > 0
                 && self.corridor_prob(1.0, y, x) > rng.gen::<f64>()
                 && try_build(
@@ -789,8 +801,6 @@ impl Simulation {
                 self.pending_centres -= 1;
                 self.plant_centre(y, x);
                 self.assign_density(y, x, &mut rng);
-                built_this_iter += 1;
-                centrality_this_iter = true;
             }
         }
         self.pop_target_ratio = self.density.sum() as f64 / p.max_populat;
@@ -805,7 +815,6 @@ impl Simulation {
         {
             self.pending_centres += 1;
         }
-        let _ = built_this_iter;
     }
 
     /// Is there any cell inside the current catchments that could still be built?
@@ -987,6 +996,29 @@ mod tests {
             None, // corridor_weight -> 0 (no transit bias)
         )
         .unwrap()
+    }
+
+    #[test]
+    fn shares_inside_the_input_tolerance_are_normalised_exactly() {
+        // 0.333 * 3 = 0.999 passes the 1% tolerance; the stored shares must sum to
+        // exactly 1 so no tier silently absorbs the rounding remainder in the draw.
+        let p = Params::from_raw(
+            100.0,
+            600.0,
+            600.0,
+            1_000_000.0,
+            100.0,
+            0.6,
+            2000.0,
+            false,
+            (0.333, 0.333, 0.333),
+            (6000.0, 3000.0, 1000.0),
+            None,
+            None,
+        )
+        .unwrap();
+        let sum = p.prob_distribution.0 + p.prob_distribution.1 + p.prob_distribution.2;
+        assert_eq!(sum, 1.0);
     }
 
     fn seeded_sim(grid: usize, seed: u64) -> Simulation {

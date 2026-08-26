@@ -283,7 +283,13 @@ def green_unviable_pockets(
     Developable land must satisfy a width condition and a service condition. It must be
     locally wide: a cell counts only inside a 3x3 block of open land, or immediately beside
     one (a morphological opening), which drops the one- and two-cell slivers that thread
-    between existing buildings and along barriers. And its region must be serviceable: the
+    between existing buildings and along barriers. The width condition is denominated in
+    CELLS deliberately: a strip one or two cells wide is one the raster cannot resolve —
+    its true width is anywhere below two cells, and its cells sit against the carve on both
+    sides — so the screen removes what the grid cannot certify as developable ground rather
+    than enforcing a metric planning width. It therefore scales with the grid (50 m cells
+    drop wider slivers than 25 m cells), which is the intended trade: a coarser grid knows
+    less. The paper states the screen (grid preparation, availability). And its region must be serviceable: the
     wide land is grouped into rook-connected regions (a diagonal corner touch does not
     connect), and a region qualifies either by holding at least the service viability
     threshold in cells, so it can support a minimal centre of its own, or by lying partly
@@ -591,7 +597,13 @@ def _refine_centres(
         if not centres:
             return centres
         member_mask = np.zeros((rows, cols), dtype=bool)
-        for _ in range(8):
+        # Iterate to a fixed point: the loop ends when no centre moves, or when a
+        # configuration repeats (the relaxation can cycle between equivalent layouts,
+        # and a revisited state proves no further progress). A fixed pass count is not
+        # enough — finer grids need more passes to settle, and a centre published one
+        # pass short of convergence can sit many cells from its catchment's centroid.
+        seen = {tuple(centres)}
+        while True:
             # column 0 = nearest fixed centre; columns 1.. = each new centre (single-source, cached)
             stack = np.column_stack([fixed_col] + [centre_col(tuple(c)) for c in centres])
             nearest = np.argmin(stack, axis=1)
@@ -623,6 +635,10 @@ def _refine_centres(
                     moved = True
             if not moved:
                 break
+            key = tuple(centres)
+            if key in seen:
+                break
+            seen.add(key)
         return centres
 
     def fill_gaps(centres):
@@ -705,7 +721,13 @@ CENTRE_M2_PER_PERSON = 20.0
 # dialog's default tiers (0.2*6000 + 0.3*3000 + 0.5*1500). Existing fabric carries NO population
 # anywhere — it is assumed served by its own centres, so only new development is ever counted.
 MEAN_NEW_DENSITY_KM2 = 2850.0
-CENTRE_AREA_MAX = 100  # cap so a single centre can't sprawl without bound
+# No cap on centre area: the size follows the catchment population, which the walk already
+# bounds, and a cap counted in CELLS would bind at fine grids and never at coarse ones.
+# A home beyond an amenity's walk limit (and each unhoused person of a population target)
+# enters the walk averages at this multiple of the limit. A stated modelling choice — it
+# keeps a plan from scoring well by abandoning the fringe or housing fewer people — with
+# no empirical fit behind the value; the paper discloses it as such.
+UNREACHABLE_PENALTY = 2.0
 # Contiguity floor: however coarse the grid, a settlement (and so any mixed-use centre attached to
 # it) must span at least this many contiguous cells, or it reverts to green. Keeps the population-based
 # minimum-settlement dial resolution-independent.
@@ -740,7 +762,7 @@ def _grow_blob(start, target, built, claimed):
 
 
 def _grow_centres(points, fixed, built, walk, cell_pop, m2_per_person, cell_area_m2,
-                  max_area=CENTRE_AREA_MAX, growable=None):
+                  growable=None):
     """Grow each new centre POINT into a contiguous AREA on built land, sized by the POPULATION it is
     the nearest centre to (its Voronoi catchment within a walk) at ``m2_per_person`` of centre land
     per resident — like a real centre, bigger where it serves more people. Mixed-use: cells stay
@@ -769,8 +791,7 @@ def _grow_centres(points, fixed, built, walk, cell_pop, m2_per_person, cell_area
     within = np.isfinite(stack.min(axis=1))
     pop_b = np.asarray(cell_pop, dtype=float)[built]
     targets = [
-        max(1, min(int(max_area),
-                   round(float(pop_b[(nearest == 1 + j) & within].sum()) * m2_per_person / cell_area_m2)))
+        max(1, round(float(pop_b[(nearest == 1 + j) & within].sum()) * m2_per_person / cell_area_m2))
         for j in range(len(points))
     ]
     claimed = {(int(y), int(x)) for y, x in fixed}  # never grow onto existing/fixed centres
@@ -990,20 +1011,21 @@ def evaluate_plan(
     cell_km2 = granularity_m * granularity_m / 1e6
     population = n_new * new_density_km2 * cell_km2
     if has_new:
-        centre_access = float(np.where(near_cent, d_cent, 2.0 * centre_distance_m).mean())
-        green_access = float(np.where(near_green, d_green, 2.0 * green_distance_m).mean())
+        centre_access = float(np.where(near_cent, d_cent, UNREACHABLE_PENALTY * centre_distance_m).mean())
+        green_access = float(np.where(near_green, d_green, UNREACHABLE_PENALTY * green_distance_m).mean())
     else:  # a degenerate plan with no new development: worst-case penalty
-        centre_access = 2.0 * centre_distance_m
-        green_access = 2.0 * green_distance_m
+        centre_access = UNREACHABLE_PENALTY * centre_distance_m
+        green_access = UNREACHABLE_PENALTY * green_distance_m
     shortfall_cells = 0.0
     if target_population and new_density_km2:
         shortfall_cells = max(0.0, float(target_population) - population) / (new_density_km2 * cell_km2)
     denom = n_new + shortfall_cells
     if denom:
-        sel_centre = (centre_access * n_new + 2.0 * centre_distance_m * shortfall_cells) / denom
-        sel_green = (green_access * n_new + 2.0 * green_distance_m * shortfall_cells) / denom
+        sel_centre = (centre_access * n_new + UNREACHABLE_PENALTY * centre_distance_m * shortfall_cells) / denom
+        sel_green = (green_access * n_new + UNREACHABLE_PENALTY * green_distance_m * shortfall_cells) / denom
     else:
-        sel_centre, sel_green = 2.0 * centre_distance_m, 2.0 * green_distance_m
+        sel_centre = UNREACHABLE_PENALTY * centre_distance_m
+        sel_green = UNREACHABLE_PENALTY * green_distance_m
     access_cost = 0.5 * (sel_centre + sel_green)
 
     rows, cols = plan.shape
@@ -1071,7 +1093,7 @@ def evaluate_plan(
         if near is not None:
             d_any = d_stop if d_hub is None else (d_hub if d_stop is None else np.minimum(d_stop, d_hub))
             metrics["transit_coverage"] = float(near.mean())
-            metrics["transit_access"] = float(np.where(near, d_any, 2.0 * max_distance_m).mean())
+            metrics["transit_access"] = float(np.where(near, d_any, UNREACHABLE_PENALTY * max_distance_m).mean())
             metrics["transit_walk_mean"] = float(d_any[near].mean()) if near.any() else math.inf
 
     return metrics
@@ -1453,13 +1475,15 @@ def class_probabilities(states):
     """Built / green likelihood surfaces from a list of final-state grids (0 green / 1
     built / 2 centre). Returns ``(p_built, p_green)`` float32 in ``[0, 1]``.
 
-    Centre likelihood is intentionally not emitted: the per-run centres are individual
-    points that land in different places each run, so averaging them yields a diffuse
-    smear rather than a meaningful likelihood. Centres belong to the recommended plan,
-    not the uncertainty layers."""
+    A centre cell counts as built in the built surface: a centre is mixed-use built
+    fabric, and excluding it would understate the built likelihood wherever a run
+    founded a centre. A separate centre likelihood is intentionally not emitted: the
+    per-run centres are individual points that land in different places each run, so
+    averaging them yields a diffuse smear rather than a meaningful likelihood. Centres
+    belong to the recommended plan, not the uncertainty layers."""
     arr = np.stack([np.asarray(s) for s in states])
     return (
-        (arr == 1).mean(0).astype(np.float32),
+        ((arr == 1) | (arr == 2)).mean(0).astype(np.float32),
         (arr == 0).mean(0).astype(np.float32),
     )
 
@@ -1744,11 +1768,17 @@ def plan_variants(
     centre_min_settlement=3,
     prune_islands=True,
     min_park_area_m2=None,
+    transit_stops=None,
+    stop_catchment_m=None,
+    transit_hubs=None,
+    hub_catchment_m=None,
 ):
     """Post-process one chosen CA run ``state`` at several centre modes, so the user can compare
     the options and pick rather than choosing up front. ``modes`` maps a label to a
     ``centre_mode`` (``"grown"`` / ``"placed"`` / ``"minimal"``; see ``optimise_plan``). Returns
-    ``{label: (plan, metrics)}``; each plan is tagged with the existing-* codes."""
+    ``{label: (plan, metrics)}``; each plan is tagged with the existing-* codes. The transit
+    masks and catchments pass straight to ``evaluate_plan`` so every option's metrics carry the
+    transit rows the run report prints; they play no part in the optimisation itself."""
     state = np.asarray(state)
     ca_centres = [(int(y), int(x)) for y, x in np.argwhere(state == 2)]
     base = _state_to_plan(state, granularity_m, existing_green=existing_green)
@@ -1771,6 +1801,8 @@ def plan_variants(
             centre_distance_m=centre_distance_m, green_distance_m=green_distance_m,
             new_density_km2=new_density_km2, existing_green=existing_green,
             min_park_area_m2=min_park_area_m2,
+            transit_stops=transit_stops, stop_catchment_m=stop_catchment_m,
+            transit_hubs=transit_hubs, hub_catchment_m=hub_catchment_m,
         )
         out[label] = (marked, metrics)
     return out

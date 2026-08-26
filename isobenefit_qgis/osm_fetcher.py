@@ -47,9 +47,38 @@ _OGR_GEOM = {
 }
 
 # Linear barriers (motorways/railways/rivers) are buffered into thin no-build corridor polygons
-# before being merged into the unbuildable layer. ~15 m (in degrees, mid-latitude); the
-# simulation rasterises unbuildable with ALL_TOUCHED so the corridor reliably carves its cells.
-_BARRIER_BUFFER_DEG = 0.00015
+# before being merged into the unbuildable layer. The half-width is metres, applied in a local
+# metric frame, so a corridor is the same width at any latitude; grid preparation seals thin
+# features against centre-sampling gaps (see gis_io.burn_layer's seal_thin_m), so the corridor
+# reliably carves its cells at any grid size.
+_BARRIER_HALF_WIDTH_M = 15.0
+# Degrees-per-metre fallback (equator-scale) for geometries a local-frame transform rejects.
+_DEG_PER_M_FALLBACK = 1.0 / 111_320.0
+
+
+def _buffer_line_m(geom, radius_m: float):
+    """Buffer an EPSG:4326 line by a metre radius. A buffer in raw degrees is anisotropic
+    (an east-west metre is fewer degrees than a north-south metre, by the latitude's cosine),
+    so the line is transformed to an azimuthal equidistant frame centred on itself, buffered
+    in metres, and transformed back. Falls back to an equator-scale degree buffer if either
+    transform fails."""
+    centroid = geom.Centroid()
+    if centroid is None:
+        return geom.Buffer(radius_m * _DEG_PER_M_FALLBACK)
+    src = osr.SpatialReference()
+    src.ImportFromEPSG(4326)
+    src.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+    dst = osr.SpatialReference()
+    dst.ImportFromProj4(
+        f"+proj=aeqd +lat_0={centroid.GetY():.8f} +lon_0={centroid.GetX():.8f} +datum=WGS84 +units=m"
+    )
+    local = geom.Clone()
+    if local.Transform(osr.CoordinateTransformation(src, dst)) != 0:
+        return geom.Buffer(radius_m * _DEG_PER_M_FALLBACK)
+    buffered = local.Buffer(radius_m)
+    if buffered is None or buffered.Transform(osr.CoordinateTransformation(dst, src)) != 0:
+        return geom.Buffer(radius_m * _DEG_PER_M_FALLBACK)
+    return buffered
 
 
 class OsmError(Exception):
@@ -238,7 +267,7 @@ def read_osm_datasets(
                                 for d in matched:
                                     result[d].append((wkt, osm_queries.feature_attributes(d, tags)))
                             if barrier:  # buffer the line into a thin no-build corridor polygon
-                                corridor = kept.Buffer(_BARRIER_BUFFER_DEG)
+                                corridor = _buffer_line_m(kept, _BARRIER_HALF_WIDTH_M)
                                 if corridor is not None and not corridor.IsEmpty():
                                     result["unbuildable"].append((corridor.ExportToWkt(), {}))
                 feat = layer.GetNextFeature()

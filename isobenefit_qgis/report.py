@@ -99,6 +99,7 @@ def options_table(options: list[dict], target_population: float) -> list[str]:
         rows_spec += [
             ("transit catchment coverage", lambda m, n: _pct(m.get("transit_coverage"))),
             ("avg walk to a transit anchor (m)", lambda m, n: _num(m.get("transit_access"))),
+            ("mean walk, covered homes: transit (m)", lambda m, n: _num(_finite(m.get("transit_walk_mean")))),
         ]
     headers = ["Metric"] + [o["short"] for o in options]
     rows = [[label] + [cell(o["metrics"], o["n_centres"]) for o in options] for label, cell in rows_spec]

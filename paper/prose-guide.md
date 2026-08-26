@@ -17,8 +17,8 @@ paper have distinct definitions, and synonym rotation costs precision.
 
 | Concept | Use | Do not use |
 |---|---|---|
-| A local centre of shops and services | centre | centrality (except when quoting D'Acci, defined once), hub, node |
-| The two walking limits | the centre walk, the green walk | radius, buffer, threshold, catchment distance, T* (published model only) |
+| A centre of shops, services, and workplaces | mixed-use centre where the term is qualified, centre thereafter | local centre, urban centre, centrality (except when quoting D'Acci, defined once), hub, node |
+| The walking limits (four: two set on the plan, two added by transit) | the centre walk, the green walk, the stop catchment, the hub catchment | radius, buffer, threshold, catchment distance (for the centre and green walks), T* (published model only) |
 | The distance metric | the grid walk (bounded, blocked by unbuildable land) | network distance (only for the removed alternative), crow-fly |
 | A home within both walks | served | covered, satisfied, within reach |
 | The headline metrics | population accommodated and the mean walks (coverage removed from the paper 2026-08-21; served coverage survives only as the run report's audit) | coverage, served coverage, walkability score, accessibility |
@@ -48,6 +48,25 @@ paper have distinct definitions, and synonym rotation costs precision.
 | The walkable reach of a hub | the hub catchment (1,200 m default, matching the centre walk; split from the stop catchment 2026-08-22 at Gareth's direction: 400-600 buses, 1,200-1,600 hubs) | station catchment |
 | The growth weighting toward transit | the corridor preference (a weight from 0 to 1) | corridor weight (code name), transit weight (retired) |
 | Availability of code and data | open (2026-08-22 correction) | public (reserved for public transport, public consultation) |
+
+## Methods prose
+
+Recorded 2026-08-25, after a run of drafts in the wrong register. Methods
+sections describe a procedure, so the prose takes its structure from the
+procedure: the operations in the order the code performs them, one operation
+per sentence, each sentence with an explicit grammatical subject. Verify the
+code path before drafting a sentence that describes it.
+
+Constructions to avoid when drafting, not to remove afterwards:
+
+- A colon that expands a clause into a gloss, used more than once in a passage.
+- Contrast pairs and reversals: "rather than", "not X but Y", "X is traversable
+  and Y is not", two mirrored halves stating one point.
+- An announced count followed by the list ("in two ways", "two settings govern"),
+  where the sentence can simply carry the items.
+- Reduced relative clauses stacked before the noun ("street geometry the
+  walkable-ways layer does not carry").
+- A causal tail appended to a sentence that has already made its claim.
 
 ## Recorded exceptions
 

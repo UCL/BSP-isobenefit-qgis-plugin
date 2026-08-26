@@ -361,12 +361,15 @@ class IsobenefitTask(QgsTask):
             if self.unbuildable_layer is not None:
                 # Carve unbuildable land (water, airports, military, quarries) AND the buffered
                 # motorway/railway/river barrier corridors from the OSM tool — these cells must
-                # never develop. Burned by cell centre, like every other layer: burning every
-                # touched cell carved up to a cell beyond each edge, which cost real developable
-                # land (at Cambourne it doubled the carved area). Walks cannot cut a diagonal
-                # corner between two carved cells, so a corridor still blocks them.
+                # never develop. Wide features burn by cell centre: burning every touched cell
+                # carved up to a cell beyond each edge, which cost real developable land (at
+                # Cambourne it doubled the carved area). Thin features (the barrier corridors)
+                # are sealed via seal_thin_m, so a carved corridor is continuous at any grid and
+                # a walk cannot slip through a rasterisation gap; walks also cannot cut a
+                # diagonal corner between two carved cells.
                 carved = gis_io.burn_layer(
-                    np.full_like(state, 0), self.unbuildable_layer, self.target_crs, geotransform, -1
+                    np.full_like(state, 0), self.unbuildable_layer, self.target_crs, geotransform, -1,
+                    seal_thin_m=self.granularity_m,
                 )
                 # existing fabric is fixed: a corridor clipping a mapped building does not
                 # turn that building into unbuildable land
@@ -756,6 +759,8 @@ class IsobenefitTask(QgsTask):
                         centre_m2_per_person=self.centre_m2_per_person,
                         new_density_km2=self._mean_new_density_km2(),
                         min_park_area_m2=self.min_park_area_m2,
+                        transit_stops=transit_stops, stop_catchment_m=self.stop_catchment_m,
+                        transit_hubs=transit_hubs, hub_catchment_m=self.hub_catchment_m,
                     )
                     labels = {
                         "grown": "centres as grown",

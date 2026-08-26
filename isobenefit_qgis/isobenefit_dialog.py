@@ -313,8 +313,9 @@ class IsobenefitDialog(QtWidgets.QDialog):
         inp.addRow("Walkable ways [opt]", self.walkable_layer_box)
         self.steep_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer)
         self.steep_layer_box.setToolTip(
-            "Slope bands from the OSM download (steep.geojson). Bands at or above the slope limit "
-            "below are treated as unbuildable."
+            "Slope bands: a scenario's steep.geojson (prepared by the repository's fetch script "
+            "from Copernicus GLO-30 elevation), or your own polygons with a min_slope_deg "
+            "attribute. Bands at or above the slope limit below are treated as unbuildable."
         )
         inp.addRow("Steep slopes [opt]", self.steep_layer_box)
         self.centre_seeds_layer_box = _layer_combo(Qgis.LayerFilter.PolygonLayer | Qgis.LayerFilter.PointLayer)

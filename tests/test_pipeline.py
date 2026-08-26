@@ -521,6 +521,28 @@ def test_evaluate_plan_transit_coverage_reported():
     assert "transit_coverage" not in evaluate_plan(plan, 50.0, 800.0)  # omitted with no stops
 
 
+def test_plan_variants_carries_transit_metrics():
+    # The run report prints the transit rows from plan_variants' metrics, so the transit
+    # masks must reach evaluate_plan for every option (the regression: they were dropped,
+    # and the report silently lost its transit rows).
+    from isobenefit_qgis.grid import plan_variants
+
+    g = 50
+    state = np.zeros((g, g), np.int16)
+    state[10:20, 10:20] = 1
+    state[14, 14] = 2
+
+    stops = np.zeros((g, g), bool)
+    stops[14, 15] = True
+    variants = plan_variants(
+        state, 50.0, 800.0, {"grown": "grown"},
+        transit_stops=stops, stop_catchment_m=400.0,
+    )
+    _plan, metrics = variants["grown"]
+    assert "transit_coverage" in metrics
+    assert metrics["transit_coverage"] > 0.0
+
+
 def test_optimise_plan_anchors_centre_at_station():
     # A significant transit stop on built land anchors a fixed centre, kept where it is; a stop
     # off built land is ignored (a centre needs homes to serve).
@@ -830,6 +852,8 @@ def test_class_probabilities():
     assert pb.dtype == np.float32
     assert pb[0, 0] == 1.0  # built in both runs
     assert pg[0, 1] == 1.0  # green in both
+    assert pb[1, 0] == 0.5  # a centre is mixed-use built fabric: it counts toward built
+    assert pg[1, 0] == 0.5  # ...and never toward green
 
 
 def test_select_plan_on_demo(grid):

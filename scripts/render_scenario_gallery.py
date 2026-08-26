@@ -204,9 +204,20 @@ def substrate(extent, layers, gran):
     ys = gt[3] - (np.arange(rows) + 0.5) * gran
     gx, gy = np.meshgrid(xs, ys)
 
-    def mask(geoms):
+    def mask(geoms, seal_thin=None):
         if not geoms:
             return np.zeros((rows, cols), bool)
+        if seal_thin:
+            # Mirror the plugin's seal_thin_m (gis_io.burn_layer): a feature thinner than the
+            # cell diagonal need not cover any cell centre, so a carved barrier corridor could
+            # rasterise with gaps a walk would slip through. Widening such a feature by
+            # 0.7071 * cell covers the centre of every cell it touches.
+            geoms = [
+                g.buffer(0.7071 * seal_thin)
+                if (g.length > 0 and g.area / g.length < 0.7071 * seal_thin)
+                else g
+                for g in geoms
+            ]
         u = shapely.unary_union(geoms)
         return shapely.contains_xy(u, gx, gy)
 
@@ -217,7 +228,7 @@ def substrate(extent, layers, gran):
     origin = np.full((rows, cols), -1, np.int16)
     built = mask(layers.get("built", [])) & inside
     green = mask(layers.get("green", [])) & inside
-    unb = mask(layers.get("unbuildable", [])) & inside
+    unb = mask(layers.get("unbuildable", []), seal_thin=gran) & inside
     steep = mask(layers.get("steep", [])) & inside
     water = mask(layers.get("water", [])) & inside
     state[built] = 1

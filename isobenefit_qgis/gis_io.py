@@ -56,7 +56,8 @@ def _srs_from_crs(target_crs) -> "osr.SpatialReference":
     return srs
 
 
-def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=False, feature_filter=None):
+def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=False, feature_filter=None,
+               seal_thin_m=None):
     """Reproject ``layer`` to the target CRS and burn ``burn_value`` into ``arr``.
 
     Returns a new int16 array; the input is not mutated. Geometries are transformed
@@ -64,6 +65,14 @@ def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=Fal
     geometry touches is burned, not only those whose centre it covers. ``feature_filter`` takes a
     feature and returns whether to burn it, which lets one layer supply several bands (the slope
     bands, of which only those at or above the limit are carved).
+
+    ``seal_thin_m`` (the grid cell size, in metres) guards centre-sampling against thin features:
+    a ribbon narrower than the cell diagonal need not cover any cell centre, so a carved barrier
+    corridor could rasterise with gaps a walk would slip through. A feature whose half-width
+    (area over perimeter) falls below ``0.7071 * seal_thin_m`` is widened by that same amount
+    before the burn, which covers the centre of every cell the feature touches — the centre-burn
+    equivalent of ALL_TOUCHED, applied only where centre sampling is unreliable. Wide features
+    still burn by cell centre, which keeps the carve from creeping a cell beyond its true edge.
     """
     rows, cols = arr.shape
     srs = _srs_from_crs(target_crs)
@@ -87,6 +96,14 @@ def burn_layer(arr, layer, target_crs, geotransform, burn_value, all_touched=Fal
         og = ogr.CreateGeometryFromWkt(geom.asWkt())
         if og is None:
             continue
+        if seal_thin_m:
+            area = og.GetArea()
+            boundary = og.Boundary()
+            perimeter = boundary.Length() if boundary is not None else 0.0
+            if perimeter > 0 and area / perimeter < 0.7071 * seal_thin_m:
+                widened = og.Buffer(0.7071 * seal_thin_m)
+                if widened is not None and not widened.IsEmpty():
+                    og = widened
         ogr_feat = ogr.Feature(defn)
         ogr_feat.SetGeometry(og)
         ogr_layer.CreateFeature(ogr_feat)
