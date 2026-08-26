@@ -3,7 +3,7 @@ name=Isobenefit Urbanism
 qgisMinimumVersion=4.0
 qgisMaximumVersion=4.99
 description=Sketch walkable urban growth scenarios on real-world data, after D'Acci's Isobenefit Urbanism: every new home within a walk of a mixed-use centre and of green space.
-version=0.17.0
+version=0.17.1
 author=Gareth Simons
 email=gareth.simons@ucl.ac.uk
 
@@ -22,6 +22,7 @@ deprecated=False
 server=False
 
 changelog=
+    0.17.1 The engine version bound admits 0.17.x; the 0.17.0 plugin could not install its engine.
     0.17.0 The changelog is condensed to a line per release; the full notes remain in the repository history.
     0.16.0 Thin barrier corridors seal at rasterisation, so a walk crosses a motorway or river only at a walkable link; centre areas follow their catchment population with no cap; every centre a run owes is planted in the iteration that earns it; optimised placement iterates until the centres stop moving; the run report regains its transit rows.
     0.15.0 The OSM download writes a walkable-ways layer, and a barrier becomes crossable where a footpath or bridge crosses it while staying closed to development.
