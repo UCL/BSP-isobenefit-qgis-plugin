@@ -88,7 +88,8 @@ re-establishing it on a real site means fitting growth around the
 existing fabric and measuring access as walks that detour around
 the obstructions.
 
-This paper operationalises Isobenefit Urbanism as a QGIS plugin for
+This paper operationalises Isobenefit Urbanism as a plugin for QGIS,
+an open-source geographic information system (GIS), to support
 the early stages of planning, when options are conceptualised and
 residents and experts consulted, a role akin to that of
 sketch-planning support systems \citep[cf.][]{klosterman1999,
@@ -114,8 +115,8 @@ The contributions are:
     Departures from the published model are tabulated
     (Table~\ref{tab:rules}).
   \item An open, reproducible implementation: a QGIS plugin that wraps a
-    simulation engine published on PyPI, with documentation and the
-    case-study scenarios.
+    simulation engine published on PyPI (the Python package index),
+    with documentation and the case-study scenarios.
   \item Enhancements beyond the published model: four walking distances in place of the single radius, to a mixed-use centre, to green space, to a transit stop, and to a transit hub; the explicit incorporation of transit, as a graded preference with hubs anchoring centres; centres founded on the population housed rather than seeded by probability; and post-processing that places the centres and grades the densities, keeping new homes within a walk of a centre.
 \end{enumerate}
 
@@ -182,15 +183,17 @@ and 1{,}600~m; the green walk stays at 400~m throughout.
 
 The QGIS plugin comprises two tools, one for data preparation and one
 for simulation. The preparation tool downloads a scenario's input
-layers from OpenStreetMap. The simulation tool passes these inputs to the
+layers from OpenStreetMap, the collaboratively maintained open map
+of the world. The simulation tool passes these inputs to the
 engine, published on PyPI, which applies the growth rules and the
 post-processing. The subsections below follow that sequence.
 
 \subsection{Real inputs}
 \label{sec:inputs}
 
-Each scenario is defined by a simulation boundary in a metric coordinate
-reference system and a set of vector layers. The case-study scenarios
+Each scenario is defined by a study window and a set of vector map
+layers. The window bounds the area simulated and lies in a metric
+coordinate reference system (CRS), in which distances are metres. The case-study scenarios
 fetch these layers from OpenStreetMap
 \citep{osm} with the preparation tool. The layers cover existing
 built fabric, protected green space, existing mixed-use centres,
@@ -203,8 +206,8 @@ homes. A companion script in the repository maps terrain slope from the Copernic
 \subsection{Grid preparation}
 \label{sec:gridprep}
 
-The simulation tool rasterises the input layers to a working grid at a
-user-selected cell size, such as 50~m, though a finer grid may be
+The simulation tool rasterises the input layers onto a working grid
+of square cells at a user-selected size, such as 50~m, though a finer grid may be
 preferable where the extent and the available computation allow. Each cell takes the class of the layer that covers its centre point, whether existing built fabric, protected green space, or unbuildable land, and a cell that is not covered by a layer is classified as open land. Corridors along motorways, trunk and primary roads, railways, rivers, canals, and streams are then carved into the unbuildable class, as are the slope bands that lie above the scenario's slope limit. Street geometry that the walkable-ways layer does not carry is retained for display and is not used in the simulation. The walkable ways are rasterised after the carving, and where one of them crosses a carved corridor the cells it covers are reclassified as crossings. A crossing remains closed to development but is traversable by a walk.
 
 The model treats new development and the existing fabric differently.
@@ -219,7 +222,7 @@ fabric uses.
 
 The simulation tool then screens the open land for availability. Slivers of open land narrower than about two cells are dropped first, since the grid cannot resolve them as developable ground; they thread between existing buildings and along the carved corridors. The remaining open land is grouped into connected regions, and each region is tested against the service viability threshold, the population a minimal mixed-use centre needs; the default of 2{,}000 people sits at the small end of published facility catchments \citep{barton2021}. A region too small to hold that population is retained where it lies within the centre walk of an existing centre or of a transit hub, since new growth there is infill that such a centre serves. The regions that qualify on neither ground, typically small islands enclosed by existing development or by unbuildable corridors, are set aside as protected green space before the run begins.
 
-The growth rules and the reported metrics measure distance as a bounded grid walk, computed by a Dijkstra search over the traversable cells. The walk detours around unbuildable land, passes through crossings, and is abandoned at the maximum walking distance.
+The growth rules and the reported metrics measure distance as a bounded grid walk, computed by a shortest-path (Dijkstra) search over the traversable cells. The walk detours around unbuildable land, passes through crossings, and is abandoned at the maximum walking distance.
 
 \subsection{The growth rules}
 \label{sec:growth}
@@ -255,7 +258,7 @@ within the green walk is left as it is, since the model does not
 redevelop it.
 
 A candidate that passes the checks builds by a random draw. The draw
-staggers the built edge so that ensemble members differ; it paces
+staggers the built edge so that repeated runs differ; it paces
 growth and is not a setting. Each built
 cell draws one of the three density tiers
 according to the shares, and a run stops when it reaches the
@@ -549,25 +552,26 @@ why each was made. Rules we kept are not listed.
 \label{sec:software}
 
 The implementation comprises a simulation engine and a QGIS plugin.
-The engine is a Rust crate, published on PyPI as
-\texttt{isobenefit}, whose small Python interface, built with PyO3,
-accepts and returns arrays; the engine does not import QGIS. The
+The engine is a simulation library written in Rust, published on
+PyPI as \texttt{isobenefit}; its small Python interface accepts and
+returns arrays, and the engine does not depend on QGIS. The
 QGIS plugin \citep{qgis} supplies the data preparation, the run
 dialog, and the post-processing and reporting, and depends only on
 what QGIS already bundles plus the engine. The QGIS plugin repository does not permit
 shipping binaries, so the compiled engine installs from PyPI and the
 plugin offers to install it on first run.
 
-Results are deterministic and independent of thread count, because
+Results are deterministic and independent of the number of
+processor threads, because
 each stochastic draw derives from its own fixed seed and parallel
 totals are integer sums whose order does not matter. The test suite
 cross-checks the Rust engine against a reference Python
 implementation of the bounded grid walk and of the labelling of
 contiguous regions. A single verification script runs the same
-checks as the continuous-integration pipeline (formatting, linting,
-Rust and Python tests, and the website build); releases are tagged,
+checks as the continuous-integration pipeline (code formatting,
+static checks, the Rust and Python tests, and the website build); releases are tagged,
 version-locked between engine and plugin, and published
-automatically. The scenario inputs are committed, so the results
+automatically. The scenario inputs are committed to the repository, so the results
 in this paper rebuild offline from source at fixed seeds. A fifty-run
 ensemble on the grids of Table~\ref{tab:scenarios} completes within
 six seconds on a laptop, and the post-processing that scores and
@@ -779,7 +783,7 @@ new development forms around the station.
 
 Pajarito and Ciudadela Nuevo Occidente on Medell\'in's north-western
 slopes form a planned expansion of high-rise social housing served by
-the Metrocable. Slopes over 20 degrees are unbuildable and cover about 30\% of
+the Metrocable aerial cable car. Slopes over 20 degrees are unbuildable and cover about 30\% of
 the study window, so the green network and the short walking distances
 must fit around the terrain. The high density tier (35{,}000 people per
 km\(^2\)) reflects the area's housing towers. The committed scenario
