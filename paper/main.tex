@@ -198,7 +198,7 @@ unbuildable land (the areas treated as unavailable for development),
 streets, the walkable ways (footpaths and streets a pedestrian may
 use), public-transport stops, rail and tram stations,
 railways, and industrial land, which counts as unbuildable for new
-homes. A companion script in the repository maps terrain slope from the Copernicus GLO-30 elevation model \citep{copernicus_glo30} into bands steeper than 15, 20, 25, and 30 degrees, held as a separate layer. All the input layers are editable, and any of them can be replaced with the user's own data, so local knowledge and sources the open data lack can enter a scenario.
+homes. A companion script in the repository maps terrain slope from the Copernicus GLO-30 elevation model \citep{copernicus_glo30} into bands steeper than 15, 20, 25, and 30 degrees, held as a separate layer. The input layers are editable and can be replaced with the user's own data if so desired.
 
 \subsection{Grid preparation}
 \label{sec:gridprep}
@@ -268,7 +268,7 @@ existing centre serves the town it stands in and takes no charge. New
 homes with no such centre within the walk accumulate in a single
 unserved account instead. Infill near an existing centre is charged
 on the same terms, though post-processing later serves it from that
-centre rather than granting it one of its own. Once any account reaches the service
+centre rather than granting it one of its own. Once an account reaches the service
 viability threshold, it releases a centre, and each further threshold
 releases another, so the number of settlements follows the population
 that justifies them rather than a probability.
@@ -325,7 +325,7 @@ space within the walk.
 \label{sec:fouroutputs}
 
 Post-processing turns the best single run into the four outputs.
-The first, the raw grown state, is the run exactly as it grew,
+The first, the raw grown state, is the run as it grew,
 coloured by the density tiers it drew. The other three are plan
 options: the same fabric and drawn densities under three centre
 arrangements, and no post-processing edit may leave a new home
