@@ -205,7 +205,7 @@ homes. A companion script in the repository maps terrain slope from the Copernic
 
 The simulation tool rasterises the input layers to a working grid at a
 user-selected cell size, such as 50~m, though a finer grid may be
-preferable where the extent and the available computation allow. Each cell takes the class of the layer that covers its centre point, whether existing built fabric, protected green space, or unbuildable land, and a cell that no layer covers is classified as open land. Corridors along motorways, trunk and primary roads, railways, rivers, canals, and streams are then carved into the unbuildable class, as are the slope bands that lie above the scenario's slope limit. Street geometry that the walkable-ways layer does not carry is retained for display and takes no part in the simulation. The walkable ways are rasterised after the carving, and where one of them crosses a carved corridor the cells it covers are reclassified as crossings. A crossing remains closed to development but is traversable by a walk.
+preferable where the extent and the available computation allow. Each cell takes the class of the layer that covers its centre point, whether existing built fabric, protected green space, or unbuildable land, and a cell that is not covered by a layer is classified as open land. Corridors along motorways, trunk and primary roads, railways, rivers, canals, and streams are then carved into the unbuildable class, as are the slope bands that lie above the scenario's slope limit. Street geometry that the walkable-ways layer does not carry is retained for display and is not used in the simulation. The walkable ways are rasterised after the carving, and where one of them crosses a carved corridor the cells it covers are reclassified as crossings. A crossing remains closed to development but is traversable by a walk.
 
 The model treats new development and the existing fabric differently.
 The existing fabric stays as mapped and is not redeveloped: the
@@ -265,7 +265,7 @@ New centres are earned rather than drawn. Each new home is charged to
 the nearest centre that provides for new development, measured by the
 grid walk: one the run founded, or one pinned at a transit hub. An
 existing centre serves the town it stands in and takes no charge. New
-homes with no such centre within the walk accumulate in a single
+homes without such a centre within the walk accumulate in a single
 unserved account instead. Infill near an existing centre is charged
 on the same terms, though post-processing later serves it from that
 centre rather than granting it one of its own. Once an account reaches the service
@@ -273,8 +273,8 @@ viability threshold, it releases a centre, and each further threshold
 releases another, so the number of settlements follows the population
 that justifies them rather than a probability.
 
-A released centre is placed at the next cell the scan reaches that has
-no provision within the centre walk, which is where post-processing
+A released centre is placed at the next cell the scan reaches that
+lacks provision within the centre walk, which is where post-processing
 would otherwise have to add one. A centre is also released when the
 land within reach is built out, which is what happens where terrain
 confines development to less ground than the threshold needs; without
@@ -328,7 +328,7 @@ Post-processing turns the best single run into the four outputs.
 The first, the raw grown state, is the run as it grew,
 coloured by the density tiers it drew. The other three are plan
 options: the same fabric and drawn densities under three centre
-arrangements, and no post-processing edit may leave a new home
+arrangements, and a post-processing edit may not leave a new home
 beyond the centre walk of a centre.
 
 Viability is tested once for all three options, before the centres
@@ -336,7 +336,7 @@ are arranged. Centres
 are provisionally placed at the positions central to the new homes
 they serve, and each must gather at least the threshold population
 of new homes within the centre walk; one that falls short is
-removed, growth that no surviving centre reaches reverts to nature,
+removed, growth that the surviving centres do not reach reverts to nature,
 and placement and test repeat on the reduced fabric until they are
 stable. Existing centres, the hub centres, and the existing fabric
 are untouched, and this pruning is the only step that removes
@@ -351,7 +351,7 @@ position central to the new homes it serves, which shortens their
 mean walk. Both add a centre where new development is left without
 provision within the walk, which happens where pruning removed a
 centre. \emph{Fewest centres} starts from the optimised
-placement and removes, one at a time, any centre every one of whose homes lies within the walk of another centre, repositioning the remainder after each removal, for as long as every home keeps a centre within the walk. The result is the fewest centres the walk constraint permits. Infill too small to
+placement and removes, one at a time, any centre whose homes all lie within the walk of another centre, repositioning the remainder after each removal, for as long as every home keeps a centre within the walk. The result is the fewest centres the walk constraint permits. Infill too small to
 meet the threshold is served by an existing centre within the walk
 and receives no centre of its own. Optimised placement is the
 selected plan; run selection scores each run's optimised-placement
@@ -900,8 +900,7 @@ population justifies one, so the viability pass has little to remove at
 the Cambourne baseline, 428 of the 15{,}198 residents grown, and it
 works mainly as an audit. The run report records the surviving
 centres against the threshold; separately, each post-processing
-edit enforces that no plan option leaves a home beyond the centre
-walk of a centre.
+edit enforces the walk constraint.
 
 Two details of the accounting matter for reading the centre counts. A
 centre passes the viability test on the new homes within its centre
@@ -968,7 +967,7 @@ varies by place; at Pajarito the informal fabric is likely to be
 under-mapped, so the existing development the model keeps fixed is
 less complete there than in the UK cases. The slope bands stand in
 for buildability rather than for geological hazard. The
-demonstrations are hypothetical throughout: no case has been
+demonstrations are hypothetical throughout and have not been
 evaluated with the planners and residents the tool is intended to
 serve. That evaluation belongs to applied work with a live plan, and
 until then the tool remains research software whose outputs are
